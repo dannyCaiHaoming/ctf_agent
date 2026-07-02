@@ -224,7 +224,7 @@ description: <一句话说明什么时候使用>
 
 ### `recon-enumeration`
 
-目标：从源码和文档中形成完整攻击面。
+目标：从源码、文档、前端、部署配置和权限资料中形成完整作战地图。它不是“扫路由”，而是必须产出攻击面边界、信任边界、数据流、权限边界、初步威胁模型和后续 Agent 的 R1 优先队列。
 
 新增内容：
 
@@ -233,6 +233,10 @@ description: <一句话说明什么时候使用>
 - React/Vue/Next.js 页面路由、API client、SSR endpoint、server actions 枚举。
 - OpenAPI、GraphQL、Swagger、Postman Collection 识别。
 - 前后端 API 对齐表：前端调用、后端实现、浏览器观察、文档声明。
+- 攻击面边界：业务入口、技术入口、前端入口、部署入口、间接入口、隐藏入口。
+- 信任边界：浏览器、前端、网关、后端、数据库、缓存、消息队列、对象存储、第三方服务、内网服务、云 metadata 之间的数据跨越。
+- 轻量 STRIDE 威胁分析：每个高风险入口绑定攻击者、资产、边界、威胁类别和后续验证 Agent。
+- SKIP/UNKNOWN 覆盖记录：已检查不存在的攻击面写 `skipped`，资料不足的攻击面写 `unknown`。
 
 输出：
 
@@ -240,7 +244,99 @@ description: <一句话说明什么时候使用>
 - `frontend_routes.json`
 - `entrypoints.json`
 - `auth_matrix.json`
-- `attack_surface.md`
+- `attack_surface_boundaries.json`
+- `trust_boundaries.json`
+- `data_flow_map.json`
+- `source_sink_seed.json`
+- `high_risk_assets.json`
+- `threat_model.json`
+- `recon_priority_queue.json`
+- `coverage_recon.json`
+
+### Recon 强制边界模型
+
+侦查阶段必须区分 4 类边界。
+
+#### 攻击面边界
+
+攻击面边界描述“从哪里可以进入系统”。必须覆盖：
+
+- 业务入口：登录、注册、找回密码、搜索、上传、导入、导出、支付、订单、后台、Webhook、第三方回调。
+- 技术入口：Controller、Router、GraphQL、OpenAPI、WebSocket、SSE、MQ 消费者、定时任务、CLI job、文件解析器。
+- 前端入口：React/Vue/Next.js 页面路由、隐藏页面、API client、SSR endpoint、server actions、source map、构建产物。
+- 部署入口：Ingress、Nginx、API Gateway、Docker、K8s、暴露端口、Actuator、Swagger、GraphQL introspection、debug endpoint。
+
+#### 信任边界
+
+信任边界描述“数据跨过哪里后信任假设会变化”。必须覆盖：
+
+- 浏览器 → 前端应用。
+- 前端应用 → 后端 API。
+- API Gateway / Nginx / Ingress → 应用服务。
+- 应用服务 → 数据库 / Redis / MQ / 对象存储。
+- 应用服务 → 第三方服务。
+- 应用服务 → 内网服务 / 云 metadata。
+- 匿名用户 / 普通用户 / 租户管理员 / 平台管理员 / 服务账号之间的权限边界。
+
+每条信任边界至少记录 `from`、`to`、`protocol`、`data_types`、`auth_context`、`trust_assumption`、`primary_threats` 和证据来源。
+
+#### 数据边界
+
+数据边界描述“哪些数据一旦跨边界会产生安全影响”。必须标记：
+
+- token、session、refresh token。
+- 用户资料、手机号、邮箱、证件信息。
+- 订单、金额、余额、积分、优惠券。
+- 租户数据、企业数据、项目数据。
+- 文件、附件、导出数据。
+- 内部配置、环境变量、密钥、云凭据。
+
+#### 覆盖边界
+
+覆盖边界描述“侦查已经确认了什么、跳过了什么、未知什么”：
+
+```json
+{
+  "checked": [
+    {"area": "Spring Controller", "evidence": ["src/main/java/..."]}
+  ],
+  "skipped": [
+    {"area": "GraphQL", "reason": "未发现 graphql 依赖或 schema 文件"}
+  ],
+  "unknown": [
+    {"area": "K8s/Ingress", "reason": "用户未提供部署配置"}
+  ]
+}
+```
+
+`skipped` 不代表安全，只代表当前资料中未发现该攻击面。`unknown` 必须进入后续人工确认或资料补充清单。
+
+### Recon 威胁分析
+
+侦查阶段必须做轻量威胁分析。它不需要证明漏洞存在，但必须指出哪些入口、边界和资产值得优先验证。
+
+威胁模型使用 STRIDE：
+
+- Spoofing：身份伪造、token 混用、服务账号滥用。
+- Tampering：参数、状态、金额、角色、租户字段篡改。
+- Repudiation：关键操作不可追溯、审计日志缺失。
+- Information Disclosure：敏感数据、配置、错误栈、token、跨租户数据泄露。
+- Denial of Service：高成本查询、批量导出、文件解析、无限任务。
+- Elevation of Privilege：越权、IDOR、Mass Assignment、后台接口暴露。
+
+每个威胁项至少包含：
+
+- `entrypoint_id`
+- `boundary_id`
+- `asset`
+- `attacker`
+- `threat_category`
+- `why_relevant`
+- `next_agent`
+- `priority`
+- `evidence`
+
+威胁分析的输出不是最终漏洞报告，而是 `recon_priority_queue.json`。后续 Agent 必须据此决定 R1 的审计顺序。
 
 ### `taint-analysis`
 
@@ -358,13 +454,23 @@ description: <一句话说明什么时候使用>
 - 后端入口点清单。
 - 前端路由清单。
 - API client 清单。
+- 攻击面边界清单。
+- 信任边界清单。
+- 关键数据流地图。
+- 初始 source/sink/control seed。
+- 高风险资产清单。
 - 初始权限矩阵。
+- 轻量 STRIDE 威胁模型。
+- R1 优先队列。
 - 攻击面覆盖摘要。
 
 完成条件：
 
 - 至少枚举 Spring/Node/前端三类入口中存在的类型。
 - 对未识别的技术栈明确说明原因。
+- 对不存在的攻击面写入 `coverage_recon.json.skipped`，并说明证据。
+- 对资料不足的攻击面写入 `coverage_recon.json.unknown`，并说明缺少哪些资料。
+- 每个高风险资产至少关联一个入口点、一个信任边界或一个数据流。
 - 不得凭项目常见结构猜测文件。
 
 ### `static-audit-agent`
@@ -419,7 +525,13 @@ recon-agent
         ├── api_inventory.json
         ├── frontend_routes.json
         ├── entrypoints.json
-        └── auth_matrix.json
+        ├── auth_matrix.json
+        ├── attack_surface_boundaries.json
+        ├── trust_boundaries.json
+        ├── data_flow_map.json
+        ├── source_sink_seed.json
+        ├── threat_model.json
+        └── recon_priority_queue.json
         │
         ▼
 static-audit-agent + frontend-audit-agent
