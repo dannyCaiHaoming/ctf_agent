@@ -124,7 +124,7 @@ description: <一句话说明什么时候使用>
 
 ## 输出
 
-- Agent 专属 artifacts。
+- Agent Contract 指定的 artifacts、findings、checkpoint 和 `agent_result_<round>.json`。
 - findings。
 - coverage 更新。
 - regression case 候选。

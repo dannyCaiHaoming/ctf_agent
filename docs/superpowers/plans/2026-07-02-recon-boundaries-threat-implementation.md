@@ -1,12 +1,12 @@
 # Recon 边界与威胁分析实现计划
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **给 Agent 工作者：** 必须使用 `superpowers:subagent-driven-development`（推荐）或 `superpowers:executing-plans` 按任务执行本计划。步骤使用 checkbox（`- [ ]`）跟踪进度。
 
-**Goal:** 将 recon-agent 的攻击面边界、信任边界和威胁分析从文档要求落成可初始化、可校验、可测试的本地工具与 schema。
+**目标：** 将 recon-agent 的攻击面边界、信任边界和威胁分析从文档要求落成可初始化、可校验、可测试的本地工具与 schema。
 
-**Architecture:** 新增 recon artifacts 的 schema、初始化工具和质量检查工具。初始化工具负责创建 `runs/<run_id>/artifacts/recon-agent/` 下的标准 JSON 文件；质量检查工具负责验证必需文件、核心字段、coverage 的 checked/skipped/unknown 语义、信任边界字段、威胁项字段和优先队列字段。
+**架构：** 新增 recon artifacts 的 schema、初始化工具和质量检查工具。初始化工具负责创建 `runs/<run_id>/artifacts/recon-agent/` 下的标准 JSON 文件；质量检查工具负责验证必需文件、核心字段、coverage 的 checked/skipped/unknown 语义、信任边界字段、威胁项字段和优先队列字段。
 
-**Tech Stack:** Python 3 标准库、JSON、Markdown、现有直接运行式测试框架。
+**技术栈：** Python 3 标准库、JSON、Markdown、现有直接运行式测试框架。
 
 ---
 
