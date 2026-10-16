@@ -1,3 +1,5 @@
+> 🟢 **权威设计 spec（current）** · 一切以本文为准。配套路线图见 [`../plans/2026-10-16-ctf-agent-mvp-roadmap.md`](../plans/2026-10-16-ctf-agent-mvp-roadmap.md)，文档索引见 [`../README.md`](../README.md)。
+
 # 通用 CTF 解題 Agent 系統設計
 
 建立日期：2026-10-14

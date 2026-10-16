@@ -1,3 +1,5 @@
+> ⚪ **已被取代（brainstorm 前身）** · 权威设计见 [`../2026-10-14-general-ctf-agent-system-design.md`](../2026-10-14-general-ctf-agent-system-design.md)，仅作背景保留。
+
 # CTF 解题 Agent 系统设计与交付路线
 
 日期：2026-10-13

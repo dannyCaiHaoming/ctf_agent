@@ -1,3 +1,5 @@
+> 📝 **评审对象：** [`../../specs/2026-10-14-general-ctf-agent-system-design.md`](../../specs/2026-10-14-general-ctf-agent-system-design.md)（权威设计 spec）。
+
 # 通用 CTF Agent 設計評審
 
 日期：2026-10-14
@@ -455,7 +457,7 @@ Shortlist 最多 5 項、同時最多 1 個 counterprobe、probe 暫以各窗口
 
 日期：2026-10-14。
 
-審查基線：[`2026-10-14-general-ctf-agent-system-design.md`](2026-10-14-general-ctf-agent-system-design.md)，**1470 行版本**；Git blob hash（`git hash-object`）：`d93ec378c63a176b9847cb7ebc585cea5df67d32`。以下 F01–F05 的行號均指此版本，後續修改時以章節和問題 ID 對照。
+審查基線：[`2026-10-14-general-ctf-agent-system-design.md`](../../specs/2026-10-14-general-ctf-agent-system-design.md)，**1470 行版本**；Git blob hash（`git hash-object`）：`d93ec378c63a176b9847cb7ebc585cea5df67d32`。以下 F01–F05 的行號均指此版本，後續修改時以章節和問題 ID 對照。
 
 基線狀態：本輪審計意見與優化建議當時尚未納入設計，也未通過運行時驗證；文末保留後續處置記錄，「設計已修訂」不代表「實作已驗證」。
 
@@ -580,7 +582,7 @@ Shortlist 最多 5 項、同時最多 1 個 counterprobe、probe 暫以各窗口
 
 日期：2026-10-15。
 
-修訂後基線：[`2026-10-14-general-ctf-agent-system-design.md`](2026-10-14-general-ctf-agent-system-design.md)，**1713 行版本**；Git blob hash（`git hash-object`）：`451a535fc5d73609cd4d57d4465485834417f23e`。
+修訂後基線：[`2026-10-14-general-ctf-agent-system-design.md`](../../specs/2026-10-14-general-ctf-agent-system-design.md)，**1713 行版本**；Git blob hash（`git hash-object`）：`451a535fc5d73609cd4d57d4465485834417f23e`。
 
 本次只處理 F01–F05 及其必要一致性同步，沒有重開固定完整首輪、單一 ARM64 Core、離線 Reference、Coordinator 唯一提交或單次正式驗收等既定產品決策。正文、canonical state、failure taxonomy、部署 profile、正式驗收 Gate、里程碑和未驗證事項已同步更新。
 
@@ -600,7 +602,7 @@ Shortlist 最多 5 項、同時最多 1 個 counterprobe、probe 暫以各窗口
 
 日期：2026-10-15。
 
-審查基線：[`2026-10-14-general-ctf-agent-system-design.md`](2026-10-14-general-ctf-agent-system-design.md)，**1713 行**，Git blob `451a535fc5d73609cd4d57d4465485834417f23e`。本節的 **D:Lx–Ly** 均指該設計版本。
+審查基線：[`2026-10-14-general-ctf-agent-system-design.md`](../../specs/2026-10-14-general-ctf-agent-system-design.md)，**1713 行**，Git blob `451a535fc5d73609cd4d57d4465485834417f23e`。本節的 **D:Lx–Ly** 均指該設計版本。
 
 本輪依使用者新要求，以「系統能順暢接題、持續試驗、修復、改路並取得平台接受」為第一優先，審查校驗／hash 成本、TSecBench 接入及開源 CTF Agent 的循環。**本節全部是審計建議，未寫回設計，也不表示實作或真實平台測試已完成。** 涉及固定完整首輪、存活執行器接管優先等歷史決策的建議，明確列為產品取捨重審，不作已批准變更。
 
