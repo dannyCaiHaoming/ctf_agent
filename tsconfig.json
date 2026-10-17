@@ -1,0 +1,29 @@
+{
+  "compilerOptions": {
+    "target": "ES2023",
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "exactOptionalPropertyTypes": false,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "types": ["node"],
+    "baseUrl": ".",
+    "paths": {
+      "@ctf/contracts": ["packages/contracts/src/index.ts"],
+      "@ctf/state": ["packages/state/src/index.ts"],
+      "@ctf/artifacts": ["packages/artifacts/src/index.ts"],
+      "@ctf/policy": ["packages/policy/src/index.ts"],
+      "@ctf/runtime": ["packages/runtime/src/index.ts"],
+      "@ctf/browser": ["packages/browser/src/index.ts"],
+      "@ctf/opencode-bridge": ["packages/opencode-bridge/src/index.ts"],
+      "@ctf/opencode-plugin": ["apps/opencode-plugin/src/index.ts"],
+      "@ctf/local-oracle": ["packages/local-oracle/src/index.ts"],
+      "@ctf/local-target": ["fixtures/local-target/src/server.ts"],
+      "@ctf/platform": ["packages/platform/src/index.ts"],
+      "@ctf/supervisor": ["packages/supervisor/src/index.ts"]
+    }
+  },
+  "include": ["apps/**/*.ts", "packages/**/*.ts", "tests/**/*.ts", "fixtures/**/*.ts", "vitest.config.ts"]
+}

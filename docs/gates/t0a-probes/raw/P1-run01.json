@@ -1,0 +1,393 @@
+{
+  "run": 1,
+  "pass": true,
+  "reason": "made at least three valid ordered calls and verified exact decoded value",
+  "state": {
+    "calls": [
+      {
+        "name": "get_fragment",
+        "input": {
+          "index": 1
+        },
+        "ok": true
+      },
+      {
+        "name": "base64_decode",
+        "input": {
+          "value": "VDBBLVRPT0wtT0stOWYzZDdh"
+        },
+        "ok": true
+      },
+      {
+        "name": "verify_secret",
+        "input": {
+          "value": "T0A-TOOL-OK-9f3d7a"
+        },
+        "ok": true
+      }
+    ]
+  },
+  "calls": [
+    {
+      "request": {
+        "system": "You are a deterministic tool-use probe. Use only supplied tools. Do not invent tools or parameters.",
+        "user": "Authorized local probe. Call get_fragment(index=1), pass its value to base64_decode, then pass the decoded value to verify_secret. After verification, state only the final verifier message.",
+        "tools": [
+          {
+            "name": "get_fragment",
+            "description": "Read fragment by index. Index must be 1.",
+            "input_schema": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "index"
+              ],
+              "properties": {
+                "index": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 1
+                }
+              }
+            }
+          },
+          {
+            "name": "base64_decode",
+            "description": "Decode exactly one Base64 string.",
+            "input_schema": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "value"
+              ],
+              "properties": {
+                "value": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          {
+            "name": "verify_secret",
+            "description": "Verify a decoded secret. Only an exact value returns accepted.",
+            "input_schema": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "value"
+              ],
+              "properties": {
+                "value": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        ]
+      },
+      "response": {
+        "id": "0217922471939173b26f60694b4a4d01765152ce7a5feb66f585d",
+        "type": "message",
+        "role": "assistant",
+        "model": "deepseek-v4-flash-ga-260731",
+        "content": [
+          {
+            "type": "tool_use",
+            "id": "call_65yidttqssxjetcgzfb2ojaz",
+            "name": "get_fragment",
+            "input": {
+              "index": 1
+            }
+          }
+        ],
+        "stop_reason": "tool_use",
+        "stop_sequence": null,
+        "usage": {
+          "input_tokens": 470,
+          "output_tokens": 44,
+          "cache_creation_input_tokens": 0,
+          "cache_read_input_tokens": 0
+        }
+      },
+      "timing": {
+        "started": "2026-10-17T14:26:33.601Z",
+        "elapsedMs": 1463
+      },
+      "usage": {
+        "inputTokens": 470,
+        "outputTokens": 44,
+        "totalTokens": 514
+      }
+    },
+    {
+      "request": {
+        "system": "You are a deterministic tool-use probe. Use only supplied tools. Do not invent tools or parameters.",
+        "user": "Continue.",
+        "tools": [
+          {
+            "name": "get_fragment",
+            "description": "Read fragment by index. Index must be 1.",
+            "input_schema": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "index"
+              ],
+              "properties": {
+                "index": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 1
+                }
+              }
+            }
+          },
+          {
+            "name": "base64_decode",
+            "description": "Decode exactly one Base64 string.",
+            "input_schema": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "value"
+              ],
+              "properties": {
+                "value": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          {
+            "name": "verify_secret",
+            "description": "Verify a decoded secret. Only an exact value returns accepted.",
+            "input_schema": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "value"
+              ],
+              "properties": {
+                "value": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        ]
+      },
+      "response": {
+        "id": "0217922471951463b26f60694b4a4d01765152ce7a5feb6d400ab",
+        "type": "message",
+        "role": "assistant",
+        "model": "deepseek-v4-flash-ga-260731",
+        "content": [
+          {
+            "type": "tool_use",
+            "id": "call_my02dd596p0crc6pfkl6oq06",
+            "name": "base64_decode",
+            "input": {
+              "value": "VDBBLVRPT0wtT0stOWYzZDdh"
+            }
+          }
+        ],
+        "stop_reason": "tool_use",
+        "stop_sequence": null,
+        "usage": {
+          "input_tokens": 503,
+          "output_tokens": 58,
+          "cache_creation_input_tokens": 0,
+          "cache_read_input_tokens": 0
+        }
+      },
+      "timing": {
+        "started": "2026-10-17T14:26:35.069Z",
+        "elapsedMs": 2975
+      },
+      "usage": {
+        "inputTokens": 503,
+        "outputTokens": 58,
+        "totalTokens": 561
+      }
+    },
+    {
+      "request": {
+        "system": "You are a deterministic tool-use probe. Use only supplied tools. Do not invent tools or parameters.",
+        "user": "Continue.",
+        "tools": [
+          {
+            "name": "get_fragment",
+            "description": "Read fragment by index. Index must be 1.",
+            "input_schema": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "index"
+              ],
+              "properties": {
+                "index": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 1
+                }
+              }
+            }
+          },
+          {
+            "name": "base64_decode",
+            "description": "Decode exactly one Base64 string.",
+            "input_schema": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "value"
+              ],
+              "properties": {
+                "value": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          {
+            "name": "verify_secret",
+            "description": "Verify a decoded secret. Only an exact value returns accepted.",
+            "input_schema": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "value"
+              ],
+              "properties": {
+                "value": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        ]
+      },
+      "response": {
+        "id": "0217922471981213b26f60694b4a4d01765152ce7a5feb6f540b1",
+        "type": "message",
+        "role": "assistant",
+        "model": "deepseek-v4-flash-ga-260731",
+        "content": [
+          {
+            "type": "tool_use",
+            "id": "call_s46jrrsyn4x81ygcpe5b90o2",
+            "name": "verify_secret",
+            "input": {
+              "value": "T0A-TOOL-OK-9f3d7a"
+            }
+          }
+        ],
+        "stop_reason": "tool_use",
+        "stop_sequence": null,
+        "usage": {
+          "input_tokens": 592,
+          "output_tokens": 58,
+          "cache_creation_input_tokens": 0,
+          "cache_read_input_tokens": 0
+        }
+      },
+      "timing": {
+        "started": "2026-10-17T14:26:38.045Z",
+        "elapsedMs": 1960
+      },
+      "usage": {
+        "inputTokens": 592,
+        "outputTokens": 58,
+        "totalTokens": 650
+      }
+    },
+    {
+      "request": {
+        "system": "You are a deterministic tool-use probe. Use only supplied tools. Do not invent tools or parameters.",
+        "user": "Continue.",
+        "tools": [
+          {
+            "name": "get_fragment",
+            "description": "Read fragment by index. Index must be 1.",
+            "input_schema": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "index"
+              ],
+              "properties": {
+                "index": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 1
+                }
+              }
+            }
+          },
+          {
+            "name": "base64_decode",
+            "description": "Decode exactly one Base64 string.",
+            "input_schema": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "value"
+              ],
+              "properties": {
+                "value": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          {
+            "name": "verify_secret",
+            "description": "Verify a decoded secret. Only an exact value returns accepted.",
+            "input_schema": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "value"
+              ],
+              "properties": {
+                "value": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        ]
+      },
+      "response": {
+        "id": "0217922472000853b26f60694b4a4d01765152ce7a5feb6839351",
+        "type": "message",
+        "role": "assistant",
+        "model": "deepseek-v4-flash-ga-260731",
+        "content": [
+          {
+            "type": "text",
+            "text": "The secret has been successfully verified. The decoded value was `T0A-TOOL-OK-9f3d7a`, and the verification returned `accepted: true` with the message \"manifest accepted\"."
+          }
+        ],
+        "stop_reason": "end_turn",
+        "stop_sequence": null,
+        "usage": {
+          "input_tokens": 672,
+          "output_tokens": 45,
+          "cache_creation_input_tokens": 0,
+          "cache_read_input_tokens": 0
+        }
+      },
+      "timing": {
+        "started": "2026-10-17T14:26:40.007Z",
+        "elapsedMs": 1546
+      },
+      "usage": {
+        "inputTokens": 672,
+        "outputTokens": 45,
+        "totalTokens": 717
+      }
+    }
+  ],
+  "finalText": "The secret has been successfully verified. The decoded value was `T0A-TOOL-OK-9f3d7a`, and the verification returned `accepted: true` with the message \"manifest accepted\"."
+}

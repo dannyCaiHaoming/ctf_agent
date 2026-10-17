@@ -1,0 +1,33 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "required": ["profileId", "model", "reference", "budget", "os"],
+  "properties": {
+    "profileId": { "type": "string", "minLength": 1 },
+    "model": {
+      "type": "object",
+      "required": ["provider", "id"],
+      "properties": {
+        "provider": { "type": "string", "minLength": 1 },
+        "id": { "type": "string", "minLength": 1 },
+        "baseUrl": { "type": "string", "format": "uri" },
+        "apiKeyEnv": { "type": "string", "pattern": "^[A-Z_][A-Z0-9_]*$" }
+      },
+      "additionalProperties": false
+    },
+    "reference": { "type": "object", "required": ["enabled"], "properties": { "enabled": { "type": "boolean" } }, "additionalProperties": false },
+    "budget": {
+      "type": "object",
+      "required": ["wallClockMs", "maxSteps", "maxToolJobs", "maxObservableTokens"],
+      "properties": {
+        "wallClockMs": { "type": "integer", "minimum": 1 },
+        "maxSteps": { "type": "integer", "minimum": 1 },
+        "maxToolJobs": { "type": "integer", "minimum": 1 },
+        "maxObservableTokens": { "type": "integer", "minimum": 1 }
+      },
+      "additionalProperties": false
+    },
+    "os": { "type": "object", "required": ["platform"], "properties": { "platform": { "enum": ["macos", "linux"] } }, "additionalProperties": false }
+  },
+  "additionalProperties": false
+}

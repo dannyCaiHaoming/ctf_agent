@@ -1,0 +1,64 @@
+import { loadLocalEnv } from './composition/localEnv.js';
+import { loadReleaseProfile } from './composition/releaseProfile.js';
+import { doctor } from './commands/doctor.js';
+import { solve } from './commands/solve.js';
+
+function usage(): string {
+  return `ctf-agent
+Commands:
+  doctor --profile <path>
+  solve --target <url|auto> [--description <text>] [--input <path>] --profile <path> [--out <dir>] [--allow-stub] [--start-local-target]
+`;
+}
+
+function args(input: string[]): Record<string, string | boolean> {
+  const parsed: Record<string, string | boolean> = {};
+  for (let i = 0; i < input.length; i++) {
+    const item = input[i]!;
+    if (!item.startsWith('--')) continue;
+    const key = item.slice(2);
+    if (i + 1 >= input.length || input[i + 1]!.startsWith('--')) parsed[key] = true;
+    else parsed[key] = input[++i]!;
+  }
+  return parsed;
+}
+
+async function main(): Promise<number> {
+  await loadLocalEnv();
+  const [command, ...rest] = process.argv.slice(2);
+  if (!command || command === '--help' || command === 'help') {
+    console.log(usage());
+    return command ? 0 : 2;
+  }
+  const parsed = args(rest);
+  const profilePath = typeof parsed.profile === 'string' ? parsed.profile : 'config/release-profile.example.json';
+  const profile = await loadReleaseProfile(profilePath);
+  if (command === 'doctor') {
+    console.log(JSON.stringify(await doctor(profile), null, 2));
+    return 0;
+  }
+  if (command === 'solve') {
+    if (typeof parsed.target !== 'string') {
+      console.error('--target is required');
+      return 2;
+    }
+    const result = await solve({
+      target: parsed.target,
+      description: typeof parsed.description === 'string' ? parsed.description : undefined,
+      input: typeof parsed.input === 'string' ? parsed.input : undefined,
+      profile,
+      out: typeof parsed.out === 'string' ? parsed.out : undefined,
+      allowStub: parsed['allow-stub'] === true,
+      startLocalTarget: parsed['start-local-target'] === true
+    });
+    console.log(result.message);
+    return result.code;
+  }
+  console.error(usage());
+  return 2;
+}
+
+main().then(code => process.exitCode = code).catch(error => {
+  console.error(error instanceof Error ? error.message : error);
+  process.exitCode = 1;
+});
