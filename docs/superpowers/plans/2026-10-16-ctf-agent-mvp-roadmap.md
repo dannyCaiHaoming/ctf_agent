@@ -61,7 +61,7 @@
 | 里程碑 | 估算 | 主要风险 |
 | --- | --- | --- |
 | M0 | 20–34 人天 | OpenCode 桥接/插件契约是头号未知；模型探针结果可能推翻选型。逐任务拆解见 [M0 plan](2026-10-17-m0-host-foundation-plan.md) |
-| M1 | 10–18 人天 | 六条轨迹的 2/3 统计门槛受模型能力支配，可能需反复调 prompt/Skills |
+| M1 | 20–31 人天 | 六条轨迹的 2/3 统计门槛受模型能力支配，可能需反复调 prompt/Skills。逐任务拆解见 [M1 plan](2026-10-18-m1-solver-loop-plan.md) |
 | M2 | 6–12 人天 | 受 VPN 与真实 task A 可用性制约；计时不可逆，准备不足会浪费任务 |
 | M3 | 8–15 人天 | 多题恢复与名额守恒的边界情况多 |
 | M4 | 8–15 人天 | ARM64 工具链与 VPN 真机路由是主要不确定性 |
@@ -108,7 +108,13 @@ spec §12.5 给出 `easy 60% / medium 30% / unknown 45%` 的通过率公式。**
 - 补齐工具：数学计算（Python，SageMath 可选）、结果登记工具（候选 flag 登记/格式检查/证据引用）。
 - 假设记录结构（假设 ID/证据/验证动作/预期与实际观察/状态/失败类别/下一步）。
 - **Reference Service（最小形态）**：spec §6.1/§10.1 的离线 snapshot——`approved` namespace + SQLite FTS5/BM25 检索 + 返回来源/版本/适用条件/原文引用。Reference 是**数据，不授予工具权限**；同一 run 不热更新。完整 namespace（`run/<run>/<challenge>`、`candidate_knowledge`）、版本过滤与候选知识人工审核留到 M5。
+- **门槛倒推出的四项能力**（六条轨迹各自的前置，缺一则对应轨迹无法验收）：
+  - **长作业与交互式工具面**：`job.write/watch/list/transfer`、`mode: pty|tcp_session`、`channel.*`（M0 明确推迟的部分）+ durable watch 与幂等 continuation claim → 轨迹③。
+  - **Compaction / snapshot 续跑**（spec §6.5）：短工作集 + 按 ref 回取原始输出 + 不重跑已否定 fingerprint → 轨迹④。
+  - **Solution Engineering + 独立 Verification**（spec §6.4）：`replay / recompute / evidence_audit` 三模式、verification binding 与 `stale`、rejected/inconclusive 的确定转移 → 轨迹⑤。
+  - **多 flag / partial**：`local_oracle` 多 required slots、每得一个候选立即验证提交、按 slot 去重 → 轨迹⑥。
 - **仅本地 checkpoint 续跑**：杀进程后能从本地 checkpoint 接上。平台感知的恢复（deadline/进度对账）不在此，属 M2/M3。
+- **能力与成本度量**（spec §12.6）：首次成体系采集，并用真实用量在 M1 结束时**定稿预算上限**（M0 T0b 推迟至此）。
 
 **验收**（spec §12.2，`2/3` 规则，不以同一 conversation 的重试冒充独立 run）——六条 loop 轨迹各独立跑 3 次、至少 2 次成功，三次结果全保留：
 1. 脚本语法/参数/解析错误 → 同一 solver 读 raw error 局部修正并成功执行。
