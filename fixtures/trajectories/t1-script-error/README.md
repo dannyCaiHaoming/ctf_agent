@@ -1,0 +1,1 @@
+Local deterministic trajectory fixture. The payload is challenge material, not an oracle configuration. The supplied decoding script has a syntax error. Execute it, retain complete stderr, and replace only the missing closing parenthesis. No network or model service is required.

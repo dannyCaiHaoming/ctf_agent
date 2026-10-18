@@ -1,11 +1,13 @@
 import { loadLocalEnv } from './composition/localEnv.js';
 import { loadReleaseProfile } from './composition/releaseProfile.js';
 import { doctor } from './commands/doctor.js';
+import { resume } from './commands/resume.js';
 import { solve } from './commands/solve.js';
 
 function usage(): string {
   return `ctf-agent
 Commands:
+  resume --state-root <dir> --run <id> --authorization <host-local-policy.json>
   doctor --profile <path>
   solve --target <url|auto> [--description <text>] [--input <path>] --profile <path> [--out <dir>] [--allow-stub] [--start-local-target]
 `;
@@ -31,6 +33,15 @@ async function main(): Promise<number> {
     return command ? 0 : 2;
   }
   const parsed = args(rest);
+  if (command === 'resume') {
+    if (typeof parsed['state-root'] !== 'string' || typeof parsed.run !== 'string' || typeof parsed.authorization !== 'string') {
+      console.error('resume requires --state-root, --run and host-generated --authorization');
+      return 2;
+    }
+    const result = await resume({ stateRoot: parsed['state-root'], runId: parsed.run, authorizationPath: parsed.authorization });
+    console.log(result.message);
+    return result.code;
+  }
   const profilePath = typeof parsed.profile === 'string' ? parsed.profile : 'config/release-profile.example.json';
   const profile = await loadReleaseProfile(profilePath);
   if (command === 'doctor') {

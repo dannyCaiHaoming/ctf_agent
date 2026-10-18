@@ -20,7 +20,7 @@ describe('platform and local oracle', () => {
     await expect(platform.executeIntent({ runId: 'run1', intent, actor: 'solver' })).rejects.toThrow(/Coordinator/);
     await expect(platform.executeIntent({ runId: 'run1', intent, actor: 'verifier' })).rejects.toThrow(/Coordinator/);
     const accepted = await platform.executeIntent({ runId: 'run1', intent, actor: 'coordinator' });
-    expect(accepted.result).toEqual({ authoritative: true, status: 'accepted', requiredSlots: 1 });
+    expect(accepted.result).toMatchObject({ authoritative: true, status: 'accepted', requiredSlots: 1 });
     expect(state.isScopeUnknown('candidate.submit', 'c1')).toBe(false);
     state.close();
   });

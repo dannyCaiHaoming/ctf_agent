@@ -4,6 +4,16 @@
   "required": ["profileId", "model", "reference", "budget", "os"],
   "properties": {
     "profileId": { "type": "string", "minLength": 1 },
+    "solverMode": { "enum": ["m0", "m1"] },
+    "solverProfile": {
+      "type": "object",
+      "required": ["promptTemplateVersion", "toolManifestVersion"],
+      "properties": {
+        "promptTemplateVersion": { "type": "string", "minLength": 1 },
+        "toolManifestVersion": { "type": "string", "minLength": 1 }
+      },
+      "additionalProperties": false
+    },
     "model": {
       "type": "object",
       "required": ["provider", "id"],
@@ -11,7 +21,8 @@
         "provider": { "type": "string", "minLength": 1 },
         "id": { "type": "string", "minLength": 1 },
         "baseUrl": { "type": "string", "format": "uri" },
-        "apiKeyEnv": { "type": "string", "pattern": "^[A-Z_][A-Z0-9_]*$" }
+        "apiKeyEnv": { "type": "string", "pattern": "^[A-Z_][A-Z0-9_]*$" },
+        "temperature": { "type": "number", "minimum": 0, "maximum": 2 }
       },
       "additionalProperties": false
     },

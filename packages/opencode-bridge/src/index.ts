@@ -113,3 +113,5 @@ export class OpenCodeServerLifecycle {
     return { url: server.url, close: () => server.close() };
   }
 }
+
+export * from './compaction.js';

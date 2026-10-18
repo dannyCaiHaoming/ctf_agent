@@ -9,6 +9,7 @@ import { AnthropicCompatibleModel, OpenAICompatibleModel, SolverSupervisor, type
 import { ToolRuntime } from '@ctf/runtime';
 import { startLocalTarget, type LocalTarget } from '@ctf/local-target';
 import type { ReleaseProfile } from '../composition/releaseProfile.js';
+import { solveM1 } from './solveM1.js';
 
 export interface SolveOptions {
   target: string;
@@ -21,6 +22,7 @@ export interface SolveOptions {
 }
 
 export async function solve(options: SolveOptions): Promise<{ code: number; message: string }> {
+  if (options.profile.solverMode === 'm1') return solveM1(options);
   let target = options.target === 'auto' ? 'http://127.0.0.1' : new URL(options.target).toString();
   let localTarget: LocalTarget | undefined;
   if (options.startLocalTarget || options.target === 'auto') {

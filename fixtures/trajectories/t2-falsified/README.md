@@ -1,0 +1,1 @@
+Local deterministic trajectory fixture. A parser accepts an expression-looking argument. The cheap probe `node target.mjs 2+2` discriminates literal parsing from evaluation; its response explicitly falsifies evaluation. Preserve that response before switching to the independent payload-decoding route. No expected answer is supplied in the driver challenge description.

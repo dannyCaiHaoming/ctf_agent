@@ -35,7 +35,7 @@ describe('tool runtime', () => {
     const root = await mkdtemp(join(tmpdir(), 'runtime-timeout-'));
     const runtime = new ToolRuntime(new ArtifactStore(join(root, 'store')), root, 'run', 'challenge');
     const job = await runtime.jobStart({ taskId: 'task1', command: ['node', '-e', 'setInterval(()=>{},1000)'], timeoutMs: 30 });
-    await new Promise(resolve => setTimeout(resolve, 100));
+    await vi.waitUntil(() => runtime.jobStatus(job.id)?.status === 'timeout', { timeout: 3000 });
     expect(runtime.jobStatus(job.id)?.status).toBe('timeout');
     expect(runtime.jobStart).toBeDefined();
   }, 5000);
@@ -45,7 +45,7 @@ describe('tool runtime', () => {
     const artifacts = new ArtifactStore(join(root, 'store'));
     const runtime = new ToolRuntime(artifacts, root, 'run', 'challenge');
     const job = await runtime.jobStart({ taskId: 'task1', command: ['node', '-e', 'process.stdout.write("abcdefghij")'], maxRetainedBytes: 4, timeoutMs: 3000 });
-    await new Promise(resolve => setTimeout(resolve, 80));
+    await vi.waitUntil(() => runtime.jobStatus(job.id)?.status === 'completed', { timeout: 3000 });
     await expect(runtime.publishJobEvidence(job.id, 0, 10)).rejects.toThrow(/incomplete/);
     const read = await runtime.jobRead(job.id, 4, 10);
     const ref = await artifacts.publishRange('run', 'challenge', read.bytes, 4, 10);
@@ -56,7 +56,7 @@ describe('tool runtime', () => {
     const root = await mkdtemp(join(tmpdir(), 'runtime-env-'));
     const runtime = new ToolRuntime(new ArtifactStore(join(root, 'store')), root, 'run', 'challenge');
     const job = await runtime.jobStart({ taskId: 'task1', command: ['node', '-e', 'process.stdout.write(Object.keys(process.env).join(","))'], env: { OK: 'yes' }, timeoutMs: 3000 });
-    await new Promise(resolve => setTimeout(resolve, 80));
+    await vi.waitUntil(() => runtime.jobStatus(job.id)?.status === 'completed', { timeout: 3000 });
     const read = await runtime.jobRead(job.id, 0, 1000);
     expect(read.bytes.toString()).not.toContain('MODEL_API_KEY');
     expect(read.bytes.toString()).toContain('OK');

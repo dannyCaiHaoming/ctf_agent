@@ -5,6 +5,10 @@ export interface OracleResult {
   authoritative: true;
   status: 'accepted' | 'rejected' | 'duplicate' | 'invalid_state' | 'closed';
   requiredSlots: number;
+  correctFlagCount?: number;
+  totalFlagCount?: number;
+  matchedSlot?: number;
+  completed?: boolean;
 }
 
 export interface LocalOracleAdapter {
@@ -44,6 +48,9 @@ export class PlatformService {
     intent: unknown;
     actor: 'coordinator' | 'solver' | 'verifier';
     generation?: number;
+    budget?: { wallClockMs: number; maxSteps: number; maxToolJobs: number; maxObservableTokens: number };
+    deadline?: string;
+    beforeDispatch?: () => void;
   }): Promise<SubmissionResult> {
     if (input.actor !== 'coordinator') throw new Error('only Coordinator may submit platform intent');
     const intent = IntentSchema.parse(input.intent);
@@ -56,13 +63,15 @@ export class PlatformService {
       payload: intent,
       challengeId: intent.challengeId,
       generation,
-      budget: { wallClockMs: 1, maxSteps: 1, maxToolJobs: 1, maxObservableTokens: 1 },
-      deadline: new Date(Date.now() + 30000).toISOString(),
+      budget: input.budget ?? { wallClockMs: 1, maxSteps: 1, maxToolJobs: 1, maxObservableTokens: 1 },
+      deadline: input.deadline ?? new Date(Date.now() + 30000).toISOString(),
       expectedPostcondition: 'authoritative oracle response recorded'
     });
     if (prepared.state === 'confirmed' && prepared.authoritativeResponse) {
       return { effectId: prepared.id, result: prepared.authoritativeResponse as OracleResult, businessOutcome: prepared.businessOutcome! };
     }
+    try { input.beforeDispatch?.(); }
+    catch (error) { this.state.failNotDispatched(prepared.id); throw error; }
     const dispatching = this.state.dispatchEffect(prepared.id);
     try {
       const result = await this.oracle.submit(intent.candidate);
@@ -84,12 +93,18 @@ export class Coordinator {
     task: TaskId;
     lease: LeaseId;
     generation?: number;
+    budget?: { wallClockMs: number; maxSteps: number; maxToolJobs: number; maxObservableTokens: number };
+    deadline?: string;
+    beforeDispatch?: () => void;
   }): Promise<SubmissionResult> {
     return this.platform.executeIntent({
       runId: this.runId,
       intent: { intent: 'candidate.submit', candidate: input.candidate, challengeId: input.challengeId, task: input.task, lease: input.lease },
       actor: 'coordinator',
-      generation: input.generation
+      generation: input.generation,
+      budget: input.budget,
+      deadline: input.deadline,
+      beforeDispatch: input.beforeDispatch
     });
   }
 }

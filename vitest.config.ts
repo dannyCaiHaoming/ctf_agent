@@ -21,7 +21,9 @@ export default defineConfig({
       '@ctf/local-oracle': fileURLToPath(new URL('./packages/local-oracle/src/index.ts', import.meta.url)),
       '@ctf/local-target': fileURLToPath(new URL('./fixtures/local-target/src/server.ts', import.meta.url)),
       '@ctf/platform': fileURLToPath(new URL('./packages/platform/src/index.ts', import.meta.url)),
-      '@ctf/supervisor': fileURLToPath(new URL('./packages/supervisor/src/index.ts', import.meta.url))
+      '@ctf/supervisor': fileURLToPath(new URL('./packages/supervisor/src/index.ts', import.meta.url)),
+      '@ctf/reference': fileURLToPath(new URL('./packages/reference/src/index.ts', import.meta.url)),
+      '@ctf/reporting': fileURLToPath(new URL('./packages/reporting/src/index.ts', import.meta.url))
     }
   }
 });

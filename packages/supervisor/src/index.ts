@@ -397,3 +397,22 @@ export class AnthropicCompatibleModel implements ModelAdapter {
     throw new Error('unreachable model tool loop state');
   }
 }
+
+// M1 Task 1 foundation; the M0 linear smoke pipeline above remains unchanged.
+export { ResponsibilityRegistry } from './responsibilities.js';
+export type { ResponsibilityBinding, ReasoningContext, VerifyArtifact, DeepReadonly } from './responsibilities.js';
+export { PublishedRevisionService } from './revisions.js';
+export type { PublishedOutput, AdoptedOutput, AdoptionResult } from './revisions.js';
+
+export { HypothesisManager, experimentFingerprint } from './hypotheses.js';
+export type { HypothesisManagerOptions, ExperimentRecord, ProgressRecord, ProgressAcceptance, ProgressWindow } from './hypotheses.js';
+export { SolverLoop, SolverFailure, SolverActionSchema, solverDisposition } from './solver-loop.js';
+export type { SolverAction, SolverDriver, SolverRequest, SolverObservation, SolverUsage, SolverFailureCode, SolverLoopOptions, SolverResult, CandidateResolverInput } from './solver-loop.js';
+export { ProviderSolverDriver } from './provider-solver-driver.js';
+export type { ProviderSolverDriverOptions } from './provider-solver-driver.js';
+export { DurableJobWatchService } from './long-job-watch.js';
+export * from './compaction.js';
+export * from './local-resume.js';
+export * from './candidate-verification.js';
+export * from './http-progress-adjudicator.js';
+export * from './multiflag.js';

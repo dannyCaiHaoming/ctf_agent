@@ -109,7 +109,7 @@ spec §12.5 给出 `easy 60% / medium 30% / unknown 45%` 的通过率公式。**
 - 假设记录结构（假设 ID/证据/验证动作/预期与实际观察/状态/失败类别/下一步）。
 - **Reference Service（最小形态）**：spec §6.1/§10.1 的离线 snapshot——`approved` namespace + SQLite FTS5/BM25 检索 + 返回来源/版本/适用条件/原文引用。Reference 是**数据，不授予工具权限**；同一 run 不热更新。完整 namespace（`run/<run>/<challenge>`、`candidate_knowledge`）、版本过滤与候选知识人工审核留到 M5。
 - **门槛倒推出的四项能力**（六条轨迹各自的前置，缺一则对应轨迹无法验收）：
-  - **长作业与交互式工具面**：`job.write/watch/list/transfer`、`mode: pty|tcp_session`、`channel.*`（M0 明确推迟的部分）+ durable watch 与幂等 continuation claim → 轨迹③。
+  - **长作业与交互式工具面**：`job.write/watch/list/transfer`、`mode: pty|tcp_session`、`channel.*`（M0 明确推迟的部分）+ durable watch 与幂等 continuation claim → 轨迹③。PTY/TCP、字节/cursor 和 job/channel 生命周期在 M1 实现；**一次性/硬限额 oracle 的受管 broker、raw endpoint 隔离与发送前持久额度预留因 host-dev 无法证明强制计量，明确后移 M2/M3**。在此之前只报告 `metering_unavailable`，不得把普通 PTY/TCP transcript 当作硬限额保证。
   - **Compaction / snapshot 续跑**（spec §6.5）：短工作集 + 按 ref 回取原始输出 + 不重跑已否定 fingerprint → 轨迹④。
   - **Solution Engineering + 独立 Verification**（spec §6.4）：`replay / recompute / evidence_audit` 三模式、verification binding 与 `stale`、rejected/inconclusive 的确定转移 → 轨迹⑤。
   - **多 flag / partial**：`local_oracle` 多 required slots、每得一个候选立即验证提交、按 slot 去重 → 轨迹⑥。
