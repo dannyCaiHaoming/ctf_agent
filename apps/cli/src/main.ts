@@ -9,18 +9,21 @@ function usage(): string {
 Commands:
   resume --state-root <dir> --run <id> --authorization <host-local-policy.json>
   doctor --profile <path>
-  solve --target <url|auto> [--description <text>] [--input <path>] --profile <path> [--out <dir>] [--allow-stub] [--start-local-target]
+  solve --target <url|auto> [--description <text>] [--input <path>] [--material <path> ...] --profile <path> [--out <dir>] [--allow-stub] [--start-local-target]
 `;
 }
 
-function args(input: string[]): Record<string, string | boolean> {
-  const parsed: Record<string, string | boolean> = {};
+function args(input: string[]): Record<string, string | boolean | string[]> {
+  const parsed: Record<string, string | boolean | string[]> = {};
   for (let i = 0; i < input.length; i++) {
     const item = input[i]!;
     if (!item.startsWith('--')) continue;
     const key = item.slice(2);
     if (i + 1 >= input.length || input[i + 1]!.startsWith('--')) parsed[key] = true;
-    else parsed[key] = input[++i]!;
+    else if (key === 'material') {
+      const value = input[++i]!;
+      parsed.material = [...(Array.isArray(parsed.material) ? parsed.material : []), value];
+    } else parsed[key] = input[++i]!;
   }
   return parsed;
 }
@@ -57,6 +60,7 @@ async function main(): Promise<number> {
       target: parsed.target,
       description: typeof parsed.description === 'string' ? parsed.description : undefined,
       input: typeof parsed.input === 'string' ? parsed.input : undefined,
+      materials: Array.isArray(parsed.material) ? parsed.material : [],
       profile,
       out: typeof parsed.out === 'string' ? parsed.out : undefined,
       allowStub: parsed['allow-stub'] === true,

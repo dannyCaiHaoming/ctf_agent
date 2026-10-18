@@ -13,10 +13,14 @@ afterEach(async () => {
 describe('normal CLI solve entry for M1', () => {
   it('creates run identity, fixed Reference binding, and a deterministic provider-stub SolverLoop without live model calls', async () => {
     const out = await mkdtemp(join(tmpdir(), 'cli-m1-solve-')); roots.push(out);
+    const scriptPath = join(out, 'solve.mjs');
+    const payloadPath = join(out, 'payload.txt');
+    await writeFile(scriptPath, 'console.log("fixture");\n');
+    await writeFile(payloadPath, 'fixture payload\n');
     const profilePath = join(out, 'm1-profile.json');
     await writeFile(profilePath, JSON.stringify({
       profileId: 'm1-deterministic-wiring', solverMode: 'm1',
-      solverProfile: { promptTemplateVersion: 'solver-action-json/v2', toolManifestVersion: 'm1-tools/v2' },
+      solverProfile: { promptTemplateVersion: 'solver-action-json/v6', toolManifestVersion: 'm1-tools/v2' },
       model: { provider: 'stub', id: 'deterministic-only', temperature: 0 },
       reference: { enabled: true }, budget: { wallClockMs: 10000, maxSteps: 10, maxToolJobs: 10, maxObservableTokens: 10000 }, os: { platform: 'macos' }
     }));
@@ -26,7 +30,7 @@ describe('normal CLI solve entry for M1', () => {
       { kind: 'tool', tool: 'job.list', input: {} },
       { kind: 'stop', reason: 'deterministic wiring probe' }
     ]);
-    const cli = spawn(process.execPath, ['--import', 'tsx', 'apps/cli/src/main.ts', 'solve', '--target', 'http://127.0.0.1:8787', '--profile', profilePath, '--out', out, '--allow-stub'], {
+    const cli = spawn(process.execPath, ['--import', 'tsx', 'apps/cli/src/main.ts', 'solve', '--target', 'http://127.0.0.1:8787', '--profile', profilePath, '--out', out, '--allow-stub', '--material', scriptPath, '--material', payloadPath], {
       cwd: process.cwd(), env: { ...process.env, NODE_NO_WARNINGS: '1', M1_STUB_SOLVER_ACTIONS: actionScript }, stdio: ['ignore', 'pipe', 'pipe']
     });
     const stdout: Buffer[] = []; const stderr: Buffer[] = [];
@@ -50,7 +54,7 @@ describe('normal CLI solve entry for M1', () => {
       const started = state.events().find(event => event.kind === 'solver.activity' && event.activity === 'started');
       expect(started?.kind).toBe('solver.activity');
       if (started?.kind === 'solver.activity') expect(started.data)
-        .toMatchObject({ challenge: { snapshot: { toolManifestVersion: 'm1-tools/v2', promptTemplateVersion: 'solver-action-json/v2' } } });
+        .toMatchObject({ challenge: { workspace_files: ['solve.mjs', 'payload.txt'], material_refs: [{ size: expect.any(Number) }, { size: expect.any(Number) }], snapshot: { toolManifestVersion: 'm1-tools/v2', promptTemplateVersion: 'solver-action-json/v6' } } });
       const final = [...state.events()].reverse().find(event => event.kind === 'solver.activity' && event.activity === 'checkpoint');
       expect(final?.kind).toBe('solver.activity');
       if (final?.kind === 'solver.activity') expect(report).toMatchObject({

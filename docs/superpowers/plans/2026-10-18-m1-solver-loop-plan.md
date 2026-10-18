@@ -1,9 +1,20 @@
 # M1 Solver Loop —— Detailed Plan（证明 agent 会「解题」，不只是「跑一次」）
 
-> ## ⚠️ 门槛完成度：**0 / 6 条轨迹**（正式真实模型 run 0 次；轨迹①开发校准 1 次，未跑通）
+> ## ⚠️ 门槛完成度：**0 / 6 条轨迹**（正式真实模型 run 0 次；轨迹①开发校准 4 次，均未跑通）
 >
-> 组件候选框 122/180（≈68%）**不代表 M1 进度**——详见下方 [停滞诊断与处理结论](#停滞诊断与处理结论2026-10-18-复盘)。
-> 下一步只有一件事：**先提交落地，再用真实模型跑轨迹①的校准 run**，在此之前不要新增功能。
+> 组件候选框 **不代表 M1 进度**。四次真实校准全部在 fixture 脚本执行**之前**失败，无一例外是契约簿记错误——模型从未读到 `solve.mjs` 的 raw stderr，轨迹①要测的行为尚未被触及。
+>
+> ## 下一步任务队列（按序，前一项未完成不做下一项）
+>
+> 1. [ ] **先提交现有工作**（10 个改动文件已悬空两轮，确定性测试全绿，具备提交条件）。
+> 2. [ ] **按 [动作契约重设计](#动作契约重设计第三轮结论2026-10-18) 改契约**：模型只写 6 个必填语义字段，ID/hash/ref/预算/步骤号全部由 host 注入。
+> 3. [ ] **修 `scope_denied`/`blocked_data`**：回灌为 observation 并允许改路，不再终止 run（恢复 spec §8.7）。
+> 4. [ ] **建离线动作契约探针并达标**（≥90% 合法动作，且 run 1–4 的四个历史失败状态全部不复现）。
+> 5. [ ] **达标后**才重启轨迹①校准 run → 3 次正式 run → 落盘 → 提交 → 下一条轨迹。
+>
+> ⚠️ **在第 4 项达标前，不要再发起任何完整校准 run。** 也**不要直接烧 run 验证 v6**——v6 只把簿记讲得更清楚、没有移除簿记，同类失败大概率复现。
+>
+> 复盘依据：[第一轮](#停滞诊断与处理结论2026-10-18-复盘)（未落地 / 未跑真实模型）· [第二轮](#第二轮复盘2026-10-18-晚卡在模型动作--执行契约之间)（契约簿记阻塞）· [第三轮](#动作契约重设计第三轮结论2026-10-18)（契约是设计变量，重新划分模型/host 职责）。
 
 > **状态（2026-10-18）：** 本计划用三列分别记录 **确定性组件、产品入口集成、真实模型验收**；一个组件或 fixture 完成不代表产品入口或模型轨迹完成。T1–T4 的确定性组件完成；T5 有限能力部分完成；T6 交互工具组件完成、硬限额 broker 延至 M2/M3；T7 durable watch 已接 SolverLoop；T8 快照/单步恢复组件完成但完整续跑未完成；T9 PARTIAL；T10 多 flag resolver 已接 SolverLoop；T11 纯事件投影 PARTIAL；T12 未完成。T3b 产品入口已部分集成：有限 HTTP literal progress 与 local HTTP 的 Engineer→独立 replay Verifier→受保护提交确定性闭环已通过；通用语义裁决、完整 T9/T9a、T6 全工具组合及真实模型验收仍未完成。上游 [M0](2026-10-17-m0-host-foundation-plan.md) 已 COMPLETE（模型 `deepseek-v4-flash`，T0a 探针 25/25 通过）。
 
@@ -27,7 +38,7 @@
 >
 > 🟢 当前里程碑计划 · 上级路线图见 [`2026-10-16-ctf-agent-mvp-roadmap.md`](2026-10-16-ctf-agent-mvp-roadmap.md) 的「M1」节；权威设计见 [`../specs/2026-10-14-general-ctf-agent-system-design.md`](../specs/2026-10-14-general-ctf-agent-system-design.md)；文档索引见 [`../README.md`](../README.md)。
 
-> **本轮范围（2026-10-18）：** 本次仅更新计划。后续当前实施范围继续完成确定性工程与产品入口集成；不运行真实模型。六轨迹 18 次正式运行、冻结配置及基于真实用量的预算定稿另行验收。以上为此前计划范围，已由下方“停滞诊断与处理结论（2026-10-18 复盘）”更新；当前执行按复盘顺序先提交既有 M1 实现、再运行轨迹①单次真实模型校准。
+> **本轮范围（2026-10-18）：** 按 2026-10-18 复盘顺序推进轨迹①。既有 M1 基础实现已提交并完成 4 次独立开发校准；四次分别暴露 workspace 路径、job.run action schema、dispatch schema 与 hypothesis/experiment 身份契约问题。当前补齐有限 CLI 材料暂存和入口校验；最新 v6 修正尚未由真实模型验证。六轨迹 18 次正式运行、正式配置冻结及预算定稿另行验收。
 
 **Goal：** 让 agent 具备**可重复的解题韧性**——在 M0 的脊梁上引入自适应职责、假设/试验/局部修复、长作业恢复、compaction 续跑、独立候选验证和多 flag 处理，并以 spec §12.2 的**六条 loop 轨迹各跑 3 次、至少成功 2 次**作为统计门槛。
 
@@ -72,7 +83,7 @@
 | 确定性测试 | **全绿**（worktree 内 `npm test` 276 项 / `gate:m0` 149 项通过） |
 | 轨迹 fixture | 六条**全部存在**（`t1-script-error` … `t6-multiflag`） |
 | 新增 package | `reference/`、`reporting/` 均已实现 |
-| **真实模型轨迹 run** | 正式验收 0 次；轨迹①开发校准 1 次，未跑通并已记录于 `docs/gates/m1-results.md` |
+| **真实模型轨迹 run** | 正式验收 0 次；轨迹①开发校准 4 次，均未跑通，详见 `docs/gates/m1-results.md` |
 | 候选框 | 122/180 已勾（≈68%），但 **M1 真正的门槛完成度是 0/6 条轨迹** |
 
 **结论：工作是真实且高质量的，卡点不是"做不出来"。** 代码能跑、测试全绿、fixture 齐备——卡的是**它既没有落地（0 提交），也从未被真实模型验证过（0 次轨迹 run）**。
@@ -90,7 +101,7 @@
 ### 处理结论（按此顺序执行，优先级自上而下）
 
 - [x] **① 先落地，建立棘轮。** 已将既有 M1 范围提交 `7cc94f4` 并快进合入 `main`；之后每完成一条轨迹就提交一次。
-- [x] **② 立刻用真实模型跑轨迹①的校准 run，在做任何新功能之前。** 已用既有 M1 CLI/driver/runtime 和 `t1-script-error` fixture 执行唯一一次开发校准；模型在第一次 workspace 读取动作因 scope_denied 被阻断，脚本尚未执行。第一条记录见 [`docs/gates/m1-results.md`](../../gates/m1-results.md)；不计入正式 2/3。
+- [x] **② 立刻用真实模型跑轨迹①的校准 run，在做任何新功能之前。** 已先执行 run 1；后续针对每次 FIRST_DIVERGENCE 又完成 runs 2–4。分别记录 workspace `scope_denied`、非法 `job.run` action、非法 dispatch shape 与 hypothesis 缺失。详见 [`docs/gates/m1-results.md`](../../gates/m1-results.md)；四次均不计入正式 2/3，轨迹①仍未跑通。
 - [ ] **③ 给 T3b 一个有界的 done：** 「轨迹①能用真实模型端到端跑通」即完成，**不以"通用语义裁决"为完成条件**。
 - [ ] **④ 把执行顺序改为轨迹垂直切片。** 自本次复盘起，不再按任务横向推进，改为**一次一条轨迹**：该轨迹的组件 → 产品入口 → 真实模型 3 次 → 记录落盘 → 提交 → 才开下一条。剩余能力缺口（T5/T8/T9/T11 的 PARTIAL 部分）**按被哪条轨迹需要来拉取**，不再独立推进。
 - [ ] **⑤ 改用正确的进度口径。** M1 进度 = **通过 2/3 的轨迹数（当前 0/6）**，不是候选框百分比。候选框只反映组件工作量，会系统性高估完成度。
@@ -98,6 +109,142 @@
 ### 范围决定：不要求「通用语义裁决」
 
 M1 **不需要**一个能理解任意 CTF 语义的通用 progress adjudicator——那实际上是开放式研究，会无限期阻塞门槛。**每条轨迹允许使用各自预声明的、受限的裁决命题**（如已实现的 HTTP literal adjudicator：绑定 hypothesis claim、experiment/hypothesis ID、canonical observation 与完整 raw body artifact refs，未知语义一律 `inconclusive`）。这不降低门槛的严格性——判分仍从 canonical events/artifacts/oracle 重算、仍禁止 harness 代模型做事——只是把**裁决的覆盖面**限定为每条轨迹声明过的命题。通用化若确有需要，留到 M2+ 并由真实题目驱动。
+
+---
+
+## 第二轮复盘（2026-10-18 晚）：卡在模型动作 ↔ 执行契约之间
+
+### 第一轮结论的执行情况：② 已照做，① 已照做
+
+- ✅ **已落地建立棘轮**：`7cc94f4 feat: integrate M1 solver loop` + `a4d6a54 docs: record M1 trajectory calibration result` 已在 `main`，不再是悬空 worktree。
+- ✅ **已跑真实模型校准 run**：4 次，`docs/gates/m1-results.md` 记录完整。
+- ✅ **记录质量很高**：canonical 事件链、`FIRST_DIVERGENCE` 定位、provider 调用计数、用量、不隐藏失败、不自动重试、不放宽 scope。这份记录本身是合格的工程产出。
+- ❌ **但进度仍是 `0/6`**：四次 run 的 FIRST_DIVERGENCE **全部发生在 fixture 脚本执行之前**，模型一次都没读到 `solve.mjs` 的 raw stderr——**轨迹①要测的行为从未被触及**。
+
+### 四次失败是同一类：契约簿记失败，不是推理失败
+
+| Run | Prompt | FIRST_DIVERGENCE |
+| --- | --- | --- |
+| 1 | v2 | 用 ArtifactStore **绝对路径**做 `workspace.read` → `scope_denied` → **run 当场终止**（步骤 1） |
+| 2 | v3 | 路径已对、读到了 `solve.mjs`；`job.run` 带了不支持的 `cwd`、缺必需 `step_id` |
+| 3 | v4 | 自造 `procedures/steps` 嵌套结构，`hypothesis` 写成字符串 |
+| 4 | v5 | `input_refs` 用**裸 hash 字符串**；后续 dispatch 省略 hypothesis |
+
+没有一次是「模型想错了漏洞」或「模型不会修脚本」。**四次全是没填对表格。**
+
+### 根因
+
+**R1（主因）—— 动作契约违背 spec §6.2「身份由 Supervisor 注入」。**
+spec §6.2 原文：*「身份由 Supervisor 注入。Immutable artifact ref 已包含內容身份，handoff 不要求模型反覆搬運整份 hash 清單。」*
+但当前契约要求模型在**一个动作里**自行写出：完整 hypothesis 对象（16 字段）＋ experiment 对象（13 字段），其中 `input_refs` 必须是完整 `{hash,size,path}` 对象、必须维持 `hypothesis.id === experiment.hypothesis_id`、必须自行分配并匹配 `step_id`、必须自己填 `budget/cost` 数字。**只为执行一句 `node solve.mjs`，先要写约 27 个字段的簿记。** 这正是 spec 明令不该压给模型的东西，四次失败全落在这上面。
+
+**R2 —— `scope_denied` 直接终止 run，违背 spec §8.7。**
+spec §8.7 规定：`blocked_data`／`scope_denied` → *「改用本地處理或其他路線；policy denial 不算題目反證」*。
+实现在 [`packages/supervisor/src/solver-loop.ts:211`](../../../packages/supervisor/src/solver-loop.ts) 是 `return this.finish('blocked', ...)` —— **当场结束整个 run**。校准 run 1 就死在这里。拒绝越界访问是对的，但**把一次策略拒绝升级为整 run 终止**既违 spec §8.7，也与 spec §3.4 反目标「普通本地动作被升级为整题 quarantine」相抵触，并且让校准无法前进。
+
+**R3 —— T0a 的 P1 探针给了错误信心。** P1 测的是「2–3 个严格 schema 的工具」，与本契约的复杂度不在一个量级。**「模型能否满足 M1 真实动作契约」从未被单独验证过**，却被默认成立。
+
+**R4 —— 用整轮 CLI run 做 prompt 调试，代价高、收敛慢。** v2→v6 五个版本，每版烧掉一次完整 run（最高 24,221 tokens）才暴露一个问题。缺少分钟级的离线闭环。
+
+> ⚠️ **预测：已实施但尚未验证的 v6 很可能仍会失败。** 从代码看，v6 只是把簿记要求**讲得更清楚**（区分 ref 与相对路径、列出 workspace 文件、讲明 `job.run` schema），**并没有移除簿记**。R1 未解，同类失败大概率复现。建议不要直接再烧一次 run 去验证 v6。
+
+### 处理结论（按序执行）
+
+- [ ] **① 把簿记移回 host，恢复 spec §6.2。** host 负责：分配 `hypothesis.id`/`experiment.id`/`step_id` 并自动保持一致；把模型给出的**短名或 workspace 相对路径**解析成完整 `{hash,size,path}` refs（模型永不书写 hash）；填入 `budget/cost` 默认值。模型只需产出**真正需要思考的语义字段**：`claim`、`falsifier`、`expected_observation`、`minimal_experiment`、`procedure` 的 `tool`+`input`。
+      这不降低 spec 的实质要求——假设仍必须可反证、仍必须区分工具故障与机制反证；去掉的只是文书。
+- [ ] **② 修 `scope_denied`/`blocked_data` 语义，恢复 spec §8.7。** 区分两件事：**拒绝该动作**（仍然 fail closed，拒绝越界访问，并把拒绝作为 observation 回灌给 Solver，允许改路或改用本地处理）与**终止 run**（只在预算耗尽、无 runnable route 或真正的安全不变量被破坏时）。策略拒绝不得计为题目机制的反证。
+- [ ] **③ 新增「动作契约符合性」离线探针，作为跑轨迹的前置门槛。** 补 T0a 漏掉的那块：固定若干真实 prompt 状态（含 run 1–4 的四个失败状态），离线向模型取**一个动作**、用真实 schema 校验、统计有效率。分钟级迭代 prompt/schema，不烧完整 run。**达到通过线（建议 ≥90% 有效动作，且四个历史失败状态全部不复现）之后，才继续花 run 跑轨迹。**
+- [ ] **④ 在契约符合性达标前，不再发起完整校准 run。** 当前瓶颈不是轨迹逻辑，而是契约可用性；继续烧 run 只会重复采集同一类信息。
+- [ ] **⑤ 达标后回到轨迹垂直切片**（第一轮结论④不变）：轨迹① → 3 次 → 落盘 → 提交 → 下一条。
+
+### 对契约设计的一条原则（写入本计划，后续任务遵守）
+
+**模型只应被要求产出它能独立推理出来的内容；凡是 host 已知或可推导的（ID、hash、ref 展开、预算数字、步骤编号）一律由 host 注入。** 每当发现模型反复在某个字段上出错，先问「这个字段 host 是不是本来就知道？」——若是，就是契约设计问题，不是模型能力问题。
+
+---
+
+## 动作契约重设计（第三轮结论，2026-10-18）
+
+### 授权：动作契约是**设计变量**，不是固定需求
+
+前两轮执行方面对「模型填不对表格」的应对，都是**把表格改得更严**（`hypothesis` 由 optional 改必填、再加 `hypothesis.id === experiment.hypothesis_id` 的 superRefine）。这在局部合理（让错误更早暴露），但方向相反——在拧那颗正在卡死的螺丝。
+
+根本原因是**本计划此前从未授权修改契约**：T2 写的是「按 spec §7.3 定义 hypothesis 结构：`id / claim / preconditions / ...`」，把 spec 的**系统数据模型**原样当成了**模型输出契约**，且从未说明哪些字段由谁产出。
+
+**现予明确：**
+- spec §7.3 的完整 hypothesis/experiment 是**系统要维护的数据模型**，spec 从未要求模型在一个动作里把它整个写出来。
+- spec §6.2 明确反向要求：*「身份由 Supervisor 注入。Immutable artifact ref 已包含內容身份，handoff 不要求模型反覆搬運整份 hash 清單。」*
+- 因此**当前契约是违反 spec §6.2 的**，改它是**恢复合规**，不是偏离设计。spec §16 本就把这类取舍列为 builder 可决定项。
+- 后续任务**有权也有义务**在发现模型反复卡在某字段时重新划分该字段的归属。
+
+### 两层设计
+
+| 层 | 内容 | 归属 |
+| --- | --- | --- |
+| **系统数据模型** | spec §7.3 的完整 `Hypothesis`(16 字段) / `Experiment`(12 字段)，写入 canonical state，现有契约测试不变 | **host 维护** |
+| **模型输出契约** | 模型在一个动作里实际要写的**最小语义内核** | **模型产出** |
+
+**host 由内核物化出完整数据模型**，再按原 schema 校验落库。对 canonical state、证据链、判分的要求**一点不降低**。
+
+### 模型侧最小语义内核（dispatch）
+
+模型只需产出 **6 个必填 + 4 个可选**字段：
+
+```json
+{
+  "kind": "dispatch",
+  "claim": "solve.mjs 解码 payload.txt 失败是脚本自身的参数/解析缺陷",
+  "falsifier": "修正脚本后仍以相同方式失败，则不是脚本缺陷",
+  "expected_observation": "执行后 stderr 给出可定位的解析错误行",
+  "expected_support": "修正后脚本输出解码结果",
+  "expected_refutation": "脚本正常退出但无输出，说明假设错误",
+  "procedure": [ { "tool": "job.run", "input": { "command": ["node", "solve.mjs"] } } ],
+
+  "objective":                 "（可选）",
+  "preconditions":             ["（可选）"],
+  "alternative_explanations":  ["（可选）"],
+  "uses":                      ["solve.mjs", "payload.txt"]
+}
+```
+
+`uses` 用 **workspace 短名或相对路径**，由 host 解析成 `input_refs`。**模型永远不书写 hash。**
+
+### 字段归属对照（谁写哪一个）
+
+| 字段 | 归属 | 说明 |
+| --- | --- | --- |
+| `hypothesis.claim` / `falsifier` / `expected_observation` | **模型必填** | spec 的实质要求：假设必须可反证 |
+| `experiment.expected_support` / `expected_refutation` | **模型必填** | 对应 spec「区分工具故障与机制反证」 |
+| `experiment.procedure[].tool` / `.input` | **模型必填** | 模型只说「跑什么」 |
+| `hypothesis.preconditions` / `alternative_explanations`、`experiment.objective` / `parameters` / `stop_condition` | 模型可选 | host 有默认值 |
+| `hypothesis.id`、`experiment.id`、`experiment.hypothesis_id`、`procedure[].id`（step_id） | **host 注入** | 消除 run 2/4 的 `step_id` 缺失与 ID 不一致——**host 分配就不可能不一致，superRefine 也就不再需要** |
+| `supporting_refs` / `contradicting_refs` / `input_refs` | **host 解析** | 模型给短名，host 展开成 `{hash,size,path}`——消除 run 1 的绝对路径与 run 4 的裸 hash |
+| `state_dependencies`、`required_capabilities`、`expected_artifacts` | **host 推导** | 从当前状态与 `procedure` 的 tool 列表推导 |
+| `route_status`、`state` | **host 管理** | dispatch 时恒为 `queued` / `proposed` |
+| `cost`、`budget`、`repair_budget` | **host 注入** | host 才知道剩余预算 |
+
+**约 27 个必填字段 → 6 个。** 四次历史失败各自被消除：run 1（短名替代路径）、run 2（host 分配 step_id）、run 3（结构面大幅缩小）、run 4（模型根本不写 ref）。
+
+### 工具动作同样简化
+
+```json
+{ "kind": "tool", "tool": "workspace.read", "input": { "path": "solve.mjs" } }
+```
+
+**不再要求模型提供 `step_id`**：host 自动匹配当前已 dispatch 的 procedure 步骤，匹配不上则分配一个 ad-hoc 步骤。
+
+### 契约类任务的 Definition of Done（新增，追溯适用于 T1/T2/T3b）
+
+> **一个必须由模型产出的契约，在真实模型能以足够比例产出合法实例之前，不得标记为 COMPLETE。** schema 写完 + 确定性契约测试全绿**只算组件完成**。
+
+这正是前两轮失控的根源：T1/T2 凭「schema 存在 + 测试全绿」被标 COMPLETE，但对其唯一使用者（模型）不可用，122 个候选框因此全绿而门槛仍是 0/6。
+
+- [ ] 把「真实模型可满足性 ≥90%」加入 T1/T2/T3b 的完成条件，并相应下调它们当前的 COMPLETE 标记为 **组件 COMPLETE / 契约未验证**。
+
+### 契约设计原则（后续任务遵守）
+
+**模型只应被要求产出它能独立推理出来的内容；凡 host 已知或可推导的（ID、hash、ref 展开、预算数字、步骤编号、能力清单）一律由 host 注入。**
+每当发现模型反复在某字段出错，先问「这个字段 host 是不是本来就知道？」——若是，那是契约设计问题，不是模型能力问题，**应当改契约而不是改 prompt**。
 
 ---
 
@@ -120,7 +267,7 @@ TDD 同 M0：先写失败测试 → 实现到绿 → 自检 → （授权后）�
 
 ---
 
-## Task 1：职责与自适应会话模型 — COMPLETE（2026-10-18）
+## Task 1：职责与自适应会话模型 — 组件 COMPLETE / **契约未经模型验证**（2026-10-18）
 
 **Files：** `packages/contracts/src/**`（handoff envelope）、`packages/supervisor/src/**`、`tests/contract/responsibility-*.test.ts`
 
@@ -147,7 +294,7 @@ TDD 同 M0：先写失败测试 → 实现到绿 → 自检 → （授权后）�
 
 ---
 
-## Task 2：Hypothesis / Experiment / Repair 与 route 管理 — COMPLETE（2026-10-18）
+## Task 2：Hypothesis / Experiment / Repair 与 route 管理 — 组件 COMPLETE / **契约未经模型验证，待按第三轮重设计**（2026-10-18）
 
 **Files：** `packages/contracts/src/**`、`packages/supervisor/src/**`、`tests/contract/hypothesis-*.test.ts`
 
@@ -213,6 +360,7 @@ TDD 同 M0：先写失败测试 → 实现到绿 → 自检 → （授权后）�
   - [x] Resolver control 接收 AbortSignal、deadline、动态 remaining 与分阶段 admission；Engineer/Verifier/submit 调用前预留共享 step/tool budget，Runtime/driver 请求传递取消信号。覆盖组件、resolver 集成测试及 local HTTP 正常 CLI 子集；完整 T9 操作范围仍未验收。
 - [x] 区分期限前已派发且有 canonical submit dispatch 证据的请求与期限后新 submit：匹配权威 oracle 回执才保留 accepted/partial 事实，并标记 late reconcile、停止后续动作；无匹配 dispatch/receipt 的迟回调不能令 run solved；期限后新工作在 dispatch 前拒绝。`solver-loop-deadline-reconciliation.test.ts` 覆盖正反边界。
 - [x] CLI 输出基于 SolverLoop result、canonical State events/checkpoint 和 artifact refs，包含状态、预算用量、provider usage 可用性及 Reference identity。结果由正常 M1 CLI stub integration test 覆盖。
+- [x] 校准后入口修正：可重复 `--material` 将材料按 basename 暂存到 task workspace；request 显式包含 host 枚举的 `workspace_files`；provider prompt v6 明确 artifact ref 路径与 workspace 相对路径、`job.run` procedure/`step_id` 及 dispatch/hypothesis 字段；`DispatchSchema` 要求完整 hypothesis 且校验 hypothesis/experiment identity。provider prompt/schema 与正常 CLI staging deterministic regressions 通过。真实模型 v6 校准仍待运行。
 
 **验收能力**
 - [x] 从正常 CLI 命令启动后，以 deterministic provider stub 验证 run identity、冻结 profile/reference 绑定、受限职责与当前已接入工具路由；local HTTP resolver 子集正反例通过，stub 只验证接线，不算真实模型验收。T6全量及T9完整范围未完成。

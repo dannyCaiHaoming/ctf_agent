@@ -48,7 +48,12 @@ const ToolActionSchema = z.discriminatedUnion('tool', [
   z.object({ kind: z.literal('tool'), tool: z.literal('channel.close'), input: ownerResourceInput, step_id: text.optional() }).strict(),
   z.object({ kind: z.literal('tool'), tool: z.literal('job.run'), input: commandInput, step_id: text }).strict()
 ]);
-const DispatchSchema = z.object({ kind: z.literal('dispatch'), hypothesis: HypothesisSchema.optional(), experiment: ExperimentSchema }).strict();
+const DispatchSchema = z.object({ kind: z.literal('dispatch'), hypothesis: HypothesisSchema, experiment: ExperimentSchema }).strict()
+  .superRefine((action, context) => {
+    if (action.hypothesis.id !== action.experiment.hypothesis_id) {
+      context.addIssue({ code: z.ZodIssueCode.custom, path: ['experiment', 'hypothesis_id'], message: 'experiment hypothesis_id must match the declared hypothesis id' });
+    }
+  });
 const ConcludeSchema = z.object({ kind: z.literal('conclude'), verdict: z.enum(['supported', 'rejected', 'inconclusive', 'stale']), rationale: text, evidence_refs: z.array(ImmutableArtifactRefSchema) }).strict();
 const CandidateSchema = z.object({ kind: z.literal('candidate'), value: text, evidence_refs: z.array(ImmutableArtifactRefSchema).min(1) }).strict();
 const StopSchema = z.object({ kind: z.literal('stop'), reason: text }).strict();
@@ -66,7 +71,7 @@ export interface SolverObservation {
 }
 export interface SolverRequest {
   phase: 'solver' | 'strategy'; binding: ResponsibilityBinding;
-  challenge: { ready: boolean; description: string; material_refs: ImmutableArtifactRef[]; snapshot: Record<string, unknown> };
+  challenge: { ready: boolean; description: string; material_refs: ImmutableArtifactRef[]; workspace_files?: string[]; snapshot: Record<string, unknown> };
   experiment: ReturnType<HypothesisManager['experiment']> | null;
   observation: SolverObservation | null; strategy_reason: string | null;
   remaining: { wall_ms: number; steps: number; tools: number; tokens: number };

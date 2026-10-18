@@ -14,7 +14,7 @@ import type { ReleaseProfile } from '../composition/releaseProfile.js';
 import { createLocalHttpCandidateResolver } from './localHttpCandidateResolver.js';
 
 export interface SolveM1Options {
-  target: string; description?: string; input?: string; profile: ReleaseProfile; out?: string;
+  target: string; description?: string; input?: string; materials?: string[]; profile: ReleaseProfile; out?: string;
   allowStub?: boolean; startLocalTarget?: boolean;
 }
 
@@ -73,13 +73,29 @@ export async function solveM1(options: SolveM1Options): Promise<{ code: number; 
     runtime = new ToolRuntime(artifacts, join(out, 'workspaces'), runId, challengeId, runtimeScope);
     const workspace = runtime.workspace(taskId);
     const materialRefs = [];
+    const workspaceFiles: string[] = [];
     if (options.input) {
       const bytes = await readFile(resolve(options.input));
-      const inputPath = join(workspace.path, 'challenge-input.bin');
+      const inputName = 'challenge-input.bin';
+      const inputPath = join(workspace.path, inputName);
       await writeFile(inputPath, bytes, { flag: 'wx' });
       const artifact = ImmutableArtifactRefSchema.parse(await artifacts.publish(bytes));
       state.addCanonicalArtifact(artifact);
       materialRefs.push(artifact);
+      workspaceFiles.push(inputName);
+    }
+    for (const material of options.materials ?? []) {
+      const sourcePath = resolve(material);
+      const name = sourcePath.slice(sourcePath.lastIndexOf(sep) + 1);
+      if (!name || name === '.' || name === '..' || name === 'challenge-input.bin' || workspaceFiles.includes(name)) {
+        throw new Error(`blocked_configuration: invalid or duplicate material filename ${name}`);
+      }
+      const bytes = await readFile(sourcePath);
+      await writeFile(join(workspace.path, name), bytes, { flag: 'wx' });
+      const artifact = ImmutableArtifactRefSchema.parse(await artifacts.publish(bytes));
+      state.addCanonicalArtifact(artifact);
+      materialRefs.push(artifact);
+      workspaceFiles.push(name);
     }
     let referenceSnapshot: Record<string, unknown> | null = null;
     if (profile.reference.enabled) {
@@ -100,6 +116,7 @@ export async function solveM1(options: SolveM1Options): Promise<{ code: number; 
       challenge: { ready: true,
         description: options.description ?? `Authorized CTF challenge at ${runtimeScope}. Use only the scoped HTTP tool and supplied materials.`,
         material_refs: materialRefs,
+        workspace_files: [...workspaceFiles, ...(await workspace.list()).filter(name => !workspaceFiles.includes(name))],
         snapshot: { generation: 1, target: runtimeScope, profileId: profile.profileId,
           model: { provider: profile.model.provider, id: profile.model.id, temperature: profile.model.temperature },
           promptTemplateVersion: profile.solverProfile.promptTemplateVersion,

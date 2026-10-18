@@ -15,6 +15,7 @@ export interface SolveOptions {
   target: string;
   description?: string;
   input?: string;
+  materials?: string[];
   profile: ReleaseProfile;
   out?: string;
   allowStub?: boolean;
