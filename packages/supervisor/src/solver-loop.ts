@@ -125,6 +125,8 @@ export interface SolverLoopOptions {
   resolveCandidate?: (input: CandidateResolverInput) => Promise<CandidateResolution>;
   reference?: ReferenceService;
   deadline?: string; maxModelRetries?: number; maxPatchBytes?: number;
+  /** Host-owned calibration shortcut that ends exactly at the first failed execution. */
+  preset?: { dispatch: SolverAction; firstRun: SolverAction };
 }
 export interface SolverResult {
   status: 'solved' | 'partial' | 'candidate_only' | 'blocked' | 'resource_exhausted' | 'no_route'; reason: string;
@@ -197,6 +199,13 @@ export class SolverLoop {
     for (const ref of this.options.challenge.material_refs) await this.options.artifacts.verify(ref);
     this.inputRefs = structuredClone(this.options.challenge.material_refs);
     this.event('started', { challenge: this.options.challenge, budget: this.options.budget, deadline: new Date(this.deadline).toISOString() });
+    const preset = this.options.preset;
+    if (preset) {
+      if (preset.dispatch.kind !== 'dispatch' || preset.firstRun.kind !== 'tool' || preset.firstRun.tool !== 'job.run') throw new SolverFailure('output_parse_error', 'invalid calibration preset');
+      this.checkBudget(); this.checkAuthority();
+      await this.dispatch(preset.dispatch);
+      await this.tool(preset.firstRun);
+    }
     while (true) {
       try {
         this.checkBudget(); this.checkAuthority();
@@ -213,7 +222,6 @@ export class SolverLoop {
       } catch (error) {
         const failure = error instanceof SolverFailure ? error : new SolverFailure('output_parse_error', error instanceof Error ? error.stack ?? error.message : String(error));
         if (failure.code === 'resource_exhausted') { await this.closeFailedExperiment(); return this.finish('resource_exhausted', failure.message, undefined, failure.code); }
-        if (failure.code === 'blocked_data' || failure.code === 'scope_denied') { await this.closeFailedExperiment(); return this.finish('blocked', `${failure.code}: ${failure.message}`, undefined, failure.code); }
         this.observation = await this.errorObservation('driver/action', failure);
         // Parsing/representation repair has a finite local allowance; it never becomes mechanism refutation.
         if (!this.admitRepair('representation', { failure_code: failure.code, raw_refs: this.observation.artifact_refs })) {

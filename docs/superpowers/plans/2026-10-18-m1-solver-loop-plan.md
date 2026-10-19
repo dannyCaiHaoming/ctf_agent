@@ -10,10 +10,10 @@
 > 2. [x] **按 [动作契约重设计](#动作契约重设计第三轮结论2026-10-18) 改契约**：模型只写 6 个必填语义字段，ID/hash/ref/预算/步骤号全部由 host 注入。v7 已接入 provider driver；未运行正式模型 run。
 > 3. [x] **修 `scope_denied`/`blocked_data`**：回灌为 observation 并允许改路，不再终止 run（恢复 spec §8.7）。策略拒绝仍 fail closed，且不计为机制反证。
 > 4. [x] **建离线动作契约探针并达标**（≥90% 合法动作，且 run 1–4 的四个历史失败状态全部不复现）。2026-10-19 扩展离线探针 9/9 合法、9/9 期望动作类型匹配、0 个历史失败，并覆盖 `candidate_before_actual_experiment`；报告 `runs/m1-contract-probe-v7-20261019-expanded/report.json`。
-> 5. [ ] **提交当前 13 个悬空改动**（第三次悬空；确定性测试全绿，具备提交条件）。
-> 6. [ ] **写黄金路径确定性测试**（决策⑫，最高价值）：脚本化一个**完美模型**端到端走完轨迹①——直到脚本执行、stderr 产生、修复成功。**它不通过就不要再跑真实模型。**
-> 7. [ ] **反转「拒绝即终止」默认**（决策⑬）：第 3 项只修了 `scope_denied`，于是 runs 7/8 换成 alias denied 和 duplicate fingerprint 又死两次。改为 host 拒绝 → observation 回灌 → 有界修复 → 继续；只有**小白名单**才终止 run。
-> 8. [ ] **为校准 run 预置起跑点**（决策⑭）：harness 预置到「脚本第一次执行失败」为止，其后读 stderr／定位／修复／重跑**全部由模型完成**。
+> 5. [x] **提交当前 13 个悬空改动**（第三次悬空；确定性测试全绿，具备提交条件）。已由 `dbca2cd fix: stabilize M1 solver contract and record calibration` 提交。
+> 6. [x] **写黄金路径确定性测试**（决策⑫，最高价值）：脚本化一个**完美模型**端到端走完轨迹①——直到脚本执行、stderr 产生、修复成功。`tests/gates/m1.gate.ts` 2/2 通过，`gate:m1` 已接入 package scripts。
+> 7. [x] **反转「拒绝即终止」默认**（决策⑬）：第 3 项只修了 `scope_denied`，于是 runs 7/8 换成 alias denied 和 duplicate fingerprint 又死两次。run-level catch 现在只把 `resource_exhausted` 作为终止白名单；其余 host 拒绝都回灌 observation 并进入有界 representation repair。
+> 8. [x] **为校准 run 预置起跑点**（决策⑭）：harness 预置到「脚本第一次执行失败」为止，其后读 stderr／定位／修复／重跑**全部由模型完成**。已实现 `SolverLoopOptions.preset`，gate 测试证明 driver 只收到修复后的决策请求。
 > 9. [ ] **达标后**才重启轨迹①校准 → 3 次正式 run → 落盘 → 提交 → 下一条轨迹。
 >
 > ⚠️ **第 6 项通过前，不要再发起任何完整真实模型 run。** 已烧 8 次 run / 134k tokens / 6 个 prompt 版本，每次只换来一个新关卡，脚本一次都没执行过。
@@ -104,9 +104,9 @@
 
 ### 决策（按序，构成顶部任务队列第 2–4 项）
 
-- [ ] **⑫ 黄金路径确定性测试（最高价值，本该在任何真实 run 之前存在）。** 脚本化一个**完美模型**——每步都发出标准答案动作——让它端到端走完轨迹①直到脚本执行、stderr 产生、修复成功。**若完美模型都到不了脚本执行，真实模型不可能到。** `node` 别名、duplicate fingerprint、JSON 围栏这一整类关卡本应在几秒内被它全部抓出，而不是花 45k tokens 一次抓一个。此测试进 `gate:m1`，之后长期保持绿。
-- [ ] **⑬ 反转「拒绝即终止」的默认。** 决策⑦只修了 `scope_denied`，于是换成 alias denied、duplicate fingerprint 又死两次。改为：**host 拒绝 → 结构化 observation 回灌 Solver → 有界修复 → 继续**；只有一个**显式且很小的白名单**（预算耗尽、无 runnable route、真实安全不变量被破坏）才终止 run。新增拒绝码默认进入可恢复分支，不需要逐个补。
-- [ ] **⑭ 为校准 run 预置起跑点。** 允许 harness 预置**到「脚本第一次执行失败」为止**的全部步骤（dispatch、首次 `job.run` 由 host 写好）。
+- [x] **⑫ 黄金路径确定性测试（最高价值，本该在任何真实 run 之前存在）。** 已新增 `tests/gates/m1.gate.ts`：完美模型走完首次失败执行、raw stderr、bounded repair、成功重跑；`gate:m1` 2/2 通过。
+- [x] **⑬ 反转「拒绝即终止」的默认。** 已把 run-level 终止白名单收窄为 `resource_exhausted`；`scope_denied` / `blocked_data` 等默认回灌 observation 并受 representation repair 预算约束，不再直接终止 run。
+- [x] **⑭ 为校准 run 预置起跑点。** 已新增 `SolverLoopOptions.preset`：host 写好 dispatch 与首次失败 `job.run`；gate 测试确认修复与重跑完全由 driver/model 决策。
       **边界（必须严格遵守）：** 预置**止于第一次失败执行**；其后的读 stderr、定位、修复、重跑**必须 100% 由模型完成**，harness 不得提示错误位置、不得给出修复内容、不得代为重跑。这不违反 spec §12.2「harness 不得代模型修脚本」——修脚本仍是模型的事；省掉的只是与轨迹①无关的 dispatch 仪式。
       **正式 2/3 验收**可使用预置起跑点，但必须在 `m1-inputs.md` 中明确记录预置范围，且**三次运行使用同一预置**。
 
