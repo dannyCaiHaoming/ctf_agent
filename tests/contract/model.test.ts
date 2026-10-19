@@ -1,80 +1,35 @@
 import { describe, expect, it } from 'vitest';
-import { AnthropicCompatibleModel, OpenAICompatibleModel } from '../../packages/supervisor/src/index.js';
+import { readdir, readFile } from 'node:fs/promises';
+import { resolve, join } from 'node:path';
+import * as supervisor from '../../packages/supervisor/src/index.js';
 
-const turn = { stage: 'solving' as const, challenge: { id: 'c', target: 'http://127.0.0.1', description: 'x' }, observations: [] };
+const retired = ['SolverSupervisor', 'ScriptedSolverModel', 'OpenAICompatibleModel', 'AnthropicCompatibleModel'];
 
-function jsonResponse(value: unknown): Response {
-  return new Response(JSON.stringify(value), { status: 200, headers: { 'content-type': 'application/json' } });
-}
-
-describe('model adapters', () => {
-  it('uses the Anthropic Messages wire format without leaking the API key', async () => {
-    let request!: Request;
-    const model = new AnthropicCompatibleModel({
-      id: 'deepseek-v4-flash',
-      baseUrl: 'https://ark.cn-beijing.volces.com/api/coding',
-      apiKey: 'secret',
-      fetchImpl: async (input, init) => {
-        request = new Request(input, init);
-        return jsonResponse({ content: [{ type: 'text', text: 'CANDIDATE: flag{x}' }], usage: { input_tokens: 5, output_tokens: 7 } });
-      }
-    });
-    const result = await model.invoke(turn);
-    expect(new URL(request.url).toString()).toBe('https://ark.cn-beijing.volces.com/api/coding/v1/messages');
-    expect(request.headers.get('x-api-key')).toBe('secret');
-    const body = await request.json();
-    expect(body.model).toBe('deepseek-v4-flash');
-    expect(result).toEqual({ text: 'CANDIDATE: flag{x}', observableTokens: 12 });
+describe('supervisor production boundary (replaces retired M0 adapter contracts)', () => {
+  it('does not export a second model pipeline or direct-provider adapters', () => {
+    for (const name of retired) expect(Object.hasOwn(supervisor, name), name).toBe(false);
   });
 
-  it('uses the OpenAI-compatible chat wire format', async () => {
-    let request!: Request;
-    const model = new OpenAICompatibleModel({
-      id: 'model-x',
-      baseUrl: 'https://example.test/v1',
-      apiKey: 'secret',
-      fetchImpl: async (input, init) => {
-        request = new Request(input, init);
-        return jsonResponse({ choices: [{ message: { content: 'ok' } }], usage: { total_tokens: 3 } });
-      }
-    });
-    await expect(model.invoke(turn)).resolves.toEqual({ text: 'ok', observableTokens: 3 });
-    expect(new URL(request.url).pathname).toBe('/v1/chat/completions');
+  it('retains reusable host services rather than deleting the supervisor package', () => {
+    for (const name of ['ResponsibilityRegistry', 'PublishedRevisionService', 'HypothesisManager', 'experimentFingerprint',
+      'DurableJobWatchService', 'IndependentVerificationService', 'VerifiedCoordinator', 'MultiFlagContinuation']) {
+      expect(supervisor[name as keyof typeof supervisor], name).toBeTypeOf('function');
+    }
   });
-});
 
-describe('Anthropic tool loop', () => {
-  it('executes tool_use, returns tool_result, and accepts the final answer', async () => {
-    let call = 0;
-    const requests: any[] = [];
-    const model = new AnthropicCompatibleModel({
-      id: 'deepseek-v4-flash',
-      baseUrl: 'https://ark.example/api/coding',
-      apiKey: 'secret',
-      maxToolRounds: 2,
-      tools: [{
-        name: 'http_request',
-        description: 'HTTP GET',
-        input_schema: { type: 'object', properties: { url: { type: 'string' } }, required: ['url'] },
-        execute: async input => ({ status: 200, body: `flag for ${(input as any).url}` })
-      }],
-      fetchImpl: async (input, init) => {
-        requests.push(JSON.parse(String(init?.body)));
-        call++;
-        if (call === 1) {
-          return jsonResponse({
-            content: [
-              { type: 'text', text: 'Checking target.' },
-              { type: 'tool_use', id: 'tool_1', name: 'http_request', input: { url: 'http://target/robots.txt' } }
-            ],
-            usage: { input_tokens: 10, output_tokens: 5 }
-          });
+  it('keeps retired implementations and test-only legacy imports out of production sources', async () => {
+    async function inspect(directory: string): Promise<void> {
+      for (const entry of await readdir(directory, { withFileTypes: true })) {
+        const path = join(directory, entry.name);
+        if (entry.isDirectory()) await inspect(path);
+        else if (entry.isFile() && path.endsWith('.ts')) {
+          const source = await readFile(path, 'utf8');
+          expect(source, path).not.toMatch(/\bclass\s+(?:SolverSupervisor|ScriptedSolverModel|OpenAICompatibleModel|AnthropicCompatibleModel)\b/);
+          expect(source, path).not.toMatch(/(?:from\s*|import\s*\()\s*['"][^'"]*(?:tests\/legacy|legacy\/(?:solver-loop|provider-solver-driver))/);
         }
-        return jsonResponse({ content: [{ type: 'text', text: 'CANDIDATE: flag{found}' }], usage: { input_tokens: 20, output_tokens: 3 } });
       }
-    });
-    const result = await model.invoke(turn);
-    expect(result).toEqual({ text: 'CANDIDATE: flag{found}', observableTokens: 38 });
-    expect(requests[1].messages.at(-1).content[0]).toMatchObject({ type: 'tool_result', tool_use_id: 'tool_1' });
+    }
+    await inspect(resolve('apps'));
+    await inspect(resolve('packages'));
   });
 });

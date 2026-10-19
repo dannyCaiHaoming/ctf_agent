@@ -1,116 +1,62 @@
 import { describe, expect, it } from 'vitest';
-import { mkdtemp, readFile } from 'node:fs/promises';
-import { tmpdir } from 'node:os';
+import { readFile, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
-import { ArtifactStore } from '../../packages/artifacts/src/index.js';
 import { StateStore } from '../../packages/state/src/index.js';
-import { Coordinator, PlatformService } from '../../packages/platform/src/index.js';
-import { LocalFlagOracle } from '../../packages/local-oracle/src/index.js';
-import { SolverSupervisor, type ModelAdapter, type ModelResponse } from '../../packages/supervisor/src/index.js';
-import { startLocalTarget } from '../../fixtures/local-target/src/server.js';
-import type { Budget } from '../../packages/contracts/src/index.js';
+import { openCodeFixture, successfulRepair } from './opencode-fixture.js';
 
-function budget(overrides: Partial<Budget> = {}): Budget {
-  return { wallClockMs: 60000, maxSteps: 20, maxToolJobs: 10, maxObservableTokens: 10000, ...overrides };
-}
-
-class ObservationModel implements ModelAdapter {
-  readonly id = 'stub-m0-model';
-  constructor(private readonly flag: string) {}
-  async invoke(turn: any): Promise<ModelResponse> {
-    if (turn.stage === 'solving') return { text: `CANDIDATE: flag{not-the-flag}`, observableTokens: 10 };
-    if (turn.stage === 'verifying') return { text: `CANDIDATE: ${this.flag}`, observableTokens: 10 };
-    return { text: turn.stage, observableTokens: 5 };
-  }
-}
-
-describe('M0 local solve loop', () => {
-  it('runs intake through finalizing, submits through Coordinator, and is accepted by local_oracle', async () => {
-    const target = await startLocalTarget();
+// Replaces the retired fixed-stage M0 loop. The existing local provider never
+// contacts an external model; the real CLI/OpenCode own the solve path.
+describe('product CLI smoke through OpenCode (migrated M0 coverage)', () => {
+  it('submits actual tool output through independent verification and the authoritative oracle', async () => {
+    const fixture = await openCodeFixture(successfulRepair);
     try {
-      const root = await mkdtemp(join(tmpdir(), 'smoke-solve-'));
-      const runId = 'run_smoke';
-      const state = new StateStore(root, runId);
-      const artifacts = new ArtifactStore(join(root, 'artifacts'));
-      const http = await artifacts.publish(Buffer.from(await (await fetch(`${target.url}/robots.txt`)).text()));
-      state.addCanonicalArtifact(http);
-      state.addEvidence({ id: 'robots', runId, source: 'observation', artifact: http, startCursor: 0, endCursor: 15 });
-      const platform = new PlatformService(state, new LocalFlagOracle(target.flag));
-      const supervisor = new SolverSupervisor({
-        runRoot: join(root, 'run'),
-        challengeId: 'challenge_local_target',
-        challengeTarget: target.url,
-        description: 'Authorized local HTTP challenge',
-        budget: budget(),
-        coordinator: new Coordinator(platform, runId),
-        model: new ObservationModel(target.flag),
-        lease: 'lease_smoke' as never,
-        state,
-        evidenceRefs: [{ hash: http.hash, path: http.path, size: http.size }],
-        task: 'task_solver' as never,
-        runId
+      const run = await fixture.run();
+      expect(run.code, run.stderr).toBe(0);
+      expect(run.result).toMatchObject({ outcome: 'solved', solve_state: 'finished',
+        engine: { name: 'opencode', model: 'local/local-perfect' } });
+      const events = await fixture.events();
+      expect(events.find(event => event.activity === 'started')).toMatchObject({
+        runId: run.result.run_id, sessionId: run.result.session_id, data: { engine: 'opencode' }
       });
-      const result = await supervisor.run();
-      expect(result.outcome).toBe('solved');
-      expect(result.solveState).toBe('finished');
-      expect(result.steps).toBeGreaterThanOrEqual(6);
-      const resultJson = JSON.parse(await readFile(join(root, 'run', 'result.json'), 'utf8'));
-      expect(resultJson.model).toBe('stub-m0-model');
-      expect(resultJson.observableTokens).toBeGreaterThan(0);
-      expect(await readFile(join(root, 'run', 'events.jsonl'), 'utf8')).toContain('pipeline_stage');
-      state.close();
-    } finally {
-      await target.close();
-    }
-  });
+      const accepted = events.find(event => event.activity === 'candidate');
+      expect(accepted).toMatchObject({ data: { status: 'accepted', authoritative: true,
+        resolution: { completed: true, verification: { status: 'verified', current: true } } } });
+      expect(events.at(-1)).toMatchObject({ activity: 'checkpoint', data: {
+        outcome: run.result.outcome, solve_state: run.result.solve_state
+      } });
+    } finally { await fixture.close(); }
+  }, 60000);
 
-  it('reports infrastructure invalid instead of pretending to solve when target is down', async () => {
-    const root = await mkdtemp(join(tmpdir(), 'smoke-down-'));
-    const state = new StateStore(root, 'run_down');
-    const platform = new PlatformService(state, new LocalFlagOracle('flag{unused}'));
-    const supervisor = new SolverSupervisor({
-      runRoot: join(root, 'run'),
-      challengeId: 'challenge_local_target',
-      challengeTarget: 'http://127.0.0.1:1',
-      description: 'down target',
-      budget: budget(),
-      coordinator: new Coordinator(platform, 'run_down'),
-      model: new ObservationModel('flag{unused}'),
-      lease: 'lease_down' as never,
-      task: 'task_solver' as never
-    });
-    const result = await supervisor.run();
-    expect(result.outcome).toBe('infrastructure_invalid');
-    expect(result.solveState).toBe('blocked_runtime');
-    expect(result.stopReason).toMatch(/target unavailable/i);
-    state.close();
-  }, 10000);
-
-  it('stops on a small step budget and records the reason', async () => {
-    const target = await startLocalTarget();
+  it('records an infrastructure/bootstrap blocker without calling a model or claiming acceptance', async () => {
+    const fixture = await openCodeFixture(successfulRepair);
     try {
-      const root = await mkdtemp(join(tmpdir(), 'smoke-budget-'));
-      const state = new StateStore(root, 'run_budget');
-      const platform = new PlatformService(state, new LocalFlagOracle(target.flag));
-      const supervisor = new SolverSupervisor({
-        runRoot: join(root, 'run'),
-        challengeId: 'challenge_local_target',
-        challengeTarget: target.url,
-        description: 'budgeted',
-        budget: budget({ maxSteps: 5 }),
-        coordinator: new Coordinator(platform, 'run_budget'),
-        model: new ObservationModel(target.flag),
-        lease: 'lease_budget' as never,
-        task: 'task_solver' as never,
-        runId: 'run_budget'
-      });
-      const result = await supervisor.run();
-      expect(result.steps).toBe(5);
-      expect(result.outcome).toBe('candidate_only');
-      expect(result.stopReason).toBe('step budget exhausted');
-      state.close();
-    } finally {
-      await target.close();
-    }
-  });
+      const profilePath = join(fixture.root, 'profile.json');
+      const profile = JSON.parse(await readFile(profilePath, 'utf8'));
+      profile.opencode.binaryPath = join(fixture.root, 'missing-opencode');
+      await writeFile(profilePath, JSON.stringify(profile));
+      const run = await fixture.run();
+      expect(run.code).toBe(1);
+      expect(run.result).toMatchObject({ session_id: null, status: 'blocked',
+        outcome: 'inconclusive', solve_state: 'blocked_runtime',
+        provider_usage: { availability: 'unavailable', model_calls: null } });
+      expect(fixture.requests).toHaveLength(0);
+      expect((await fixture.events()).some(event => event.activity === 'candidate')).toBe(false);
+      const state = new StateStore(join(fixture.out, 'state'), run.result.run_id);
+      try { expect(state.loadCheckpoint(run.result.run_id)).toMatchObject({ runId: run.result.run_id, stage: 'finalizing' }); }
+      finally { state.close(); }
+    } finally { await fixture.close(); }
+  }, 60000);
+
+  it('stops at the shared budget and persists the reason instead of advancing a fixed stage pipeline', async () => {
+    const fixture = await openCodeFixture(successfulRepair, { maxSteps: 1 });
+    try {
+      const run = await fixture.run();
+      expect(run.code).toBe(1);
+      expect(run.result).toMatchObject({ outcome: 'inconclusive', status: 'resource_exhausted', solve_state: 'paused' });
+      expect(run.result.reason).toMatch(/budget/);
+      expect(fixture.requests).toHaveLength(1);
+      expect((await fixture.events()).at(-1)).toMatchObject({ activity: 'checkpoint',
+        data: { outcome: 'inconclusive', status: 'resource_exhausted', budget: { maxSteps: 1 } } });
+    } finally { await fixture.close(); }
+  }, 60000);
 });
