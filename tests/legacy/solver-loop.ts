@@ -1,3 +1,4 @@
+// Frozen regression harness for pre-OpenCode M1b assets. Not shipped or exported by production packages.
 import { randomUUID } from 'node:crypto';
 import { realpath } from 'node:fs/promises';
 import { resolve, sep } from 'node:path';
@@ -8,10 +9,10 @@ import type { ArtifactStore } from '@ctf/artifacts';
 import type { StateStore } from '@ctf/state';
 import type { BinaryData, ToolRuntime } from '@ctf/runtime';
 import type { ReferenceService } from '@ctf/reference';
-import { HypothesisManager, type HypothesisManagerOptions } from './hypotheses.js';
-import { freezeData, type ResponsibilityBinding, type ResponsibilityRegistry } from './responsibilities.js';
-import { DurableJobWatchService } from './long-job-watch.js';
-import { loadDomainSkill, type Domain } from './skills/index.js';
+import { HypothesisManager, type HypothesisManagerOptions } from '../../packages/supervisor/src/hypotheses.js';
+import { freezeData, type ResponsibilityBinding, type ResponsibilityRegistry } from '../../packages/supervisor/src/responsibilities.js';
+import { DurableJobWatchService } from '../../packages/supervisor/src/long-job-watch.js';
+import { loadDomainSkill, type Domain } from '../../packages/supervisor/src/skills/index.js';
 
 const text = z.string().min(1);
 const commandInput = z.object({ command: z.array(text).min(1), timeout_ms: z.number().int().positive().optional(), max_retained_bytes: z.number().int().positive().optional() }).strict();

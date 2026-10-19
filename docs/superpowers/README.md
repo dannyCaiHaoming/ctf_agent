@@ -1,20 +1,20 @@
 # 文档索引
 
-通用 CTF 解题 Agent 项目的设计与计划文档。**平时只需看两份活文档**，其余历史都在各自的 `archive/` 里。
+通用 CTF 解题 Agent 项目的设计与计划文档。**开工先读 spec、roadmap 和当前里程碑 plan**；历史不作为待办。
 
-## 活文档（平时看这两份）
+## 活文档与里程碑记录
 
 | 文档 | 作用 |
 | --- | --- |
 | [`specs/2026-10-14-general-ctf-agent-system-design.md`](specs/2026-10-14-general-ctf-agent-system-design.md) | **权威设计 spec**：系统意图、架构、平台契约、状态与恢复、验证门槛。一切以它为准。 |
 | [`plans/2026-10-16-ctf-agent-mvp-roadmap.md`](plans/2026-10-16-ctf-agent-mvp-roadmap.md) | **当前路线图**：把设计切成 M0→M5+ 的 MVP 里程碑，每个里程碑一份可验收产物。 |
 | [`plans/2026-10-17-m0-host-foundation-plan.md`](plans/2026-10-17-m0-host-foundation-plan.md) | **M0 detailed plan — COMPLETE (2026-10-17)**：任务与验收均为可勾选候选框；T9b 后移 M2。 |
-| [`plans/2026-10-18-m1-solver-loop-plan.md`](plans/2026-10-18-m1-solver-loop-plan.md) | **M1 detailed plan — 当前里程碑**：六条 loop 轨迹 2/3 门槛；实现时跟踪这份。 |
+| [`plans/2026-10-18-m1-solver-loop-plan.md`](plans/2026-10-18-m1-solver-loop-plan.md) | **M1 detailed plan — 当前收尾**：仅 OpenCode 轨迹①，独立 3 次 ≥2 次；已验收 3/3。轨迹②–⑥属 M1b，不是当前待办；提交待授权。 |
 
 ## 目录约定
 
 - `specs/` — 设计。当前只有一份权威版；`specs/archive/` 放被取代的前身。
-- `plans/` — 计划。当前只有 roadmap；**每个里程碑启动时**用 write-plan 在此新增该里程碑的 detailed plan；`plans/archive/` 放废弃的旧计划。
+- `plans/` — roadmap 与各里程碑 detailed plan；**每个里程碑启动时**才新增对应计划。`plans/archive/` 放废弃计划，`plans/history/` 放历史复盘，均不自动构成待办。
 - `reviews/archive/` — 对 spec / plan 的历史评审，按评审对象命名。目前没有进行中的评审，故只有 archive。
 
 ## 工作流

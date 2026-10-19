@@ -18,6 +18,13 @@
 - `npm run typecheck -- --pretty false`、`npm run build`、`git diff --check`：通过。
 - 没有真实模型、外网、远程 provider API 或真实 benchmark/VPN 调用。未跑六轨迹验收。HTTP literal adjudicator 不理解任意漏洞机理；resolver只支持受限 local HTTP GET 范围，其他候选/执行模式 fail closed。T9/T9a的通用执行来源证明、其余操作模式及完整组合仍未完成。
 
+## 2026-10-19 增量：百炼 DeepSeek V4 Flash 开发 profile
+
+- 新增 `config/release-profile.m1-bailian-deepseek-v4-flash.example.json`：模型 `deepseek-v4-flash-0731`，OpenAI-compatible base URL `https://dashscope.aliyuncs.com/compatible-mode/v1`，凭证只通过 `DASHSCOPE_API_KEY` 注入。该配置是开发候选，不是旧正式批次的替换或追加 run。
+- 由于该模型不支持 structured output，release profile 新增可冻结的 `model.responseFormat: json_object | prompt_only`。旧 profile 不设置时保持 `json_object` 行为；百炼 profile 使用 `prompt_only`，driver 不发送 `response_format`，但仍由 prompt 要求 JSON，并在 host 侧执行原有 schema/materialization 校验。
+- `solveM1` 与 `m1ContractProbe` 均将该冻结字段传入同一 `ProviderSolverDriver`；没有新建 provider 旁路，也没有放宽候选/action/usage 规则。
+- 验证：`tests/bootstrap/test-harness.test.ts` 与 `tests/contract/provider-solver-driver.test.ts` 共 14 项通过；默认 OpenAI-compatible 路径仍断言发送 `response_format: json_object`，百炼候选路径断言不发送该字段。`npm run gate:m0` 24 files / 158 tests、`npm run gate:m1` 3/3、`npm run typecheck`、`npm run build`、`git diff --check` 全部通过。M0 gate 同时去除嵌套启动同一 contract suite 的重复编排，真实 PTY/TCP 测试只执行一次；loopback 测试需在允许绑定 `127.0.0.1` 的本机环境运行。没有真实百炼请求，不证明 API Key、额度、服务端模型可用性或 M1 真实模型验收。
+
 ## 先前阶段快照（本报告增量实现之前）
 
 - 正常 `solve` 入口按 M1 profile 路由到 SolverLoop，创建 run/challenge/session/task 身份与受限责任；将 profile、model、temperature、prompt/template、tool manifest、Reference snapshot、预算及 deadline 绑定到 run。

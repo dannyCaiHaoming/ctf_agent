@@ -1,10 +1,12 @@
-import { mkdtemp, cp, rm } from 'node:fs/promises';
+import { mkdtemp, cp, rm, readFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { ArtifactStore } from '@ctf/artifacts';
 import { StateStore } from '@ctf/state';
 import { ToolRuntime } from '@ctf/runtime';
-import { ResponsibilityRegistry, SolverLoop, type SolverAction, type SolverDriver, type SolverRequest, type SolverLoopOptions } from '@ctf/supervisor';
+import { ImmutableArtifactRefSchema } from '../../packages/contracts/src/index.js';
+import { ResponsibilityRegistry } from '@ctf/supervisor';
+import { SolverLoop, type SolverAction, type SolverDriver, type SolverRequest, type SolverLoopOptions } from '../legacy/solver-loop.js';
 
 export const declaration = (id = 'decode') => ({
   id, claim: id === 'expression' ? 'parser evaluates expression inputs' : 'payload is base64 text',
@@ -30,18 +32,27 @@ export function scripted(actions: Array<SolverAction | ((request: SolverRequest)
     return { action: typeof action === 'function' ? action(request) : action, usage: { provenance: 'deterministic', input_tokens: 1, output_tokens: 1, model_calls: 0 } };
   } } };
 }
-export async function setup(fixture: string, driver: SolverDriver, options: Partial<SolverLoopOptions> = {}) {
+export interface SolverLoopFixtureContext { state: StateStore; artifacts: ArtifactStore; runtime: ToolRuntime; registry: ResponsibilityRegistry; }
+export async function setup(fixture: string, driver: SolverDriver, options: Partial<SolverLoopOptions> = {},
+  configure?: (context: SolverLoopFixtureContext) => Partial<SolverLoopOptions>,
+  includeFixtureMaterials = false) {
   const root = await mkdtemp(join(tmpdir(), 'solver-loop-'));
   const artifacts = new ArtifactStore(join(root, 'artifacts'));
   const state = new StateStore(join(root, 'state'), 'run');
   const runtime = new ToolRuntime(artifacts, join(root, 'workspaces'), 'run', 'challenge');
   await cp(resolve('fixtures/trajectories', fixture), runtime.workspace('solver').path, { recursive: true });
+  const fixtureWorkspace = runtime.workspace('solver');
+  const fixtureFiles = (await fixtureWorkspace.list()).filter(name => !name.endsWith('/')).sort();
+  const fixtureMaterials = await Promise.all(fixtureFiles.map(async name => ImmutableArtifactRefSchema.parse(await artifacts.publish(await readFile(join(fixtureWorkspace.path, name))))));
   const registry = new ResponsibilityRegistry({ verifyArtifact: ref => artifacts.verify(ref) });
   registry.createTask({ run_id: 'run', challenge_id: 'challenge', task_id: 'solver', attempt_id: 'attempt', responsibility_set: ['domain_solver', 'strategy'], lease: { lease_id: 'lease', expires_at: new Date(Date.now() + 60000).toISOString() } });
   registry.bindSession({ session_id: 'session', task_id: 'solver', context: registry.createReasoningContext() });
   const loop = new SolverLoop({
     state, artifacts, runtime, registry, sessionId: 'session', driver,
-    challenge: { ready: true, description: 'Inspect local supplied materials', material_refs: [], snapshot: { generation: 1 } },
+    challenge: { ready: true, description: 'Inspect local supplied materials',
+      material_refs: includeFixtureMaterials ? fixtureMaterials : [],
+      workspace_files: includeFixtureMaterials ? fixtureFiles : [],
+      snapshot: { generation: 1 } },
     budget: { wallClockMs: 10000, maxSteps: 30, maxToolJobs: 20, maxObservableTokens: 1000 },
     authorizeCommand: command => { if (command[0] !== process.execPath) throw new Error('local node fixture commands only'); },
     validateProgress: async (claim, experiment, hypothesis) => {
@@ -51,7 +62,7 @@ export async function setup(fixture: string, driver: SolverDriver, options: Part
       if (claim.verdict === 'rejected' && hypothesis.id === 'expression' && text.trim() === '{"mode":"literal","value":"2+2"}') return { substantiation: 'actual successful parser output retained the exact expression and explicitly reports literal mode' };
       if (claim.verdict === 'supported' && hypothesis.id === 'decode' && /^flag\{[a-z_]+\}\s*$/.test(text)) return { substantiation: 'actual local decoder produced printable framed challenge material' };
       throw new Error('immutable output does not substantiate the declared mechanism');
-    }, ...options
+    }, ...configure?.({ state, artifacts, runtime, registry }), ...options
   });
   return { loop, state, runtime, artifacts, registry, root, async close() { state.close(); await rm(root, { recursive: true, force: true }); } };
 }

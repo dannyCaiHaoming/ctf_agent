@@ -19,14 +19,15 @@ export class PolicyEngine {
   private readonly bindings = new Map<string, SessionBinding>();
 
   register(binding: SessionBinding): void {
-    this.bindings.set(binding.sessionId, binding);
+    if (this.bindings.has(binding.sessionId)) throw new Error('session binding immutable');
+    this.bindings.set(binding.sessionId, Object.freeze({ ...binding, capabilities: new Set(binding.capabilities) }));
   }
 
   binding(sessionId: SessionId): SessionBinding {
     const binding = this.bindings.get(sessionId);
     if (!binding) throw new Error('unbound session');
     if (new Date(binding.expiresAt).getTime() <= Date.now()) throw new Error('lease expired');
-    return binding;
+    return { ...binding, capabilities: new Set(binding.capabilities) };
   }
 
   authorizeTool(input: {

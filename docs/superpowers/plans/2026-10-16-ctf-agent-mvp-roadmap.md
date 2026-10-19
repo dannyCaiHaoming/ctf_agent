@@ -33,7 +33,8 @@
 | 里程碑 | MVP 产物（能演示的东西） | 验收门槛 |
 | --- | --- | --- |
 | **M0 确定性地基 + 冒烟解题**（全项目最重、风险最高） | OpenCode 桥接/插件/工具运行时打通 + 单个按需 Challenge Browser + state/effect ledger + `local_oracle` + 一个跑着的本地靶机（mock TSecBench adapter 一并锁定契约，但不在冒烟关键路径，时间紧可后移 M2） | ① 确定性契约测试全过（身份/scope/deadline/effect 分级/artifact 发布/secret 边界/Browser scoped 操作与转题 teardown）；② 一次冒烟 run：真实模型对本地靶机产出候选、`local_oracle` 判 `accepted`（仅证明端到端通路，**1 次即可，不作能力门槛**） |
-| **M1 Solver 循环韧性** | 自适应职责（coordinator + web/misc/crypto solver + verifier）+ 按需 Skills + 本地 checkpoint 续跑 | spec §12.2 的**六条 loop 轨迹**，固定 model/参数/prompt/工具版本/预算，**各独立跑 3 次、至少成功 2 次**，全部结果保留 |
+| **M1 Solver 循环韧性（轨迹①）** | 在 **OpenCode 底座**上跑通轨迹①：脚本报错 → 读 raw stderr → 局部修复 → 重跑成功 → oracle accepted | 轨迹① 独立 3 次、**≥2 次**通过；判分按行为结果判定（不规定改法） |
+| **M1b Solver 循环韧性（其余五条）** | 轨迹②–⑥ 及其配套：长作业 durable watch、compaction 续跑、独立验证三模式、多 flag/partial | 每条轨迹独立 3 次、**≥2 次**通过，18 次结果全留存 |
 | **M2 TSecBench 单题 live** | `prepare`/`start` 两阶段 + VPN 预检 + 单题 list/start/ready/solve/submit/close + 平台感知 resume 起步 | 相对 first-List baseline，本 run 的 confirmed Submit（或 clean/exclusive 下无歧义对账）取得**至少一个新 `accepted`** |
 | **M3 多题 portfolio + 韧性** | 完整列表 + 最多三活跃 instance + 多题 Scheduler + 切题/close + 预算 + fail-stop 完整恢复 | Fixture 覆盖三 instance 与错误分支；真实任务枚举全部支持题、跨题调度、至少一题 `accepted`；恢复不延长 deadline、不重复计分 |
 | **M4 ARM64 镜像交付** | `ctf-agent:core-arm64` 一键构建 + 锁定依赖 + host VPN + 最小 formal egress | 原生 Ubuntu ARM64 重跑 M0–M3 契约、冷启动无下载、raw curl/socket/browser 旁路失败，用**独立 task B** 取得至少一个 `accepted` |
@@ -61,7 +62,8 @@
 | 里程碑 | 估算 | 主要风险 |
 | --- | --- | --- |
 | M0 | 20–34 人天 | OpenCode 桥接/插件契约是头号未知；模型探针结果可能推翻选型。逐任务拆解见 [M0 plan](2026-10-17-m0-host-foundation-plan.md) |
-| M1 | 20–31 人天 | 六条轨迹的 2/3 统计门槛受模型能力支配，可能需反复调 prompt/Skills。逐任务拆解见 [M1 plan](2026-10-18-m1-solver-loop-plan.md) |
+| M1（轨迹①，含 OpenCode 底座恢复） | 8–14 人天 | 模型能力已由 v8-3 校准证明；剩余风险是底座集成。逐任务拆解见 [M1 plan](2026-10-18-m1-solver-loop-plan.md) |
+| M1b（轨迹②–⑥） | 14–22 人天 | 依赖 M1 的 OpenCode 底座；每条轨迹只补自己暴露的缺口 |
 | M2 | 6–12 人天 | 受 VPN 与真实 task A 可用性制约；计时不可逆，准备不足会浪费任务 |
 | M3 | 8–15 人天 | 多题恢复与名额守恒的边界情况多 |
 | M4 | 8–15 人天 | ARM64 工具链与 VPN 真机路由是主要不确定性 |
@@ -101,6 +103,10 @@ spec §12.5 给出 `easy 60% / medium 30% / unknown 45%` 的通过率公式。**
 ---
 
 ### M1 Solver 循环韧性 —— 证明 agent 会"解题"，不只是"跑一次"
+
+> **2026-10-19 边界调整：** M1 收敛为**仅轨迹①，且必须跑在 OpenCode 底座上**；轨迹②–⑥ 移至 **M1b**。
+> 原因有二：① 核查发现 M0/M1 两条 solve 路径都绕过了 OpenCode，违反 [spec line 29](../specs/2026-10-14-general-ctf-agent-system-design.md)「不另造通用 Agent framework」，必须先纠正；② 原 M1（六条轨迹、20–31 人天）本身不是小 MVP，先把一条路走通再复制。
+> 下方「门槛倒推出的四项能力」中除轨迹①外的部分**随对应轨迹移至 M1b**。详见 [M1 plan](2026-10-18-m1-solver-loop-plan.md)。
 
 **做什么**
 - 引入 spec §6 的自适应职责：`ctf-coordinator` + `web-solver`/`misc-solver`/`crypto-solver` + `ctf-verifier`；session 在有界 `responsibility_set` 内带标签提交，不切 challenge、不冒充 verifier；candidate 验证一律用不同 task + 新 session。

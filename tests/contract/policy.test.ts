@@ -42,4 +42,12 @@ describe('policy and model data gateway', () => {
     expect(policy.authorizeTool({ sessionId: b.sessionId, capability: 'platform.intent.submit', scope: b.scope, lease: b.lease })).toMatchObject({ allowed: false });
     expect(() => policy.authorizeTool({ sessionId: 'unbound' as SessionId, capability: 'workspace.read', scope: b.scope, lease: b.lease })).toThrow(/unbound/);
   });
+  it('makes session identity immutable and does not retain caller-mutable capabilities', () => {
+    const policy = new PolicyEngine(); const original = binding(); policy.register(original);
+    original.capabilities.add('platform.intent.submit');
+    const copy = policy.binding(original.sessionId); (copy.capabilities as Set<string>).add('platform.intent.submit');
+    expect(policy.authorizeTool({ sessionId: original.sessionId, lease: original.lease, scope: original.scope,
+      capability: 'platform.intent.submit' }).allowed).toBe(false);
+    expect(() => policy.register({ ...original, task: 'forged-task' as TaskId })).toThrow(/immutable/);
+  });
 });

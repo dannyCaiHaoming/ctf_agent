@@ -34,14 +34,17 @@ async function chromiumCapability(): Promise<Capability> {
 }
 
 function modelApiKeyEnv(profile: ReleaseProfile): string {
-  return profile.model.apiKeyEnv ?? (
-    profile.model.provider === 'volcano' || profile.model.provider === 'volcano_anthropic'
+  const model = profile.model!;
+  return model.apiKeyEnv ?? (
+    model.provider === 'volcano' || model.provider === 'volcano_anthropic'
       ? 'ARK_API_KEY'
-      : `${profile.model.provider.toUpperCase()}_API_KEY`
+      : `${model.provider.toUpperCase()}_API_KEY`
   );
 }
 
 function modelCapability(profile: ReleaseProfile): Capability {
+  if (!profile.model) return { name: 'model:opencode', available: false,
+    evidence: 'Model configuration comes from OpenCode; provider reachability is not proven by loading the profile.' };
   if (profile.model.provider === 'stub') {
     return {
       name: `model:${profile.model.provider}/${profile.model.id}`,

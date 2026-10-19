@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import type { SolverAction } from '@ctf/supervisor';
+import type { SolverAction } from '../legacy/solver-loop.js';
 import { declaration, dispatch, plan, scripted, setup } from './solver-loop-fixtures.js';
 
 describe('host abandonment after representation repair exhaustion', () => {

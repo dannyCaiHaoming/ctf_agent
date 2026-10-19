@@ -27,6 +27,7 @@ export interface JobReadResult {
 export interface RuntimeTerminalEvent {
   resourceId: string; kind: 'job' | 'channel'; state: 'completed' | 'error' | 'cancelled' | 'lost'; record: Readonly<JobRecord>;
 }
+export interface BatchJobOutput { stdout: Buffer; stderr: Buffer; complete: boolean }
 const text = z.string().min(1);
 export const HardLimitDefinitionSchema = z.object({
   unit_definition: text, hard_limit: z.number().int().positive(), budget_scope: text,
@@ -48,6 +49,7 @@ interface Resource {
   kind: 'job' | 'channel'; record: JobRecord; buffer: Buffer; maxRetained: number;
   child?: ChildProcess; socket?: Socket; timer?: ReturnType<typeof setTimeout>;
   closed: Promise<void>; resolveClosed: () => void; terminalEmitted: boolean;
+  output?: BatchJobOutput;
 }
 const MAX_LIFETIME_MS = 24 * 60 * 60 * 1000;
 const MAX_BUFFER_BYTES = 16 * 1024 * 1024;
@@ -163,7 +165,12 @@ export class InteractiveRuntime {
     else if (owner) this.activeLease(owner);
     return resource;
   }
-  private append(resource: Resource, bytes: Buffer): void {
+  private append(resource: Resource, bytes: Buffer, stream?: 'stdout' | 'stderr'): void {
+    if (resource.output && stream) {
+      const available = resource.maxRetained - resource.output.stdout.length - resource.output.stderr.length;
+      resource.output[stream] = Buffer.concat([resource.output[stream], bytes.subarray(0, Math.max(0, available))]);
+      if (bytes.length > available) resource.output.complete = false;
+    }
     const buffer = Buffer.concat([resource.buffer, bytes]);
     const remove = Math.max(0, buffer.length - resource.maxRetained);
     resource.buffer = Buffer.from(buffer.subarray(remove));
@@ -210,6 +217,7 @@ export class InteractiveRuntime {
       mode, taskId: input.taskId, owner: input.owner ? { ...input.owner } : undefined, endpoint, connected: false };
     let resolveClosed!: () => void;
     const resource: Resource = { kind, record, buffer: Buffer.alloc(0), maxRetained, terminalEmitted: false,
+      ...(mode === 'batch' ? { output: { stdout: Buffer.alloc(0), stderr: Buffer.alloc(0), complete: true } } : {}),
       closed: new Promise<void>(resolve => { resolveClosed = resolve; }), resolveClosed: () => resolveClosed() };
     // Allocate identity and record before creating any process/connection.
     this.resources.set(record.id, resource);
@@ -232,10 +240,10 @@ export class InteractiveRuntime {
           stdio: [mode === 'pty' ? 'pipe' : 'ignore', 'pipe', 'pipe'], detached: process.platform !== 'win32' });
         resource.child = child; record.connected = mode === 'pty';
         child.stdin?.on('error', error => { record.error = error.message; });
-        child.stdout?.on('data', bytes => this.append(resource, bytes));
-        child.stderr?.on('data', bytes => this.append(resource, bytes));
+        child.stdout?.on('data', bytes => this.append(resource, bytes, 'stdout'));
+        child.stderr?.on('data', bytes => this.append(resource, bytes, 'stderr'));
         // Keep the spawn-error handler: missing executables must never crash the host.
-        child.on('error', error => { record.error = error.message; this.append(resource, Buffer.from(error.stack ?? error.message)); this.terminal(resource, 'failed', null, false); });
+        child.on('error', error => { record.error = error.message; this.append(resource, Buffer.from(error.stack ?? error.message), 'stderr'); this.terminal(resource, 'failed', null, false); });
         child.on('exit', () => this.killGroup(child));
         child.on('close', (code, signal) => {
           this.killGroup(child); this.terminal(resource, signal ? 'failed' : code === 0 ? 'completed' : 'failed', code);
@@ -246,6 +254,12 @@ export class InteractiveRuntime {
       }
     }
     return this.snapshot(record);
+  }
+  output(id: string, owner?: RuntimeOwner): BatchJobOutput {
+    const resource = this.get(id, 'job', owner);
+    if (!resource?.output) throw new Error('separate stdout/stderr require a batch job');
+    if (resource.record.status === 'running') throw new Error('batch output is not terminal');
+    return { stdout: Buffer.from(resource.output.stdout), stderr: Buffer.from(resource.output.stderr), complete: resource.output.complete };
   }
   status(id: string, kind: Resource['kind'], owner?: RuntimeOwner): JobRecord | undefined {
     const resource = this.get(id, kind, owner); return resource ? this.snapshot(resource.record) : undefined;

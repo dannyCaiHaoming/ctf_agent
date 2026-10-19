@@ -70,6 +70,7 @@ export class ToolRuntime {
   meteringCapability(input: HardLimitDefinition) { return this.interactive.meteringCapability(input); }
   jobStart(input: JobStartInput): Promise<JobRecord> { return this.interactive.start(input); }
   jobStatus(id: string, owner?: RuntimeOwner): JobRecord | undefined { return this.interactive.status(id, 'job', owner); }
+  jobOutput(id: string, owner?: RuntimeOwner) { return this.interactive.output(id, owner); }
   jobRead(id: string, cursor: number, maxBytes = 65536, owner?: RuntimeOwner): Promise<JobReadResult> { return this.interactive.read(id, cursor, maxBytes, 'job', owner); }
   jobWrite(id: string, data: BinaryData, owner: RuntimeOwner) { return this.interactive.write(id, data, 'job', owner); }
   jobList(snapshot: RuntimeTaskSnapshot) { return this.interactive.list(snapshot); }

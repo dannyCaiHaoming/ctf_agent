@@ -1,7 +1,7 @@
 import { readFile, symlink } from 'node:fs/promises';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { SolverFailure, solverDisposition, type SolverAction, type SolverDriver } from '@ctf/supervisor';
+import { SolverFailure, solverDisposition, type SolverAction, type SolverDriver } from '../legacy/solver-loop.js';
 import { OutcomeSchema, SolveStateSchema } from '@ctf/contracts';
 import { declaration, dispatch, plan, run, scripted, setup } from './solver-loop-fixtures.js';
 

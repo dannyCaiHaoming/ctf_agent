@@ -2,7 +2,7 @@ import { writeFile } from 'node:fs/promises';
 import { createServer } from 'node:net';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { SolverActionSchema, SolverLoop, type SolverAction, type SolverDriver } from '@ctf/supervisor';
+import { SolverActionSchema, SolverLoop, type SolverAction, type SolverDriver } from '../legacy/solver-loop.js';
 import { setup } from './solver-loop-fixtures.js';
 
 const usage = { provenance: 'deterministic' as const, input_tokens: 1, output_tokens: 1, model_calls: 0 };

@@ -1,10 +1,15 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "type": "object",
-  "required": ["profileId", "model", "reference", "budget", "os"],
+  "required": ["profileId", "reference", "budget", "os"],
+  "oneOf": [{ "required": ["model"], "not": { "required": ["opencode"] } }, { "required": ["opencode"], "not": { "required": ["model"] } }],
   "properties": {
     "profileId": { "type": "string", "minLength": 1 },
     "solverMode": { "enum": ["m0", "m1"] },
+    "opencode": {
+      "type": "object", "required": ["configPath"], "additionalProperties": false,
+      "properties": { "configPath": { "type": "string", "minLength": 1 }, "binaryPath": { "type": "string", "minLength": 1 } }
+    },
     "solverProfile": {
       "type": "object",
       "required": ["promptTemplateVersion", "toolManifestVersion"],
@@ -22,7 +27,8 @@
         "id": { "type": "string", "minLength": 1 },
         "baseUrl": { "type": "string", "format": "uri" },
         "apiKeyEnv": { "type": "string", "pattern": "^[A-Z_][A-Z0-9_]*$" },
-        "temperature": { "type": "number", "minimum": 0, "maximum": 2 }
+        "temperature": { "type": "number", "minimum": 0, "maximum": 2 },
+        "responseFormat": { "enum": ["json_object", "prompt_only"] }
       },
       "additionalProperties": false
     },

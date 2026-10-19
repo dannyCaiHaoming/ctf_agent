@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import type { SolverAction, SolverRequest } from '@ctf/supervisor';
+import type { SolverAction, SolverRequest } from '../legacy/solver-loop.js';
 import { dispatch, scripted, setup } from './solver-loop-fixtures.js';
 
 const command = [process.execPath, 'decode.mjs'];

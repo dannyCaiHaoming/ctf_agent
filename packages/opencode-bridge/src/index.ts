@@ -1,6 +1,7 @@
 import { SessionIdSchema, type ChallengeId, type LeaseId, type SessionId, type TaskId } from '@ctf/contracts';
 import { PolicyEngine, type SessionBinding } from '@ctf/policy';
-import { createOpencodeServer } from '@opencode-ai/sdk/server';
+import { timingSafeEqual } from 'node:crypto';
+import { createServer, type Server } from 'node:http';
 
 export interface OpenCodeToolContext {
   sessionID: SessionId;
@@ -68,50 +69,94 @@ export class OpenCodeBridge {
   }
 }
 
-export interface StubProviderStep {
-  tool?: string;
-  args?: unknown;
-  error?: string;
-  response?: unknown;
-  path: 'main' | 'subagent' | 'retry' | 'compaction' | 'summary';
+export interface BridgeRpcBinding {
+  lease: LeaseId;
+  scope: string;
 }
 
-export class StubProvider {
-  private index = 0;
-  readonly transcript: Array<{ path: string; tool?: string; ok: boolean }> = [];
+/**
+ * OpenCode runs plugins in its own server process. This loopback-only transport
+ * keeps the policy/ToolRuntime owner in the CLI while preserving the session ID
+ * supplied by OpenCode's ToolContext as the identity used for authorization.
+ */
+export class OpenCodeBridgeRpcServer {
+  private server?: Server;
 
-  constructor(private readonly steps: StubProviderStep[]) {}
-
-  async step(bridge: OpenCodeBridge, sessionId: SessionId, lease: LeaseId, scope: string): Promise<unknown> {
-    const step = this.steps[this.index++];
-    if (!step) throw new Error('stub provider exhausted');
-    this.transcript.push({ path: step.path, tool: step.tool, ok: !step.error });
-    if (step.error) throw new Error(step.error);
-    if (!step.tool) return step.response;
-    return bridge.executeBound({ sessionID: sessionId, tool: step.tool, args: step.args }, lease, scope);
+  constructor(
+    private readonly bridge: OpenCodeBridge,
+    private readonly resolveBinding: (sessionID: SessionId) => BridgeRpcBinding,
+    private readonly token: string,
+    private readonly createServerFactory: typeof createServer = createServer,
+    private readonly control?: (sessionID: SessionId, operation: string, input: unknown) => Promise<unknown>
+  ) {
+    if (token.length < 32) throw new Error('bridge RPC token must be at least 32 characters');
   }
-}
 
-export const OPENCODE_PINNED_VERSION = '1.19.0';
-
-export interface OpenCodeServerHandle {
-  url: string;
-  close(): void;
-}
-
-export type OpenCodeServerFactory = typeof createOpencodeServer;
-
-export class OpenCodeServerLifecycle {
-  constructor(private readonly factory: OpenCodeServerFactory = createOpencodeServer) {}
-
-  async start(input: { port?: number; timeoutMs?: number } = {}): Promise<OpenCodeServerHandle> {
-    const server = await this.factory({
-      hostname: '127.0.0.1',
-      port: input.port ?? 0,
-      timeout: input.timeoutMs ?? 5000
+  async start(): Promise<{ url: string; close: () => Promise<void> }> {
+    if (this.server) throw new Error('bridge RPC server already started');
+    const server = this.createServerFactory((request, response) => {
+      void this.handle(request, response);
     });
-    return { url: server.url, close: () => server.close() };
+    this.server = server;
+    await new Promise<void>((resolve, reject) => {
+      server.once('error', reject);
+      server.listen(0, '127.0.0.1', () => {
+        server.off('error', reject);
+        resolve();
+      });
+    });
+    const address = server.address();
+    if (!address || typeof address === 'string') throw new Error('bridge RPC server did not bind a TCP port');
+    return {
+      url: `http://127.0.0.1:${address.port}/tool`,
+      close: () => new Promise<void>((resolve, reject) => server.close(error => error ? reject(error) : resolve()))
+    };
+  }
+
+  private async handle(request: import('node:http').IncomingMessage, response: import('node:http').ServerResponse): Promise<void> {
+    const supplied = request.headers.authorization?.startsWith('Bearer ')
+      ? request.headers.authorization.slice('Bearer '.length)
+      : '';
+    const expectedBytes = Buffer.from(this.token);
+    const suppliedBytes = Buffer.from(supplied);
+    const authorized = expectedBytes.length === suppliedBytes.length && timingSafeEqual(expectedBytes, suppliedBytes);
+    if (!authorized) {
+      response.writeHead(401).end('unauthorized');
+      return;
+    }
+    if (request.method !== 'POST' || !['/tool', '/control'].includes(request.url ?? '')) {
+      response.writeHead(404).end('not found');
+      return;
+    }
+    try {
+      const chunks: Buffer[] = [];
+      let size = 0;
+      for await (const chunk of request) {
+        const bytes = Buffer.from(chunk);
+        size += bytes.length;
+        if (size > 2 * 1024 * 1024) {
+          response.writeHead(413).end('request too large');
+          return;
+        }
+        chunks.push(bytes);
+      }
+      const body = JSON.parse(Buffer.concat(chunks).toString('utf8')) as Record<string, unknown>;
+      const sessionID = SessionIdSchema.parse(body.sessionID);
+      const binding = this.resolveBinding(sessionID);
+      let result: unknown;
+      if (request.url === '/control') {
+        if (!this.control || typeof body.operation !== 'string') throw new Error('host control operation unavailable');
+        result = await this.control(sessionID, body.operation, body.input);
+      } else {
+        if (typeof body.tool !== 'string' || !body.tool || !Object.hasOwn(body, 'args')) throw new Error('invalid bridge tool request');
+        result = await this.bridge.executeBound({ sessionID, tool: body.tool, args: body.args }, binding.lease, binding.scope);
+      }
+      response.writeHead(200, { 'content-type': 'application/json' }).end(JSON.stringify({ result }));
+    } catch (error) {
+      response.writeHead(403, { 'content-type': 'application/json' }).end(JSON.stringify({ error: error instanceof Error ? error.message : String(error) }));
+    }
   }
 }
 
 export * from './compaction.js';
+export * from './server.js';

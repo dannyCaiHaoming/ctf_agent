@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { SolverFailure, type SolverAction } from '@ctf/supervisor';
+import { SolverFailure, type SolverAction } from '../legacy/solver-loop.js';
 import { dispatch, run, scripted, setup } from './solver-loop-fixtures.js';
 
 const patch: SolverAction = { kind: 'tool', tool: 'workspace.patch', input: { path: 'solve.mjs', find: ".toString('utf8');", replace: ".toString('utf8'));" } };

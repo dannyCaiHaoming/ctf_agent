@@ -6,7 +6,7 @@ import type { ToolRuntime, RuntimeOwner } from '@ctf/runtime';
 import type { StateStore } from '@ctf/state';
 import { MultiFlagContinuation } from './multiflag.js';
 import { ResponsibilityRegistry, type ReasoningContext } from './responsibilities.js';
-import type { CandidateResolution, CandidateResolverInput } from './solver-loop.js';
+import type { CandidateResolution, CandidateResolverInput } from './candidate-control.js';
 
 export interface CandidateForVerification {
   candidateId: string; revision: number; value: string; valueRef: ArtifactReference;

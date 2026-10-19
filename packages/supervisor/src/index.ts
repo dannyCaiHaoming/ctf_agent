@@ -406,10 +406,7 @@ export type { PublishedOutput, AdoptedOutput, AdoptionResult } from './revisions
 
 export { HypothesisManager, experimentFingerprint } from './hypotheses.js';
 export type { HypothesisManagerOptions, ExperimentRecord, ProgressRecord, ProgressAcceptance, ProgressWindow } from './hypotheses.js';
-export { SolverLoop, SolverFailure, SolverActionSchema, solverDisposition } from './solver-loop.js';
-export type { SolverAction, SolverDriver, SolverRequest, SolverObservation, SolverUsage, SolverFailureCode, SolverLoopOptions, SolverResult, CandidateResolverInput } from './solver-loop.js';
-export { ProviderSolverDriver, SolverModelActionSchema, materializeSolverAction } from './provider-solver-driver.js';
-export type { ProviderSolverDriverOptions, SolverModelAction } from './provider-solver-driver.js';
+export type { CandidateResolverInput, CandidateResolverControl, CandidateResolution } from './candidate-control.js';
 export { DurableJobWatchService } from './long-job-watch.js';
 export * from './compaction.js';
 export * from './local-resume.js';

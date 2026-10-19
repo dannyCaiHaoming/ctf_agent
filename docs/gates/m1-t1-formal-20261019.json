@@ -1,0 +1,119 @@
+{
+  "schema": "m1-trajectory1-freeze/v1",
+  "batch_id": "m1-t1-formal-20261019-b1",
+  "frozen_at": "2026-10-19T08:59:19.907091+00:00",
+  "baseline_head": "8d59cccc0415d15a5a0929903e6ee0db623f9dbd",
+  "working_tree": "pre-existing dirty M1 resolver; exact files bound below",
+  "profile_path": "config/release-profile.m1-t1-formal-20261019.json",
+  "profile": {
+    "profileId": "m1-t1-formal-20261019-b1",
+    "solverMode": "m1",
+    "solverProfile": {
+      "promptTemplateVersion": "solver-action-json/v7",
+      "toolManifestVersion": "m1-tools/v2"
+    },
+    "model": {
+      "provider": "volcano_anthropic",
+      "id": "deepseek-v4-flash",
+      "apiKeyEnv": "ARK_API_KEY",
+      "temperature": 0.2,
+      "baseUrl": "https://ark.cn-beijing.volces.com/api/coding"
+    },
+    "reference": {
+      "enabled": true
+    },
+    "budget": {
+      "wallClockMs": 600000,
+      "maxSteps": 40,
+      "maxToolJobs": 20,
+      "maxObservableTokens": 100000
+    },
+    "os": {
+      "platform": "macos"
+    }
+  },
+  "runtime": {
+    "version": "v26.3.0",
+    "execPath": "/opt/homebrew/Cellar/node/26.3.0/bin/node",
+    "platform": "darwin",
+    "arch": "arm64"
+  },
+  "materials": [
+    "fixtures/trajectories/t1-script-error/solve.mjs",
+    "fixtures/trajectories/t1-script-error/payload.txt"
+  ],
+  "material_hashes": [
+    "02238b009f487ed0ac5979a4bf1d17c81b894c6c7c1a10bcdbcc3f0e165ce6e4",
+    "6883152d24df18057569bc618c3214c9b384f5990034f5c6cf4e3cb09192086e"
+  ],
+  "reference_digest": "09bb5085c9fab4892d11403bfc8c5be6a138689a16505855a2c2242b3fbdfc4c",
+  "formal_runs_required": 3,
+  "successes_required": 2,
+  "cumulative_run_cap": 12,
+  "calibrations_before_batch": 11,
+  "batch_root": "runs/m1-formal-t1-20261019-b1",
+  "preset": "dispatch and first failed execution only; all repair decisions by real provider",
+  "files": {
+    "apps/cli/src/commands/doctor.ts": "1233f20329648327d7570c8f62c229e8bf6d5f6beebd6b6787ae6416180b458d",
+    "apps/cli/src/commands/localHttpCandidateResolver.ts": "7a97df3800c12e02f19bdcf39b1a1da6eec8d331bfa986eec7eaf4bd9790f8f9",
+    "apps/cli/src/commands/localJobCandidateResolver.ts": "cc1ffa3bdcab5440f4c0098d6fe5d22443f0795ca8c12ae7e88ef0b5f268120f",
+    "apps/cli/src/commands/m1ContractProbe.ts": "100c53344995c2daf369bb2b4534da24320de6fe376ec2fb40d95a3da929ee83",
+    "apps/cli/src/commands/resume.ts": "1a7e8923806da3d14a97ceb4b1af0cd954b7faa734889a133320623c3dc77c3f",
+    "apps/cli/src/commands/solve.ts": "32d7ee04bb93a238d4d931e9af1e7b04f8afe5e30e05c136679710e752daedb2",
+    "apps/cli/src/commands/solveM1.ts": "0bdae27434deafba37b4be26bdf08556dbc05cfe8d91e766b97ba6ffb8e6cafd",
+    "apps/cli/src/composition/localEnv.ts": "dedd4a18b57a0b5e81b2520ae84bc6c480f2995f4ff903793728ee8cd8a51204",
+    "apps/cli/src/composition/releaseProfile.ts": "3c4c6142c84ba1fe1a2d2c741bb6a3164c586de0cf6b072a77b63a5d27f497dc",
+    "apps/cli/src/main.ts": "05bff81a7191a4a1285b943e414e492c47a80aac984b63c67681fd6d9064b358",
+    "apps/opencode-plugin/src/index.ts": "454b3193cc99be2b8db95f097d95b18d8c76ca984c34b740633835dad461a8c8",
+    "config/release-profile.m1-t1-formal-20261019.json": "aec1b3a7069ba0f7318a78113b03f1662526b05c58816a3d2fcefe246dbcecdf",
+    "docs/gates/m1-t1-acceptance.py": "61dad5aedfa1729d0b79d0830dd00fa05a0db631b0548b5f6d42ad49a102113e",
+    "fixtures/local-target/src/server.ts": "45ef327d1e24e685a5170cdbcc76d941c3b387c59725fb8f7642509361ce11e7",
+    "fixtures/reference-snapshot/README.md": "571e192fb448f54bec54576fb4832f4731d230599a4c0f368f711749aba8835f",
+    "fixtures/reference-snapshot/approval.json": "9b87d50edd110f81955bbee0392cb1b5c2aa9fcd638f6a354e08ae996289f4c8",
+    "fixtures/reference-snapshot/manifest.json": "9e88b6aba755a14aea7c3d534cf49c67d7b74515ab6baf16e72711cdb6dd193e",
+    "fixtures/reference-snapshot/sources/recipes.md": "ed44ffbf7e1884d117748749eb3d4f7d452bf1ca92f9b91d56593484083d5590",
+    "fixtures/trajectories/t1-script-error/payload.txt": "6883152d24df18057569bc618c3214c9b384f5990034f5c6cf4e3cb09192086e",
+    "fixtures/trajectories/t1-script-error/solve.mjs": "02238b009f487ed0ac5979a4bf1d17c81b894c6c7c1a10bcdbcc3f0e165ce6e4",
+    "package-lock.json": "55c28fc6613b5686367ebee8e83e40e8e67cf236eb9ad70507618fac61bf4e66",
+    "package.json": "ac2ae48da96c1bb9950e3bd20762e6a23267597830ca3c3071c04983efc910e1",
+    "packages/artifacts/src/index.ts": "edf74561f54f9052003cb8e2939cbe621010b0adead9b8f6f765964a9d8e828c",
+    "packages/browser/src/index.ts": "99b0832dd1ac1d42806e785f8e303f55f12cd351d9fe372fd514c1202e569372",
+    "packages/contracts/src/index.ts": "d2e314ff53eea82659fae2c940819583c58b0ab08bdadb2d926af1f48b2f971d",
+    "packages/local-oracle/src/index.ts": "1dce1afd1eb612fdb01d43564b75f351ab31145ab73443b718765eab593cca64",
+    "packages/opencode-bridge/src/compaction.ts": "f25d9dcc3d8ef18bf4967bafd38eae42e882f5320067355d8b90e0005b03d962",
+    "packages/opencode-bridge/src/index.ts": "9568fd7463d8a16db5e8ba690c5ed0275c74cd5ceaa831a7fbac95b2f4ea65b2",
+    "packages/platform/src/index.ts": "7e30f7c2a7fb736cf33f38a0e3bcfd2aa4999194a059c5f4f9f4b5b86dfc948e",
+    "packages/policy/src/index.ts": "9202be2332787236aba8ecbb1d5185640488ea87fdbec43ebe76f1ff7ad8c94f",
+    "packages/reference/src/index.ts": "b6737a470417604d8ff8ed08728d44eb6471dde35d91a8ec7535b5d2bc0e441a",
+    "packages/reporting/src/index.ts": "a2ba95393c60cedd5dc576837b3178efbb47dc32a6d7c59684a3b8fc432de673",
+    "packages/runtime/src/index.ts": "8c70b587fe409ae26b49caa08c56549318b82ae7e4079ee47e06c9b293851a81",
+    "packages/runtime/src/interactive.ts": "76abf5c38e79d2654a098a509460c2504b378a474afe749e89798a1513486bc3",
+    "packages/state/src/hypothesis-snapshot.ts": "791df867fa6ac6f5952c286b76d5d0c644852d6b63a605bd3c19636988b05e2e",
+    "packages/state/src/index.ts": "07ebae44656f5bb145f7571d7a3b4a5ddcbe5966dead1a89b4664e6d09593787",
+    "packages/state/src/snapshot.ts": "3cb8713212fefd490c53ed7d0ccacfc9d7d700baeeff58795fa4f79adf791427",
+    "packages/supervisor/src/candidate-verification.ts": "0671dd642e4cb80f4f688797e977c40ce2bc7423e7b2fdb541983770fea2c040",
+    "packages/supervisor/src/compaction.ts": "f8fabbbd36f84037278dc8d028c034716653c3e2d27b336a5fa30edd50365a26",
+    "packages/supervisor/src/domain-candidates.ts": "5ae58795abc9e181770df7866cdf218188e0084f7268925065808b2223bccc58",
+    "packages/supervisor/src/domain-crypto.ts": "a99f40b10a258d9b96d35c4a2803472982536884f04e70c9cd7f1ebc4b82c366",
+    "packages/supervisor/src/domain-misc.ts": "75eb1a6cae1c0c72c8559917efcb1d6e8664c6dc9d14ae5e3bf433fc3fbe2bc6",
+    "packages/supervisor/src/domain-web.ts": "7dcc1a748cf33b2e27624bd7c3d2cdfcdd09912fab879c705069de7b0ac6d644",
+    "packages/supervisor/src/http-progress-adjudicator.ts": "d28c72cb7f2a6f42050450bd4f29b1f73666c61ae4e10682c93896ffa1be8499",
+    "packages/supervisor/src/hypotheses.ts": "bf996c4e5564a97db31ad42214573db0e63592c94f354b2166ac01dcbc1c5937",
+    "packages/supervisor/src/index.ts": "f92c3da10245896924ad6494d0453b600b59ce8cdb0afc4131be496a26aa543f",
+    "packages/supervisor/src/local-resume.ts": "bf15e73a3cc1a864354721d8ff91e646f73a90727b5dc10a177e3592b5f54f3d",
+    "packages/supervisor/src/long-job-watch.ts": "ad219b8c806d444ed5461f121cd8a4694fb3c564e879246982c7a3ddc3bf6511",
+    "packages/supervisor/src/multiflag.ts": "e38abb48acd5b016181c680b24e0dfde9f6cc00db4e061ee6b8e1262e3547ed0",
+    "packages/supervisor/src/provider-solver-driver.ts": "a81b43586a5661f158f416f7e20b9badb16bf4b27ad146d3351c2b346e1a7c3b",
+    "packages/supervisor/src/responsibilities.ts": "b8588ff0cee1d6e0837965d48a1047b347c97c4722949c6e26e3dbdd96e769a8",
+    "packages/supervisor/src/revisions.ts": "eb969f3045194e98e20fb3cb8f4cc99fe03b50ffd1ac9ea1d07b297c753ce37b",
+    "packages/supervisor/src/skills/crypto.ts": "3c826ea527ffad41e6820fb34dddf790860a32481219123156d677f77151068a",
+    "packages/supervisor/src/skills/index.ts": "d601b695e7a8815f3b7d5a5259397d7a33ad5dab14f7c954b60e6a9907d7a9cf",
+    "packages/supervisor/src/skills/misc.ts": "482f0f8aabf8d2b8375afb63e63dcbdb0405adffcefa0ca02c79ca2191ec02f1",
+    "packages/supervisor/src/skills/web.ts": "38fc3c090b9b858de79a850547d85630c8d4ddc0dc6e67771b8ac1e4abd0a7a4",
+    "packages/supervisor/src/solver-loop.ts": "1f9c849854cdd7a91d73ee842f09430af49922c0400085da403d29f8b485eaa1",
+    "tsconfig.build.json": "e9b8f7997a35101dc839a74d65e455c2102768c903aceb19236a061a1f447fe8",
+    "tsconfig.json": "7b3d76c308accb8516da8c4a5baa79cdf72d8631a2d2cc00228296009d4c0b39"
+  },
+  "preflight_revision": 2,
+  "preflight_note": "Finalized scope/ordering grading before any formal attempt; no runtime product source changes."
+}

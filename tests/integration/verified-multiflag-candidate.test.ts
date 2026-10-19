@@ -10,7 +10,7 @@ import { IndependentVerificationService, SolutionEngineeringService, VerifiedCoo
   VerifiedMultiFlagCandidateResolver } from '@ctf/supervisor';
 import { ResponsibilityRegistry } from '../../packages/supervisor/src/responsibilities.js';
 import { createT6Oracle } from '../../fixtures/trajectories/t6-multiflag/oracle.js';
-import type { CandidateResolverInput } from '../../packages/supervisor/src/solver-loop.js';
+import type { CandidateResolverInput } from '../../packages/supervisor/src/candidate-control.js';
 import type { ResponsibilityTask } from '../../packages/contracts/src/index.js';
 import { dispatch, scripted, setup } from './solver-loop-fixtures.js';
 

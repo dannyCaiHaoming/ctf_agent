@@ -1,0 +1,29 @@
+{
+  "batch_id": "m1-t1-formal-20261019-b1",
+  "recorded_at": "2026-10-19T09:38:49.141902+00:00",
+  "state": "external_acceptance_paused_by_user",
+  "user_instruction": "暂不进行外部模型验收",
+  "automatic_review": "External invocation rejected pending specific consent for payload to configured destination; no bypass or retry performed in this chat.",
+  "observed_formal_attempt": {
+    "path": "runs/m1-formal-t1-20261019-b1/run-01",
+    "run_id": "run_a77a1a19-19e0-4672-b048-1280dd4e8736",
+    "passed": false,
+    "reason": "driver usage unavailable: TypeError: fetch failed",
+    "reported_usage_availability": "unavailable",
+    "observed_model_calls": 0,
+    "provider_actual_usage": "unknown; zero observed is not proof of zero service-side usage"
+  },
+  "cumulative_attempts": 12,
+  "formal_attempts": 1,
+  "formal_successes": 0,
+  "gate": "incomplete",
+  "current_frozen_file_mismatches": [
+    "apps/cli/src/commands/m1ContractProbe.ts",
+    "apps/cli/src/commands/solveM1.ts",
+    "apps/cli/src/composition/releaseProfile.ts",
+    "package.json",
+    "packages/supervisor/src/provider-solver-driver.ts"
+  ],
+  "next_provider_call_allowed": false,
+  "note": "Additional formal-run artifacts and source changes appeared during this chat; preserve them. Original freeze remains unchanged; no re-freeze, replacement batch, cap increase, or outbound probe."
+}

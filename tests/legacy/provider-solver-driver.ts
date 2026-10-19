@@ -1,3 +1,4 @@
+// Frozen historical protocol regression only. No product entry point imports this adapter.
 import { basename } from 'node:path';
 import { randomUUID } from 'node:crypto';
 import { z } from 'zod';
@@ -11,6 +12,7 @@ export interface ProviderSolverDriverOptions {
   baseUrl: string;
   apiKey: string;
   temperature?: number;
+  responseFormat?: 'json_object' | 'prompt_only';
   fetchImpl?: typeof fetch;
 }
 
@@ -260,7 +262,7 @@ export class ProviderSolverDriver implements SolverDriver {
           model: this.options.id,
           temperature: this.options.temperature ?? 0.2,
           max_tokens: maxOutputTokens,
-          response_format: { type: 'json_object' },
+          ...(this.options.responseFormat !== 'prompt_only' ? { response_format: { type: 'json_object' } } : {}),
           messages: [{ role: 'system', content: system }, { role: 'user', content: userText }]
         })
       });

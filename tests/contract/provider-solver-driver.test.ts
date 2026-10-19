@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import { ArtifactHashSchema, ExperimentSchema, HypothesisSchema } from '@ctf/contracts';
-import { ProviderSolverDriver, SolverActionSchema, SolverFailure, materializeSolverAction } from '@ctf/supervisor';
+import { ProviderSolverDriver, materializeSolverAction } from '../legacy/provider-solver-driver.js';
+import { SolverActionSchema, SolverFailure } from '../legacy/solver-loop.js';
 
 const request = {
   phase: 'solver' as const,
@@ -85,6 +86,9 @@ describe('ProviderSolverDriver', () => {
     const fetchImpl = vi.fn(async (input: URL | RequestInfo, init?: RequestInit) => {
       expect(String(input)).toBe(expectedUrl);
       expect(init?.signal).toBeInstanceOf(AbortSignal);
+      if (dialect === 'openai_compatible') {
+        expect(JSON.parse(String(init?.body))).toMatchObject({ response_format: { type: 'json_object' } });
+      }
       const body = dialect === 'openai_compatible'
         ? { choices: [{ message: { content: '{"kind":"stop","reason":"done"}' } }], usage: { prompt_tokens: 7, completion_tokens: 3 } }
         : { content: [{ type: 'text', text: '{"kind":"stop","reason":"done"}' }], usage: { input_tokens: 7, output_tokens: 3 } };
@@ -114,6 +118,21 @@ describe('ProviderSolverDriver', () => {
     }), { status: 200 }) });
     await expect(framed.decide(request, { signal: new AbortController().signal, maxTokens: 10000 }))
       .resolves.toMatchObject({ action: { kind: 'stop', reason: 'framed' }, usage: { input_tokens: 2, output_tokens: 2 } });
+  });
+
+  it('supports prompt-only JSON for providers whose models reject structured output mode', async () => {
+    const fetchImpl = vi.fn(async (_input: URL | RequestInfo, init?: RequestInit) => {
+      const body = JSON.parse(String(init?.body)) as Record<string, unknown>;
+      expect(body).not.toHaveProperty('response_format');
+      return new Response(JSON.stringify({
+        choices: [{ message: { content: '{"kind":"stop","reason":"prompt-only"}' } }],
+        usage: { prompt_tokens: 2, completion_tokens: 2 }
+      }), { status: 200 });
+    });
+    const driver = new ProviderSolverDriver({ dialect: 'openai_compatible', id: 'm', baseUrl: 'https://provider.example/v1',
+      apiKey: 'x', responseFormat: 'prompt_only', fetchImpl });
+    await expect(driver.decide(request, { signal: new AbortController().signal, maxTokens: 10000 }))
+      .resolves.toMatchObject({ action: { kind: 'stop', reason: 'prompt-only' } });
   });
 
   it('rejects failed provider calls and passes through abort cancellation', async () => {
