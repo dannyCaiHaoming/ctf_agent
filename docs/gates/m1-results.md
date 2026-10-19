@@ -50,3 +50,38 @@ Run 2–4 的终态均为 `blocked` / `blocked_runtime` / `inconclusive`；各�
 - `dispatch` schema 现在要求完整 hypothesis，并在边界校验 `hypothesis.id === experiment.hypothesis_id`，避免此前「允许缺失、随后 route 查找才抛 unknown hypothesis」的契约裂缝。
 - 新增 provider-prompt、dispatch identity 与正常 CLI material staging 回归；最终确定性验证 `npm test` 49 files / 278 tests、`npm run typecheck -- --pretty false`、`npm run build`、`git diff --check` 均通过。
 - run 4 暴露的 hypothesis 缺失问题已在 v6/schema 修正；本轮未再发起 provider run。轨迹①尚未成功，T3b/M1 仍为 `PARTIAL` / `0 of 6`。
+
+## 开发校准 run 5–6：轨迹① v7 契约初验
+
+两次均使用 `deepseek-v4-flash` / `volcano_anthropic`、温度 `0.2`、`solver-action-json/v7`、`m1-tools/v2` 与同一 fixture；每次是独立正常 CLI run，不计入正式 2/3 门槛。run 5 发生在 provider JSON extraction 修复前。
+
+| Run | Canonical run ID | Provider calls / observable tokens | 结果与 FIRST_DIVERGENCE |
+| --- | --- | --- | --- |
+| 5 | `run_8eb5403a-253f-47c5-b936-f274a12b6e53` | 0 / 0 | 第一次 `driver.call` 返回非 JSON SolverAction；host 记录 `driver usage unavailable: Error: provider response was not a JSON SolverAction`，run 以 `resource_exhausted` / `paused` / `inconclusive` 结束。脚本未执行。Run 目录：`runs/m1-calibration-t1-20261019-v7-1/`。 |
+| 6 | `run_0983be03-f43e-40c5-b8e0-5c249319d55a` | 6 / 13,264（9,511 input + 3,753 output） | 模型先读 `solve.mjs` 与 `payload.txt`，随后直接提交 `flag{local_repair}` candidate；canonical events 显示没有任何实际成功 experiment。host 拒绝该 candidate 并触发 repair。模型再次读 `solve.mjs` 后发生 `output_parse_error`，strategy 阶段返回非 runnable route，最终 `blocked` / `blocked_runtime` / `inconclusive`。脚本仍未执行。Run 目录：`runs/m1-calibration-t1-20261019-v7-2/`。 |
+
+### Canonical 证据与修正
+
+- Run 5 canonical SQLite：`runs/m1-calibration-t1-20261019-v7-1/state/run_8eb5403a-253f-47c5-b936-f274a12b6e53.sqlite`；事件 2 是失败 `driver.call`，事件 3 是 checkpoint。
+- Run 6 canonical SQLite：`runs/m1-calibration-t1-20261019-v7-2/state/run_0983be03-f43e-40c5-b8e0-5c249319d55a.sqlite`；事件 8 是无 experiment 支持的 candidate，事件 13 是 `output_parse_error`，事件 16 是终态 checkpoint。
+- 已修复 provider JSON extraction 以兼容 markdown-framed JSON，并在 malformed JSON 时保留 provider usage 后抛出 `SolverFailure(output_parse_error)`。
+- 已扩展离线动作契约探针覆盖 `candidate_before_actual_experiment`；2026-10-19 报告 `runs/m1-contract-probe-v7-20261019-expanded/report.json` 为 9/9 valid、9/9 expected action match、0 historical failures。
+- 截至 run 6，六次开发校准全部在 fixture 脚本执行前失败；M1 仍为 `0 of 6`，不应把组件探针结果解释为真实模型轨迹通过。
+
+## 开发校准 run 7–8：轨迹① v7 执行前修复与策略漂移
+
+两次均使用 `deepseek-v4-flash` / `volcano_anthropic`、温度 `0.2`、`solver-action-json/v7`、`m1-tools/v2` 与同一 fixture；每次是独立正常 CLI run，不计入正式 2/3 门槛。
+
+| Run | Canonical run ID | Provider calls / observable tokens | 结果与 FIRST_DIVERGENCE |
+| --- | --- | --- | --- |
+| 7 | `run_b74ff2f4-9a1e-4626-b6a2-db87a5eeba76` | 7 / 45,797（15,733 input + 30,064 output） | 模型完成合法 dispatch 并第一次发出 `job.run`，但 host 只接受 `process.execPath`，拒绝模型提交的常见 `node` alias（`batch job command denied: only Node scripts inside the run workspace are admitted`）。一次 representation repair 后同一 alias 再次被拒；experiment 关闭，strategy 选择了 workspace.read 而非新 runnable route 或 stop。脚本未执行。Run 目录：`runs/m1-calibration-t1-20261019-v7-3/`。 |
+| 8 | `run_b53066d4-8017-479e-a591-0237a9284a85` | 8 / 25,405（13,991 input + 11,414 output） | 在 `node` alias 修复后，模型先读取 `solve.mjs` 与 `payload.txt`，却 dispatch 一个 scoped HTTP 实验而非先执行本地脚本；随后发生 `output_parse_error` 和 representation repair。继续读取文件后再次转向 HTTP 实验，触发 `experiment.abandoned`。strategy 阶段又提交一个相同 procedure fingerprint 的新 experiment，被 host 以 `duplicate experiment fingerprint requires a recorded new reason` 拒绝并使 run `blocked` / `blocked_runtime`。脚本未执行。Run 目录：`runs/m1-calibration-t1-20261019-v7-4/`。 |
+
+### Canonical 证据与已实施修正
+
+- Run 7 canonical SQLite：`runs/m1-calibration-t1-20261019-v7-3/state/run_b74ff2f4-9a1e-4626-b6a2-db87a5eeba76.sqlite`；事件 7/9 是第一次 `job.run` 与 alias 拒绝，事件 15/16 是 repair 后重试，事件 18–20 是 strategy 漂移和终态前兆。
+- Run 8 canonical SQLite：`runs/m1-calibration-t1-20261019-v7-4/state/run_b53066d4-8017-479e-a591-0237a9284a85.sqlite`；事件 8/10 是 HTTP dispatch 与 `output_parse_error`，事件 18/19 是第二次 HTTP dispatch 和 abandoned，事件 21/22 是 duplicate fingerprint 与终态 checkpoint。
+- 已在 `SolverLoop` 引入 `normalizeNodeCommand`：模型写 `node` 时，host 在授权与启动前统一替换为当前 runtime `process.execPath`；新增 integration test 确认授权前已归一化。确定性验证 `npm test` 49 files / 282 tests、`npm run typecheck -- --pretty false`、`npm run build`、`git diff --check` 通过。
+- Provider prompt 明确 `workspace.patch` 必须使用 `{path,find,replace}`；这来自 run 7 的 strategy 阶段 schema 错误 artifact（`old_string/new_string` 被拒），但尚未由新完整 run 验证。
+- Run 8 暴露的 duplicate fingerprint 终态尚未修正；这是当前阻塞项。在下一次完整校准前，应先把它转为明确 canonical observation 或在 offline 契约探针中覆盖，避免 raw error 直接终止 run。
+- 截至 run 8，八次开发校准全部在 fixture 脚本实际执行前失败；M1 仍为 `0 of 6`。

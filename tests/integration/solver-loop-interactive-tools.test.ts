@@ -121,28 +121,34 @@ describe('SolverLoop interactive job and channel tool routes', () => {
     }
   });
 
-  it('rejects a channel endpoint denied by the host before opening a socket', async () => {
+  it('records a channel endpoint denied by the host before opening a socket', async () => {
+    let denied = false;
     const scripted: SolverDriver = { async decide() {
+      if (denied) return { action: { kind: 'stop', reason: 'scope_denied observed; change route' }, usage };
+      denied = true;
       return { action: { kind: 'tool', tool: 'channel.open', input: { host: '127.0.0.1', port: 9, timeout_ms: 500 } }, usage };
     } };
     const prepared = await setup('t1-script-error', scripted, { authorizeTcpEndpoint: async () => { throw new Error('outside challenge origin'); } });
     try {
       const result = await prepared.loop.run();
-      expect(result.status).toBe('blocked');
+      expect(result.status).toBe('no_route');
       expect(result.reason).toContain('scope_denied');
       expect(prepared.state.events().some(event => event.kind === 'solver.activity' && event.activity === 'tool.result' &&
         event.data.tool === 'channel.open' && (event.data.observation as { failure_code?: string }).failure_code === 'scope_denied')).toBe(true);
     } finally { await prepared.runtime.dispose(); await prepared.close(); }
   });
 
-  it('requires current owner lease when accessing a resource by id', async () => {
+  it('returns a foreign-lease resource observation instead of ending the run', async () => {
+    let denied = false;
     const scripted: SolverDriver = { async decide() {
+      if (denied) return { action: { kind: 'stop', reason: 'blocked_data observed; change route' }, usage };
+      denied = true;
       return { action: { kind: 'tool', tool: 'job.status', input: { id: 'job_from_another_lease' } }, usage };
     } };
     const prepared = await setup('t1-script-error', scripted);
     try {
       const result = await prepared.loop.run();
-      expect(result.status).toBe('blocked');
+      expect(result.status).toBe('no_route');
       expect(result.reason).toContain('blocked_data');
     } finally { await prepared.runtime.dispose(); await prepared.close(); }
   });

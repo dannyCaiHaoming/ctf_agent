@@ -1,6 +1,7 @@
 import { loadLocalEnv } from './composition/localEnv.js';
 import { loadReleaseProfile } from './composition/releaseProfile.js';
 import { doctor } from './commands/doctor.js';
+import { m1ContractProbe } from './commands/m1ContractProbe.js';
 import { resume } from './commands/resume.js';
 import { solve } from './commands/solve.js';
 
@@ -9,6 +10,7 @@ function usage(): string {
 Commands:
   resume --state-root <dir> --run <id> --authorization <host-local-policy.json>
   doctor --profile <path>
+  m1-contract-probe --profile <path> [--out <dir>]
   solve --target <url|auto> [--description <text>] [--input <path>] [--material <path> ...] --profile <path> [--out <dir>] [--allow-stub] [--start-local-target]
 `;
 }
@@ -50,6 +52,11 @@ async function main(): Promise<number> {
   if (command === 'doctor') {
     console.log(JSON.stringify(await doctor(profile), null, 2));
     return 0;
+  }
+  if (command === 'm1-contract-probe') {
+    const result = await m1ContractProbe({ profile, out: typeof parsed.out === 'string' ? parsed.out : undefined });
+    console.log(result.message);
+    return result.code;
   }
   if (command === 'solve') {
     if (typeof parsed.target !== 'string') {

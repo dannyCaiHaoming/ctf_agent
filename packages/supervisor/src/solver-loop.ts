@@ -24,6 +24,11 @@ const writeInput = z.object({ id: text, data: z.union([
   z.object({ encoding: z.literal('bytes'), data: z.array(z.number().int().min(0).max(255)).max(1024 * 1024) }).strict(),
   z.object({ encoding: z.literal('base64'), data: z.string().max(4 * 1024 * 1024) }).strict()
 ]) }).strict();
+/** Models may write the common `node` alias; the runtime always uses its own executable. */
+export function normalizeNodeCommand(command: readonly string[]): string[] {
+  return command[0] === 'node' ? [process.execPath, ...command.slice(1)] : [...command];
+}
+
 const ToolActionSchema = z.discriminatedUnion('tool', [
   z.object({ kind: z.literal('tool'), tool: z.literal('workspace.read'), input: pathInput, step_id: text.optional() }).strict(),
   z.object({ kind: z.literal('tool'), tool: z.literal('workspace.search'), input: pathInput.extend({ needle: text }), step_id: text.optional() }).strict(),
@@ -197,7 +202,7 @@ export class SolverLoop {
         this.checkBudget(); this.checkAuthority();
         const action = await this.decide();
         this.checkBudget(false); this.checkAuthority();
-        if (action.kind === 'stop') return this.finish(this.acceptedPartial ? 'partial' : 'no_route', action.reason);
+        if (action.kind === 'stop') { await this.closeFailedExperiment(); return this.finish(this.acceptedPartial ? 'partial' : 'no_route', action.reason); }
         if (this.phase === 'strategy' && action.kind !== 'dispatch') throw new SolverFailure('output_parse_error', 'Strategy must select a new runnable route or stop');
         if (action.kind === 'dispatch') { await this.dispatch(action); continue; }
         if (action.kind === 'tool') { await this.tool(action); continue; }
@@ -351,7 +356,6 @@ export class SolverLoop {
     this.event('tool.result', { receipt_id: receiptId, tool: action.tool, observation, receipt });
     if (receipt) await this.hypotheses.recordRuntimeEvent(receiptId);
     if (observation.failure_code === 'resource_exhausted') throw new SolverFailure('resource_exhausted', observation.raw);
-    if (observation.failure_code === 'scope_denied' || observation.failure_code === 'blocked_data') throw new SolverFailure(observation.failure_code, observation.raw);
     if (observation.outcome === 'failure') {
       if (!receipt) {
         if (!this.admitRepair('auxiliary', { failure_code: observation.failure_code, raw_refs: observation.artifact_refs, failed_receipt_id: receiptId })) { await this.retireExperiment('auxiliary tool repair budget exhausted'); this.requestStrategy('auxiliary tool repair budget exhausted'); }
@@ -382,10 +386,11 @@ export class SolverLoop {
       const timeoutMs = Math.max(1, Math.min(action.input.timeout_ms ?? Infinity, this.request().remaining.wall_ms));
       registerOwner();
       if (action.input.mode === 'pty') {
-        try { await this.options.authorizeCommand(action.input.command, workspace.path); }
+        const command = normalizeNodeCommand(action.input.command);
+        try { await this.options.authorizeCommand(command, workspace.path); }
         catch (error) { throw new SolverFailure('scope_denied', `PTY command denied: ${error instanceof Error ? error.message : String(error)}`); }
         this.checkBudget(false); this.checkAuthority();
-        const job = await this.options.runtime.jobStart({ taskId: this.binding.task_id, command: action.input.command, mode: 'pty', owner,
+        const job = await this.options.runtime.jobStart({ taskId: this.binding.task_id, command, mode: 'pty', owner,
           timeoutMs, maxRetainedBytes: action.input.max_retained_bytes });
         return retained(action.tool, job);
       }
@@ -451,12 +456,13 @@ export class SolverLoop {
       return retained(action.tool, record);
     }
     if (action.tool === 'job.run') {
-      try { await this.options.authorizeCommand(action.input.command, workspace.path); }
-      catch (error) { throw new SolverFailure('scope_denied', `batch job command denied: ${error instanceof Error ? error.message : String(error)}`); }
+      const command = normalizeNodeCommand(action.input.command);
+      try { await this.options.authorizeCommand(command, workspace.path); }
+      catch (error) { throw error instanceof SolverFailure ? error : new SolverFailure('scope_denied', `batch job command denied: ${error instanceof Error ? error.message : String(error)}`); }
       this.checkBudget(false); this.checkAuthority();
       registerOwner();
       const timeoutMs = Math.max(1, Math.min(action.input.timeout_ms ?? Infinity, this.request().remaining.wall_ms));
-      const job = await this.options.runtime.jobStart({ taskId: this.binding.task_id, command: action.input.command,
+      const job = await this.options.runtime.jobStart({ taskId: this.binding.task_id, command,
         owner, timeoutMs, maxRetainedBytes: action.input.max_retained_bytes });
       this.runningJob = job.id;
       const watches = new DurableJobWatchService(this.options.runtime, this.options.state);

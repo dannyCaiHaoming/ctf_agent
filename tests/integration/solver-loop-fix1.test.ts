@@ -6,6 +6,22 @@ const patch: SolverAction = { kind: 'tool', tool: 'workspace.patch', input: { pa
 const malformed = { kind: 'invalid' } as unknown as SolverAction;
 
 describe('Task 3 review repair and acceptance boundaries', () => {
+  it('normalizes the common node alias to the host executable before job authorization', async () => {
+    const command = ['node', 'solve.mjs'];
+    const authorized: string[][] = [];
+    const { driver } = scripted([dispatch('decode', command, 0), { kind: 'tool', tool: 'job.run', input: { command }, step_id: 'run' },
+      { kind: 'stop', reason: 'normalized command observed' }]);
+    const env = await setup('t1-script-error', driver, {
+      authorizeCommand: candidate => {
+        authorized.push([...candidate]);
+        if (candidate[0] !== process.execPath) throw new Error('local node fixture commands only');
+      }
+    });
+    try {
+      await env.loop.run();
+      expect(authorized).toEqual([[process.execPath, 'solve.mjs']]);
+    } finally { await env.close(); }
+  });
   it('repairs one missing positional argument in the same admitted step and reruns host command policy', async () => {
     const original = [process.execPath, 'target.mjs'];
     const corrected = [...original, '2+2'];
@@ -106,12 +122,12 @@ describe('Task 3 review repair and acceptance boundaries', () => {
     const original = [process.execPath, 'target.mjs']; const corrected = [...original, '2+2'];
     const authorized: string[][] = [];
     const { driver } = scripted([dispatch('expression', original), { kind: 'tool', tool: 'job.run', input: { command: original }, step_id: 'run' },
-      { kind: 'tool', tool: 'job.run', input: { command: corrected }, step_id: 'run' }]);
+      { kind: 'tool', tool: 'job.run', input: { command: corrected }, step_id: 'run' }, { kind: 'stop', reason: 'scope_denied observed after bounded repair' }]);
     const env = await setup('t2-falsified', driver, { authorizeCommand: command => {
       authorized.push([...command]); if (command.length === 3) throw new SolverFailure('scope_denied', 'corrected argument is outside host policy');
     } });
     try {
-      expect((await env.loop.run()).status).toBe('blocked'); expect(authorized).toEqual([original, corrected]);
+      expect((await env.loop.run()).status).toBe('no_route'); expect(authorized).toEqual([original, corrected]);
       expect(env.loop.hypotheses.experiment('e-expression').events[1]!.failure_code).toBe('scope_denied');
     } finally { await env.close(); }
   });

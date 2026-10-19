@@ -21,42 +21,37 @@ function responseFor(request: Record<string, any>, wrongCandidate = false): Reco
   if (!experiment) {
     const url = new URL('/robots.txt', state.challenge.snapshot.target).toString();
     action = dispatch('robots', 'HTTP response body from URL contains literal marker: /static/', url, 'http.body.contains:/static/', 'http.body.absent:/static/');
-  } else if (experiment.plan.hypothesis_id === 'h-robots' && experiment.status === 'running' && !currentObservation) {
-    action = { kind: 'tool', tool: 'http.request', input: experiment.plan.procedure[0].input, step_id: 'probe' };
-  } else if (experiment.plan.hypothesis_id === 'h-robots' && experiment.status === 'succeeded' && !experiment.conclusion) {
-    action = { kind: 'conclude', verdict: 'supported', rationale: 'robots body advertises a protected static path', evidence_refs: observation!.artifact_refs };
-  } else if (experiment.plan.hypothesis_id === 'h-robots' && experiment.status === 'succeeded' && experiment.conclusion) {
+  } else if (experiment.plan.objective === 'fetch robots.txt' && experiment.status === 'running' && !currentObservation) {
+    action = { kind: 'tool', tool: 'http.request', input: experiment.plan.procedure[0].input };
+  } else if (experiment.plan.objective === 'fetch robots.txt' && experiment.status === 'succeeded' && !experiment.conclusion) {
+    action = { kind: 'conclude', verdict: 'supported', rationale: 'robots body advertises a protected static path', uses: [] };
+  } else if (experiment.plan.objective === 'fetch robots.txt' && experiment.status === 'succeeded' && experiment.conclusion) {
     const raw = JSON.parse(observation!.raw);
     const path = raw.body.split('\n').find((line: string) => line.startsWith('Disallow: /static/'))?.slice('Disallow: '.length);
     if (!path) throw new Error('provider stub did not find the visible robots disallow path');
     const url = new URL(path, state.challenge.snapshot.target).toString();
     action = dispatch('flag', `HTTP response body from URL contains literal marker: flag{`, url, 'http.body.contains:flag{', 'http.body.absent:flag{');
-  } else if (experiment.plan.hypothesis_id === 'h-flag' && experiment.status === 'running' && !currentObservation) {
-    action = { kind: 'tool', tool: 'http.request', input: experiment.plan.procedure[0].input, step_id: 'probe' };
-  } else if (experiment.plan.hypothesis_id === 'h-flag' && experiment.status === 'running' && currentObservation) {
-    action = { kind: 'conclude', verdict: 'supported', rationale: 'literal marker check', evidence_refs: observation.artifact_refs };
-  } else if (experiment.plan.hypothesis_id === 'h-flag' && experiment.status === 'succeeded' && !experiment.conclusion) {
-    action = { kind: 'conclude', verdict: 'supported', rationale: 'the response has the expected literal flag marker', evidence_refs: observation!.artifact_refs };
-  } else if (experiment.plan.hypothesis_id === 'h-flag' && experiment.status === 'succeeded' && experiment.conclusion) {
+  } else if (experiment.plan.objective === 'fetch candidate path' && experiment.status === 'running' && !currentObservation) {
+    action = { kind: 'tool', tool: 'http.request', input: experiment.plan.procedure[0].input };
+  } else if (experiment.plan.objective === 'fetch candidate path' && experiment.status === 'running' && currentObservation) {
+    action = { kind: 'conclude', verdict: 'supported', rationale: 'literal marker check', uses: [] };
+  } else if (experiment.plan.objective === 'fetch candidate path' && experiment.status === 'succeeded' && !experiment.conclusion) {
+    action = { kind: 'conclude', verdict: 'supported', rationale: 'the response has the expected literal flag marker', uses: [] };
+  } else if (experiment.plan.objective === 'fetch candidate path' && experiment.status === 'succeeded' && experiment.conclusion) {
     const value = wrongCandidate ? 'flag{deterministic-wrong-candidate}' : JSON.parse(observation!.raw).body;
-    action = { kind: 'candidate', value, evidence_refs: observation!.artifact_refs };
-  } else if (experiment.plan.hypothesis_id === 'h-robots' && experiment.status === 'running' && currentObservation) {
-    action = { kind: 'conclude', verdict: 'supported', rationale: 'robots body advertises a protected static path', evidence_refs: observation!.artifact_refs };
+    action = { kind: 'candidate', value, uses: [] };
+  } else if (experiment.plan.objective === 'fetch robots.txt' && experiment.status === 'running' && currentObservation) {
+    action = { kind: 'conclude', verdict: 'supported', rationale: 'robots body advertises a protected static path', uses: [] };
   } else throw new Error(`unexpected deterministic provider state: ${experiment.plan.hypothesis_id}/${experiment.status}`);
   return { choices: [{ message: { content: JSON.stringify(action) } }], usage: { prompt_tokens: 10, completion_tokens: 5 } };
 }
 
 function dispatch(id: string, claim: string, url: string, expected_support: string, expected_refutation: string) {
-  const hypothesisId = id === 'robots' ? 'h-robots' : 'h-flag';
   const actualClaim = claim.replace('URL', url);
-  const cost = { wall_ms: 5000, tokens: 10000, remote_units: 0 };
-  return { kind: 'dispatch', hypothesis: { id: hypothesisId, claim: actualClaim, preconditions: [], missing_preconditions: [],
-    supporting_refs: [], contradicting_refs: [], alternative_explanations: [], falsifier: `body lacks ${id === 'robots' ? '/static/' : 'flag{'}`,
-    minimal_experiment: `GET ${url}`, expected_observation: expected_support, state_dependencies: { generation: 1 }, required_capabilities: ['http.request'],
-    route_status: 'queued', next_action: `GET ${url}`, cost, state: 'proposed' },
-  experiment: { id: `e-${id}`, hypothesis_id: hypothesisId, objective: `fetch ${url}`, input_refs: [], state_dependencies: { generation: 1 },
-    parameters: { url }, procedure: [{ id: 'probe', tool: 'http.request', input: { url } }], expected_support, expected_refutation,
-    budget: cost, repair_budget: 0, stop_condition: 'complete response received', expected_artifacts: ['http response body'] } };
+  return { kind: 'dispatch', claim: actualClaim, falsifier: `body lacks ${id === 'robots' ? '/static/' : 'flag{'}`,
+    expected_observation: 'an HTTP response body retained by the host', expected_support, expected_refutation,
+    objective: id === 'robots' ? 'fetch robots.txt' : 'fetch candidate path',
+    procedure: [{ tool: 'http.request', input: { url } }] };
 }
 
 describe('normal CLI M1 solve against local HTTP with deterministic provider stub', () => {

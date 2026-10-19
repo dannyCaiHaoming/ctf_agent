@@ -20,7 +20,7 @@ describe('normal CLI solve entry for M1', () => {
     const profilePath = join(out, 'm1-profile.json');
     await writeFile(profilePath, JSON.stringify({
       profileId: 'm1-deterministic-wiring', solverMode: 'm1',
-      solverProfile: { promptTemplateVersion: 'solver-action-json/v6', toolManifestVersion: 'm1-tools/v2' },
+      solverProfile: { promptTemplateVersion: 'solver-action-json/v7', toolManifestVersion: 'm1-tools/v2' },
       model: { provider: 'stub', id: 'deterministic-only', temperature: 0 },
       reference: { enabled: true }, budget: { wallClockMs: 10000, maxSteps: 10, maxToolJobs: 10, maxObservableTokens: 10000 }, os: { platform: 'macos' }
     }));
@@ -54,7 +54,7 @@ describe('normal CLI solve entry for M1', () => {
       const started = state.events().find(event => event.kind === 'solver.activity' && event.activity === 'started');
       expect(started?.kind).toBe('solver.activity');
       if (started?.kind === 'solver.activity') expect(started.data)
-        .toMatchObject({ challenge: { workspace_files: ['solve.mjs', 'payload.txt'], material_refs: [{ size: expect.any(Number) }, { size: expect.any(Number) }], snapshot: { toolManifestVersion: 'm1-tools/v2', promptTemplateVersion: 'solver-action-json/v6' } } });
+        .toMatchObject({ challenge: { workspace_files: ['solve.mjs', 'payload.txt'], material_refs: [{ size: expect.any(Number) }, { size: expect.any(Number) }], snapshot: { toolManifestVersion: 'm1-tools/v2', promptTemplateVersion: 'solver-action-json/v7' } } });
       const final = [...state.events()].reverse().find(event => event.kind === 'solver.activity' && event.activity === 'checkpoint');
       expect(final?.kind).toBe('solver.activity');
       if (final?.kind === 'solver.activity') expect(report).toMatchObject({

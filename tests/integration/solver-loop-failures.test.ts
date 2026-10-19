@@ -32,11 +32,15 @@ describe('Solver local failure classification, authority and finite budgets', ()
       expect(events.filter(event => event.activity === 'tool.result' && event.data.tool === 'job.run')).toHaveLength(2);
     } finally { await env.close(); }
   });
-  it.each(['scope_denied', 'blocked_data'] as const)('%s blocks without falsifying the mechanism or silently retrying', async code => {
-    const { driver } = scripted([dispatch(), run]);
+  it.each(['scope_denied', 'blocked_data'] as const)('%s is returned as an observation without falsifying the mechanism', async code => {
+    const { driver } = scripted([dispatch(), run, request => {
+      expect(request.observation?.failure_code).toBe(code);
+      expect(request.observation?.raw).toContain(code);
+      return { kind: 'stop', reason: `${code} observed; change route` };
+    }]);
     const env = await setup('t1-script-error', driver, { authorizeCommand: () => { throw new SolverFailure(code, `host policy: ${code}`); } });
     try {
-      expect(await env.loop.run()).toMatchObject({ status: 'blocked', reason: expect.stringContaining(code) });
+      expect(await env.loop.run()).toMatchObject({ status: 'no_route', reason: expect.stringContaining(code) });
       expect(env.loop.hypotheses.hypothesis('decode').state).toBe('inconclusive');
       expect(env.loop.hypotheses.hypothesis('decode').contradicting_refs).toHaveLength(0);
       expect(env.loop.hypotheses.experiment('e-decode').events).toHaveLength(1);
@@ -75,18 +79,18 @@ describe('Solver local failure classification, authority and finite budgets', ()
     finally { await env.close(); }
   });
   it('rejects path escape through a symlink before reading outside material scope', async () => {
-    const { driver } = scripted([{ kind: 'tool', tool: 'workspace.read', input: { path: 'escape' } }]);
+    const { driver } = scripted([{ kind: 'tool', tool: 'workspace.read', input: { path: 'escape' } }, { kind: 'stop', reason: 'scope_denied observed' }]);
     const env = await setup('t1-script-error', driver);
     await symlink(process.execPath, join(env.runtime.workspace('solver').path, 'escape'));
-    try { expect((await env.loop.run()).status).toBe('blocked'); } finally { await env.close(); }
+    try { expect((await env.loop.run()).status).toBe('no_route'); } finally { await env.close(); }
   });
   it('rejects gapped retained output rather than providing an incomplete transcript as evidence', async () => {
     const input = { command: [process.execPath, '-e', "process.stdout.write('x'.repeat(100000)); process.stderr.write('ERROR_TAIL')"], max_retained_bytes: 32 };
     const action: SolverAction = { kind: 'dispatch', hypothesis: declaration(), experiment: { ...plan(), procedure: [{ id: 'run', tool: 'job.run', input }] } };
-    const { driver } = scripted([action, { kind: 'tool', tool: 'job.run', input, step_id: 'run' }]);
+    const { driver } = scripted([action, { kind: 'tool', tool: 'job.run', input, step_id: 'run' }, { kind: 'stop', reason: 'incomplete raw transcript observed' }]);
     const env = await setup('t1-script-error', driver);
     try {
-      expect(await env.loop.run()).toMatchObject({ status: 'blocked', reason: expect.stringContaining('incomplete raw transcript') });
+      expect(await env.loop.run()).toMatchObject({ status: 'no_route', reason: expect.stringContaining('incomplete raw transcript') });
       expect(env.loop.hypotheses.experiment('e1').events[0]!.failure_code).toBe('blocked_data');
       expect(env.loop.hypotheses.hypothesis('decode').contradicting_refs).toHaveLength(0);
     } finally { await env.close(); }
