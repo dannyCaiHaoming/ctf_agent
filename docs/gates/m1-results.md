@@ -221,3 +221,7 @@ FIRST_DIVERGENCE 在第一次 provider 边界，早于任何模型响应。同�
 在网络/凭证与实际 OpenCode 推理预检之后，单独冻结新批次 `m1-opencode-t1-bailian-20261019-b2`，使用 `deepseek-v4-flash-0731`。三个独立正式 run 全部通过 canonical 行为判分、冻结身份/预算核验、独立 replay 和 oracle accepted；T-A 真实模型集成证据补齐。正式用量合计 57,632 tokens；额外单次预检 673 tokens 单列。精确剩余额度不可查，不宣称余额充足或免费。
 
 旧批次累计 12 次原样保留，新批次 3/12；实际第四次入口按本次三次授权上限拒绝、无外部请求。结果、失败的标记预检、全部 canonical 证据包与最终预算依据见 [T-D 完整结果](m1-opencode-t1-bailian-20261019-b2/results.md)。M0 171、M1 3/3、完整测试 299、typecheck/build 全绿。未扩展 M1b，也未自动 commit/push。
+
+## 2026-10-19：用户授权提交，M1 收尾完成
+
+用户明确授权后，本 M1 代码、退役替代、测试与验收证据已在本地提交 `9a0cffc0d0e74d0b399fb5e1fd0fd7db94feefd4`。提交内容与逐文件 M1 白名单一致，158 个冻结执行文件均核对原 manifest；完成状态已在主提交成功后同步到 M1 plan。未 push，未增加外部模型调用，其他无关改动原样保留。M1 COMPLETE 仅指当前 OpenCode 轨迹①，不含 M1b 或后续里程碑。

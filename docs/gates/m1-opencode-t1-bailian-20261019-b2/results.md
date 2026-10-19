@@ -64,3 +64,9 @@
 **失败细节也已核对：** run-01、run-02 各有一次 `job.run timeout_ms > 15000` 被拒绝；run-03 有两次 workspace.read 和一次 workspace.list 使用了错误的 workspace-relative 路径而被拒绝。共 5 次工具拒绝都在原 canonical events 中保留并回灌，模型在原 session 中自行修正后完成；这正是「工具错误不终止 run」的现有行为，不是额外独立 attempt，也没有人工修改配置或静默重开 run。无需为这些已正确恢复的观察扩建通用机制或追加付费验收。
 
 本轮重新执行完整测试：54 files / 299 tests 通过；两项独立 gate 与 typecheck/build 复跑结果保持全绿。修正了文档索引的「六轨迹仍属 M1」过期表述，并把 plan 的「实现/验证已完成」与「提交未完成」拆开。剩余仅受授权约束的同一提交收尾；P5 风险重评属于 M1b/M6，非本 M1 待办。没有自动 commit/push。
+
+## 用户授权后的交付提交（2026-10-19）
+
+用户明确授权「仅提交本次 M1 范围的改动和验收证据，不要 push，保留无关改动」。本地主提交为 `9a0cffc0d0e74d0b399fb5e1fd0fd7db94feefd4`，包含退役与替代、回归测试、冻结配置、三次正式结果和三个 canonical 证据包。提交路径精确匹配 79 项白名单（两组 rename 使 Git 统计为 77 files），全部 158 个冻结执行文件在 commit tree 中与原 manifest hash 一致。原 manifest/attempt/result/SQLite/证据包未改写，未追加模型调用或改变 3/12 attempt 计数。
+
+提交前再次通过 `gate:m0` 171 tests、`gate:m1` 3/3、typecheck/build。暂存的 76 个新增/修改文件与归档内 121 项成员已检查，已知控制密钥匹配为 0，私有 engine 数据未进入提交；历史复盘仅修正文件尾多余空行。现将 M1 plan 的提交项勾选完成，功能与交付状态均为 COMPLETE（仅轨迹①）。保留 M0 plan 原有改动、未跟踪 AGENTS.md 与根目录 `.m1-verification-replay/`，未 push。
