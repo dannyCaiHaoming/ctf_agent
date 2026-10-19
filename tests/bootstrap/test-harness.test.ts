@@ -15,19 +15,11 @@ describe('M0 workspace bootstrap', () => {
   });
 
   it('loads a valid profile and rejects missing fields and secrets', async () => {
-    await expect(loadReleaseProfile(resolve(root, 'config/release-profile.example.json'))).resolves.toMatchObject({ profileId: 'm0-smoke' });
+    await expect(loadReleaseProfile(resolve(root, 'config/release-profile.example.json'))).rejects.toThrow(/retired|OpenCode/);
     await expect(loadReleaseProfile(resolve(root, 'config/release-profile.m1-opencode.example.json'))).resolves.toMatchObject({
       profileId: 'm1-opencode-t1-dev', opencode: { configPath: resolve(root, 'config/opencode.m1.example.json') }
     });
-    await expect(loadReleaseProfile(resolve(root, 'config/release-profile.m1-bailian-deepseek-v4-flash.example.json'))).resolves.toMatchObject({
-      profileId: 'm1-bailian-deepseek-v4-flash-0731-dev',
-      model: {
-        provider: 'openai_compatible',
-        id: 'deepseek-v4-flash-0731',
-        apiKeyEnv: 'DASHSCOPE_API_KEY',
-        responseFormat: 'prompt_only'
-      }
-    });
+    await expect(loadReleaseProfile(resolve(root, 'config/release-profile.m1-bailian-deepseek-v4-flash.example.json'))).rejects.toThrow(/retired|OpenCode/);
     await expect(loadReleaseProfile(resolve(root, 'config/release-profile.schema.json'))).rejects.toThrow();
     const secretPath = resolve(root, 'node_modules/.tmp-secret-profile.json');
     await (await import('node:fs/promises')).writeFile(secretPath, JSON.stringify({ profileId: 'bad', model: { provider: 'openai', id: 'x' }, reference: { enabled: false }, budget: { wallClockMs: 1, maxSteps: 1, maxToolJobs: 1, maxObservableTokens: 1 }, os: { platform: 'macos' }, apiKey: 'bad' }));

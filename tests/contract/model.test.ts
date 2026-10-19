@@ -3,7 +3,7 @@ import { readdir, readFile } from 'node:fs/promises';
 import { resolve, join } from 'node:path';
 import * as supervisor from '../../packages/supervisor/src/index.js';
 
-const retired = ['SolverSupervisor', 'ScriptedSolverModel', 'OpenAICompatibleModel', 'AnthropicCompatibleModel'];
+const retired = ['SolverSupervisor', 'ScriptedSolverModel', 'OpenAICompatibleModel', 'AnthropicCompatibleModel', 'SolverLoop', 'ProviderSolverDriver', 'SolverActionSchema'];
 
 describe('supervisor production boundary (replaces retired M0 adapter contracts)', () => {
   it('does not export a second model pipeline or direct-provider adapters', () => {
@@ -24,12 +24,23 @@ describe('supervisor production boundary (replaces retired M0 adapter contracts)
         if (entry.isDirectory()) await inspect(path);
         else if (entry.isFile() && path.endsWith('.ts')) {
           const source = await readFile(path, 'utf8');
-          expect(source, path).not.toMatch(/\bclass\s+(?:SolverSupervisor|ScriptedSolverModel|OpenAICompatibleModel|AnthropicCompatibleModel)\b/);
-          expect(source, path).not.toMatch(/(?:from\s*|import\s*\()\s*['"][^'"]*(?:tests\/legacy|legacy\/(?:solver-loop|provider-solver-driver))/);
+          expect(source, path).not.toMatch(/\b(?:class|const)\s+(?:SolverSupervisor|ScriptedSolverModel|OpenAICompatibleModel|AnthropicCompatibleModel|SolverLoop|ProviderSolverDriver|SolverActionSchema)\b/);
+          expect(source, path).not.toMatch(/(?:from\s*|import\s*\()\s*['"][^'"]*(?:archive\/|legacy\/|solver-loop-fixtures)/);
         }
       }
     }
     await inspect(resolve('apps'));
     await inspect(resolve('packages'));
+    await inspect(resolve('tests'));
+  });
+
+  it('does not auto-load the retired pentest agent workflow', async () => {
+    const entries = await readdir(resolve('.opencode/agents')).catch((error: NodeJS.ErrnoException) => {
+      if (error.code === 'ENOENT') return [];
+      throw error;
+    });
+    for (const name of ['pentest-root.md', 'recon-agent.md', 'browser-pentest-agent.md', 'report-agent.md']) {
+      expect(entries).not.toContain(name);
+    }
   });
 });

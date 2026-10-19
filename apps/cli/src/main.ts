@@ -45,7 +45,7 @@ async function main(): Promise<number> {
     console.log(result.message);
     return result.code;
   }
-  const profilePath = typeof parsed.profile === 'string' ? parsed.profile : 'config/release-profile.example.json';
+  const profilePath = typeof parsed.profile === 'string' ? parsed.profile : 'config/release-profile.m1-opencode.example.json';
   const profile = await loadReleaseProfile(profilePath);
   if (command === 'doctor') {
     console.log(JSON.stringify(await doctor(profile), null, 2));
