@@ -20,6 +20,7 @@ export interface SolveOptions {
   out?: string;
   allowStub?: boolean;
   startLocalTarget?: boolean;
+  presetTrajectory1?: boolean;
 }
 
 export async function solve(options: SolveOptions): Promise<{ code: number; message: string }> {

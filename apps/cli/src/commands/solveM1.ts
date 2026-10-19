@@ -15,7 +15,7 @@ import { createLocalHttpCandidateResolver } from './localHttpCandidateResolver.j
 
 export interface SolveM1Options {
   target: string; description?: string; input?: string; materials?: string[]; profile: ReleaseProfile; out?: string;
-  allowStub?: boolean; startLocalTarget?: boolean;
+  allowStub?: boolean; startLocalTarget?: boolean; presetTrajectory1?: boolean;
 }
 
 function stubDriver(): SolverDriver {
@@ -29,6 +29,52 @@ function stubDriver(): SolverDriver {
     if (!action) throw new Error('deterministic M1 stub action list exhausted');
     return { action, usage: { provenance: 'deterministic', input_tokens: 1, output_tokens: 1, model_calls: 0 } };
   } };
+}
+
+function trajectory1Preset(profile: ReleaseProfile, snapshot: Record<string, unknown>) {
+  const command = ['node', 'solve.mjs'];
+  const procedureInput = { command, timeout_ms: 15000, max_retained_bytes: 16000 };
+  const hypothesisId = `hypothesis_${randomUUID()}`;
+  const experimentId = `experiment_${randomUUID()}`;
+  const budget = { wall_ms: profile.budget.wallClockMs, tokens: profile.budget.maxObservableTokens, remote_units: 0 };
+  const dispatch = SolverActionSchema.parse({
+    kind: 'dispatch',
+    hypothesis: {
+      id: hypothesisId,
+      claim: 'The supplied solve.mjs fails on first execution with a local syntax error.',
+      preconditions: ['solve.mjs is present in the task workspace'],
+      missing_preconditions: [],
+      supporting_refs: [],
+      contradicting_refs: [],
+      alternative_explanations: [],
+      falsifier: 'solve.mjs exits successfully without a syntax error.',
+      minimal_experiment: 'Run node solve.mjs once.',
+      expected_observation: 'A non-zero exit with stderr containing SyntaxError.',
+      state_dependencies: snapshot,
+      required_capabilities: ['job.run'],
+      route_status: 'queued',
+      next_action: 'Execute the admitted job.run step.',
+      cost: budget,
+      state: 'proposed'
+    },
+    experiment: {
+      id: experimentId,
+      hypothesis_id: hypothesisId,
+      objective: 'Observe the first failed execution and retain raw stderr.',
+      input_refs: [],
+      state_dependencies: snapshot,
+      parameters: {},
+      procedure: [{ id: 'run', tool: 'job.run', input: procedureInput }],
+      expected_support: 'Non-zero exit with stderr containing SyntaxError.',
+      expected_refutation: 'Exit code 0 with decoded payload.',
+      budget,
+      repair_budget: 1,
+      stop_condition: 'One bounded repair or experiment terminal observation.',
+      expected_artifacts: ['stdout', 'stderr']
+    }
+  });
+  const firstRun = SolverActionSchema.parse({ kind: 'tool', tool: 'job.run', input: procedureInput, step_id: 'run' });
+  return { dispatch, firstRun };
 }
 
 function providerDriver(profile: ReleaseProfile): SolverDriver {
@@ -135,6 +181,10 @@ export async function solveM1(options: SolveM1Options): Promise<{ code: number; 
         }
       },
       validateProgress: createHttpLiteralProgressAdjudicator({ readArtifact: ref => artifacts.read(ref) }),
+      ...(options.presetTrajectory1 ? { preset: trajectory1Preset(profile, { generation: 1, target: runtimeScope, profileId: profile.profileId,
+        model: { provider: profile.model.provider, id: profile.model.id, temperature: profile.model.temperature },
+        promptTemplateVersion: profile.solverProfile.promptTemplateVersion,
+        toolManifestVersion: profile.solverProfile.toolManifestVersion, reference: referenceSnapshot }) } : {}),
       ...(localTarget ? { resolveCandidate: createLocalHttpCandidateResolver({ artifacts, state, runtime, registry,
         owner: { sessionId, leaseId, taskId }, challengeId, runId, deadline, targetOrigin: runtimeScope, flag: localTarget.flag }) } : {})
     });

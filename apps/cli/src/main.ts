@@ -11,7 +11,7 @@ Commands:
   resume --state-root <dir> --run <id> --authorization <host-local-policy.json>
   doctor --profile <path>
   m1-contract-probe --profile <path> [--out <dir>]
-  solve --target <url|auto> [--description <text>] [--input <path>] [--material <path> ...] --profile <path> [--out <dir>] [--allow-stub] [--start-local-target]
+  solve --target <url|auto> [--description <text>] [--input <path>] [--material <path> ...] --profile <path> [--out <dir>] [--allow-stub] [--start-local-target] [--preset-trajectory1]
 `;
 }
 
@@ -71,7 +71,8 @@ async function main(): Promise<number> {
       profile,
       out: typeof parsed.out === 'string' ? parsed.out : undefined,
       allowStub: parsed['allow-stub'] === true,
-      startLocalTarget: parsed['start-local-target'] === true
+      startLocalTarget: parsed['start-local-target'] === true,
+      presetTrajectory1: parsed['preset-trajectory1'] === true
     });
     console.log(result.message);
     return result.code;

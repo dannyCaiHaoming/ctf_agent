@@ -13,7 +13,7 @@
 > 5. [x] **提交当前 13 个悬空改动**（第三次悬空；确定性测试全绿，具备提交条件）。已由 `dbca2cd fix: stabilize M1 solver contract and record calibration` 提交。
 > 6. [x] **写黄金路径确定性测试**（决策⑫，最高价值）：脚本化一个**完美模型**端到端走完轨迹①——直到脚本执行、stderr 产生、修复成功。`tests/gates/m1.gate.ts` 2/2 通过，`gate:m1` 已接入 package scripts。
 > 7. [x] **反转「拒绝即终止」默认**（决策⑬）：第 3 项只修了 `scope_denied`，于是 runs 7/8 换成 alias denied 和 duplicate fingerprint 又死两次。run-level catch 现在只把 `resource_exhausted` 作为终止白名单；其余 host 拒绝都回灌 observation 并进入有界 representation repair。
-> 8. [x] **为校准 run 预置起跑点**（决策⑭）：harness 预置到「脚本第一次执行失败」为止，其后读 stderr／定位／修复／重跑**全部由模型完成**。已实现 `SolverLoopOptions.preset`，gate 测试证明 driver 只收到修复后的决策请求。
+> 8. [x] **为校准 run 预置起跑点**（决策⑭）：harness 预置到「脚本第一次执行失败」为止，其后读 stderr／定位／修复／重跑**全部由模型完成**。已实现 `SolverLoopOptions.preset` 与 CLI `--preset-trajectory1`；gate 测试证明 driver 只收到修复后的决策请求。
 > 9. [ ] **达标后**才重启轨迹①校准 → 3 次正式 run → 落盘 → 提交 → 下一条轨迹。
 >
 > ⚠️ **第 6 项通过前，不要再发起任何完整真实模型 run。** 已烧 8 次 run / 134k tokens / 6 个 prompt 版本，每次只换来一个新关卡，脚本一次都没执行过。
@@ -106,7 +106,7 @@
 
 - [x] **⑫ 黄金路径确定性测试（最高价值，本该在任何真实 run 之前存在）。** 已新增 `tests/gates/m1.gate.ts`：完美模型走完首次失败执行、raw stderr、bounded repair、成功重跑；`gate:m1` 2/2 通过。
 - [x] **⑬ 反转「拒绝即终止」的默认。** 已把 run-level 终止白名单收窄为 `resource_exhausted`；`scope_denied` / `blocked_data` 等默认回灌 observation 并受 representation repair 预算约束，不再直接终止 run。
-- [x] **⑭ 为校准 run 预置起跑点。** 已新增 `SolverLoopOptions.preset`：host 写好 dispatch 与首次失败 `job.run`；gate 测试确认修复与重跑完全由 driver/model 决策。
+- [x] **⑭ 为校准 run 预置起跑点。** 已新增 `SolverLoopOptions.preset` 与 CLI `--preset-trajectory1`：host 写好 dispatch 与首次失败 `job.run`；gate 测试确认修复与重跑完全由 driver/model 决策。
       **边界（必须严格遵守）：** 预置**止于第一次失败执行**；其后的读 stderr、定位、修复、重跑**必须 100% 由模型完成**，harness 不得提示错误位置、不得给出修复内容、不得代为重跑。这不违反 spec §12.2「harness 不得代模型修脚本」——修脚本仍是模型的事；省掉的只是与轨迹①无关的 dispatch 仪式。
       **正式 2/3 验收**可使用预置起跑点，但必须在 `m1-inputs.md` 中明确记录预置范围，且**三次运行使用同一预置**。
 
