@@ -134,7 +134,7 @@ export async function solveM1(options: SolveM1Options): Promise<{ code: number; 
           solver_profile: options.profile.solverProfile, preset: options.presetTrajectory1 === true } } });
     let error: unknown;
     try {
-      const instructions = web ? `The authorized target is ${options.target}. Stay on origin ${targetOrigin}; do not follow redirects or claim a solution without an authoritative oracle. For large HTTP responses, use observation.read with the returned observation ref and exact next_cursor to retrieve only relevant excerpts.`
+      const instructions = web ? `The authorized target is ${options.target}. Stay on origin ${targetOrigin}; do not follow redirects or claim a solution without an authoritative oracle. For large HTTP responses, use observation.read with the returned observation ref to continue reading only relevant excerpts; the host tracks cursors. Use mode start only when rereading from the beginning is necessary.`
         : trajectory === 't1' ? 'Read the complete actual stderr before repairing. Do not replace whole files.'
         : 'Before a mechanism experiment, use hypothesis.propose with your claim, falsifier, intended command, and prediction (expression_evaluates for expression evaluation, otherwise other). Run that command with job.run. Read the actual output before hypothesis.conclude. After a rejected premise, propose the next experiment with your route_reason. The host binds evidence and identities. Do not repeat an unchanged refuted experiment.';
       const parts: Array<{ type: 'text'; text: string }> = [{ type: 'text', text: `${description}\nWorkspace materials: ${workspaceFiles.join(', ')}. ${instructions}` }];

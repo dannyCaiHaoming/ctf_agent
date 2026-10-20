@@ -4,11 +4,12 @@ import { access, readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 
 describe('product solve through actual OpenCode', () => {
-  it('pages a large Web response and returns a bounded range from its observation ref', async () => {
+  it('continues Web observations with host-owned cursors and measures context without trimming it', async () => {
     const body = Array.from({ length: 6144 }, (_, index) => String.fromCharCode(97 + index % 26)).join('');
     const fixture = await openCodeFixture([
       { name: 'ctf_http_request', args: { url: '$TARGET' } },
-      { name: 'ctf_observation_read', args: { ref: '$LAST_OBSERVATION_REF', cursor: '$LAST_NEXT_CURSOR', max_bytes: 1024 } }
+      { name: 'ctf_observation_read', args: { ref: '$LAST_OBSERVATION_REF', max_bytes: 1024 } },
+      { name: 'ctf_observation_read', args: { ref: '$LAST_OBSERVATION_REF', max_bytes: 1024 } }
     ], { webBody: body });
     try {
       const run = await fixture.run();
@@ -29,6 +30,30 @@ describe('product solve through actual OpenCode', () => {
       expect(pageRaw.chunk).toBe(body.slice(2048, 3072));
       const range = page.data.observation.artifact_refs.find((ref: { hash: string }) => ref.hash === pageRaw.range_ref.hash);
       expect(await readFile(range.path, 'utf8')).toBe(pageRaw.chunk);
+      const pages = events.filter(event => event.activity === 'tool.result' && event.data.tool === 'observation.read');
+      expect(pages).toHaveLength(2);
+      expect(JSON.parse(pages[1].data.observation.raw)).toMatchObject({ cursor: 3072, next_cursor: 4096, chunk: body.slice(3072, 4096) });
+      const definitions = fixture.requests[0]!.tools as any[];
+      const schema = definitions.find(tool => tool.function.name === 'ctf_observation_read').function.parameters;
+      expect(schema.properties.cursor).toBeUndefined();
+      expect(schema.required).toContain('ref');
+      const calls = events.filter(event => event.activity === 'driver.call');
+      expect(calls).toHaveLength(fixture.requests.length);
+      expect(calls.every(event => event.data.context_measurement?.method === 'utf8-json-bytes/v1')).toBe(true);
+      const measured = calls.at(-1).data.context_measurement;
+      expect(measured.categories.history_candidate.bytes).toBeGreaterThan(0);
+      expect(measured.categories.working_set.bytes).toBeGreaterThan(0);
+      expect(Object.values(measured.categories).reduce((sum: number, item: any) => sum + item.bytes, 0)).toBe(measured.parts_bytes);
+      expect(measured.counterfactual.retained_parts_bytes).toBe(measured.parts_bytes - measured.categories.history_candidate.bytes);
+      expect(measured.counterfactual.applied).toBe(false);
+      expect(measured.token_estimate).toBeNull();
+      expect(measured.system_bytes).toBeGreaterThan(0);
+      expect(calls.map(event => event.data.context_measurement.prior_usage_message_ids.length)).toEqual([0, 1, 2, 3]);
+      expect(run.result.provider_usage.messages).toHaveLength(fixture.requests.length);
+      expect(run.result.provider_usage.messages.every((item: any) => item.input_tokens === 20)).toBe(true);
+      // Old observations still reach the local provider: measuring never edits the session.
+      expect(JSON.stringify(fixture.requests.at(-1))).toContain(body.slice(0, 2048));
+      expect(JSON.stringify(calls.map(event => event.data.context_measurement))).not.toContain(body.slice(0, 100));
       expect(JSON.stringify(fixture.requests)).not.toContain(body);
       expect(JSON.stringify(fixture.requests)).not.toContain('artifacts-store');
     } finally { await fixture.close(); }

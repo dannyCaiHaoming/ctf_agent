@@ -17,7 +17,7 @@ const commandInput = z.object({ command: z.array(z.string().min(1)).min(2), time
 const httpRequestInput = z.object({ url: z.string().url(), method: z.enum(['GET', 'POST']).optional(),
   body: z.string().max(65536).optional(), content_type: z.string().max(256).optional() }).strict().refine(input =>
   input.method !== 'GET' || input.body === undefined, 'GET requests cannot include a body');
-const observationReadInput = z.object({ ref: z.string().regex(/^observation_[a-f0-9-]{36}$/), cursor: z.number().int().nonnegative(),
+const observationReadInput = z.object({ ref: z.string().regex(/^observation_[a-f0-9-]{36}$/), mode: z.enum(['continue', 'start']).default('continue'),
   max_bytes: z.number().int().positive().max(4096).default(4096) }).strict();
 const HTTP_INLINE_BODY_BYTES = 2048;
 
@@ -47,7 +47,10 @@ export class OpenCodeTask {
   private started = Date.now();
   private used = { steps: 0, tools: 0, tokens: 0, modelCalls: 0 };
   private refs = new Map<string, ImmutableArtifactRef>();
-  private observations = new Map<string, { artifact: ImmutableArtifactRef; contentType: string; nextCursor: number }>();
+  private observations = new Map<string, { artifact: ImmutableArtifactRef; contentType: string; nextCursor: number; reading?: boolean }>();
+  private contextSample = 0;
+  private contextMeasurement?: ReturnType<OpenCodeTask['measureContext']>;
+  private systemBytes?: number;
   private usage = new Map<string, { input: number; output: number }>();
   private failures = new Map<string, { stderr: string; ref: ImmutableArtifactRef; delivered: boolean }>();
   private success?: { experiment: ExperimentRecord; refs: ImmutableArtifactRef[] };
@@ -131,15 +134,43 @@ export class OpenCodeTask {
     if (this.input.secrets.some(secret => secret && serialized.includes(secret))) throw new Error('control secret blocked from provider input');
     this.gateway.request({ dataClass: 'allowed_excerpt', value, operation: 'opencode.provider.input' });
   }
+  // Diagnostic only: these are bytes of hook-visible JSON parts, never provider token counts.
+  // Age is a candidate selection policy, not proof that an old conclusion is safe to discard.
+  private measureContext(messages: Array<{ info: Record<string, any>; parts: Array<Record<string, any>> }>) {
+    const categories = { working_set: { bytes: 0, parts: 0 }, history_candidate: { bytes: 0, parts: 0 },
+      unclassified: { bytes: 0, parts: 0 } };
+    const recent = new Set(messages.map((message, index) => message.info.role === 'assistant' ? index : -1)
+      .filter(index => index >= 0).slice(-2));
+    for (const [index, message] of messages.entries()) for (const part of message.parts) {
+      const text = part.type === 'text' || part.type === 'reasoning';
+      const completedTool = part.type === 'tool' && part.state?.status === 'completed';
+      const key = message.info.role === 'user' && part.type === 'text' ? 'working_set'
+        : message.info.role === 'assistant' && (text || completedTool)
+          ? recent.has(index) ? 'working_set' : 'history_candidate' : 'unclassified';
+      categories[key].bytes += Buffer.byteLength(JSON.stringify(part), 'utf8');
+      categories[key].parts++;
+    }
+    const partsBytes = Object.values(categories).reduce((sum, item) => sum + item.bytes, 0);
+    return { sample: ++this.contextSample, method: 'utf8-json-bytes/v1',
+      policy: 'all-user-text-and-last-two-assistant-messages/v1', semantic_status: 'unassessed',
+      message_count: messages.length, parts_bytes: partsBytes, categories,
+      token_estimate: null, tool_schema_bytes: null,
+      counterfactual: { retained_parts_bytes: partsBytes - categories.history_candidate.bytes,
+        removable_fraction: partsBytes ? categories.history_candidate.bytes / partsBytes : 0, applied: false } };
+  }
   async control(sessionID: string, operation: string, value: unknown): Promise<unknown> {
     if (sessionID !== this.input.sessionID) throw new Error('unbound OpenCode session');
     this.assertCurrent();
     if (operation === 'authorize') return { authorized: true };
-    if (operation === 'model.system') { this.checkModelData(value); return { checked: true }; }
+    if (operation === 'model.system') {
+      this.checkModelData(value);
+      if (this.input.httpSessionID) this.systemBytes = Buffer.byteLength(JSON.stringify(value), 'utf8');
+      return { checked: true };
+    }
     if (operation === 'model.input') {
       this.checkModelData(value);
       const messages = value as Array<{ info: Record<string, any>; parts: Array<Record<string, any>> }>;
-      if (this.hypotheses && messages.some(message => message.info.sessionID !== sessionID)) throw new Error('foreign model-input session');
+      if ((this.hypotheses || this.input.httpSessionID) && messages.some(message => message.info.sessionID !== sessionID)) throw new Error('foreign model-input session');
       for (const message of messages) {
         this.observeUsage(message.info);
         for (const part of message.parts) {
@@ -160,11 +191,15 @@ export class OpenCodeTask {
           }
         }
       }
+      if (this.input.httpSessionID) this.contextMeasurement = this.measureContext(messages);
       return { checked: true };
     }
     if (operation === 'model.call') {
       this.admit(); this.used.modelCalls++;
-      this.event('driver.call', { engine: 'opencode', ...value as object, call: this.used.modelCalls, usage: null });
+      this.event('driver.call', { engine: 'opencode', ...value as object, call: this.used.modelCalls, usage: null,
+        ...(this.input.httpSessionID ? { context_measurement: this.contextMeasurement
+          ? { ...this.contextMeasurement, system_bytes: this.systemBytes ?? null, prior_usage_message_ids: [...this.usage.keys()] } : null } : {}) });
+      this.contextMeasurement = undefined; this.systemBytes = undefined;
       return { maxOutputTokens: Math.max(1, Math.min(4000, this.remaining().maxObservableTokens)) };
     }
     throw new Error('unsupported host control operation');
@@ -187,6 +222,7 @@ export class OpenCodeTask {
   async tool(name: string, args: unknown, preset = false): Promise<unknown> {
     this.admit(name === 'job.run');
     const receiptId = `receipt_${randomUUID()}`;
+    let readingObservation: string | undefined;
     try {
       this.checkModelData(args);
       this.event('tool.started', { tool: name, input: args, receipt_id: receiptId, preset });
@@ -270,27 +306,29 @@ export class OpenCodeTask {
           raw = JSON.stringify({ ...common, body_fully_inline: false, cursor: 0, next_cursor: previewEnd,
             body_preview: { cursor: 0, next_cursor: previewEnd, encoding: 'utf8', content: response.body.subarray(0, previewEnd).toString('utf8') },
             observation_ref: observationRef,
-            read_hint: 'Use observation.read with this ref and exact next_cursor to read only a needed range.' });
+            read_hint: 'Continue with observation.read using only this ref; the host tracks the cursor. Use mode start to reread from the beginning.' });
         }
       } else if (name === 'observation.read') {
         const input = observationReadInput.parse(args);
         const observation = this.observations.get(input.ref);
         if (!observation) throw new Error('observation ref is not bound to this run');
-        if (input.cursor !== observation.nextCursor) throw new Error(`observation cursor must match next_cursor ${observation.nextCursor}`);
-        if (input.cursor >= observation.artifact.size) throw new Error('observation is already at eof');
+        if (observation.reading) throw new Error('observation read is in progress; retry after it completes');
+        observation.reading = true; readingObservation = input.ref;
+        const cursor = input.mode === 'start' ? 0 : observation.nextCursor;
+        if (cursor >= observation.artifact.size) throw new Error('observation is already at eof');
         const body = await this.input.artifacts.read(observation.artifact);
-        const nextCursor = utf8SafeEnd(body, input.cursor, input.max_bytes);
-        if (nextCursor <= input.cursor) throw new Error('observation page made no cursor progress');
+        const nextCursor = utf8SafeEnd(body, cursor, input.max_bytes);
+        if (nextCursor <= cursor) throw new Error('observation page made no cursor progress');
         const rangeRef = await this.input.artifacts.publishRange(this.binding.run_id, this.binding.challenge_id,
-          body.subarray(input.cursor, nextCursor), input.cursor, nextCursor);
+          body.subarray(cursor, nextCursor), cursor, nextCursor);
         const excerptRef = ImmutableArtifactRefSchema.parse({ hash: rangeRef.hash, size: rangeRef.size, path: rangeRef.path });
         this.input.state.addCanonicalArtifact(excerptRef);
         artifactRefs = [observation.artifact, excerptRef];
         advanceObservation = { ref: input.ref, nextCursor };
         raw = JSON.stringify({ observation_ref: input.ref, source_ref: observation.artifact.hash,
-          cursor: input.cursor, next_cursor: nextCursor, size: observation.artifact.size,
+          cursor, next_cursor: nextCursor, size: observation.artifact.size,
           eof: nextCursor === observation.artifact.size, content_type: observation.contentType,
-          encoding: 'utf8', chunk: body.subarray(input.cursor, nextCursor).toString('utf8'),
+          encoding: 'utf8', chunk: body.subarray(cursor, nextCursor).toString('utf8'),
           range_ref: { hash: rangeRef.hash, size: rangeRef.size, startCursor: rangeRef.startCursor, endCursor: rangeRef.endCursor } });
       } else throw new Error('scope_denied: tool is not exposed');
       this.checkModelData(raw);
@@ -309,6 +347,8 @@ export class OpenCodeTask {
       this.event('tool.result', { tool: name, receipt_id: receiptId,
         observation: { tool: name, raw, outcome: 'failure', failure_code: 'tool_invocation_error', artifact_refs: [], complete: true } });
       return { receipt_id: receiptId, error: raw, outcome: 'failure' };
+    } finally {
+      if (readingObservation) this.observations.get(readingObservation)!.reading = false;
     }
   }
   private async normalizedCommand(command: string[]) {
@@ -423,6 +463,9 @@ export class OpenCodeTask {
       ...(this.hypothesisSnapshotRef ? { hypothesis_snapshot_ref: this.hypothesisSnapshotRef } : {}),
       provider_usage: { availability: available ? 'observed' : 'unavailable', model_calls: available ? this.usage.size : null,
         admitted_model_calls: this.used.modelCalls,
+        ...(this.input.httpSessionID ? { messages: [...this.usage].map(([message_id, value]) => ({ message_id,
+          input_tokens: value.input, output_tokens: value.output })), message_order: 'first-observed-completion',
+          call_binding: 'unavailable; do not equate message completion order with provider dispatch order' } : {}),
         input_tokens: available ? [...this.usage.values()].reduce((sum, value) => sum + value.input, 0) : null,
         output_tokens: available ? [...this.usage.values()].reduce((sum, value) => sum + value.output, 0) : null } };
     this.event('checkpoint', result); return result;

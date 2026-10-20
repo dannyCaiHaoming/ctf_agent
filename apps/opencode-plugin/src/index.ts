@@ -23,7 +23,7 @@ const schemas = {
   'hypothesis.conclude': { verdict: tool.schema.enum(['rejected', 'inconclusive']), rationale: tool.schema.string().min(1) },
   'http.request': { url: tool.schema.string().url(), method: tool.schema.enum(['GET', 'POST']).optional(),
     body: tool.schema.string().max(65536).optional(), content_type: tool.schema.string().max(256).optional() },
-  'observation.read': { ref: tool.schema.string().regex(/^observation_[a-f0-9-]{36}$/), cursor: tool.schema.number().int().min(0),
+  'observation.read': { ref: tool.schema.string().regex(/^observation_[a-f0-9-]{36}$/), mode: tool.schema.enum(['continue', 'start']).optional(),
     max_bytes: tool.schema.number().int().positive().max(4096).optional() },
   'candidate.register': { value: tool.schema.string().min(1) }
 };
@@ -53,7 +53,7 @@ export function createCtfAgentHooks(options: CTFPluginOptions): Hooks {
     const id = direct ? name : managedToolId(name);
     tools[id] = tool({
       description: name === 'observation.read'
-        ? 'Read a bounded page from an earlier large HTTP response. Use its observation_ref and exact next_cursor; fetch only bytes needed.'
+        ? 'Read a bounded page from an earlier large HTTP response. Pass its observation_ref; the host tracks the cursor. Default continues, mode start rereads from the beginning; fetch only bytes needed.'
         : `CTF managed ${name}. Use workspace-relative paths. The host supplies all identities, evidence references and budgets.`,
       args: direct ? { args: tool.schema.any() } : schemas[name as keyof typeof schemas],
       async execute(args, context) {
