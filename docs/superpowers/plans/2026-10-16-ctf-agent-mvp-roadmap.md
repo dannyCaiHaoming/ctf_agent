@@ -28,13 +28,25 @@
 
 ---
 
+## 近期锚点（2026-10-20 重定）
+
+> 这几天的教训:一直在为"组件可证明正确"建设(fixture、gate、契约),很晚才第一次指向真题。**近期一切工作重新锚定在"让 agent 更接近解出一道真实题"**,而不是朝 gate 建设。
+>
+> - **当前主线不是 M1b 的轨迹 fixture,而是"真题驱动的小切片"**:指向真题 → 看死在哪 → 修那一个卡点 → 再跑。当前进行中的是 **cursor 修复 + 上下文量化切片**(observation 分页已把 input 降 55.8%,但会话上下文仍只增不减、越过预算;先修 cursor 读错、量化上下文构成,再决定要不要上 §6.5 compaction)。
+> - **六条轨迹(①–⑥)的韧性行为从真实题目里取证**,不再手工造 fixture 制造它们(T5 b2 0/3 即死于此)。轨迹⑤⑥③④ 的 fixture 工作**暂停**。
+> - **仍不碰 TSecBench**(M2,限时任务);真实模型调用**按 token 预算授权**,不按 run 次数。
+> - M2 及以后的里程碑定义不变,只是把"先在真题上跑顺"插到它们前面。
+
 ## 里程碑总览
 
 | 里程碑 | MVP 产物（能演示的东西） | 验收门槛 |
 | --- | --- | --- |
 | **M0 确定性地基 + 冒烟解题**（全项目最重、风险最高） | OpenCode 桥接/插件/工具运行时打通 + 单个按需 Challenge Browser + state/effect ledger + `local_oracle` + 一个跑着的本地靶机（mock TSecBench adapter 一并锁定契约，但不在冒烟关键路径，时间紧可后移 M2） | ① 确定性契约测试全过（身份/scope/deadline/effect 分级/artifact 发布/secret 边界/Browser scoped 操作与转题 teardown）；② 一次冒烟 run：真实模型对本地靶机产出候选、`local_oracle` 判 `accepted`（仅证明端到端通路，**1 次即可，不作能力门槛**） |
 | **M1 Solver 循环韧性（轨迹①）** | 在 **OpenCode 底座**上跑通轨迹①：脚本报错 → 读 raw stderr → 局部修复 → 重跑成功 → oracle accepted | 轨迹① 独立 3 次、**≥2 次**通过；判分按行为结果判定（不规定改法） |
-| **M1b Solver 循环韧性（其余五条）** | 轨迹②–⑥ 及其配套：长作业 durable watch、compaction 续跑、独立验证三模式、多 flag/partial | 每条轨迹独立 3 次、**≥2 次**通过，18 次结果全留存 |
+| **侦察切片（2026-10-20，已跑 1 次）** | 解冻 `--target`，对真实 DVGA 跑通 | ✅ 集成链通、模型做真实渗透动作；🔴 input token 被观察淹没（6 调用 97k input）、未成候选 |
+| **observation 分页切片（2026-10-20，已跑）** | 按 §8.5 大响应改摘要+片段回取 | ✅ input 降 55.8%，但仍单调上升越过预算、未成候选 |
+| **cursor 修复 + 上下文量化切片（下一步）** | 修 observation.read 的 ref/cursor 簿记（host 管游标）+ 量化会话上下文"工作集 vs 历史重发"占比 | 用数据决定下一步是轻量窗口裁剪还是 §6.5 compaction；不碰 compaction |
+| **M1b Solver 循环韧性（其余四条）** ⛔暂停 | 轨迹⑤⑥③④ 及其配套 | **已暂停**：造 fixture 成本高于被测行为本身（T5 b2 0/3 即死于 fixture 设计）。侦察切片后重定取证方式 |
 | **M2 TSecBench 单题 live** | `prepare`/`start` 两阶段 + VPN 预检 + 单题 list/start/ready/solve/submit/close + 平台感知 resume 起步 | 相对 first-List baseline，本 run 的 confirmed Submit（或 clean/exclusive 下无歧义对账）取得**至少一个新 `accepted`** |
 | **M3 多题 portfolio + 韧性** | 完整列表 + 最多三活跃 instance + 多题 Scheduler + 切题/close + 预算 + fail-stop 完整恢复 | Fixture 覆盖三 instance 与错误分支；真实任务枚举全部支持题、跨题调度、至少一题 `accepted`；恢复不延长 deadline、不重复计分 |
 | **M4 ARM64 镜像交付** | `ctf-agent:core-arm64` 一键构建 + 锁定依赖 + host VPN + 最小 formal egress | 原生 Ubuntu ARM64 重跑 M0–M3 契约、冷启动无下载、raw curl/socket/browser 旁路失败，用**独立 task B** 取得至少一个 `accepted` |

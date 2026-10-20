@@ -272,7 +272,13 @@
 
 ---
 
-## Task 8：OpenCode Bridge 与 plugin — **DONE（公开 SDK/plugin adapter + stub provider）；真实 provider 冒烟仍属 T11**
+## Task 8：OpenCode Bridge 与 plugin — ⚠️ **集成缺口（2026-10-19 复核）**
+
+> **此前标记 DONE 不成立。** 2026-10-19 核查发现：`@ctf/opencode-bridge` 除 `opencode-plugin` 自身外**零消费者**，`apps/cli/src/commands/solve.ts` 对 opencode 的引用数为 **0**，M1 的 `solveM1.ts` 同样不经过它——**产品 solve 路径从未真的走过 OpenCode**，违反 spec line 29。
+>
+> 本任务的契约测试全部跑在 **stub provider** 上，只证明了 adapter 组件可用，**从未验证产品路径的集成**。这是「组件完成 ≠ 集成完成」最重要的一次发作。
+>
+> **纠正在 [M1 plan](2026-10-18-m1-solver-loop-plan.md) 的 Task A**；其验收要求把本任务的 stub 断言改为**集成断言**。在此之前，M0 的「COMPLETE」应理解为**不含 OpenCode 集成**。
 
 **Files：** `packages/opencode-bridge/src/**`、`apps/opencode-plugin/src/index.ts`、`tests/contract/opencode-*.test.ts`、`tests/integration/opencode-*.test.ts`
 

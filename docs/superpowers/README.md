@@ -10,6 +10,8 @@
 | [`plans/2026-10-16-ctf-agent-mvp-roadmap.md`](plans/2026-10-16-ctf-agent-mvp-roadmap.md) | **当前路线图**：把设计切成 M0→M5+ 的 MVP 里程碑，每个里程碑一份可验收产物。 |
 | [`plans/2026-10-17-m0-host-foundation-plan.md`](plans/2026-10-17-m0-host-foundation-plan.md) | **M0 detailed plan — COMPLETE (2026-10-17)**：任务与验收均为可勾选候选框；T9b 后移 M2。 |
 | [`plans/2026-10-18-m1-solver-loop-plan.md`](plans/2026-10-18-m1-solver-loop-plan.md) | **M1 COMPLETE（2026-10-19，仅轨迹①）**：OpenCode 独立验收 3/3，既有交付截至 `baed7fa` 已 push；新增偏移实现归档清理见 plan 文末。轨迹②–⑥属 M1b，进度见下一行。 |
+| [`plans/2026-10-19-m1b-trajectory-2-plan.md`](plans/2026-10-19-m1b-trajectory-2-plan.md) | **M1b 轨迹② — COMPLETE（2026-10-20）**：百炼 DeepSeek v4 Flash 正式验收 3/3。 |
+| [`plans/2026-10-20-m1b-trajectories-3-6-plan.md`](plans/2026-10-20-m1b-trajectories-3-6-plan.md) | **当前里程碑 — M1b 轨迹③–⑥**：沿用 A/B/C 模板，建议顺序 ⑤→⑥→③→④。 |
 | [`plans/2026-10-19-m1b-trajectory-2-plan.md`](plans/2026-10-19-m1b-trajectory-2-plan.md) | **M1b 轨迹②完成**：T2-A/B 确定性集成完成；T2-C 百炼 DeepSeek v4 Flash 正式验收 3/3；③–⑥未启动。 |
 
 ## 目录约定

@@ -1,0 +1,101 @@
+-bottom">
+    <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarSupportedContent"
+      aria-controls="navbarSupportedContent" aria-expanded="false" aria-label="Toggle navigation">
+      <span class="navbar-toggler-icon"></span>
+    </button>
+
+    <div class="collapse navbar-collapse" id="navbarSupportedContent">
+      <ul class="navbar-nav ml-auto mt-2 mt-lg-0">
+        <li class="nav-item active">
+          <a class="nav-link" href="https://github.com/dolevf/Damn-Vulnerable-GraphQL-Application/issues"
+            target="_blank" id="navbarDropdown" role="button" aria-haspopup="true" aria-expanded="false">
+            <i class="fa fa-bug"></i>
+          </a>
+        </li>
+        <li class="nav-item active">
+          <a class="nav-link" href="mailto:dolev@blackhatgraphql.com,nick@blackhatgraphql.com">
+            <i class="fa fa-envelope"></i>
+          </a>
+        </li>
+        <li class="nav-item active dropdown">
+          <a class="nav-link dropdown-toggle" href="#" id="difficulty" role="button" data-toggle="dropdown"
+            aria-haspopup="true" aria-expanded="false">
+            <i class="fa fa-cubes"></i>
+          </a>
+          <div class="dropdown-menu dropdown-menu-right" aria-labelledby="difficultyDropDown">
+            <a class="dropdown-item" href="/difficulty/easy">Beginner  <i
+                class="fa fa-check"></i> </a>
+            <a class="dropdown-item" href="/difficulty/hard">Expert (Hardened) </a>
+          </div>
+        </li>
+        <li class="nav-item active dropdown">
+          <a class="nav-link dropdown-toggle" href="#" id="helpDropDown" role="button" data-toggle="dropdown"
+            aria-haspopup="true" aria-expanded="false">
+            <i class="fa fa-user"></i>
+          </a>
+          <div class="dropdown-menu dropdown-menu-right" aria-labelledby="helpDropDown">
+            <a class="dropdown-item" href="/audit">Audit</a>
+            <a class="dropdown-item" href="/solutions">Solutions</a>
+            <a class="dropdown-item" href="/about">About</a>
+            <hr />
+            <a class="dropdown-item" href="/start_over" style="color:darkorange">Rollback DVGA</a>
+          </div>
+        </li>
+      </ul>
+    </div>
+  </nav>
+</div>
+    <div class="container-fluid">
+      <h1 class="mt-4">Audit</h1>
+      <hr>
+        <div class="row">
+        <div class="col-md-12">
+        <h4>Recent Audit Log Activity</h4>
+          <table class="table">
+          <thead>
+            <tr>
+              <th scope="col">#</th>
+              <th scope="col">Name</th>
+              <th scope="col">GraphQL Operation</th>
+              <th scope="col">GraphQL Query</th>
+              <th scope="col">Date</th>
+            </tr>
+          </thead>
+          
+          <tbody>
+            <tr>
+              <th scope="row">1. </th>
+              <td>DVGAUser</td>
+              <td>No Operation</td>
+              <td>{ search(keyword: &#34;555&#34;) { __typename ... on PasteObject { id title content } ... on UserObject { id username password } } }</td>
+              <td>2026-10-20 07:10:26</td>
+            </tr>
+          </tbody>
+          
+          <tbody>
+            <tr>
+              <th scope="row">2. </th>
+              <td>DVGAUser</td>
+              <td>No Operation</td>
+              <td>mutation { login(username: &#34;admin&#34;, password: &#34;password&#34;) { accessToken refreshToken } }</td>
+              <td>2026-10-20 07:10:24</td>
+            </tr>
+          </tbody>
+          
+          <tbody>
+            <tr>
+              <th scope="row">3. </th>
+              <td>DVGAUser</td>
+              <td>No Operation</td>
+              <td>mutation { login(username: &#34;admin&#34;, password: &#34;admin&#34;) { accessToken refreshToken } }</td>
+              <td>2026-10-20 07:10:04</td>
+            </tr>
+          </tbody>
+          
+          <tbody>
+            <tr>
+              <th scope="row">4. </th>
+              <td>DVGAUser</td>
+              <td>No Operation</td>
+              <td>{ readAndBurn(id: 1) { id title content } }</td>
+           
