@@ -7,13 +7,32 @@ import { createRequire } from 'node:module';
 
 export interface FixtureCall { name: string; args: Record<string, unknown> }
 
+function findToolValue(value: unknown, key: string): unknown {
+  if (typeof value === 'string') {
+    try { return findToolValue(JSON.parse(value), key); } catch { return undefined; }
+  }
+  if (!value || typeof value !== 'object') return undefined;
+  if (Object.hasOwn(value, key)) return (value as Record<string, unknown>)[key];
+  for (const child of Object.values(value)) {
+    const found = findToolValue(child, key);
+    if (found !== undefined) return found;
+  }
+  return undefined;
+}
+
 /** A deterministic local HTTP provider. The actual OpenCode binary owns all agent turns. */
-export async function openCodeFixture(calls: FixtureCall[], options: { preset?: boolean; model?: string; maxSteps?: number; omitUsage?: boolean; root?: string; trajectory?: 't1' | 't2' } = {}) {
+export async function openCodeFixture(calls: FixtureCall[], options: { preset?: boolean; model?: string; maxSteps?: number; omitUsage?: boolean; root?: string; trajectory?: 't1' | 't2'; webBody?: string | Buffer; webContentType?: string } = {}) {
   const root = options.root ? resolve(options.root) : await mkdtemp(join(tmpdir(), 'm1-opencode-'));
   if (options.root) { await mkdir(resolve(root, '..'), { recursive: true }); await mkdir(root, { recursive: false }); }
   const requests: Array<Record<string, unknown>> = [];
   let cursor = 0;
+  let targetPort = 0;
   const provider = createServer(async (request, response) => {
+    if (options.webBody !== undefined && request.url === '/challenge') {
+      response.writeHead(200, { 'content-type': options.webContentType ?? 'text/plain; charset=utf-8' });
+      response.end(options.webBody);
+      return;
+    }
     const chunks: Buffer[] = [];
     for await (const chunk of request) chunks.push(Buffer.from(chunk));
     const body = JSON.parse(Buffer.concat(chunks).toString()) as Record<string, unknown>;
@@ -25,8 +44,19 @@ export async function openCodeFixture(calls: FixtureCall[], options: { preset?: 
       id, object: 'chat.completion.chunk', created: 1, model: options.model ?? 'local-perfect',
       choices: [{ index: 0, delta, finish_reason }]
     })}\n\n`);
+    let resolvedArgs = call?.args;
+    if (call && Object.values(call.args).some(value => typeof value === 'string' && value.startsWith('$'))) {
+      const inputs = body.messages as Array<{ role?: string; content?: unknown }>;
+      const lastToolOutput = [...inputs].reverse().find(message => message.role === 'tool' && typeof message.content === 'string')?.content;
+      const observationRef = findToolValue(lastToolOutput, 'observation_ref');
+      const nextCursor = findToolValue(lastToolOutput, 'next_cursor');
+      resolvedArgs = Object.fromEntries(Object.entries(call.args).map(([key, value]) => [key,
+        value === '$TARGET' ? `http://127.0.0.1:${targetPort}/challenge`
+          : value === '$LAST_OBSERVATION_REF' ? observationRef
+          : value === '$LAST_NEXT_CURSOR' ? nextCursor : value]));
+    }
     emit({ role: 'assistant', ...(call ? { tool_calls: [{ index: 0, id: `call-${cursor}`, type: 'function',
-      function: { name: call.name, arguments: JSON.stringify(call.args) } }] } : { content: 'Finished.' }) });
+      function: { name: call.name, arguments: JSON.stringify(resolvedArgs) } }] } : { content: 'Finished.' }) });
     emit({}, call ? 'tool_calls' : 'stop');
     if (!options.omitUsage) response.write(`data: ${JSON.stringify({ id, object: 'chat.completion.chunk', choices: [],
       usage: { prompt_tokens: 20, completion_tokens: 5, total_tokens: 25 } })}\n\n`);
@@ -36,6 +66,7 @@ export async function openCodeFixture(calls: FixtureCall[], options: { preset?: 
   await new Promise<void>((done, reject) => { provider.once('error', reject); provider.listen(0, '127.0.0.1', done); });
   const address = provider.address();
   if (!address || typeof address === 'string') throw new Error('fixture provider did not bind');
+  targetPort = address.port;
   const model = options.model ?? 'local-perfect';
   const engineConfig = join(root, 'opencode.json');
   await writeFile(engineConfig, JSON.stringify({ model: `local/${model}`, provider: { local: {
@@ -52,11 +83,13 @@ export async function openCodeFixture(calls: FixtureCall[], options: { preset?: 
   return {
     root, out, requests,
     async run(extra: string[] = []) {
-      const argv = ['--import', 'tsx', 'apps/cli/src/main.ts', 'solve', '--target', 'http://127.0.0.1',
+      const web = options.webBody !== undefined;
+      const target = web ? `http://127.0.0.1:${address.port}/challenge` : 'http://127.0.0.1';
+      const argv = ['--import', 'tsx', 'apps/cli/src/main.ts', 'solve', '--target', target,
         '--profile', profilePath, '--out', out,
-        ...(options.trajectory === 't2' ? ['--trajectory', 't2', ...['target.mjs', 'decode.mjs', 'payload.txt']
+        ...(web ? [] : options.trajectory === 't2' ? ['--trajectory', 't2', ...['target.mjs', 'decode.mjs', 'payload.txt']
           .flatMap(name => ['--material', resolve('fixtures/trajectories/t2-falsified', name)])]
-          : ['--material', resolve('fixtures/trajectories/t1-script-error/solve.mjs'),
+          : ['--trajectory', 't1', '--material', resolve('fixtures/trajectories/t1-script-error/solve.mjs'),
             '--material', resolve('fixtures/trajectories/t1-script-error/payload.txt')]),
         ...(options.preset ? ['--preset-trajectory1'] : []), ...extra];
       const child = spawn(process.execPath, argv, { cwd: process.cwd(),

@@ -22,15 +22,27 @@ export interface SolveM1Options {
 
 const managedTools = ['workspace.list', 'workspace.read', 'workspace.search', 'workspace.patch', 'job.run', 'candidate.register'];
 
+function authorizedTargetOrigin(target: string): string {
+  let url: URL;
+  try { url = new URL(target); } catch { throw new Error('blocked_configuration: Web target must be an absolute HTTP(S) URL'); }
+  if (!['http:', 'https:'].includes(url.protocol) || url.username || url.password) {
+    throw new Error('blocked_configuration: Web target must be an HTTP(S) URL without embedded credentials');
+  }
+  return url.origin;
+}
+
 export async function solveM1(options: SolveM1Options): Promise<{ code: number; message: string }> {
   if (!options.profile.opencode) throw new Error('blocked_configuration: solve now requires opencode.configPath; direct provider/JSON-action solve is retired');
   if (options.allowStub) throw new Error('blocked_configuration: --allow-stub is retired; deterministic providers must run through OpenCode');
-  if (options.startLocalTarget || options.target === 'auto') throw new Error('blocked_configuration: current M1 slice accepts supplied local Node-script materials; HTTP trajectories are frozen');
-  const trajectory = options.trajectory ?? 't1';
-  if (!['t1', 't2'].includes(trajectory)) throw new Error('blocked_configuration: only local trajectories t1 and t2 are supported');
+  if (options.startLocalTarget || options.target === 'auto') throw new Error('blocked_configuration: an authorized target URL is required');
+  const web = options.trajectory === undefined;
+  const trajectory = options.trajectory;
+  if (trajectory !== undefined && !['t1', 't2'].includes(trajectory)) throw new Error('blocked_configuration: only local trajectories t1 and t2 are supported');
   if (trajectory === 't2' && options.presetTrajectory1) throw new Error('blocked_configuration: trajectory 1 preset cannot be used for trajectory 2');
-  const toolsForTask = trajectory === 't2' ? [...managedTools, 'hypothesis.propose', 'hypothesis.conclude'] : managedTools;
-  const description = options.description ?? (trajectory === 't1'
+  const targetOrigin = web ? authorizedTargetOrigin(options.target) : undefined;
+  const toolsForTask = web ? ['workspace.list', 'workspace.read', 'workspace.search', 'http.request', 'observation.read']
+    : trajectory === 't2' ? [...managedTools, 'hypothesis.propose', 'hypothesis.conclude'] : managedTools;
+  const description = options.description ?? (web ? `Explore the authorized Web challenge at ${options.target}. Use only same-origin HTTP requests, inspect evidence selectively, and report what you found without claiming a verified solve.` : trajectory === 't1'
     ? 'Repair the supplied local Node script and run it successfully. Register the result produced by the script.'
     : 'Investigate the supplied local parser and payload. Test a falsifiable mechanism premise, retain the actual evidence, and pursue another route if the premise is refuted. Register a result only from successful execution.');
   const loaded = await loadOpenCodeConfig(options.profile.opencode.configPath);
@@ -46,7 +58,8 @@ export async function solveM1(options: SolveM1Options): Promise<{ code: number; 
   await mkdir(out, { recursive: true });
   const state = new StateStore(join(out, 'state'), runId);
   const artifacts = new ArtifactStore(join(out, 'artifacts-store'));
-  const runtime = new ToolRuntime(artifacts, join(out, 'workspaces'), runId, challengeId);
+  const runtime = new ToolRuntime(artifacts, join(out, 'workspaces'), runId, challengeId, targetOrigin);
+  const httpSessionID = web ? await runtime.openHttpSession() : undefined;
   const registry = new ResponsibilityRegistry({ verifyArtifact: async ref => { await artifacts.verify(ref); return true; } });
   const bridge = new OpenCodeBridge(new PolicyEngine());
   let task: OpenCodeTask | undefined;
@@ -75,7 +88,7 @@ export async function solveM1(options: SolveM1Options): Promise<{ code: number; 
     const rpcToken = randomBytes(32).toString('hex');
     const rpcServer = new OpenCodeBridgeRpcServer(bridge, sessionID => {
       const binding = registry.binding(sessionID);
-      return { lease: binding.lease_id as LeaseId, scope: `local:${challengeId}` };
+      return { lease: binding.lease_id as LeaseId, scope: web ? targetOrigin! : `local:${challengeId}` };
     }, rpcToken, undefined, async (sessionID, operation, input) => {
       if (!task) throw new Error('OpenCode session is not bound');
       return task.control(sessionID, operation, input);
@@ -106,20 +119,23 @@ export async function solveM1(options: SolveM1Options): Promise<{ code: number; 
     const binding = registry.bindSession({ session_id: sessionID, task_id: taskId, context: registry.createReasoningContext() });
     runtime.registerTaskLease({ taskId, sessionId: sessionID, leaseId, expiresAt: deadline });
     bridge.bind({ sessionId: sessionID, challengeId, task: taskId, lease: leaseId, capabilities: toolsForTask,
-      scope: `local:${challengeId}`, expiresAt: deadline });
+      scope: web ? targetOrigin! : `local:${challengeId}`, expiresAt: deadline });
     task = new OpenCodeTask({ state, artifacts, runtime, registry, sessionID, budget: options.profile.budget, deadline,
-      controller, secrets: [...loaded.secrets, rpcToken], trajectory, resolveCandidate: createLocalJobCandidateResolver({
+      controller, secrets: [...loaded.secrets, rpcToken], trajectory, httpSessionID, resolveCandidate: web
+        ? async () => { throw new Error('authoritative Web challenge oracle is unavailable'); }
+        : createLocalJobCandidateResolver({
         state, artifacts, runtime, registry, owner: { taskId, sessionId: sessionID, leaseId }, challengeId, runId, deadline,
         flag: trajectory === 't1' ? 'flag{local_repair}' : 'flag{changed_route}' }) });
     task.event('started', { engine: 'opencode', engine_version: engine.version, binding,
       budget: options.profile.budget,
-      challenge: { description, trajectory,
+      challenge: { description, trajectory: trajectory ?? null, ...(web ? { target_origin: targetOrigin } : {}),
         material_refs: materialRefs, workspace_files: workspaceFiles, snapshot: { generation: 1, reference: null,
           opencode_config_hash: createHash('sha256').update(JSON.stringify(loaded.config)).digest('hex'), profile_id: options.profile.profileId,
           solver_profile: options.profile.solverProfile, preset: options.presetTrajectory1 === true } } });
     let error: unknown;
     try {
-      const instructions = trajectory === 't1' ? 'Read the complete actual stderr before repairing. Do not replace whole files.'
+      const instructions = web ? `The authorized target is ${options.target}. Stay on origin ${targetOrigin}; do not follow redirects or claim a solution without an authoritative oracle. For large HTTP responses, use observation.read with the returned observation ref and exact next_cursor to retrieve only relevant excerpts.`
+        : trajectory === 't1' ? 'Read the complete actual stderr before repairing. Do not replace whole files.'
         : 'Before a mechanism experiment, use hypothesis.propose with your claim, falsifier, intended command, and prediction (expression_evaluates for expression evaluation, otherwise other). Run that command with job.run. Read the actual output before hypothesis.conclude. After a rejected premise, propose the next experiment with your route_reason. The host binds evidence and identities. Do not repeat an unchanged refuted experiment.';
       const parts: Array<{ type: 'text'; text: string }> = [{ type: 'text', text: `${description}\nWorkspace materials: ${workspaceFiles.join(', ')}. ${instructions}` }];
       if (options.presetTrajectory1) {
@@ -160,6 +176,7 @@ export async function solveM1(options: SolveM1Options): Promise<{ code: number; 
       engine: { name: 'opencode', model: loaded.config.model } }, null, 2) };
   } finally {
     clearTimeout(timer);
+    if (httpSessionID) runtime.closeHttpSession(httpSessionID);
     try { await engine?.close(); }
     finally { try { await runtime.dispose(); } finally { try { await rpc?.close(); } finally { state.close(); } } }
   }

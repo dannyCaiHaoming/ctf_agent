@@ -1,9 +1,39 @@
 import { describe, expect, it } from 'vitest';
 import { openCodeFixture, successfulRepair } from './opencode-fixture.js';
-import { access } from 'node:fs/promises';
+import { access, readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 
 describe('product solve through actual OpenCode', () => {
+  it('pages a large Web response and returns a bounded range from its observation ref', async () => {
+    const body = Array.from({ length: 6144 }, (_, index) => String.fromCharCode(97 + index % 26)).join('');
+    const fixture = await openCodeFixture([
+      { name: 'ctf_http_request', args: { url: '$TARGET' } },
+      { name: 'ctf_observation_read', args: { ref: '$LAST_OBSERVATION_REF', cursor: '$LAST_NEXT_CURSOR', max_bytes: 1024 } }
+    ], { webBody: body });
+    try {
+      const run = await fixture.run();
+      expect(run.result.outcome).not.toBe('solved');
+      const events = await fixture.events();
+      const request = events.find(event => event.activity === 'tool.result' && event.data.tool === 'http.request');
+      const requestRaw = JSON.parse(request.data.observation.raw);
+      expect(requestRaw).toMatchObject({ status: 200, body_size: body.length, body_fully_inline: false });
+      expect(requestRaw.body).toBeUndefined();
+      expect(requestRaw.body_preview.content).toBe(body.slice(0, 2048));
+      expect(requestRaw.observation_ref).toMatch(/^observation_/);
+      const bodyRef = request.data.observation.artifact_refs.find((ref: { size: number }) => ref.size === body.length);
+      expect(await readFile(bodyRef.path, 'utf8')).toBe(body);
+
+      const page = events.find(event => event.activity === 'tool.result' && event.data.tool === 'observation.read');
+      const pageRaw = JSON.parse(page.data.observation.raw);
+      expect(pageRaw).toMatchObject({ cursor: 2048, next_cursor: 3072, size: body.length, encoding: 'utf8' });
+      expect(pageRaw.chunk).toBe(body.slice(2048, 3072));
+      const range = page.data.observation.artifact_refs.find((ref: { hash: string }) => ref.hash === pageRaw.range_ref.hash);
+      expect(await readFile(range.path, 'utf8')).toBe(pageRaw.chunk);
+      expect(JSON.stringify(fixture.requests)).not.toContain(body);
+      expect(JSON.stringify(fixture.requests)).not.toContain('artifacts-store');
+    } finally { await fixture.close(); }
+  }, 60000);
+
   it('lets OpenCode own model/tool turns and reaches independent replay plus oracle accepted', async () => {
     const fixture = await openCodeFixture(successfulRepair);
     try {

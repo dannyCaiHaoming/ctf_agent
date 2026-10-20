@@ -100,13 +100,13 @@ export class ToolRuntime {
     return id;
   }
 
-  async httpRequest(sessionId: string, url: string, init?: RequestInit, maxResponseBytes = 1_048_576): Promise<{ status: number; body: Buffer; artifact: Awaited<ReturnType<ArtifactStore['publish']>> }> {
+  async httpRequest(sessionId: string, url: string, init?: RequestInit, maxResponseBytes = 1_048_576): Promise<{ status: number; contentType: string | null; body: Buffer; artifact: Awaited<ReturnType<ArtifactStore['publish']>> }> {
     const allowed = url === this.scope || url.startsWith(this.scope + '/');
     if (!allowed) throw new Error(`HTTP URL outside challenge scope: ${url}`);
     if (!Number.isSafeInteger(maxResponseBytes) || maxResponseBytes <= 0) throw new Error('invalid HTTP response byte limit');
     const session = this.httpSessions.get(sessionId);
     if (!session || session.closed) throw new Error('HTTP session closed');
-    const response = await fetch(url, init);
+    const response = await fetch(url, { ...init, redirect: 'manual' });
     const chunks: Buffer[] = []; let size = 0;
     if (response.body) {
       const reader = response.body.getReader();
@@ -122,7 +122,7 @@ export class ToolRuntime {
     const body = Buffer.concat(chunks, size);
     const artifact = await this.artifacts.publish(body);
     session.requests.push({ request: { url, method: init?.method ?? 'GET' }, response: { status: response.status, artifactHash: artifact.hash } });
-    return { status: response.status, body, artifact };
+    return { status: response.status, contentType: response.headers.get('content-type'), body, artifact };
   }
 
   closeHttpSession(sessionId: string): void {

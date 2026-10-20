@@ -14,6 +14,22 @@ import { HypothesisManager, experimentFingerprint, type CandidateResolverInput, 
 type Activity = Extract<EventDelta, { kind: 'solver.activity' }>['activity'];
 const pathInput = z.object({ path: z.string().min(1) }).strict();
 const commandInput = z.object({ command: z.array(z.string().min(1)).min(2), timeout_ms: z.number().int().positive().max(15000).optional() }).strict();
+const httpRequestInput = z.object({ url: z.string().url(), method: z.enum(['GET', 'POST']).optional(),
+  body: z.string().max(65536).optional(), content_type: z.string().max(256).optional() }).strict().refine(input =>
+  input.method !== 'GET' || input.body === undefined, 'GET requests cannot include a body');
+const observationReadInput = z.object({ ref: z.string().regex(/^observation_[a-f0-9-]{36}$/), cursor: z.number().int().nonnegative(),
+  max_bytes: z.number().int().positive().max(4096).default(4096) }).strict();
+const HTTP_INLINE_BODY_BYTES = 2048;
+
+function isTextContentType(value: string): boolean {
+  return /^(text\/|application\/(?:json|[^;]+\+json|xml|[^;]+\+xml|javascript))/i.test(value);
+}
+
+function utf8SafeEnd(bytes: Buffer, start: number, maxBytes: number): number {
+  let end = Math.min(bytes.length, start + maxBytes);
+  while (end > start && end < bytes.length && (bytes[end]! & 0xc0) === 0x80) end--;
+  return end;
+}
 const proposalInput = z.object({ claim: z.string().trim().min(1), falsifier: z.string().trim().min(1),
   prediction: z.enum(['expression_evaluates', 'other']), command: commandInput.shape.command,
   route_reason: z.string().trim().min(1).optional() }).strict();
@@ -31,6 +47,7 @@ export class OpenCodeTask {
   private started = Date.now();
   private used = { steps: 0, tools: 0, tokens: 0, modelCalls: 0 };
   private refs = new Map<string, ImmutableArtifactRef>();
+  private observations = new Map<string, { artifact: ImmutableArtifactRef; contentType: string; nextCursor: number }>();
   private usage = new Map<string, { input: number; output: number }>();
   private failures = new Map<string, { stderr: string; ref: ImmutableArtifactRef; delivered: boolean }>();
   private success?: { experiment: ExperimentRecord; refs: ImmutableArtifactRef[] };
@@ -47,6 +64,7 @@ export class OpenCodeTask {
   constructor(private readonly input: {
     state: StateStore; artifacts: ArtifactStore; runtime: ToolRuntime; registry: ResponsibilityRegistry;
     sessionID: string; budget: Budget; deadline: string; controller: AbortController; secrets: string[]; trajectory?: 't1' | 't2';
+    httpSessionID?: string;
     resolveCandidate: (request: CandidateResolverInput) => Promise<import('@ctf/supervisor').CandidateResolution>;
   }) {
     this.identity = input.registry.binding(input.sessionID);
@@ -176,6 +194,8 @@ export class OpenCodeTask {
       if (name === 'candidate.register') return await this.registerCandidate(z.object({ value: z.string().min(1) }).strict().parse(args).value);
       const workspace = this.input.runtime.workspace(this.binding.task_id);
       let raw: string;
+      let artifactRefs: ImmutableArtifactRef[] = [];
+      let advanceObservation: { ref: string; nextCursor: number } | undefined;
       if (name === 'hypothesis.propose' && this.hypotheses) {
         const input = proposalInput.parse(args);
         input.command = await this.normalizedCommand(input.command);
@@ -224,12 +244,64 @@ export class OpenCodeTask {
         await workspace.patch(input.path, text.replace(input.find, () => input.replace));
         const after = await this.publish(await workspace.read(input.path));
         raw = JSON.stringify({ path: input.path, before, after });
+      } else if (name === 'http.request' && this.input.httpSessionID) {
+        const input = httpRequestInput.parse(args);
+        const method = input.method ?? 'GET';
+        const response = await this.input.runtime.httpRequest(this.input.httpSessionID, input.url, {
+          method, redirect: 'manual', ...(input.body === undefined ? {} : { body: input.body }),
+          ...(input.content_type ? { headers: { 'content-type': input.content_type } } : {})
+        }, 65536);
+        const bodyRef = ImmutableArtifactRefSchema.parse(response.artifact);
+        this.input.state.addCanonicalArtifact(bodyRef);
+        artifactRefs = [bodyRef];
+        const contentType = response.contentType ?? 'application/octet-stream';
+        const text = isTextContentType(contentType);
+        const common = { url: new URL(input.url).toString(), method, status: response.status,
+          body_size: bodyRef.size, content_type: contentType, body_ref: { hash: bodyRef.hash, size: bodyRef.size }, complete: true };
+        if (!text) {
+          raw = JSON.stringify({ ...common, body_fully_inline: false, data_class: 'artifact_bulk',
+            read_hint: 'Binary bulk response remains in the local artifact store.' });
+        } else if (response.body.length <= HTTP_INLINE_BODY_BYTES) {
+          raw = JSON.stringify({ ...common, body_fully_inline: true, body: response.body.toString('utf8'), encoding: 'utf8' });
+        } else {
+          const observationRef = `observation_${randomUUID()}`;
+          const previewEnd = utf8SafeEnd(response.body, 0, HTTP_INLINE_BODY_BYTES);
+          this.observations.set(observationRef, { artifact: bodyRef, contentType, nextCursor: previewEnd });
+          raw = JSON.stringify({ ...common, body_fully_inline: false, cursor: 0, next_cursor: previewEnd,
+            body_preview: { cursor: 0, next_cursor: previewEnd, encoding: 'utf8', content: response.body.subarray(0, previewEnd).toString('utf8') },
+            observation_ref: observationRef,
+            read_hint: 'Use observation.read with this ref and exact next_cursor to read only a needed range.' });
+        }
+      } else if (name === 'observation.read') {
+        const input = observationReadInput.parse(args);
+        const observation = this.observations.get(input.ref);
+        if (!observation) throw new Error('observation ref is not bound to this run');
+        if (input.cursor !== observation.nextCursor) throw new Error(`observation cursor must match next_cursor ${observation.nextCursor}`);
+        if (input.cursor >= observation.artifact.size) throw new Error('observation is already at eof');
+        const body = await this.input.artifacts.read(observation.artifact);
+        const nextCursor = utf8SafeEnd(body, input.cursor, input.max_bytes);
+        if (nextCursor <= input.cursor) throw new Error('observation page made no cursor progress');
+        const rangeRef = await this.input.artifacts.publishRange(this.binding.run_id, this.binding.challenge_id,
+          body.subarray(input.cursor, nextCursor), input.cursor, nextCursor);
+        const excerptRef = ImmutableArtifactRefSchema.parse({ hash: rangeRef.hash, size: rangeRef.size, path: rangeRef.path });
+        this.input.state.addCanonicalArtifact(excerptRef);
+        artifactRefs = [observation.artifact, excerptRef];
+        advanceObservation = { ref: input.ref, nextCursor };
+        raw = JSON.stringify({ observation_ref: input.ref, source_ref: observation.artifact.hash,
+          cursor: input.cursor, next_cursor: nextCursor, size: observation.artifact.size,
+          eof: nextCursor === observation.artifact.size, content_type: observation.contentType,
+          encoding: 'utf8', chunk: body.subarray(input.cursor, nextCursor).toString('utf8'),
+          range_ref: { hash: rangeRef.hash, size: rangeRef.size, startCursor: rangeRef.startCursor, endCursor: rangeRef.endCursor } });
       } else throw new Error('scope_denied: tool is not exposed');
       this.checkModelData(raw);
       const ref = await this.publish(Buffer.from(raw)); this.assertCurrent();
-      const observation = { tool: name, raw, outcome: 'success', failure_code: null, artifact_refs: [ref], complete: true };
+      const observation = { tool: name, raw, outcome: 'success', failure_code: null, artifact_refs: [...artifactRefs, ref], complete: true };
       this.event('tool.result', { tool: name, receipt_id: receiptId, observation });
-      return { receipt_id: receiptId, ...observation };
+      if (advanceObservation) this.observations.get(advanceObservation.ref)!.nextCursor = advanceObservation.nextCursor;
+      const modelObservation = name === 'http.request' || name === 'observation.read'
+        ? { ...observation, artifact_refs: observation.artifact_refs.map(artifact => ({ hash: artifact.hash, size: artifact.size })) }
+        : observation;
+      return { receipt_id: receiptId, ...modelObservation };
     } catch (error) {
       if (this.input.controller.signal.aborted || /resource_exhausted/.test(String(error))) throw error;
       let raw = error instanceof Error ? error.message : String(error);

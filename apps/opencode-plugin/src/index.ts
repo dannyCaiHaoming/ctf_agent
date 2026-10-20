@@ -21,6 +21,10 @@ const schemas = {
     prediction: tool.schema.enum(['expression_evaluates', 'other']), command: tool.schema.array(tool.schema.string()).min(2),
     route_reason: tool.schema.string().min(1).optional() },
   'hypothesis.conclude': { verdict: tool.schema.enum(['rejected', 'inconclusive']), rationale: tool.schema.string().min(1) },
+  'http.request': { url: tool.schema.string().url(), method: tool.schema.enum(['GET', 'POST']).optional(),
+    body: tool.schema.string().max(65536).optional(), content_type: tool.schema.string().max(256).optional() },
+  'observation.read': { ref: tool.schema.string().regex(/^observation_[a-f0-9-]{36}$/), cursor: tool.schema.number().int().min(0),
+    max_bytes: tool.schema.number().int().positive().max(4096).optional() },
   'candidate.register': { value: tool.schema.string().min(1) }
 };
 export const managedToolId = (name: string) => `ctf_${name.replaceAll('.', '_')}`;
@@ -48,7 +52,9 @@ export function createCtfAgentHooks(options: CTFPluginOptions): Hooks {
   for (const name of allowlist) {
     const id = direct ? name : managedToolId(name);
     tools[id] = tool({
-      description: `CTF managed ${name}. Use workspace-relative paths. The host supplies all identities, evidence references and budgets.`,
+      description: name === 'observation.read'
+        ? 'Read a bounded page from an earlier large HTTP response. Use its observation_ref and exact next_cursor; fetch only bytes needed.'
+        : `CTF managed ${name}. Use workspace-relative paths. The host supplies all identities, evidence references and budgets.`,
       args: direct ? { args: tool.schema.any() } : schemas[name as keyof typeof schemas],
       async execute(args, context) {
         let result: unknown;
