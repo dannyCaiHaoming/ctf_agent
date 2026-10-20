@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { realpath } from 'node:fs/promises';
-import { isAbsolute, resolve, sep } from 'node:path';
+import { isAbsolute, relative, resolve, sep } from 'node:path';
+import { Script } from 'node:vm';
 import { z } from 'zod';
 import { EventDeltaSchema, ExperimentSchema, HypothesisSchema, ImmutableArtifactRefSchema, RuntimeExperimentEventSchema,
   type Budget, type EventDelta, type ImmutableArtifactRef } from '@ctf/contracts';
@@ -8,13 +9,24 @@ import type { ArtifactStore } from '@ctf/artifacts';
 import type { ToolRuntime } from '@ctf/runtime';
 import type { StateStore } from '@ctf/state';
 import { ModelDataGateway } from '@ctf/policy';
-import { experimentFingerprint, type CandidateResolverInput, type ExperimentRecord, type ResponsibilityRegistry } from '@ctf/supervisor';
+import { HypothesisManager, experimentFingerprint, type CandidateResolverInput, type ExperimentRecord, type ResponsibilityRegistry } from '@ctf/supervisor';
 
 type Activity = Extract<EventDelta, { kind: 'solver.activity' }>['activity'];
 const pathInput = z.object({ path: z.string().min(1) }).strict();
 const commandInput = z.object({ command: z.array(z.string().min(1)).min(2), timeout_ms: z.number().int().positive().max(15000).optional() }).strict();
+const proposalInput = z.object({ claim: z.string().trim().min(1), falsifier: z.string().trim().min(1),
+  prediction: z.enum(['expression_evaluates', 'other']), command: commandInput.shape.command,
+  route_reason: z.string().trim().min(1).optional() }).strict();
+const conclusionInput = z.object({ verdict: z.enum(['rejected', 'inconclusive']), rationale: z.string().trim().min(1) }).strict();
 
-/** T1 host control only: OpenCode, rather than this class, owns the model/tool loop. */
+function isArithmeticExpression(value: string): boolean {
+  if (!/^[0-9\s.+*/%()\-]+$/.test(value) || !/[0-9]/.test(value)) return false;
+  // Compile only: let Node validate grouping/operators without evaluating input
+  // or growing a second expression parser in the product control layer.
+  try { new Script(`(${value}\n)`); return true; } catch { return false; }
+}
+
+/** Thin local-task control: OpenCode, rather than this class, owns the model/tool loop. */
 export class OpenCodeTask {
   private started = Date.now();
   private used = { steps: 0, tools: 0, tokens: 0, modelCalls: 0 };
@@ -26,12 +38,45 @@ export class OpenCodeTask {
   private accepted = false;
   private identity: ReturnType<ResponsibilityRegistry['binding']>;
   private candidate?: { value_ref: ImmutableArtifactRef; evidence_refs: ImmutableArtifactRef[] };
+  private hypotheses?: HypothesisManager;
+  private proposal?: z.infer<typeof proposalInput> & { id: string; receipt_id: string };
+  private semanticExperiment?: string;
+  private hypothesisSnapshotRef?: ImmutableArtifactRef;
+  private outputs = new Map<string, { result: Record<string, unknown>; ref: ImmutableArtifactRef; delivered: boolean }>();
 
   constructor(private readonly input: {
     state: StateStore; artifacts: ArtifactStore; runtime: ToolRuntime; registry: ResponsibilityRegistry;
-    sessionID: string; budget: Budget; deadline: string; controller: AbortController; secrets: string[];
+    sessionID: string; budget: Budget; deadline: string; controller: AbortController; secrets: string[]; trajectory?: 't1' | 't2';
     resolveCandidate: (request: CandidateResolverInput) => Promise<import('@ctf/supervisor').CandidateResolution>;
-  }) { this.identity = input.registry.binding(input.sessionID); }
+  }) {
+    this.identity = input.registry.binding(input.sessionID);
+    if (input.trajectory === 't2') this.hypotheses = new HypothesisManager({
+      verifyArtifact: async ref => { await input.artifacts.verify(ref); return true; },
+      assertCurrent: () => this.assertCurrent(),
+      resolveRuntimeEvent: async id => {
+        const matches = input.state.events().filter(event => event.kind === 'solver.activity' &&
+          event.runId === this.binding.run_id && event.challengeId === this.binding.challenge_id &&
+          event.taskId === this.binding.task_id && event.sessionId === this.binding.session_id &&
+          event.activity === 'tool.result' && event.data.receipt_id === id && event.data.tool === 'job.run');
+        if (matches.length !== 1 || matches[0]!.kind !== 'solver.activity') throw new Error('canonical runtime receipt missing or ambiguous');
+        return matches[0]!.data.receipt;
+      },
+      validateProgress: async (claim, experiment) => {
+        const receipt = experiment.events.at(-1)!;
+        const observed = this.outputs.get(receipt.id);
+        if (!observed?.delivered) throw new Error('complete raw output must be delivered in actual model input');
+        const raw = (await input.artifacts.read(observed.ref)).toString('utf8');
+        let parsed: { mode?: string; value?: string }; try { parsed = JSON.parse(raw); } catch { throw new Error('not a literal discriminator'); }
+        const command = (experiment.plan.procedure[0]!.input as { command: string[] }).command;
+        if (claim.kind !== 'evidence' || claim.verdict !== 'rejected' || this.proposal?.prediction !== 'expression_evaluates' ||
+          parsed.mode !== 'literal' || typeof parsed.value !== 'string' || command.length !== 3 || command[2] !== parsed.value ||
+          !isArithmeticExpression(parsed.value)) {
+          throw new Error('declared prediction is not refuted by this literal discriminator');
+        }
+        return { substantiation: 'The actual successful receipt preserves the tested arithmetic expression as literal data, contradicting the model-declared evaluation prediction.' };
+      }
+    });
+  }
 
   private get binding() { return this.identity; }
   event(activity: Activity, data: Record<string, unknown>) {
@@ -75,13 +120,21 @@ export class OpenCodeTask {
     if (operation === 'model.system') { this.checkModelData(value); return { checked: true }; }
     if (operation === 'model.input') {
       this.checkModelData(value);
-      for (const message of value as Array<{ info: Record<string, any>; parts: Array<Record<string, any>> }>) {
+      const messages = value as Array<{ info: Record<string, any>; parts: Array<Record<string, any>> }>;
+      if (this.hypotheses && messages.some(message => message.info.sessionID !== sessionID)) throw new Error('foreign model-input session');
+      for (const message of messages) {
         this.observeUsage(message.info);
         for (const part of message.parts) {
           const raw = part.type === 'tool' && part.state?.status === 'completed' ? part.state.output
             : part.type === 'text' ? part.text : undefined;
           if (typeof raw !== 'string') continue;
           let output: Record<string, any>; try { output = JSON.parse(raw); } catch { continue; }
+          const observed = this.outputs.get(output.receipt_id);
+          if (this.hypotheses && observed && !observed.delivered && part.type === 'tool' &&
+            observed.result.complete === true && Object.entries(observed.result).every(([key, expected]) => output[key] === expected)) {
+            observed.delivered = true;
+            this.event('tool.chunk', { receipt_id: output.receipt_id, stream: 'stdout', delivered_to_model: true, artifact_ref: observed.ref });
+          }
           const failure = this.failures.get(output.receipt_id);
           if (failure && !failure.delivered && output.stderr === failure.stderr) {
             failure.delivered = true;
@@ -123,7 +176,36 @@ export class OpenCodeTask {
       if (name === 'candidate.register') return await this.registerCandidate(z.object({ value: z.string().min(1) }).strict().parse(args).value);
       const workspace = this.input.runtime.workspace(this.binding.task_id);
       let raw: string;
-      if (name === 'workspace.list') {
+      if (name === 'hypothesis.propose' && this.hypotheses) {
+        const input = proposalInput.parse(args);
+        input.command = await this.normalizedCommand(input.command);
+        if (this.proposal && (!this.semanticExperiment || !this.hypotheses.experiment(this.semanticExperiment).conclusion)) {
+          throw new Error('conclude the prior experiment before replacing its proposal');
+        }
+        const previous = this.proposal ? this.hypotheses.hypothesis(this.proposal.id) : undefined;
+        if (previous?.state === 'rejected' && !input.route_reason) throw new Error('a route change requires the model reason');
+        const cost = { wall_ms: Math.max(1, this.remaining().wallClockMs), tokens: this.remaining().maxObservableTokens, remote_units: 0 };
+        const hypothesis = this.hypotheses.addHypothesis({ id: `hypothesis_${randomUUID()}`, claim: input.claim, falsifier: input.falsifier,
+          preconditions: ['Bound local workspace'], missing_preconditions: [], supporting_refs: [], contradicting_refs: [], alternative_explanations: [],
+          minimal_experiment: JSON.stringify(input.command), expected_observation: input.prediction === 'expression_evaluates' ? 'The expression is evaluated rather than returned literally.' : input.claim,
+          state_dependencies: { generation: 1 }, required_capabilities: ['job.run'], route_status: 'queued', next_action: 'Execute the declared experiment.', cost, state: 'proposed' });
+        this.assertCurrent(); this.hypotheses.setRoutes({ primary: hypothesis.id, counterprobe: null });
+        this.proposal = { ...input, id: hypothesis.id, receipt_id: receiptId }; this.semanticExperiment = undefined;
+        if (previous?.state === 'rejected') this.event('strategy.switch', { from: previous.id, to: hypothesis.id,
+          rationale: input.route_reason, evidence_refs: previous.contradicting_refs, proposal_receipt_id: receiptId });
+        raw = JSON.stringify({ hypothesis, prediction: input.prediction, command: input.command, route_reason: input.route_reason });
+        await this.saveHypotheses();
+      } else if (name === 'hypothesis.conclude' && this.hypotheses) {
+        const input = conclusionInput.parse(args);
+        if (!this.semanticExperiment) throw new Error('conclusion requires a prior declared experiment');
+        const experiment = this.hypotheses.experiment(this.semanticExperiment);
+        if (input.verdict === 'rejected' && experiment.status !== 'succeeded') throw new Error('mechanism rejection requires a successful execution');
+        const hypothesis = await this.hypotheses.conclude(experiment.plan.id, { ...input, evidence_refs: experiment.events.flatMap(event => event.artifact_refs) });
+        await this.saveHypotheses();
+        this.event('hypothesis.conclusion', { hypothesis_id: hypothesis.id, experiment_id: experiment.plan.id,
+          conclusion: this.hypotheses.experiment(experiment.plan.id).conclusion, hypothesis_snapshot_ref: this.hypothesisSnapshotRef });
+        raw = JSON.stringify({ hypothesis });
+      } else if (name === 'workspace.list') {
         const input = z.object({ path: z.string().optional() }).strict().parse(args);
         await this.workspacePath(input.path ?? '.'); raw = JSON.stringify(await workspace.list(input.path));
       } else if (name === 'workspace.read' || name === 'workspace.search') {
@@ -157,23 +239,39 @@ export class OpenCodeTask {
       return { receipt_id: receiptId, error: raw, outcome: 'failure' };
     }
   }
+  private async normalizedCommand(command: string[]) {
+    if (!['node', process.execPath].includes(command[0]!) || command[1]!.startsWith('-')) throw new Error('scope_denied: only supplied local Node scripts are admitted');
+    const root = await realpath(this.input.runtime.workspace(this.binding.task_id).path);
+    return ['node', relative(root, await this.workspacePath(command[1]!)).split(sep).join('/'), ...command.slice(2)];
+  }
+  private async saveHypotheses() {
+    if (this.hypotheses) this.hypothesisSnapshotRef = await this.publish(Buffer.from(JSON.stringify(this.hypotheses.exportSnapshot())));
+    this.assertCurrent();
+  }
   private async runJob(input: z.infer<typeof commandInput>, receiptId: string, preset: boolean) {
     const command = input.command[0] === 'node' ? [process.execPath, ...input.command.slice(1)] : input.command;
     if (command[0] !== process.execPath || command[1]!.startsWith('-')) throw new Error('scope_denied: only supplied local Node scripts are admitted');
     await this.workspacePath(command[1]!); this.assertCurrent();
     const cost = { wall_ms: Math.max(1, this.remaining().wallClockMs), tokens: this.remaining().maxObservableTokens, remote_units: 0 };
-    const hypothesis = HypothesisSchema.parse({ id: `hypothesis_${randomUUID()}`, claim: 'The requested local script can execute and produce observable output.',
+    let hypothesis = HypothesisSchema.parse({ id: `hypothesis_${randomUUID()}`, claim: 'The requested local script can execute and produce observable output.',
       preconditions: ['The script exists in the bound workspace'], missing_preconditions: [], supporting_refs: [], contradicting_refs: [],
       alternative_explanations: [], falsifier: 'The actual script execution fails.', minimal_experiment: 'Execute the requested Node script once.',
       expected_observation: 'Actual exit status and raw stdout/stderr.', state_dependencies: { generation: 1 }, required_capabilities: ['job.run'],
       route_status: 'primary', next_action: 'Run the requested script.', cost, state: 'testing' });
+    if (this.proposal) {
+      const normalized = await this.normalizedCommand(input.command);
+      if (JSON.stringify(normalized) !== JSON.stringify(this.proposal.command)) throw new Error('actual command differs from declared proposal');
+      hypothesis = HypothesisSchema.parse(this.hypotheses!.hypothesis(this.proposal.id));
+    }
     const plan = ExperimentSchema.parse({ id: `experiment_${randomUUID()}`, hypothesis_id: hypothesis.id,
       objective: 'Observe one actual local script execution.', input_refs: [], state_dependencies: { generation: 1 }, parameters: {},
-      procedure: [{ id: 'run', tool: 'job.run', input: { command: input.command } }], expected_support: 'Exit code 0.',
-      expected_refutation: 'A non-zero exit or incomplete execution.', budget: cost, repair_budget: 0,
+      procedure: [{ id: 'run', tool: 'job.run', input: { command: this.proposal?.command ?? input.command } }], expected_support: this.proposal ? hypothesis.expected_observation : 'Exit code 0.',
+      expected_refutation: this.proposal?.falsifier ?? 'A non-zero exit or incomplete execution.', budget: cost, repair_budget: 0,
       stop_condition: 'One terminal execution.', expected_artifacts: ['stdout', 'stderr'] });
     const fingerprint = experimentFingerprint(plan);
-    this.event('experiment.started', { hypothesis, experiment: plan, fingerprint, derived_from: receiptId, preset });
+    if (this.proposal) { this.hypotheses!.startExperiment(plan); this.semanticExperiment = plan.id; }
+    this.event('experiment.started', { hypothesis, experiment: plan, fingerprint, derived_from: receiptId, preset,
+      ...(this.proposal ? { proposal_receipt_id: this.proposal.receipt_id, prediction: this.proposal.prediction } : {}) });
     const owner = { sessionId: this.binding.session_id, leaseId: this.binding.lease_id };
     const job = await this.input.runtime.jobStart({ taskId: this.binding.task_id, owner, command,
       timeoutMs: Math.max(1, Math.min(input.timeout_ms ?? 15000, this.remaining().wallClockMs)), maxRetainedBytes: 128 * 1024 });
@@ -196,16 +294,22 @@ export class OpenCodeTask {
     const refs = [succeeded ? stdoutRef : stderrRef];
     const receipt = RuntimeExperimentEventSchema.parse({ id: receiptId, experiment_id: plan.id, fingerprint, step_id: 'run',
       outcome: succeeded ? 'success' : 'failure', failure_code: succeeded ? null : 'tool_invocation_error', artifact_refs: refs });
-    const experiment: ExperimentRecord = { plan, fingerprint, status: succeeded ? 'succeeded' : 'failed', events: [receipt],
+    let experiment: ExperimentRecord = { plan, fingerprint, status: succeeded ? 'succeeded' : 'failed', events: [receipt],
       activities: [], redispatch_reason: null, conclusion: null };
     const observation = { tool: 'job.run', raw, outcome: receipt.outcome, failure_code: receipt.failure_code, artifact_refs: refs, complete: output.complete };
     this.event('tool.result', { tool: 'job.run', receipt_id: receiptId, receipt, observation, job_id: job.id,
       exit_code: status.exitCode, stdout_ref: stdoutRef, stderr_ref: stderrRef, preset });
+    if (this.proposal) {
+      await this.hypotheses!.recordRuntimeEvent(receiptId);
+      experiment = structuredClone(this.hypotheses!.completeExperiment(plan.id)) as ExperimentRecord;
+      await this.saveHypotheses();
+    }
     this.event('experiment.completed', { experiment });
     this.success = succeeded ? { experiment, refs } : undefined;
     if (!succeeded && output.complete && output.stderr.length) this.failures.set(receiptId, { stderr: raw, ref: stderrRef, delivered: false });
     const result = { receipt_id: receiptId, exit_code: status.exitCode, stdout: output.stdout.toString('utf8'),
       stderr: output.stderr.toString('utf8'), complete: output.complete };
+    if (succeeded) this.outputs.set(receiptId, { result: { ...result }, ref: stdoutRef, delivered: false });
     this.checkModelData(result); return result;
   }
   private async registerCandidate(value: string) {
@@ -239,9 +343,12 @@ export class OpenCodeTask {
     const budget = { wallClockMs: Date.now() - this.started, maxSteps: this.used.steps,
       maxToolJobs: this.used.tools, maxObservableTokens: this.used.tokens };
     this.input.state.saveCheckpoint({ runId: this.binding.run_id, challengeId: this.binding.challenge_id, target: 'local-materials',
-      nextAction: reason, stage: 'finalizing', publishedRefs: [...this.refs.values()], rejectedFingerprints: [], activeJobCursors: {}, usedBudget: budget });
+      nextAction: reason, stage: 'finalizing', publishedRefs: [...this.refs.values()],
+      rejectedFingerprints: this.hypotheses?.exportSnapshot().experiments.filter(experiment => experiment.conclusion?.verdict === 'rejected').map(experiment => experiment.fingerprint) ?? [],
+      activeJobCursors: {}, usedBudget: budget });
     const available = this.usage.size === this.used.modelCalls && this.used.modelCalls > 0;
     const result = { status, outcome, solve_state, reason, budget, candidate: this.candidate ?? null,
+      ...(this.hypothesisSnapshotRef ? { hypothesis_snapshot_ref: this.hypothesisSnapshotRef } : {}),
       provider_usage: { availability: available ? 'observed' : 'unavailable', model_calls: available ? this.usage.size : null,
         admitted_model_calls: this.used.modelCalls,
         input_tokens: available ? [...this.usage.values()].reduce((sum, value) => sum + value.input, 0) : null,

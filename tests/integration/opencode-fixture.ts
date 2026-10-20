@@ -8,7 +8,7 @@ import { createRequire } from 'node:module';
 export interface FixtureCall { name: string; args: Record<string, unknown> }
 
 /** A deterministic local HTTP provider. The actual OpenCode binary owns all agent turns. */
-export async function openCodeFixture(calls: FixtureCall[], options: { preset?: boolean; model?: string; maxSteps?: number; omitUsage?: boolean; root?: string } = {}) {
+export async function openCodeFixture(calls: FixtureCall[], options: { preset?: boolean; model?: string; maxSteps?: number; omitUsage?: boolean; root?: string; trajectory?: 't1' | 't2' } = {}) {
   const root = options.root ? resolve(options.root) : await mkdtemp(join(tmpdir(), 'm1-opencode-'));
   if (options.root) { await mkdir(resolve(root, '..'), { recursive: true }); await mkdir(root, { recursive: false }); }
   const requests: Array<Record<string, unknown>> = [];
@@ -45,7 +45,7 @@ export async function openCodeFixture(calls: FixtureCall[], options: { preset?: 
   } } }));
   const profilePath = join(root, 'profile.json');
   await writeFile(profilePath, JSON.stringify({ profileId: 'm1-opencode-fixture', solverMode: 'm1',
-    solverProfile: { promptTemplateVersion: 'opencode-t1/v1', toolManifestVersion: 'ctf-managed-t1/v1' },
+    solverProfile: { promptTemplateVersion: `opencode-${options.trajectory ?? 't1'}/v1`, toolManifestVersion: `ctf-managed-${options.trajectory ?? 't1'}/v1` },
     opencode: { configPath: engineConfig }, reference: { enabled: false },
     budget: { wallClockMs: 45000, maxSteps: options.maxSteps ?? 40, maxToolJobs: 20, maxObservableTokens: 20000 }, os: { platform: 'macos' } }));
   const out = join(root, 'run');
@@ -54,8 +54,10 @@ export async function openCodeFixture(calls: FixtureCall[], options: { preset?: 
     async run(extra: string[] = []) {
       const argv = ['--import', 'tsx', 'apps/cli/src/main.ts', 'solve', '--target', 'http://127.0.0.1',
         '--profile', profilePath, '--out', out,
-        '--material', resolve('fixtures/trajectories/t1-script-error/solve.mjs'),
-        '--material', resolve('fixtures/trajectories/t1-script-error/payload.txt'),
+        ...(options.trajectory === 't2' ? ['--trajectory', 't2', ...['target.mjs', 'decode.mjs', 'payload.txt']
+          .flatMap(name => ['--material', resolve('fixtures/trajectories/t2-falsified', name)])]
+          : ['--material', resolve('fixtures/trajectories/t1-script-error/solve.mjs'),
+            '--material', resolve('fixtures/trajectories/t1-script-error/payload.txt')]),
         ...(options.preset ? ['--preset-trajectory1'] : []), ...extra];
       const child = spawn(process.execPath, argv, { cwd: process.cwd(),
         env: { ...process.env, NODE_NO_WARNINGS: '1', M1_LOCAL_FIXTURE_KEY: 'local-fixture-key-never-in-model' },
@@ -87,4 +89,16 @@ export const successfulRepair: FixtureCall[] = [
   { name: 'ctf_workspace_patch', args: { path: 'solve.mjs', find: ".toString('utf8');", replace: ".toString('utf8'));" } },
   { name: 'ctf_job_run', args: { command: ['node', 'solve.mjs'] } },
   { name: 'ctf_candidate_register', args: { value: 'flag{local_repair}' } }
+];
+
+export const falsifiedRoute: FixtureCall[] = [
+  { name: 'ctf_hypothesis_propose', args: { claim: 'The parser evaluates expressions.', prediction: 'expression_evaluates',
+    falsifier: 'Successful output preserves the expression literally.', command: ['node', 'target.mjs', '7*6'] } },
+  { name: 'ctf_job_run', args: { command: ['node', 'target.mjs', '7*6'] } },
+  { name: 'ctf_hypothesis_conclude', args: { verdict: 'rejected', rationale: 'The actual literal value 7*6 contradicts expression evaluation.' } },
+  { name: 'ctf_hypothesis_propose', args: { claim: 'The separate payload can yield a decoded result.', prediction: 'other',
+    falsifier: 'The decoder fails to produce a result.', command: ['node', 'decode.mjs'],
+    route_reason: 'Evaluation was refuted by the literal output; investigate the independent payload.' } },
+  { name: 'ctf_job_run', args: { command: ['node', 'decode.mjs'] } },
+  { name: 'ctf_candidate_register', args: { value: 'flag{changed_route}' } }
 ];

@@ -17,6 +17,7 @@ import { OpenCodeTask } from './openCodeTask.js';
 export interface SolveM1Options {
   target: string; description?: string; input?: string; materials?: string[]; profile: ReleaseProfile; out?: string;
   allowStub?: boolean; startLocalTarget?: boolean; presetTrajectory1?: boolean;
+  trajectory?: 't1' | 't2';
 }
 
 const managedTools = ['workspace.list', 'workspace.read', 'workspace.search', 'workspace.patch', 'job.run', 'candidate.register'];
@@ -25,6 +26,13 @@ export async function solveM1(options: SolveM1Options): Promise<{ code: number; 
   if (!options.profile.opencode) throw new Error('blocked_configuration: solve now requires opencode.configPath; direct provider/JSON-action solve is retired');
   if (options.allowStub) throw new Error('blocked_configuration: --allow-stub is retired; deterministic providers must run through OpenCode');
   if (options.startLocalTarget || options.target === 'auto') throw new Error('blocked_configuration: current M1 slice accepts supplied local Node-script materials; HTTP trajectories are frozen');
+  const trajectory = options.trajectory ?? 't1';
+  if (!['t1', 't2'].includes(trajectory)) throw new Error('blocked_configuration: only local trajectories t1 and t2 are supported');
+  if (trajectory === 't2' && options.presetTrajectory1) throw new Error('blocked_configuration: trajectory 1 preset cannot be used for trajectory 2');
+  const toolsForTask = trajectory === 't2' ? [...managedTools, 'hypothesis.propose', 'hypothesis.conclude'] : managedTools;
+  const description = options.description ?? (trajectory === 't1'
+    ? 'Repair the supplied local Node script and run it successfully. Register the result produced by the script.'
+    : 'Investigate the supplied local parser and payload. Test a falsifiable mechanism premise, retain the actual evidence, and pursue another route if the premise is refuted. Register a result only from successful execution.');
   const loaded = await loadOpenCodeConfig(options.profile.opencode.configPath);
   const runId = `run_${randomUUID()}` as RunId;
   const challengeId = `challenge_${randomUUID()}` as ChallengeId;
@@ -51,6 +59,7 @@ export async function solveM1(options: SolveM1Options): Promise<{ code: number; 
       ...(options.materials ?? []).map(path => ({ path, name: basename(path) }))];
     for (const source of sources) {
       if (workspaceFiles.includes(source.name) || source.name.startsWith('.')) throw new Error('invalid or duplicate material filename');
+      if (trajectory === 't2' && /^readme(?:\.|$)/i.test(source.name)) throw new Error('blocked_configuration: fixture author README is not a challenge material');
       const bytes = await readFile(resolve(source.path));
       if (loaded.secrets.some(secret => secret && bytes.includes(Buffer.from(secret)))) throw new Error('control secret blocked from materials');
       await writeFile(join(runtime.workspace(taskId).path, source.name), bytes, { flag: 'wx' });
@@ -59,7 +68,7 @@ export async function solveM1(options: SolveM1Options): Promise<{ code: number; 
     }
     registry.createTask({ run_id: runId, challenge_id: challengeId, task_id: taskId, attempt_id: attemptId,
       responsibility_set: ['strategy', 'domain_solver'], lease: { lease_id: leaseId, expires_at: deadline } });
-    for (const name of managedTools) bridge.expose(name, context => {
+    for (const name of toolsForTask) bridge.expose(name, context => {
       if (!task) throw new Error('OpenCode session is not bound');
       return task.tool(name, context.args);
     });
@@ -75,11 +84,11 @@ export async function solveM1(options: SolveM1Options): Promise<{ code: number; 
     rpc = await rpcServer.start();
     let pluginPath = fileURLToPath(new URL('../../../opencode-plugin/src/entry.js', import.meta.url));
     try { await access(pluginPath); } catch { pluginPath = pluginPath.replace(/\.js$/, '.ts'); }
-    const tools = Object.fromEntries([['*', false], ...managedTools.map(name => [managedToolId(name), true])]);
-    const permission = Object.fromEntries([['*', 'deny'], ...managedTools.map(name => [managedToolId(name), 'allow'])]) as Record<string, 'allow' | 'deny'>;
+    const tools = Object.fromEntries([['*', false], ...toolsForTask.map(name => [managedToolId(name), true])]);
+    const permission = Object.fromEntries([['*', 'deny'], ...toolsForTask.map(name => [managedToolId(name), 'allow'])]) as Record<string, 'allow' | 'deny'>;
     const config = {
       model: loaded.config.model, small_model: loaded.config.model, provider: loaded.config.provider,
-      plugin: [[pathToFileURL(pluginPath).href, { bridgeUrl: rpc.url, bridgeToken: rpcToken, tools: managedTools }]] as [string, Record<string, unknown>][],
+      plugin: [[pathToFileURL(pluginPath).href, { bridgeUrl: rpc.url, bridgeToken: rpcToken, tools: toolsForTask }]] as [string, Record<string, unknown>][],
       default_agent: 'ctf-solver', tools, permission, share: 'disabled' as const, snapshot: false, autoupdate: false,
       lsp: false as const, formatter: false as const, mcp: {}, instructions: [],
       compaction: { auto: false, prune: false }, tool_output: { max_lines: 1000000, max_bytes: 2 * 1024 * 1024 },
@@ -96,20 +105,23 @@ export async function solveM1(options: SolveM1Options): Promise<{ code: number; 
     sessionID = session.data.id as SessionId;
     const binding = registry.bindSession({ session_id: sessionID, task_id: taskId, context: registry.createReasoningContext() });
     runtime.registerTaskLease({ taskId, sessionId: sessionID, leaseId, expiresAt: deadline });
-    bridge.bind({ sessionId: sessionID, challengeId, task: taskId, lease: leaseId, capabilities: managedTools,
+    bridge.bind({ sessionId: sessionID, challengeId, task: taskId, lease: leaseId, capabilities: toolsForTask,
       scope: `local:${challengeId}`, expiresAt: deadline });
     task = new OpenCodeTask({ state, artifacts, runtime, registry, sessionID, budget: options.profile.budget, deadline,
-      controller, secrets: [...loaded.secrets, rpcToken], resolveCandidate: createLocalJobCandidateResolver({
-        state, artifacts, runtime, registry, owner: { taskId, sessionId: sessionID, leaseId }, challengeId, runId, deadline, flag: 'flag{local_repair}' }) });
+      controller, secrets: [...loaded.secrets, rpcToken], trajectory, resolveCandidate: createLocalJobCandidateResolver({
+        state, artifacts, runtime, registry, owner: { taskId, sessionId: sessionID, leaseId }, challengeId, runId, deadline,
+        flag: trajectory === 't1' ? 'flag{local_repair}' : 'flag{changed_route}' }) });
     task.event('started', { engine: 'opencode', engine_version: engine.version, binding,
       budget: options.profile.budget,
-      challenge: { description: options.description ?? 'Repair the supplied local Node script and run it successfully. Register the result produced by the script.',
+      challenge: { description, trajectory,
         material_refs: materialRefs, workspace_files: workspaceFiles, snapshot: { generation: 1, reference: null,
           opencode_config_hash: createHash('sha256').update(JSON.stringify(loaded.config)).digest('hex'), profile_id: options.profile.profileId,
           solver_profile: options.profile.solverProfile, preset: options.presetTrajectory1 === true } } });
     let error: unknown;
     try {
-      const parts: Array<{ type: 'text'; text: string }> = [{ type: 'text', text: `${options.description ?? 'Inspect and repair the supplied local Node script, run it, and register the actual output as candidate.'}\nWorkspace materials: ${workspaceFiles.join(', ')}. Read the complete actual stderr before repairing. Do not replace whole files.` }];
+      const instructions = trajectory === 't1' ? 'Read the complete actual stderr before repairing. Do not replace whole files.'
+        : 'Before a mechanism experiment, use hypothesis.propose with your claim, falsifier, intended command, and prediction (expression_evaluates for expression evaluation, otherwise other). Run that command with job.run. Read the actual output before hypothesis.conclude. After a rejected premise, propose the next experiment with your route_reason. The host binds evidence and identities. Do not repeat an unchanged refuted experiment.';
+      const parts: Array<{ type: 'text'; text: string }> = [{ type: 'text', text: `${description}\nWorkspace materials: ${workspaceFiles.join(', ')}. ${instructions}` }];
       if (options.presetTrajectory1) {
         const first = await task.tool('job.run', { command: ['node', 'solve.mjs'] }, true) as { exit_code?: number; complete?: boolean };
         if (first.exit_code === 0 || first.exit_code == null || !first.complete) throw new Error('preset requires one complete failed execution');

@@ -17,6 +17,10 @@ const schemas = {
   'workspace.search': { path: tool.schema.string(), needle: tool.schema.string() },
   'workspace.patch': { path: tool.schema.string(), find: tool.schema.string().min(1), replace: tool.schema.string() },
   'job.run': { command: tool.schema.array(tool.schema.string()).min(2), timeout_ms: tool.schema.number().int().positive().optional() },
+  'hypothesis.propose': { claim: tool.schema.string().min(1), falsifier: tool.schema.string().min(1),
+    prediction: tool.schema.enum(['expression_evaluates', 'other']), command: tool.schema.array(tool.schema.string()).min(2),
+    route_reason: tool.schema.string().min(1).optional() },
+  'hypothesis.conclude': { verdict: tool.schema.enum(['rejected', 'inconclusive']), rationale: tool.schema.string().min(1) },
   'candidate.register': { value: tool.schema.string().min(1) }
 };
 export const managedToolId = (name: string) => `ctf_${name.replaceAll('.', '_')}`;

@@ -9,7 +9,8 @@
 | [`specs/2026-10-14-general-ctf-agent-system-design.md`](specs/2026-10-14-general-ctf-agent-system-design.md) | **权威设计 spec**：系统意图、架构、平台契约、状态与恢复、验证门槛。一切以它为准。 |
 | [`plans/2026-10-16-ctf-agent-mvp-roadmap.md`](plans/2026-10-16-ctf-agent-mvp-roadmap.md) | **当前路线图**：把设计切成 M0→M5+ 的 MVP 里程碑，每个里程碑一份可验收产物。 |
 | [`plans/2026-10-17-m0-host-foundation-plan.md`](plans/2026-10-17-m0-host-foundation-plan.md) | **M0 detailed plan — COMPLETE (2026-10-17)**：任务与验收均为可勾选候选框；T9b 后移 M2。 |
-| [`plans/2026-10-18-m1-solver-loop-plan.md`](plans/2026-10-18-m1-solver-loop-plan.md) | **M1 COMPLETE（2026-10-19，仅轨迹①）**：OpenCode 独立验收 3/3，既有交付截至 `baed7fa` 已 push；新增偏移实现归档清理见 plan 文末。轨迹②–⑥属 M1b，尚未启动。 |
+| [`plans/2026-10-18-m1-solver-loop-plan.md`](plans/2026-10-18-m1-solver-loop-plan.md) | **M1 COMPLETE（2026-10-19，仅轨迹①）**：OpenCode 独立验收 3/3，既有交付截至 `baed7fa` 已 push；新增偏移实现归档清理见 plan 文末。轨迹②–⑥属 M1b，进度见下一行。 |
+| [`plans/2026-10-19-m1b-trajectory-2-plan.md`](plans/2026-10-19-m1b-trajectory-2-plan.md) | **M1b 轨迹② T2-A/B 确定性集成完成，两项复核问题已修复**：累计新增 33 项测试，全量 269/269，M0/M1 gate 全绿；真实模型 T2-C 未开始，③–⑥未展开。 |
 
 ## 目录约定
 
