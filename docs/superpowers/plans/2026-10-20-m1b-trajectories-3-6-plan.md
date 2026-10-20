@@ -1,17 +1,16 @@
 # M1b 最小实施计划：轨迹③–⑥
 
-> 状态：**轨迹⑤ A/B（含 fixture 重做与捷径反向测试）确定性集成已完成并复验；C 仍未完成。**旧 b2 的 0/3 是 fixture 设计失败；修复 fixture 后，b3 新批次独立冻结并正式运行 3 次，结果仍为 0/3，失败轨迹累计 6/12，b3 批次额度已用完。b1/b2/b3 清单与证据均独立保留。轨迹⑥ A/B 确定性集成完成（2026-10-20），但**未做捷径反向测试，须补做后才可进入 T6-C**。轨迹①（M1，3/3）与轨迹②（M1b，3/3）已完成，六条轨迹正式进度仍为 **2/6**。③④未启动。
+> **当前状态（2026-10-20，按 `main@4f29ddf` 源码核对）：本地 HTTP 靶场已接入，真实求解验证闭环尚未完成。唯一下一切片为 §0.3「host 管 cursor + 上下文构成测量」，尚未实施。** 本次只整理文档，不改代码、不调用模型；本计划不构成模型调用授权。
 >
-> ⛔ **2026-10-20：⑤⑥③④ fixture 工作仍暂停，见第 0 节。** 侦察切片 0.1 的通用 HTTP 接线与一次真实练习题 run 已完成；run 在探索阶段因 token budget 耗尽而 inconclusive，未解出题目，也未观察到③–⑥特征行为。证据见 [`真实 Web 侦察记录`](../../gates/m1b-real-web-scout-20261020/scout-record.md)。
+> 0.1 已执行一次 DVGA 侦察，0.2 已实现分页并执行一次复跑；两次均预算耗尽、没有候选，0.2 的「推进到探索之后」判据未达到。⑤⑥③④工作继续暂停。
 >
-> **2026-10-20 根因更新：T5 b2 的 0/3 是 fixture 不合格（材料直接泄露答案），不是模型能力。**据此新增第 2 节「捷径不可达」为 **fixture 设计要求**，并给⑤⑥③④各补了捷径反向测试。T5 fixture 已按「结构性强制拒绝」重做并通过捷径反向测试；修复后的 b3 正式验收结果见 T5-C 记录。
-> 基线：`main@c23f0c0`，2026-10-20。
-> 依据：[权威 spec §12.2](../specs/2026-10-14-general-ctf-agent-system-design.md)、[roadmap](2026-10-16-ctf-agent-mvp-roadmap.md)、[M1 plan](2026-10-18-m1-solver-loop-plan.md)、[轨迹②计划与验收](2026-10-19-m1b-trajectory-2-plan.md)。
-> 本文沿用轨迹②已验证的 **A（定判据写失败测试）→ B（只补薄接线）→ C（冻结真实验收）** 三步模板，共用规则抽到第 2 节，不在每条轨迹里重复。
+> **历史成绩与当前能力分开：** ①与②各有 3/3 正式验收记录，六轨迹历史正式进度为 2/6。T5 b2、b3 各 0/3，累计 6/12；T5/T6 的 A/B 完成勾选属于当时版本，不代表当前产品入口仍支持它们。当前 CLI 仅支持 t1/t2 与通用 Web 侦察，不能运行 t5/t6。
+>
+> 依据：[权威 spec](../specs/2026-10-14-general-ctf-agent-system-design.md)、[roadmap](2026-10-16-ctf-agent-mvp-roadmap.md)、[M1 plan](2026-10-18-m1-solver-loop-plan.md)、[轨迹②记录](2026-10-19-m1b-trajectory-2-plan.md)。§0 是现行主线；§1–8 是暂停轨迹的历史设计与证据，不是待执行清单。
 
 ---
 
-## 0. ⛔ 本计划已暂停（2026-10-20 决定 A）
+## 0. 当前主线：本地真题；⑤⑥③④工作暂停
 
 **⑤⑥③④ 的 fixture 工作全部暂停。** 已用一道**真实题目**取得有限产品信号；本 run 未产生足以判断③–⑥的状态事件，故维持暂停与现有取证设计。
 
@@ -19,10 +18,12 @@
 
 - 投入：生产 6,117 行 + 测试 4,067 行 + 271 个测试全绿 + 128 份 gate 证据。产出：轨迹 **2/6**。
 - **这个产品从未解过一道真实 CTF 题**，而这是唯一真正要紧的未知。
-- 造 fixture 比被测行为本身更难（T5 b2 即死于此）；**方差来自 fixture 质量，不是 agent 能力**。
+- 造 fixture 比被测行为本身更难（T5 b2 即死于此）；**T5 b2 暴露了 fixture 质量问题，不能据该批次判模型能力**。
 - 真实题目**可能自然产生**③④⑤⑥的情形，不必预先手工制造；本次 DVGA run 在探索阶段耗尽 token，未产生可判断这些轨迹的候选或 oracle 事件。
 
-### 核查发现：产品已被特化成自己测试用例的运行器
+### 历史问题：通用目标曾被禁止，0.1 已恢复 HTTP 入口
+
+以下是整改前代码，仅解释历史原因，不代表当前入口：
 
 ```js
 // apps/cli/src/commands/solveM1.ts:29
@@ -35,12 +36,12 @@ if (options.startLocalTarget || options.target === 'auto')
 
 ---
 
-## 0.1 侦察切片：解一道真实题（已完成 1 次，按授权停止）
+## 0.1 侦察切片：接入真实靶场（已执行 1 次，未解出）
 
 > **本切片的产物是「信息」，不是「门槛」。** 不新增 fixture、不新增验收框架、不新增轨迹。
 
 **做什么**
-- [x] 解冻通用目标路径：恢复 `solve --target <addr> --description <text> --input <dir>`，使 CLI 可指向任意已授权 HTTP(S) 题目。不恢复已退役的自建循环。
+- [x] 解冻通用目标路径：恢复 `solve --target <addr> [--description <text>] [--input <file>] [--material <file> ...]`，使 CLI 可指向任意已授权 HTTP(S) 题目。不恢复已退役的自建循环。
 - [x] 选 **1 道真实 Web 练习题**（公开练习题或本地 Docker 靶场皆可；**不碰 TSecBench**，不烧限时任务）：用户提供本机 DVGA `http://localhost:5013/`。
 - [x] 跑 **1–2 次**，如实记录：解出与否、卡在哪一步、③④⑤⑥ 中哪些行为**自然出现**了。本次授权并只发起 1 个 solve run；OpenCode 内循环实际发出 6 次 provider 模型请求。run 因 100,000 observable-token budget 用尽而 `resource_exhausted / inconclusive / paused`，无候选、无权威验证、无最终答复；③–⑥均未自然出现。详见侦察记录。
 - [x] 据此决定剩余四条轨迹的取证方式，再回到本计划：本 run 未产生③–⑥的候选/状态事件，不能用于判断模型能力或更改其取证设计；维持⑤⑥③④ fixture 工作暂停。再次侦察需新的逐次授权。
@@ -52,10 +53,10 @@ if (options.startLocalTarget || options.target === 'auto')
 - 这**不是**正式验收批次，不计入任何轨迹的 12 次上限；但真实模型调用仍需你逐次授权。
 - 跑完就停下来汇报，**不要顺手开始修 ⑤ 的 fixture**。
 
-**0.1 接线与本地验证（2026-10-20）：** 未指定 `--trajectory` 时，CLI 进入通用 Web 侦察路径；`--target` 绑定 HTTP(S) origin，OpenCode 只获得同源 `http.request`（GET/POST）及 workspace 读取工具。请求有 64 KiB 响应上限、跟随重定向关闭、携带 run deadline signal；输入文件或目录会复制到 workspace，目录限制 100 个文件／10 MiB，并拒绝隐藏路径和符号链接。没有 authoritative oracle 时，结果不可能记为 solved；CLI 保留模型最终答复供侦察记录。未新增 challenge fixture、gate 或轨迹。真实 run 已按授权执行一次，结果与边界见下方侦察记录。
+**0.1 接线与本地验证（2026-10-20）：** 未指定 `--trajectory` 时，CLI 进入通用 Web 侦察路径；`--target` 绑定 HTTP(S) origin，OpenCode 只获得同源 `http.request`（GET/POST）及 workspace 读取工具。请求有 64 KiB 响应上限、跟随重定向关闭；当前 HTTP fetch 未接入 run deadline 的 AbortSignal，不能声称在途请求受该信号取消；**当前源码的材料入口只读取文件**：`--input <file>` 以 `challenge-input.bin` 写入 workspace，重复 `--material <file>` 按 basename 写入；没有目录递归导入逻辑。旧文所述目录上限和符号链接拒绝不能作为当前保证。没有 authoritative oracle 时，结果不可能记为 solved；CLI 保留模型最终答复供侦察记录。未新增 challenge fixture、gate 或轨迹。真实 run 已按授权执行一次，结果与边界见下方侦察记录。
 
-- [x] 最小接线测试：本地 OpenCode fixture 将输入目录和同源 HTTP 页面经产品 CLI 传给模型，canonical event 保存响应 artifact，且不产生 solved；见 `tests/integration/cli-m1-http-solve.test.ts`。
-- [x] 验证：`gate:m0` 29 文件／167 测试通过；`gate:m1` 3/3 通过；全量 52 文件／298 测试通过；typecheck、build、`git diff --check` 通过。之后只改了 prompt 的描述文本，再次通过最小接线测试、typecheck 和 diff check。
+- **历史测试声明需与当前代码分开：** 旧记录称最小接线测试已覆盖材料和同源 HTTP；但当前 `tests/integration/cli-m1-http-solve.test.ts` 只有旧入口拒绝测试，仍期待 `HTTP trajectories are frozen`，与当前抛出的 `an authorized target URL is required` 不一致。不能以该文件证明当前通用 HTTP 接线已验收；本次未运行测试，也未修正测试。
+- [x] 历史运行时的验证记录（非本次复验、不保证当前 checkout 全绿）：`gate:m0` 29 文件／167 测试通过；`gate:m1` 3/3 通过；全量 52 文件／298 测试通过；typecheck、build、`git diff --check` 通过。之后只改了 prompt 的描述文本，再次通过最小接线测试、typecheck 和 diff check。
 - [x] 真实练习目标和单次调用授权：用户提供 `http://localhost:5013/` 并授权 1 次真实模型 run（OpenCode 内循环实际产生 6 次 provider 请求）；执行证据见侦察记录。当前最小路径不带浏览器执行、Cookie 会话或跨源重定向；若后续目标要求这些能力，先记录设计 blocker，不扩建本切片。
 
 ### 侦察结论（决定下一步）
@@ -63,11 +64,11 @@ if (options.startLocalTarget || options.target === 'auto')
 证据：[scout-record](../../gates/m1b-real-web-scout-20261020/scout-record.md)。
 
 - ✅ **集成链是通的**：产品 CLI → OpenCode → 真实模型 → 受管工具 → 真实 DVGA GraphQL，端到端跑通，模型做了真实渗透动作（introspection、枚举 users、systemHealth/systemUpdate、paste 查询、试登录）。这是此前从未有过的产品信号。
-- 🔴 **卡点具体且非能力问题**：6 次调用 **97,111 input vs 4,542 output**（≈21:1），102 秒耗尽 100k 预算，**在探索阶段就烧光、没走到形成候选**。模型不是想不出来，是被自己的观察淹没——每次 GraphQL 响应全量回灌 context。
-- 📌 **这命中 spec 早已设计、但实现跳过的两处**：§8.5「即时 observation 与发布 evidence 分离」（工具输出按 cursor 读、只发布必要片段）、§10.2「大资料保留本地、按需回取片段」。当前是整个响应灌进模型。
-- 📌 **授权口径要改**：token 预算才是真正的硬约束（这次就是它触发终止），run 次数是松口径。**后续按 token 预算授权，不按 run 次数。**
+- 🔴 **已观察到预算阻碍，模型解题能力尚未充分检验**：6 次调用 **97,111 input vs 4,542 output**（≈21:1），102 秒耗尽 100k 预算，**在探索阶段就烧光、没走到形成候选**。当时 HTTP 响应全量回灌 context，造成大量输入消耗；这不能证明模型一定能解出，也不能把未解出单独归因于模型能力。
+- 📌 **这命中 spec 早已设计、但实现跳过的两处**：§8.5「即时 observation 与发布 evidence 分离」（工具输出按 cursor 读、只发布必要片段）、§10.2「大资料保留本地、按需回取片段」。0.1 当时是整个响应灌进模型；0.2 已加入大文本分页。
+- 📌 **授权口径要改**：observable-token 阈值是本次实际触发的停止条件（不是严格不超额的消费封顶），run 次数是松口径。**后续按 token 预算授权，不按 run 次数。**
 
-**所以下一步不是 ⑤⑥③④ 的 fixture，而是补 observation/预算管理（见 0.2）。** ⑤⑥③④ 维持暂停。
+**当时的下一步是 observation 分页（0.2，现已复跑）；当前下一步仅为 0.3。** ⑤⑥③④ 维持暂停。
 
 ---
 
@@ -96,21 +97,46 @@ if (options.startLocalTarget || options.target === 'auto')
 证据：[run-2-record](../../gates/m1b-real-web-pagination-20261020/run-2-record.md)。
 
 - ✅ **分页有效但不充分**：前 6 次调用 input 降 **55.8%**（97,111 → 42,936），斜率被压平，但 input **仍单调上升**，第 9 次累计 104,573 越过预算而停。成功判据（推进到探索之后）**未达到**，仍在侦察阶段。
-- 🔴 **卡点 A（根本）：会话上下文只增不减。** 分页只治了"单次大响应"，但 OpenCode 每轮请求携带**增长中的会话历史**（preview、observation.read、模型自述累积），每轮重付。这是 spec **§6.5「短工作集」/ §10.2「按需回取」** 要解决的**会话级上下文预算**，不是 §8.5 单次 observation。
+- 🔴 **卡点 A（待量化）：会话历史持续累积并重发。** 分页只治了"单次大响应"，但 OpenCode 每轮请求携带**增长中的会话历史**（preview、observation.read、模型自述累积），每轮重付。这是 spec **§6.5「短工作集」/ §10.2「按需回取」** 要解决的**会话级上下文预算**，不是 §8.5 单次 observation。
 - 🔴 **卡点 B（次要）：observation.read 的 ref/cursor 对不上。** 模型请求 `cursor=6144` 但该 ref 当前预期 `2048`，canonical 正确拒绝，之后无预算恢复。按硬规矩 2「host 已知的别压给模型」，续读游标应由 **host 维护**，模型只说"继续读这个 ref"。
 
 **不直接跳 compaction：** 卡点 A 指向 compaction，但那是轨迹④核心、风险最高（会动①②③现有行为）。为"让 DVGA 往前走"提前拖进来 = 回到横向建设。先做下面 0.3。
 
 ---
 
+### 当前代码能力与真实闭环缺口（2026-10-20 核对）
+
+“已接入”只表示真实模型经受管工具访问了本地目标；“求解闭环”还须有明确题目目标、可复现候选、独立验证与权威接受。两者不互相替代。
+
+| 环节 | 当前实现与证据 | 还缺什么；是否属于 0.3 |
+| --- | --- | --- |
+| 题目入口与材料 | `solve --target` 接 HTTP(S) 同源地址；靶场由用户启动；文件材料可导入。DVGA 首次 run 无额外题面或材料 | 要完成一道题，须明确具体目标与完成判据；目录导入不受支持，不能要求用户按旧目录接口操作。不是 0.3 新增功能 |
+| 观察与连续探索 | 同源 GET/POST、工作区读取、大文本 preview 与分页；两次真实 run 均停在探索 | host 管 cursor 属 0.3；上下文构成测量属 0.3；裁剪与 compaction 不属 0.3 |
+| 求解动作 | Web allowlist 只有 `workspace.list/read/search`、`http.request`、`observation.read` | 未开放脚本写改、`job.run`、浏览器或认证会话操作。HTTP 本身能验证部分漏洞；其他工具只在具体题目证明需要后另定切片，不能一次全部补齐 |
+| 候选登记与证据绑定 | t1/t2 有 `candidate.register`，Web 没有 | Web 候选到实际请求/输出证据的登记与绑定尚未接通；不属 0.3 |
+| 独立验证 | 现有 local-job resolver 针对脚本执行重放；不是通用 HTTP 利用验证器 | 须按具体题目的解法确定可复现验证方法，再复用必要机制接线；不能直接套用轨迹固定答案。不属 0.3 |
+| 权威完成判定 | Web resolver 明确抛出 `authoritative Web challenge oracle is unavailable` | 需题目提供提交/完成接口或可信等价本地 oracle，接入权威结果。若没有，不能记 solved；模型自述、HTTP 200、独立验证通过均不能替代接受。不属 0.3 |
+| 当前验证与取消边界 | HTTP 集成测试仍断言旧错误文本；HTTP fetch 未传 run AbortSignal | 当前 gate 状态未复验，历史绿灯不能代替；后续执行切片前须核实必要前置，若需范围外修复则单独报告，不在本轮改代码 |
+| 产品闭环证明 | 现有 DVGA 证据无候选、验证或 oracle 事件 | 后续须真实 run 走完上述必要链路才能声称闭环；①②成绩和确定性绿灯不能代替。当前未授权该实施或运行 |
+
+源码核对入口：[`main.ts`](../../../apps/cli/src/main.ts)、[`solveM1.ts`](../../../apps/cli/src/commands/solveM1.ts)、[`openCodeTask.ts`](../../../apps/cli/src/commands/openCodeTask.ts)、[`localJobCandidateResolver.ts`](../../../apps/cli/src/commands/localJobCandidateResolver.ts)、[plugin 工具 schema](../../../apps/opencode-plugin/src/index.ts)。
+
+**预算边界：** 当前按已完成响应的 usage 累计 `input + cache.read + cache.write + output + reasoning`，后续 admission 据此停止；限制下一次 output 并不能预先封顶整次 input。两次实际 observable 为 101,653 / 107,774，均越过配置 100,000 阈值。不得承诺“绝不超过 100k”，也不得把 token 当作费用。后续运行须单独明确此停止语义及授权；若用户要求绝对硬封顶而当前机制无法保证，应先报告 blocker，不自行扩大预算。0.3 不包含预算控制重构。
+
+**方向约束：** 缺口表说明距离产品目标还有什么，不是新的实施清单或并行授权。先完成 0.3 并汇报，再据证据选择下一处真实阻碍；不得借此恢复暂停轨迹或扩建通用框架。
+
+---
+
 ## 0.3 下一切片：修 cursor 簿记 + 量化上下文构成（不碰 compaction）
 
-> **先修便宜的 B，再把 A 量化清楚，用数据决定要不要动 compaction。** 范围同样窄。
+> **唯一下一切片；三项仍未完成。** 先修 B，再测量 A。本次仅文档整理，不执行本切片；真实复跑另按 token 预算逐次授权。
 
 **做什么**
 - [ ] **修卡点 B**：observation.read 的续读游标改由 **host 维护**——模型只给 ref（可选"从头/继续"），host 记住每个 ref 的当前 cursor 并推进；模型不再手报 cursor 数字。复用 M0 的 observation cursor 机制，不新建。
 - [ ] **量化卡点 A**：在同一条 DVGA run 里打点，把每轮 input 拆成**必要工作集**（当前目标、未决问题、最近若干步）与**可丢弃历史**（旧 preview、已消费的 observation、过期自述），得出"若只保留工作集，input 会压到多少"。**只测量、只出数据，不实现裁剪。**
 - [ ] 记录：B 修好后模型是否不再因 ref/cursor 读错而卡死；A 的量化结论——有界工作集能否把 input 压进预算，还是确实需要 compaction。
+
+**测量可信度要求：** 预先说明工作集/历史的分类口径，保留每轮实际 usage 与分类依据；无法归类的内容单列。分项若只能按字节、字符或 tokenizer 估算，必须标明估算方法，不冒充 provider 实测 token；“裁剪后可能节省多少”仅为反事实估算，不是已经实现的效果。不得为测量落盘凭据或未脱敏请求。
 
 **硬约束（同 0.1/0.2）**
 - 只做 B 的修复 + A 的**测量**；**不实现上下文裁剪、不开 compaction、不新增 fixture/gate/轨迹**。
@@ -122,7 +148,11 @@ if (options.startLocalTarget || options.target === 'auto')
 
 ---
 
-## 1. 执行顺序与理由
+## 暂停资料阅读边界
+
+以下 §1–8 原样保留历史设计、检查框及批次结果。其“当前”“已完成”“可复用”、文件路径与行数均属于当时版本，**不是 `main@4f29ddf` 的能力清单**；特别是 T5/T6 A/B 不构成当前 CLI 集成完成。未经重新授权不得按这些任务继续实施、补测试或运行。当前状态仅以 §0 的源码核对和真实 run 证据为准，不改写历史成绩或重置 attempt。
+
+## 1. 执行顺序与理由（暂停历史方案）
 
 **一次一条，走完 A→B→C 并复核后才开下一条。** 建议顺序：
 
