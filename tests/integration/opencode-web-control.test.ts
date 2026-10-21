@@ -21,7 +21,8 @@ it('keeps cursors per ref, rejects overlapping reads, and advances only after a 
     registry.bindSession({ session_id: 'ses_cursor', task_id: 'task_solver', context: registry.createReasoningContext() });
     const httpSessionID = await runtime.openHttpSession();
     const body = Buffer.from('中'.repeat(2050));
-    vi.spyOn(runtime, 'httpRequest').mockImplementation(async () => ({ status: 200, contentType: 'text/plain', body,
+    vi.spyOn(runtime, 'httpRequest').mockImplementation(async () => ({ status: 302, contentType: 'text/plain', location: 'http://localhost/account',
+      setCookieNames: ['sid'], cookieNamesSent: ['sid'], body,
       artifact: await artifacts.publish(body) }));
     const task = new OpenCodeTask({ state, artifacts, runtime, registry, sessionID: 'ses_cursor', deadline, httpSessionID,
       budget: { wallClockMs: 30000, maxSteps: 100, maxToolJobs: 20, maxObservableTokens: 20000 },
@@ -32,6 +33,7 @@ it('keeps cursors per ref, rejects overlapping reads, and advances only after a 
     };
     const first = await call('http.request', { url: 'http://localhost/' });
     const second = await call('http.request', { url: 'http://localhost/' });
+    expect(first).toMatchObject({ status: 302, redirect_location: 'http://localhost/account', set_cookie_names: ['sid'], cookie_names_sent: ['sid'] });
     expect(first.observation_ref).not.toBe(second.observation_ref);
     const ref = first.observation_ref;
     const simultaneous = await Promise.all([call('observation.read', { ref, max_bytes: 3 }), call('observation.read', { ref, max_bytes: 3 })]);
@@ -69,5 +71,35 @@ it('keeps cursors per ref, rejects overlapping reads, and advances only after a 
     expect(JSON.stringify(state.events())).not.toContain('test-control-secret');
     expect(task.finish().provider_usage).toMatchObject({ availability: 'unavailable', input_tokens: null, messages: [] });
 
+  } finally { await runtime.dispose(); state.close(); await rm(root, { recursive: true, force: true }); }
+});
+
+it('persists a candidate substring from HTTP evidence when no verifier is configured', async () => {
+  const root = await mkdtemp(join(tmpdir(), 'web-candidate-'));
+  const state = new StateStore(join(root, 'state'), 'run_candidate');
+  const artifacts = new ArtifactStore(join(root, 'artifacts'));
+  const runtime = new ToolRuntime(artifacts, join(root, 'workspaces'), 'run_candidate', 'challenge_candidate', 'http://localhost');
+  try {
+    const deadline = new Date(Date.now() + 30000).toISOString();
+    const registry = new ResponsibilityRegistry({ verifyArtifact: async ref => { await artifacts.verify(ref); return true; } });
+    registry.createTask({ run_id: 'run_candidate', challenge_id: 'challenge_candidate', task_id: 'task_solver', attempt_id: 'attempt_candidate',
+      responsibility_set: ['domain_solver'], lease: { lease_id: 'lease_candidate', expires_at: deadline } });
+    registry.bindSession({ session_id: 'ses_candidate', task_id: 'task_solver', context: registry.createReasoningContext() });
+    const httpSessionID = await runtime.openHttpSession();
+    const body = Buffer.from('<main>Found flag{substring-evidence}</main>');
+    vi.spyOn(runtime, 'httpRequest').mockImplementation(async () => ({ status: 200, contentType: 'text/html', location: null, body,
+      setCookieNames: [], cookieNamesSent: [], artifact: await artifacts.publish(body) }));
+    const task = new OpenCodeTask({ state, artifacts, runtime, registry, sessionID: 'ses_candidate', deadline, httpSessionID,
+      budget: { wallClockMs: 30000, maxSteps: 100, maxToolJobs: 20, maxObservableTokens: 20000 },
+      controller: new AbortController(), secrets: [], resolveCandidate: async () => { throw new Error('unused'); } });
+    await task.tool('http.request', { url: 'http://localhost/' });
+    await expect(task.tool('candidate.register', { value: 'flag{substring-evidence}' })).resolves.toMatchObject({
+      status: 'inconclusive', authoritative: false, detail: expect.stringContaining('no independent verifier')
+    });
+    const candidateEvents = state.events().filter(event => event.kind === 'solver.activity' && event.activity === 'candidate');
+    expect(candidateEvents).toHaveLength(2);
+    expect(candidateEvents.at(-1)).toMatchObject({ data: { status: 'inconclusive', authoritative: false,
+      resolution: { status: 'inconclusive', authoritative: false } } });
+    expect(await artifacts.read((candidateEvents.at(-1) as any).data.candidate.value_ref)).toEqual(Buffer.from('flag{substring-evidence}'));
   } finally { await runtime.dispose(); state.close(); await rm(root, { recursive: true, force: true }); }
 });

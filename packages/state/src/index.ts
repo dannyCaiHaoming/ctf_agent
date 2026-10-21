@@ -207,8 +207,13 @@ export class StateStore {
   }
 
   events(): EventDelta[] {
-    return (this.db.prepare('SELECT payload FROM events ORDER BY seq').all() as Array<Record<string, unknown>>)
-      .map(row => JSON.parse(String(row.payload)));
+    return this.eventRecords().map(record => record.event);
+  }
+
+  /** Canonical SQLite sequence numbers paired with payloads for evidence links. */
+  eventRecords(): Array<{ seq: number; event: EventDelta }> {
+    return (this.db.prepare('SELECT seq, payload FROM events ORDER BY seq').all() as Array<Record<string, unknown>>)
+      .map(row => ({ seq: Number(row.seq), event: JSON.parse(String(row.payload)) }));
   }
 
   /** Persist the exact continuation binding before a worker releases the long job. */

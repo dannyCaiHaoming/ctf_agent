@@ -1,9 +1,117 @@
 import { describe, expect, it } from 'vitest';
 import { openCodeFixture, successfulRepair } from './opencode-fixture.js';
-import { access, readFile } from 'node:fs/promises';
+import { access, readFile, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 
 describe('product solve through actual OpenCode', () => {
+  it('loads the versioned generic Web session method into the actual OpenCode input', async () => {
+    const fixture = await openCodeFixture([], { webBody: 'Challenge statement is supplied separately.' });
+    try {
+      const run = await fixture.run(['--description', 'Explore the authorized Web challenge and report what you found.']);
+      expect(run.result.outcome).not.toBe('solved');
+      expect(fixture.requests).toHaveLength(1);
+      const input = JSON.stringify(fixture.requests[0]);
+      expect(input).toContain('Task objective: solve the authorized Web CTF challenge');
+      expect(input).toContain('Operator-provided challenge context');
+      expect(input).toContain('Explore the authorized Web challenge and report what you found.');
+      expect(input).toContain('Do not infer host-oracle status');
+      expect(input).not.toContain('without claiming a verified solve');
+      expect(input).toContain('Web Session Diagnosis');
+      expect(input).toContain('cookie_names_sent');
+      expect(input).toContain('workspace.unpack');
+      expect(input).toContain('no local oracle is configured');
+      expect(input).not.toContain('DVGA');
+      const started = (await fixture.events()).find(event => event.activity === 'started');
+      expect(started.data.challenge.method_material).toMatchObject({ id: 'web-session-diagnosis', version: 2, status: 'loaded' });
+      expect(started.data.challenge.method_material.sha256).toMatch(/^[a-f0-9]{64}$/);
+      expect(run.result.postmortem_path).toBe(join(fixture.out, 'postmortem.md'));
+      const report = await readFile(run.result.postmortem_path, 'utf8');
+      expect(report).toContain('Run 復盤');
+      expect(report).toContain('candidate');
+      await expect(access(join(fixture.out, 'canonical-events.jsonl'))).resolves.toBeUndefined();
+      await expect(access(join(fixture.out, 'result.json'))).resolves.toBeUndefined();
+    } finally { await fixture.close(); }
+  }, 60000);
+
+  it('does not route generic Web candidates into the DVGA-only verifier', async () => {
+    const fixture = await openCodeFixture([
+      { name: 'ctf_http_request', args: { url: '$TARGET' } },
+      { name: 'ctf_candidate_register', args: { value: 'flag{fixture-only}' } }
+    ], { webBody: 'flag{fixture-only}' });
+    try {
+      const run = await fixture.run();
+      expect(run.result.outcome).not.toBe('solved');
+      const inputs = JSON.stringify(fixture.requests);
+      expect(inputs).toContain('candidate registered with HTTP evidence; no independent verifier or local oracle is configured');
+      expect(inputs).not.toContain('DVGA');
+    } finally { await fixture.close(); }
+  }, 60000);
+
+  it('keeps the configured local oracle answer and path out of OpenCode input and canonical events', async () => {
+    const fixture = await openCodeFixture([], { webBody: 'Challenge statement is supplied separately.' });
+    const oraclePath = join(fixture.root, 'private-oracle.txt');
+    const answer = 'flag{private-local-oracle-answer}';
+    try {
+      await writeFile(oraclePath, `${answer}\n`, { mode: 0o600 });
+      const run = await fixture.run(['--local-oracle-file', oraclePath]);
+      expect(run.result.outcome).not.toBe('solved');
+      const input = JSON.stringify(fixture.requests);
+      expect(input).toContain('Task objective: solve the authorized Web CTF challenge');
+      expect(input).toContain('a local oracle is configured');
+      expect(input).toContain('candidate.register');
+      expect(input).toContain('The target application’s own CTFd challenge list');
+      expect(input).not.toContain(answer);
+      expect(input).not.toContain(oraclePath);
+      const events = JSON.stringify(await fixture.events());
+      expect(events).not.toContain(answer);
+      expect(events).not.toContain(oraclePath);
+    } finally { await fixture.close(); }
+  }, 60000);
+
+  it.skipIf(!process.env.THROWBACK_TEMPLATES_ARCHIVE)('lets the managed Web tools list, unpack, read and search the original Throwback attachment', async () => {
+    const archivePath = process.env.THROWBACK_TEMPLATES_ARCHIVE!;
+    const original = await readFile(archivePath);
+    const fixture = await openCodeFixture([
+      { name: 'ctf_workspace_list', args: { path: '.' } },
+      { name: 'ctf_workspace_read', args: { path: 'throwback_templates.tar.gz' } },
+      { name: 'ctf_workspace_unpack', args: { path: 'throwback_templates.tar.gz' } },
+      { name: 'ctf_workspace_list', args: { path: '$UNPACK_DIR/CTFd/templates' } },
+      { name: 'ctf_workspace_read', args: { path: '$BASE_HTML' } },
+      { name: 'ctf_workspace_search', args: { path: '$BASE_HTML', needle: '{% block' } }
+    ], { webBody: 'challenge is supplied separately', webMaterials: [archivePath] });
+    try {
+      const run = await fixture.run();
+      expect(run.result.outcome).not.toBe('solved');
+      expect(fixture.requests).toHaveLength(7);
+      expect(JSON.stringify(fixture.requests[0]?.tools)).toContain('ctf_workspace_unpack');
+      const events = await fixture.events();
+      const binaryRead = events.find(event => event.activity === 'tool.result' && event.data.tool === 'workspace.read');
+      expect(binaryRead.data.observation.outcome).toBe('success');
+      expect(JSON.parse(binaryRead.data.observation.raw)).toMatchObject({ encoding: 'binary', next_steps: expect.arrayContaining([
+        expect.stringContaining('workspace.unpack')
+      ]) });
+      const unpack = events.find(event => event.activity === 'tool.result' && event.data.tool === 'workspace.unpack');
+      expect(unpack).toBeDefined();
+      const details = JSON.parse(unpack.data.observation.raw);
+      expect(details.source.path).toBe('throwback_templates.tar.gz');
+      expect(details.source.sha256).toMatch(/^[a-f0-9]{64}$/);
+      expect(details.members.some((member: any) => member.path === 'CTFd/templates/base.html' && member.type === 'file')).toBe(true);
+      expect(details.members.filter((member: any) => member.type === 'file').every((member: any) => member.artifact_ref?.hash)).toBe(true);
+      const workspaceArchive = join(fixture.out, 'workspaces', 'task_solver', 'throwback_templates.tar.gz');
+      expect(await readFile(workspaceArchive)).toEqual(original);
+      const basePage = events.filter(event => event.activity === 'tool.result' && event.data.tool === 'workspace.read').at(-1);
+      expect(basePage.data.observation.outcome).toBe('success');
+      const readResult = JSON.parse(basePage.data.observation.raw);
+      expect(readResult.source).toMatchObject({ source_path: 'throwback_templates.tar.gz', member_path: 'CTFd/templates/base.html' });
+      expect(readResult.encoding).toBe('utf-8');
+      expect(readResult.content.length).toBeGreaterThan(100);
+      const searched = events.find(event => event.activity === 'tool.result' && event.data.tool === 'workspace.search');
+      expect(searched.data.observation.outcome).toBe('success');
+      expect(JSON.parse(searched.data.observation.raw).matches.length).toBeGreaterThan(0);
+      expect(JSON.stringify(events)).not.toContain('ARK_API_KEY');
+    } finally { await fixture.close(); }
+  }, 60000);
+
   it('continues Web observations with host-owned cursors and measures context without trimming it', async () => {
     const body = Array.from({ length: 6144 }, (_, index) => String.fromCharCode(97 + index % 26)).join('');
     const fixture = await openCodeFixture([
@@ -65,6 +173,10 @@ describe('product solve through actual OpenCode', () => {
       const run = await fixture.run();
       expect(run.code, run.stderr).toBe(0);
       expect(run.result).toMatchObject({ outcome: 'solved', engine: { name: 'opencode', model: 'local/local-perfect' } });
+      const report = await readFile(run.result.postmortem_path, 'utf8');
+      expect(report).toContain('結果：** solved');
+      expect(report).toContain('candidate 狀態：** 已登記');
+      expect(report).not.toContain('flag{local_repair}');
       expect(fixture.requests.length).toBeGreaterThanOrEqual(5);
       const events = await fixture.events();
       expect(events.some(event => event.activity === 'started' && event.sessionId.startsWith('ses_'))).toBe(true);

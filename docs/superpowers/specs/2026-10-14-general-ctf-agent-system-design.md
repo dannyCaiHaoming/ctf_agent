@@ -3,9 +3,9 @@
 # 通用 CTF 解題 Agent 系統設計
 
 建立日期：2026-10-14
-本輪修訂：2026-10-15
+本輪修訂：2026-10-20（API 主線與自主首題計畫同步；無實作或執行授權）
 
-狀態：**已確認設計，待實施計劃。** 本文描述要建造的系統，不代表功能已實現、Docker 鏡像已構建或真實比賽成績已取得。
+狀態：**已確認設計；歷史交付與當前切片以 roadmap／各 plan 的證據為準。** 本文描述要建造的系統，不代表功能已實現、Docker 鏡像已構建或真實比賽成績已取得。
 
 本文取代同名文件的 1713 行版本，吸收 `2026-10-14-general-ctf-agent-design-review.md` 第五輪審查及後續 brainstorming 決策，作為後續實施規劃的唯一現行設計依據。舊設計和 review 保留為決策歷史，不自動構成現行要求。
 
@@ -71,6 +71,18 @@
 | 正式驗收 | 保留原 easy／medium／unknown 解出率門檻和零虛假成功；刪除「每題七角色全部派發」作為通過條件 |
 | 模型能力 Gate | 確定性 contract／fixture 必須全過；M1 每條模型軌跡固定配置獨立運行 3 次，至少 2 次成功並報告全部結果 |
 | 正式人工介入 | 計時後只允許可證明無題目副作用的 secret refresh／VPN 恢復；人工解題或 Challenge Browser 操作使結果 invalid |
+
+### 2.1 近期執行順序與能力聲明（2026-10-20）
+
+產品主線為 **API 接題 → OpenCode 自主解題 → 控制層 API 提交**。Platform Service 管理平台憑據和副作用，Solver 只處理題面、公開材料與授權目標。平台網頁自動導航不是首題前置；Challenge Browser 按實際解題需要使用。
+
+近期先以一道現成本地 Web CTF 的原始題面、入口與公開附件取得自主整題證據，再做 M2 單題 API live。首題可復用 local oracle，無須先架設比賽網站或人造接題 API；它不能冒充 API 接題／提交成果。詳細範圍、預算提案與停止點見 [自主首题主线](../plans/2026-10-20-autonomous-first-challenge-plan.md)。
+
+自主成功要求：無額外 payload／解法／答案提示及人工解題介入，真實工具求得 flag、獨立驗證通過、可信 oracle 確認單 flag 或整題完成。給定查詢的 verified finding、部分 flag accepted 和模型自述均不替代整題 solved。公開題的一次成功只證明該題，不聲稱無訓練污染或泛化解題率。
+
+**舊 M1／M1B 軌跡開發與驗收已凍結**：①②歷史結果保留，③–⑥未完成，不繼續任一軌跡。原 M1B §0.5 由獨立自主首題計畫取代。它們不作首題探索或 M2 首次單題 live 的全部前置，不以此取消其後續取證要求。既有安全邊界與必要接線檢查維持；不新增通用框架、fixture 或 gate。未完成能力不得隨首題成功一併標完成。
+
+本輪凍結與主線修訂僅授權文件更新，保留未提交程式與證據，不實作、不跑模型、不啟動 TSecBench、不提交。後續逐切片實施與逐批 token 授權獨立。
 
 ## 3. 目標、非目標、前提與反目標
 
@@ -794,18 +806,22 @@ M5 按實際能力需求逐項加入，而非作 M2 前置條件；M4 已包含 
 | 階段 | 交付內容 | Gate |
 | --- | --- | --- |
 | M0 Host Foundation | macOS/Linux host-dev、OpenCode contract、State、workspace/job Runtime、effect 分級、即時 observation、TSecBench mock adapter、Browser Service 與單一按需 Challenge Browser | 正常工具循環、identity/scope/deadline、protected effect、artifact publish、secret boundary，以及 Browser scoped navigation/fetch/WebSocket/download 和轉題整個 process/profile teardown 測試通過 |
-| M1 Solver Loop | 自適應職責、hypothesis/experiment、同 Solver 修錯、Strategy 改路、long-job event、compaction、Engineer/Verifier/submit | 六條指定工作軌跡全部以真實工具和模型完成 |
-| M2 TSecBench Live Single | 宿主 VPN、prepare/start、list/start/ready、多地址、單題 solve/verify/submit | 相對 first-List baseline，本 run 的 confirmed Submit（或 clean/exclusive 下無歧義對帳）取得至少一個新 accepted；不要求故意製造 partial／rejected |
+| M1 Solver Loop（歷史已收斂為①） | OpenCode 上同 Solver 修錯、候選、獨立驗證與 oracle | ①獨立 3 次至少 2 次；已有 3/3 歷史記錄，不代表自主真題能力 |
+| M1b 韌性 | ②獨立交付；③–⑥暫停，按實際需要取證 | 各軌跡原 2/3 判據保留，未完成不算通過；不阻塞自主首題探索 |
+| 自主首題（獨立當前主線） | 現成題原始輸入 → 自主求解 → 獨立驗證 → local oracle | 無額外解法提示，權威確認整題完成；一次僅證明該題，不等於泛化或 API 閉環 |
+| M2 TSecBench Live Single | 宿主 VPN、prepare/start、list/start/ready、多地址、單題 solve/verify/submit | 相對 first-List baseline，本 run 的 confirmed Submit（或 clean/exclusive 下無歧義對帳）確認至少一道新完成的題；多 flag 的部分 accepted 不算整題；不要求故意製造 partial／rejected |
 | M3 Host Portfolio | 完整列表、最多三活躍 instance、多題 Scheduler、close／切題、checkpoint／fail-stop | Fixture 覆蓋三 instance 和錯誤分支；真實任務枚舉全部支援題、跨題調度並至少一題 accepted |
 | M4 ARM64 Package | 一鍵 Core image、固定依賴、host VPN、既有單 Browser、最小 formal egress、ARM64 recipes、host/image parity | 原生 Ubuntu ARM64 重跑 M0–M3 契約，以 raw curl/socket/browser 驗證公共／跨題／平台控制旁路失敗，並以另一個預登記 TSecBench 開發 task 取得至少一個 accepted；冷啟動無下載 |
 | M5 Delivery Hardening | 容器 VPN、多 browser/noVNC、多身份網絡、callback、CTFd、rCTF、未知平台等獨立 capability tracks | 每個被聲稱支援的 profile 只需通過其依賴 track；未使用或其他平台 track 不阻塞 TSecBench run |
 | M6 Formal Acceptance | 使用者靶場單次登記 run、完整報告、資源度量 | 第 12.5 節門檻、零虛假成功、全部支援題保留在分母 |
 
-確定性 schema、state、adapter、Runtime 和 policy contract tests 每次都必須全過。M1 六條模型工作軌跡固定 model ID、參數、prompt/template、工具版本和預算，各自以乾淨狀態獨立運行 3 次，至少 2 次成功；三次結果全部保存，不能只展示最佳 run。M2 是 M3 同一個預先登記真實 task 的中途 Gate：不中途 reset，不合併其他 run，M3 以同一完整軌跡判定。M4 使用新的預登記 task，不能用 host 已接受狀態冒充 image 成果。
+確定性 schema、state、adapter、Runtime 和 policy contract tests 每次都必須全過。M1／M1b 六條模型工作軌跡固定 model ID、參數、prompt/template、工具版本和預算，各自以乾淨狀態獨立運行 3 次，至少 2 次成功；三次結果全部保存，不能只展示最佳 run。M2 是 M3 同一個預先登記真實 task 的中途 Gate：不中途 reset，不合併其他 run，M3 以同一完整軌跡判定。M4 使用新的預登記 task，不能用 host 已接受狀態冒充 image 成果。
 
 M5 不是單一全有或全無的 M6 前置階段。某個正式 profile 只依賴它實際使用的 capability tracks；例如 TSecBench＋宿主 VPN＋單 Browser 的正式 run 不等待 CTFd、rCTF、容器 VPN、noVNC 或未知平台完成。
 
-### 12.2 M1 必須觀察的六條工作軌跡
+**M2 首次 live 與完整交付分開：** 首次單題探索保留憑據隔離、scope、ready、候選／提交綁定、預算與 deadline、首次 List 保守時間錨、不明提交不盲重試、資源清理及所用路徑必要測試。完整 §12.3 crash／恢復矩陣不全部前置於首次探索；未驗證的恢復路徑不啟用，遇故障停下。完成首次 live 不代表完整 M2 或 formal gate 通過；本節後續契約與正式驗收要求不刪除。
+
+### 12.2 M1／M1b 六條工作軌跡（保留判據，非首題探索前置）
 
 以下每條依上節的固定配置 `2/3` 規則判定，不以同一次 conversation 的重試冒充三個獨立 run：
 
@@ -955,9 +971,9 @@ M0／後續 Gate 需要：
 - CryptoHack：<https://cryptohack.org/>
 - PortSwigger Web Security Academy：<https://portswigger.net/web-security>
 
-## 15. 尚未驗證的事項
+## 15. 歷史未驗證事項（2026-10-15 快照）
 
-截至本輪修訂，尚未：
+以下保留設計初稿當時的缺口，不是 2026-10-20 現況或待辦；M0／M1 及 DVGA 後續證據以各 plan 為準。當時尚未：
 
 - 實作 macOS／Linux host-dev Supervisor、State、Tool Runtime 和 OpenCode contract。
 - 建立 TSecBench fixture 或調用任何私有題目 API。

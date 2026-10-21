@@ -2,9 +2,11 @@
 
 > **Status (2026-10-17)：M0 COMPLETE。** T1–T10 与 T11 确定性 gate 已通过；T11 真实模型冒烟用 `deepseek-v4-flash` 通过并获 local oracle 接受。T0a 五类探针各 5 次共 25 次已全部通过（P5 强制 5/5）；T0b 计费/许可与 token 采样已收口；T0c ARM64 工具链已通过。T9b 按 plan 后移 M2。VPN 实测已移出为 M2 准入前置。
 
+> **2026-10-20 状态注记：本文件为 M0 历史交付记录，不重开实施。** T8 的历史 OpenCode 产品集成缺口已由 [M1 T-A／T-D](2026-10-18-m1-solver-loop-plan.md) 补证；保留下方原始记录，不用历史冒烟替代陌生真题能力。当前只规划 [自主首题主线](2026-10-20-autonomous-first-challenge-plan.md)，不新增 M0 地基任务。T9b 仍在 M2，不能因上方 COMPLETE 视为已实现。下方 worker 指令属于历史实施流程，不是本轮执行授权。
+
 > **For agentic workers:** REQUIRED SUB-SKILL: 用 superpowers:subagent-driven-development（推荐）或 superpowers:executing-plans 逐任务实现本计划。任务用候选框（`- [ ]`）跟踪：**每个实现步骤**和**每条验收能力**都是一个可勾选项。
 >
-> 🟢 当前里程碑计划 · 上级路线图见 [`2026-10-16-ctf-agent-mvp-roadmap.md`](2026-10-16-ctf-agent-mvp-roadmap.md) 的「M0」节；权威设计见 [`../specs/2026-10-14-general-ctf-agent-system-design.md`](../specs/2026-10-14-general-ctf-agent-system-design.md)；文档索引见 [`../README.md`](../README.md)。
+> 🟢 M0 历史里程碑记录 · 上级路线图见 [`2026-10-16-ctf-agent-mvp-roadmap.md`](2026-10-16-ctf-agent-mvp-roadmap.md) 的「M0」节；权威设计见 [`../specs/2026-10-14-general-ctf-agent-system-design.md`](../specs/2026-10-14-general-ctf-agent-system-design.md)；文档索引见 [`../README.md`](../README.md)。
 
 **Goal：** 立起整条产品脊梁——让一条 `ctf-agent solve` 命令，用真实模型对一个跑着的本地靶机端到端跑完求解循环，产出候选并由 `local_oracle` 判为 `accepted`；同时所有确定性契约（身份/scope/deadline/effect 分级/artifact 发布/secret 边界/Browser 转题 teardown）以**每次必过**的套件锁定。
 

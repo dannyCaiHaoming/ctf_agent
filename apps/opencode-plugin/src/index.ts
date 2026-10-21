@@ -15,6 +15,7 @@ const schemas = {
   'workspace.list': { path: tool.schema.string().optional() },
   'workspace.read': { path: tool.schema.string() },
   'workspace.search': { path: tool.schema.string(), needle: tool.schema.string() },
+  'workspace.unpack': { path: tool.schema.string() },
   'workspace.patch': { path: tool.schema.string(), find: tool.schema.string().min(1), replace: tool.schema.string() },
   'job.run': { command: tool.schema.array(tool.schema.string()).min(2), timeout_ms: tool.schema.number().int().positive().optional() },
   'hypothesis.propose': { claim: tool.schema.string().min(1), falsifier: tool.schema.string().min(1),
@@ -54,6 +55,8 @@ export function createCtfAgentHooks(options: CTFPluginOptions): Hooks {
     tools[id] = tool({
       description: name === 'observation.read'
         ? 'Read a bounded page from an earlier large HTTP response. Pass its observation_ref; the host tracks the cursor. Default continues, mode start rereads from the beginning; fetch only bytes needed.'
+        : name === 'workspace.unpack'
+          ? 'Safely unpack a supplied workspace .tar.gz attachment into a host-created derived task directory. Choose the source path; the host validates entries, enforces size/file limits, rejects links and path traversal, and returns member paths with source/artifact provenance. Then list and read/search individual text members. Does not execute files.'
         : `CTF managed ${name}. Use workspace-relative paths. The host supplies all identities, evidence references and budgets.`,
       args: direct ? { args: tool.schema.any() } : schemas[name as keyof typeof schemas],
       async execute(args, context) {

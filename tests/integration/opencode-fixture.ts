@@ -21,11 +21,12 @@ function findToolValue(value: unknown, key: string): unknown {
 }
 
 /** A deterministic local HTTP provider. The actual OpenCode binary owns all agent turns. */
-export async function openCodeFixture(calls: FixtureCall[], options: { preset?: boolean; model?: string; maxSteps?: number; omitUsage?: boolean; root?: string; trajectory?: 't1' | 't2'; webBody?: string | Buffer; webContentType?: string } = {}) {
+export async function openCodeFixture(calls: FixtureCall[], options: { preset?: boolean; model?: string; maxSteps?: number; omitUsage?: boolean; root?: string; trajectory?: 't1' | 't2'; webBody?: string | Buffer; webContentType?: string; webMaterials?: string[] } = {}) {
   const root = options.root ? resolve(options.root) : await mkdtemp(join(tmpdir(), 'm1-opencode-'));
   if (options.root) { await mkdir(resolve(root, '..'), { recursive: true }); await mkdir(root, { recursive: false }); }
   const requests: Array<Record<string, unknown>> = [];
   let cursor = 0;
+  let unpackDirectory: string | undefined;
   let targetPort = 0;
   const provider = createServer(async (request, response) => {
     if (options.webBody !== undefined && request.url === '/challenge') {
@@ -50,10 +51,14 @@ export async function openCodeFixture(calls: FixtureCall[], options: { preset?: 
       const lastToolOutput = [...inputs].reverse().find(message => message.role === 'tool' && typeof message.content === 'string')?.content;
       const observationRef = findToolValue(lastToolOutput, 'observation_ref');
       const nextCursor = findToolValue(lastToolOutput, 'next_cursor');
+      const discoveredUnpackDirectory = findToolValue(lastToolOutput, 'destination');
+      if (typeof discoveredUnpackDirectory === 'string') unpackDirectory = discoveredUnpackDirectory;
       resolvedArgs = Object.fromEntries(Object.entries(call.args).map(([key, value]) => [key,
         value === '$TARGET' ? `http://127.0.0.1:${targetPort}/challenge`
           : value === '$LAST_OBSERVATION_REF' ? observationRef
-          : value === '$LAST_NEXT_CURSOR' ? nextCursor : value]));
+          : value === '$LAST_NEXT_CURSOR' ? nextCursor
+          : value === '$UNPACK_DIR' ? unpackDirectory
+          : value === '$BASE_HTML' && typeof unpackDirectory === 'string' ? `${unpackDirectory}/CTFd/templates/base.html` : value]));
     }
     emit({ role: 'assistant', ...(call ? { tool_calls: [{ index: 0, id: `call-${cursor}`, type: 'function',
       function: { name: call.name, arguments: JSON.stringify(resolvedArgs) } }] } : { content: 'Finished.' }) });
@@ -87,7 +92,7 @@ export async function openCodeFixture(calls: FixtureCall[], options: { preset?: 
       const target = web ? `http://127.0.0.1:${address.port}/challenge` : 'http://127.0.0.1';
       const argv = ['--import', 'tsx', 'apps/cli/src/main.ts', 'solve', '--target', target,
         '--profile', profilePath, '--out', out,
-        ...(web ? [] : options.trajectory === 't2' ? ['--trajectory', 't2', ...['target.mjs', 'decode.mjs', 'payload.txt']
+        ...(web ? (options.webMaterials ?? []).flatMap(path => ['--material', path]) : options.trajectory === 't2' ? ['--trajectory', 't2', ...['target.mjs', 'decode.mjs', 'payload.txt']
           .flatMap(name => ['--material', resolve('fixtures/trajectories/t2-falsified', name)])]
           : ['--trajectory', 't1', '--material', resolve('fixtures/trajectories/t1-script-error/solve.mjs'),
             '--material', resolve('fixtures/trajectories/t1-script-error/payload.txt')]),

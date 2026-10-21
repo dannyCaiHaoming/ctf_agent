@@ -10,6 +10,15 @@ import type { ToolRuntime } from '@ctf/runtime';
 import type { StateStore } from '@ctf/state';
 import { ModelDataGateway } from '@ctf/policy';
 import { HypothesisManager, experimentFingerprint, type CandidateResolverInput, type ExperimentRecord, type ResponsibilityRegistry } from '@ctf/supervisor';
+import type { CandidateResolution, CandidateResolverControl } from '@ctf/supervisor';
+import { normalizeRunError, type SafeRunError } from './runPostmortem.js';
+
+export interface WebCandidateRegistration {
+  candidateId: string; value: string; valueRef: ImmutableArtifactRef; evidenceRefs: ImmutableArtifactRef[];
+  request: { url: string; method: 'GET' | 'POST'; body?: string; contentType?: string };
+  responseBodyRef: ImmutableArtifactRef; responseBody: Buffer; status: number; control: CandidateResolverControl;
+  stageEvent: (stage: 'engineering' | 'verification' | 'oracle_submit', state: 'started' | 'completed' | 'failed') => void;
+}
 
 type Activity = Extract<EventDelta, { kind: 'solver.activity' }>['activity'];
 const pathInput = z.object({ path: z.string().min(1) }).strict();
@@ -56,8 +65,13 @@ export class OpenCodeTask {
   private success?: { experiment: ExperimentRecord; refs: ImmutableArtifactRef[] };
   private gateway = new ModelDataGateway();
   private accepted = false;
+  private completedAssistantMessageIds = new Set<string>();
+  private candidateResolution?: CandidateResolution;
   private identity: ReturnType<ResponsibilityRegistry['binding']>;
   private candidate?: { value_ref: ImmutableArtifactRef; evidence_refs: ImmutableArtifactRef[] };
+  private unpackedFiles = new Map<string, { source_path: string; source_sha256: string; member_path: string }>;
+  private lastHttp?: { request: WebCandidateRegistration['request']; responseBody: Buffer; status: number;
+    bodyRef: ImmutableArtifactRef; wrapperRef?: ImmutableArtifactRef };
   private hypotheses?: HypothesisManager;
   private proposal?: z.infer<typeof proposalInput> & { id: string; receipt_id: string };
   private semanticExperiment?: string;
@@ -69,6 +83,7 @@ export class OpenCodeTask {
     sessionID: string; budget: Budget; deadline: string; controller: AbortController; secrets: string[]; trajectory?: 't1' | 't2';
     httpSessionID?: string;
     resolveCandidate: (request: CandidateResolverInput) => Promise<import('@ctf/supervisor').CandidateResolution>;
+    resolveWebCandidate?: (request: WebCandidateRegistration) => Promise<CandidateResolution>;
   }) {
     this.identity = input.registry.binding(input.sessionID);
     if (input.trajectory === 't2') this.hypotheses = new HypothesisManager({
@@ -205,6 +220,9 @@ export class OpenCodeTask {
     throw new Error('unsupported host control operation');
   }
   observeUsage(info: Record<string, any>) {
+    if (info.role === 'assistant' && info.time?.completed && !info.error && typeof info.id === 'string') {
+      this.completedAssistantMessageIds.add(info.id);
+    }
     if (info.role !== 'assistant' || !info.time?.completed || info.error || !info.tokens) return;
     const tokens = info.tokens;
     if (![tokens.input, tokens.output, tokens.reasoning, tokens.cache?.read, tokens.cache?.write].every(Number.isFinite)) return;
@@ -227,7 +245,10 @@ export class OpenCodeTask {
       this.checkModelData(args);
       this.event('tool.started', { tool: name, input: args, receipt_id: receiptId, preset });
       if (name === 'job.run') return await this.runJob(commandInput.parse(args), receiptId, preset);
-      if (name === 'candidate.register') return await this.registerCandidate(z.object({ value: z.string().min(1) }).strict().parse(args).value);
+      if (name === 'candidate.register') {
+        const value = z.object({ value: z.string().min(1) }).strict().parse(args).value;
+        return this.input.httpSessionID ? await this.registerWebCandidate(value) : await this.registerCandidate(value);
+      }
       const workspace = this.input.runtime.workspace(this.binding.task_id);
       let raw: string;
       let artifactRefs: ImmutableArtifactRef[] = [];
@@ -264,11 +285,45 @@ export class OpenCodeTask {
       } else if (name === 'workspace.list') {
         const input = z.object({ path: z.string().optional() }).strict().parse(args);
         await this.workspacePath(input.path ?? '.'); raw = JSON.stringify(await workspace.list(input.path));
+      } else if (name === 'workspace.unpack') {
+        const input = pathInput.parse(args);
+        await this.workspacePath(input.path);
+        const unpacked = await workspace.unpackTarGz(input.path);
+        const members: Array<Record<string, unknown>> = [];
+        for (const member of unpacked.members) {
+          const entry: Record<string, unknown> = { path: member.path, type: member.type, size: member.size,
+            ...(member.sha256 ? { sha256: member.sha256 } : {}) };
+          if (member.type === 'file') {
+            const memberPath = `${unpacked.destination}/${member.path}`;
+            this.unpackedFiles.set(memberPath, { source_path: unpacked.sourcePath, source_sha256: unpacked.sourceSha256, member_path: member.path });
+            const ref = await this.publish(await workspace.read(memberPath));
+            artifactRefs.push(ref);
+            entry.artifact_ref = { hash: ref.hash, size: ref.size };
+          }
+          members.push(entry);
+        }
+        raw = JSON.stringify({ source: { path: unpacked.sourcePath, sha256: unpacked.sourceSha256, size: unpacked.sourceSize },
+          destination: unpacked.destination, limits: { compressed_bytes: 8 * 1024 * 1024, expanded_bytes: 32 * 1024 * 1024,
+            files: 512, single_file_bytes: 1 * 1024 * 1024 }, members,
+          next_steps: ['Use workspace.list on the destination to inspect folders.',
+            'Use workspace.read or workspace.search on selected text members. Binary files are reported without UTF-8 decoding.'] });
       } else if (name === 'workspace.read' || name === 'workspace.search') {
         const input = (name === 'workspace.search' ? pathInput.extend({ needle: z.string() }) : pathInput).parse(args);
         await this.workspacePath(input.path);
-        raw = name === 'workspace.read' ? (await workspace.read(input.path)).toString('utf8')
-          : (await workspace.search(input.path, (input as unknown as { needle: string }).needle)).join('\n');
+        const decoded = await workspace.readText(input.path);
+        if ('binary' in decoded) {
+          raw = JSON.stringify({ path: input.path, encoding: 'binary', size: decoded.size, signature: decoded.signature,
+            source: this.unpackedFiles.get(input.path) ?? null,
+            next_steps: /\.tar\.gz$/i.test(input.path) ? ['Use workspace.unpack on this .tar.gz file, then inspect text members.']
+              : ['This binary format has no decoder in the current task. Do not treat its bytes as UTF-8; choose a supported text member or report the limitation.'] });
+        } else if (name === 'workspace.read') {
+          const source = this.unpackedFiles.get(input.path);
+          raw = source ? JSON.stringify({ path: input.path, source, encoding: 'utf-8', content: decoded.text }) : decoded.text;
+        } else {
+          const matches = await workspace.search(input.path, (input as unknown as { needle: string }).needle);
+          const source = this.unpackedFiles.get(input.path);
+          raw = source ? JSON.stringify({ path: input.path, source, matches }) : matches.join('\n');
+        }
       } else if (name === 'workspace.patch') {
         const input = pathInput.extend({ find: z.string().min(1), replace: z.string() }).parse(args);
         await this.workspacePath(input.path);
@@ -281,6 +336,7 @@ export class OpenCodeTask {
         const after = await this.publish(await workspace.read(input.path));
         raw = JSON.stringify({ path: input.path, before, after });
       } else if (name === 'http.request' && this.input.httpSessionID) {
+        this.lastHttp = undefined;
         const input = httpRequestInput.parse(args);
         const method = input.method ?? 'GET';
         const response = await this.input.runtime.httpRequest(this.input.httpSessionID, input.url, {
@@ -293,6 +349,7 @@ export class OpenCodeTask {
         const contentType = response.contentType ?? 'application/octet-stream';
         const text = isTextContentType(contentType);
         const common = { url: new URL(input.url).toString(), method, status: response.status,
+          redirect_location: response.location, set_cookie_names: response.setCookieNames, cookie_names_sent: response.cookieNamesSent,
           body_size: bodyRef.size, content_type: contentType, body_ref: { hash: bodyRef.hash, size: bodyRef.size }, complete: true };
         if (!text) {
           raw = JSON.stringify({ ...common, body_fully_inline: false, data_class: 'artifact_bulk',
@@ -308,6 +365,9 @@ export class OpenCodeTask {
             observation_ref: observationRef,
             read_hint: 'Continue with observation.read using only this ref; the host tracks the cursor. Use mode start to reread from the beginning.' });
         }
+        this.lastHttp = { request: { url: common.url, method, ...(input.body === undefined ? {} : { body: input.body }),
+          ...(input.content_type === undefined ? {} : { contentType: input.content_type }) },
+          responseBody: Buffer.from(response.body), status: response.status, bodyRef };
       } else if (name === 'observation.read') {
         const input = observationReadInput.parse(args);
         const observation = this.observations.get(input.ref);
@@ -333,6 +393,8 @@ export class OpenCodeTask {
       } else throw new Error('scope_denied: tool is not exposed');
       this.checkModelData(raw);
       const ref = await this.publish(Buffer.from(raw)); this.assertCurrent();
+      const completedHttp = this.lastHttp;
+      if (name === 'http.request' && completedHttp && completedHttp.bodyRef.hash === artifactRefs[0]?.hash) completedHttp.wrapperRef = ref;
       const observation = { tool: name, raw, outcome: 'success', failure_code: null, artifact_refs: [...artifactRefs, ref], complete: true };
       this.event('tool.result', { tool: name, receipt_id: receiptId, observation });
       if (advanceObservation) this.observations.get(advanceObservation.ref)!.nextCursor = advanceObservation.nextCursor;
@@ -444,14 +506,54 @@ export class OpenCodeTask {
       candidate_id: candidateId, candidate: this.candidate, resolution: resolved });
     return { status: resolved.status, authoritative: resolved.authoritative, completed: resolved.completed, detail: resolved.detail };
   }
-  finish(error?: unknown) {
+  private async registerWebCandidate(value: string) {
+    const response = this.lastHttp;
+    if (!response) throw new Error('Web candidate requires a complete HTTP response in this run');
+    if (!response.wrapperRef) throw new Error('Web candidate requires its canonical HTTP response wrapper');
+    if (response.status !== 200) throw new Error('Web candidate requires a successful HTTP 200 response');
+    const candidateBytes = Buffer.from(value, 'utf8');
+    if (!response.responseBody.includes(candidateBytes)) throw new Error('candidate bytes do not occur in the complete HTTP response body');
+    const valueRef = await this.publish(Buffer.from(value)); this.assertCurrent();
+    const candidateId = `candidate_${randomUUID()}`;
+    const evidenceRefs = [response.bodyRef, response.wrapperRef];
+    this.candidate = { value_ref: valueRef, evidence_refs: evidenceRefs };
+    const held: CandidateResolution = { status: 'inconclusive', authoritative: false,
+      detail: this.input.resolveWebCandidate ? 'candidate registered; independent verification is pending' : 'candidate registered with HTTP evidence; no independent verifier or local oracle is configured' };
+    this.candidateResolution = held;
+    this.event('candidate', { status: 'candidate_only', authoritative: false, generation: 1,
+      candidate_id: candidateId, candidate: this.candidate, resolution: held });
+    let resolved = held;
+    if (this.input.resolveWebCandidate) {
+      try {
+        resolved = await this.input.resolveWebCandidate({ candidateId, value, valueRef, evidenceRefs,
+          request: response.request, responseBodyRef: response.bodyRef, responseBody: response.responseBody, status: response.status,
+          control: { signal: this.input.controller.signal, deadline: this.input.deadline, remaining: () => this.remaining(),
+            admit: stage => { this.admit(stage === 'verification_replay'); return this.remaining(); } },
+          stageEvent: (stage, state) => this.event('candidate.stage', { candidate_id: candidateId, stage, state }) });
+        this.assertCurrent();
+      } catch (error) {
+        if (this.input.controller.signal.aborted || /resource_exhausted/.test(String(error))) throw error;
+        resolved = { status: 'inconclusive', authoritative: false,
+          detail: 'candidate remains registered but independent verification or oracle resolution failed; no solved status assigned' };
+      }
+    }
+    this.accepted = resolved.authoritative && resolved.status === 'accepted' && resolved.completed === true;
+    this.candidateResolution = resolved;
+    this.event('candidate', { status: resolved.status, authoritative: resolved.authoritative, generation: 1,
+      candidate_id: candidateId, candidate: this.candidate, resolution: resolved });
+    return { status: resolved.status, authoritative: resolved.authoritative, completed: resolved.completed,
+      detail: resolved.detail, verification: resolved.verification };
+  }
+  finish(error?: unknown, suppliedSafeError?: SafeRunError) {
+    const safeError = error ? suppliedSafeError ?? normalizeRunError(error) : undefined;
     const exhausted = this.input.controller.signal.aborted || /resource_exhausted/.test(String(error));
     const status = this.accepted ? 'solved' : exhausted ? 'resource_exhausted' : error ? 'blocked' : this.candidate ? 'candidate_only' : 'no_route';
     const outcome = this.accepted ? 'solved' : exhausted || error ? 'inconclusive' : this.candidate ? 'candidate_only' : 'unsolved';
     const solve_state = this.accepted ? 'finished' : exhausted && Date.now() >= Date.parse(this.input.deadline) ? 'deadline_exceeded'
       : exhausted ? 'paused' : error ? 'blocked_runtime' : 'paused';
-    let reason = this.accepted ? 'independent replay verified and authoritative local oracle accepted' : error ? String(error) : 'OpenCode session finished without an accepted candidate';
-    for (const secret of this.input.secrets) if (secret) reason = reason.replaceAll(secret, '[redacted]');
+    const reason = this.accepted ? 'independent replay verified and authoritative local oracle accepted'
+      : error ? safeError!.summary : this.candidate ? 'Candidate registered without authoritative acceptance'
+        : 'OpenCode session finished without an accepted candidate';
     const budget = { wallClockMs: Date.now() - this.started, maxSteps: this.used.steps,
       maxToolJobs: this.used.tools, maxObservableTokens: this.used.tokens };
     this.input.state.saveCheckpoint({ runId: this.binding.run_id, challengeId: this.binding.challenge_id, target: 'local-materials',
@@ -459,10 +561,12 @@ export class OpenCodeTask {
       rejectedFingerprints: this.hypotheses?.exportSnapshot().experiments.filter(experiment => experiment.conclusion?.verdict === 'rejected').map(experiment => experiment.fingerprint) ?? [],
       activeJobCursors: {}, usedBudget: budget });
     const available = this.usage.size === this.used.modelCalls && this.used.modelCalls > 0;
-    const result = { status, outcome, solve_state, reason, budget, candidate: this.candidate ?? null,
+    const result = { status, outcome, solve_state, reason, ...(safeError ? { safe_error: safeError } : {}), budget, candidate: this.candidate ?? null,
+      ...(this.candidateResolution ? { candidate_resolution: this.candidateResolution } : {}),
       ...(this.hypothesisSnapshotRef ? { hypothesis_snapshot_ref: this.hypothesisSnapshotRef } : {}),
       provider_usage: { availability: available ? 'observed' : 'unavailable', model_calls: available ? this.usage.size : null,
         admitted_model_calls: this.used.modelCalls,
+        completed_assistant_responses: this.completedAssistantMessageIds.size,
         ...(this.input.httpSessionID ? { messages: [...this.usage].map(([message_id, value]) => ({ message_id,
           input_tokens: value.input, output_tokens: value.output })), message_order: 'first-observed-completion',
           call_binding: 'unavailable; do not equate message completion order with provider dispatch order' } : {}),

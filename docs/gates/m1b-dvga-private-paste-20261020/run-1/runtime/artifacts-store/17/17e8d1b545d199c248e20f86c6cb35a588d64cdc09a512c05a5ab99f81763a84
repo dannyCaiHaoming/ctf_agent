@@ -1,0 +1,9 @@
+void (async () => {
+  const response = await fetch("http://localhost:5013/graphql", { method: 'POST', headers: { 'content-type': 'application/json' }, body: "{\"query\":\"{ pastes(public: false) { id } }\"}", redirect: 'error' });
+  const bytes = Buffer.from(await response.arrayBuffer());
+  if (response.status !== 200) process.exit(21);
+  let parsed; try { parsed = JSON.parse(bytes.toString('utf8')); } catch { process.exit(22); }
+  if (parsed.errors !== undefined || !Array.isArray(parsed.data?.pastes) || parsed.data.pastes.length === 0 ||
+      parsed.data.pastes.some(row => !row || typeof row !== 'object' || Array.isArray(row) || Object.keys(row).length !== 1 || typeof row.id !== 'string')) process.exit(23);
+  process.stdout.write(bytes);
+})().catch(() => process.exit(24));

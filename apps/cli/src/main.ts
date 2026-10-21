@@ -9,7 +9,7 @@ function usage(): string {
 Commands:
   resume --state-root <dir> --run <id> --authorization <host-local-policy.json>
   doctor --profile <path>
-  solve --target <authorized-url> [--trajectory t1|t2] [--description <text>] [--input <path>] [--material <path> ...] --profile <opencode-release-profile> [--out <dir>] [--preset-trajectory1]
+  solve --target <authorized-url> [--trajectory t1|t2] [--description <text>] [--input <path>] [--material <path> ...] [--local-oracle-file <private-path>] --profile <opencode-release-profile> [--out <dir>] [--preset-trajectory1]
 `;
 }
 
@@ -62,6 +62,7 @@ async function main(): Promise<number> {
       description: typeof parsed.description === 'string' ? parsed.description : undefined,
       input: typeof parsed.input === 'string' ? parsed.input : undefined,
       materials: Array.isArray(parsed.material) ? parsed.material : [],
+      localOracleFile: typeof parsed['local-oracle-file'] === 'string' ? parsed['local-oracle-file'] : undefined,
       profile,
       out: typeof parsed.out === 'string' ? parsed.out : undefined,
       allowStub: parsed['allow-stub'] === true,

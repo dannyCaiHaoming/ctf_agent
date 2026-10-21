@@ -1,10 +1,12 @@
-# M1b 最小实施计划：轨迹③–⑥
+# M1B 当前计划：自主解出一道真题（轨迹③–⑥暂停）
 
-> **当前状态（2026-10-20，按 `main@4f29ddf` 源码核对）：本地 HTTP 靶场已接入，真实求解验证闭环尚未完成。唯一下一切片为 §0.3「host 管 cursor + 上下文构成测量」，尚未实施。** 本次只整理文档，不改代码、不调用模型；本计划不构成模型调用授权。
+> **2026-10-20 冻结通知（当前有效）：本文件的 M1／M1B 轨迹开发与验收工作已由用户明确冻结。** 不继续既有轨迹，不恢复暂停项；历史成绩、失败、代码与证据保留。下文“当前／下一步”是冻结前快照，不构成执行任务。唯一当前主线为 [自主解出一道现成真题](2026-10-20-autonomous-first-challenge-plan.md)；原 M1B §0.5 已被该独立计划取代。本轮仅修订文件，不实施、不跑模型、不启动平台、不提交。
+
+> **当前状态（2026-10-20 文档同步）：下一切片为 §0.5「无额外解法提示，自主解出一道现成 Web CTF」。** 本轮只批准更新计划；不实施、不调用模型、不启动 TSecBench、不提交，保留现有未提交改动。
 >
-> 0.1 已执行一次 DVGA 侦察，0.2 已实现分页并执行一次复跑；两次均预算耗尽、没有候选，0.2 的「推进到探索之后」判据未达到。⑤⑥③④工作继续暂停。
+> §0.1／0.2 两次探索均因预算停止、未形成候选。§0.3 host cursor 与测量接线已单独提交，完整的自主探索上下文测量仍未完成。§0.4 已有一次真实候选登记与独立重放成功记录：7,278 observable tokens，最终 `candidate_only`；相关实现与证据仍未提交。该次直接给定查询，属于执行／验证接线证据，不是自主发现或整题 solved。
 >
-> **历史成绩与当前能力分开：** ①与②各有 3/3 正式验收记录，六轨迹历史正式进度为 2/6。T5 b2、b3 各 0/3，累计 6/12；T5/T6 的 A/B 完成勾选属于当时版本，不代表当前产品入口仍支持它们。当前 CLI 仅支持 t1/t2 与通用 Web 侦察，不能运行 t5/t6。
+> **历史成绩与当前能力分开：** ①②各有 3/3 正式记录，六轨迹历史正式进度 2/6。T5 b2、b3 各 0/3，累计 6/12；既有失败与计数不改。当前 CLI 有 t1/t2、HTTP 探索和 DVGA 专用候选重放，不支持通用 Web 权威接受，也不能运行 t5/t6。⑤⑥③④维持暂停，不作为 §0.5 的前置。
 >
 > 依据：[权威 spec](../specs/2026-10-14-general-ctf-agent-system-design.md)、[roadmap](2026-10-16-ctf-agent-mvp-roadmap.md)、[M1 plan](2026-10-18-m1-solver-loop-plan.md)、[轨迹②记录](2026-10-19-m1b-trajectory-2-plan.md)。§0 是现行主线；§1–8 是暂停轨迹的历史设计与证据，不是待执行清单。
 
@@ -12,12 +14,12 @@
 
 ## 0. 当前主线：本地真题；⑤⑥③④工作暂停
 
-**⑤⑥③④ 的 fixture 工作全部暂停。** 已用一道**真实题目**取得有限产品信号；本 run 未产生足以判断③–⑥的状态事件，故维持暂停与现有取证设计。
+**⑤⑥③④ 的 fixture 工作全部暂停。** 近期顺序为：一道本地现成真题自主求解 → M2 单题 API 闭环 → 后续多题与韧性。DVGA §0.4 的受管重放与 job.terminal 记录不自动构成轨迹③正式验收；各轨迹仍须按其自身判据取证。
 
 ### 为什么停
 
 - 投入：生产 6,117 行 + 测试 4,067 行 + 271 个测试全绿 + 128 份 gate 证据。产出：轨迹 **2/6**。
-- **这个产品从未解过一道真实 CTF 题**，而这是唯一真正要紧的未知。
+- **尚无无额外解法提示、自主解出一道现成真实 CTF 并获权威接受的证据。** 这是下一切片要回答的未知。
 - 造 fixture 比被测行为本身更难（T5 b2 即死于此）；**T5 b2 暴露了 fixture 质量问题，不能据该批次判模型能力**。
 - 真实题目**可能自然产生**③④⑤⑥的情形，不必预先手工制造；本次 DVGA run 在探索阶段耗尽 token，未产生可判断这些轨迹的候选或 oracle 事件。
 
@@ -53,9 +55,9 @@ if (options.startLocalTarget || options.target === 'auto')
 - 这**不是**正式验收批次，不计入任何轨迹的 12 次上限；但真实模型调用仍需你逐次授权。
 - 跑完就停下来汇报，**不要顺手开始修 ⑤ 的 fixture**。
 
-**0.1 接线与本地验证（2026-10-20）：** 未指定 `--trajectory` 时，CLI 进入通用 Web 侦察路径；`--target` 绑定 HTTP(S) origin，OpenCode 只获得同源 `http.request`（GET/POST）及 workspace 读取工具。请求有 64 KiB 响应上限、跟随重定向关闭；当前 HTTP fetch 未接入 run deadline 的 AbortSignal，不能声称在途请求受该信号取消；**当前源码的材料入口只读取文件**：`--input <file>` 以 `challenge-input.bin` 写入 workspace，重复 `--material <file>` 按 basename 写入；没有目录递归导入逻辑。旧文所述目录上限和符号链接拒绝不能作为当前保证。没有 authoritative oracle 时，结果不可能记为 solved；CLI 保留模型最终答复供侦察记录。未新增 challenge fixture、gate 或轨迹。真实 run 已按授权执行一次，结果与边界见下方侦察记录。
+**0.1 接线与本地验证（2026-10-20）：** 未指定 `--trajectory` 时，CLI 进入通用 Web 侦察路径；`--target` 绑定 HTTP(S) origin，OpenCode 只获得同源 `http.request`（GET/POST）及 workspace 读取工具。请求有 64 KiB 响应上限、跟随重定向关闭；当前 HTTP fetch 未接入 run deadline 的 AbortSignal，不能声称在途请求受该信号取消；**基线及本次实现的材料入口只读取文件**：`--input <file>` 以 `challenge-input.bin` 写入 workspace，重复 `--material <file>` 按 basename 写入；没有目录递归导入逻辑。旧文所述目录上限和符号链接拒绝不能作为当前保证。没有 authoritative oracle 时，结果不可能记为 solved；CLI 保留模型最终答复供侦察记录。未新增 challenge fixture、gate 或轨迹。真实 run 已按授权执行一次，结果与边界见下方侦察记录。
 
-- **历史测试声明需与当前代码分开：** 旧记录称最小接线测试已覆盖材料和同源 HTTP；但当前 `tests/integration/cli-m1-http-solve.test.ts` 只有旧入口拒绝测试，仍期待 `HTTP trajectories are frozen`，与当前抛出的 `an authorized target URL is required` 不一致。不能以该文件证明当前通用 HTTP 接线已验收；本次未运行测试，也未修正测试。
+- **历史测试声明需与当前代码分开：** 旧记录称最小接线测试已覆盖材料和同源 HTTP；在该次历史复核时，`tests/integration/cli-m1-http-solve.test.ts` 只有旧入口拒绝测试，仍期待 `HTTP trajectories are frozen`，与当前抛出的 `an authorized target URL is required` 不一致。当时不能以该文件证明通用 HTTP 接线已验收；之后已由独立提交 `ed3f241` 修正旧断言，见 §0.3。本轮文档更新不重跑测试。
 - [x] 历史运行时的验证记录（非本次复验、不保证当前 checkout 全绿）：`gate:m0` 29 文件／167 测试通过；`gate:m1` 3/3 通过；全量 52 文件／298 测试通过；typecheck、build、`git diff --check` 通过。之后只改了 prompt 的描述文本，再次通过最小接线测试、typecheck 和 diff check。
 - [x] 真实练习目标和单次调用授权：用户提供 `http://localhost:5013/` 并授权 1 次真实模型 run（OpenCode 内循环实际产生 6 次 provider 请求）；执行证据见侦察记录。当前最小路径不带浏览器执行、Cookie 会话或跨源重定向；若后续目标要求这些能力，先记录设计 blocker，不扩建本切片。
 
@@ -68,7 +70,7 @@ if (options.startLocalTarget || options.target === 'auto')
 - 📌 **这命中 spec 早已设计、但实现跳过的两处**：§8.5「即时 observation 与发布 evidence 分离」（工具输出按 cursor 读、只发布必要片段）、§10.2「大资料保留本地、按需回取片段」。0.1 当时是整个响应灌进模型；0.2 已加入大文本分页。
 - 📌 **授权口径要改**：observable-token 阈值是本次实际触发的停止条件（不是严格不超额的消费封顶），run 次数是松口径。**后续按 token 预算授权，不按 run 次数。**
 
-**当时的下一步是 observation 分页（0.2，现已复跑）；当前下一步仅为 0.3。** ⑤⑥③④ 维持暂停。
+**当时的下一步是 observation 分页（0.2，现已复跑），随后完成 0.3 本地实现。** ⑤⑥③④ 维持暂停。
 
 ---
 
@@ -104,35 +106,32 @@ if (options.startLocalTarget || options.target === 'auto')
 
 ---
 
-### 当前代码能力与真实闭环缺口（2026-10-20 核对）
+### 当前能力与自主闭环缺口（2026-10-20，含未提交工作区）
 
-“已接入”只表示真实模型经受管工具访问了本地目标；“求解闭环”还须有明确题目目标、可复现候选、独立验证与权威接受。两者不互相替代。
-
-| 环节 | 当前实现与证据 | 还缺什么；是否属于 0.3 |
+| 环节 | 当前证据／缺口 | 下一切片处理 |
 | --- | --- | --- |
-| 题目入口与材料 | `solve --target` 接 HTTP(S) 同源地址；靶场由用户启动；文件材料可导入。DVGA 首次 run 无额外题面或材料 | 要完成一道题，须明确具体目标与完成判据；目录导入不受支持，不能要求用户按旧目录接口操作。不是 0.3 新增功能 |
-| 观察与连续探索 | 同源 GET/POST、工作区读取、大文本 preview 与分页；两次真实 run 均停在探索 | host 管 cursor 属 0.3；上下文构成测量属 0.3；裁剪与 compaction 不属 0.3 |
-| 求解动作 | Web allowlist 只有 `workspace.list/read/search`、`http.request`、`observation.read` | 未开放脚本写改、`job.run`、浏览器或认证会话操作。HTTP 本身能验证部分漏洞；其他工具只在具体题目证明需要后另定切片，不能一次全部补齐 |
-| 候选登记与证据绑定 | t1/t2 有 `candidate.register`，Web 没有 | Web 候选到实际请求/输出证据的登记与绑定尚未接通；不属 0.3 |
-| 独立验证 | 现有 local-job resolver 针对脚本执行重放；不是通用 HTTP 利用验证器 | 须按具体题目的解法确定可复现验证方法，再复用必要机制接线；不能直接套用轨迹固定答案。不属 0.3 |
-| 权威完成判定 | Web resolver 明确抛出 `authoritative Web challenge oracle is unavailable` | 需题目提供提交/完成接口或可信等价本地 oracle，接入权威结果。若没有，不能记 solved；模型自述、HTTP 200、独立验证通过均不能替代接受。不属 0.3 |
-| 当前验证与取消边界 | HTTP 集成测试仍断言旧错误文本；HTTP fetch 未传 run AbortSignal | 当前 gate 状态未复验，历史绿灯不能代替；后续执行切片前须核实必要前置，若需范围外修复则单独报告，不在本轮改代码 |
-| 产品闭环证明 | 现有 DVGA 证据无候选、验证或 oracle 事件 | 后续须真实 run 走完上述必要链路才能声称闭环；①②成绩和确定性绿灯不能代替。当前未授权该实施或运行 |
+| 题目输入 | HTTP(S) 地址、题面、单文件 input 与重复 material；尚无平台 API 接题实现证据 | 先导入一道现成题的原始题面与公开附件；不宣称已完成 API 接题 |
+| 自主探索 | 同源 GET/POST、workspace 读取、preview／分页；host cursor 已接线 | 通用 Web prompt 仍写死 DVGA 查询，必须在获实施授权后解除该特化，不能为新题再写死解法 |
+| 按题工具 | Web 未开放脚本写改／job.run／浏览器；t1/t2 已有部分相关能力 | 只复用并接通入选题确实需要的工具；缺不可用能力如实阻塞，不全量建设 |
+| 候选与独立验证 | §0.4 已登记完整 HTTP 响应并独立重放，但 resolver 只接受固定 DVGA POST | 真实 flag 候选与必要复现接到既有生命周期，不用整份固定响应代替任意题答案 |
+| 权威接受 | 通用 Web 尚无可用 oracle 提交闭环 | 入选题必须有可信 flag／完成判据，复用 local oracle；无 oracle 不以 candidate_only 充当完成 |
+| 自主闭环证据 | §0.4 有给定方法的 verified finding，无自主整题 solved | §0.5 只证明一道题；API 全流程另由 M2 取证 |
 
-源码核对入口：[`main.ts`](../../../apps/cli/src/main.ts)、[`solveM1.ts`](../../../apps/cli/src/commands/solveM1.ts)、[`openCodeTask.ts`](../../../apps/cli/src/commands/openCodeTask.ts)、[`localJobCandidateResolver.ts`](../../../apps/cli/src/commands/localJobCandidateResolver.ts)、[plugin 工具 schema](../../../apps/opencode-plugin/src/index.ts)。
+依据：[§0.4 结果](../../gates/m1b-dvga-private-paste-20261020/run-1/result.md)、`solveM1.ts`、`localHttpFindingResolver.ts`。记录中的测试通过是历史证据，本轮文档更新未运行代码测试。
 
-**预算边界：** 当前按已完成响应的 usage 累计 `input + cache.read + cache.write + output + reasoning`，后续 admission 据此停止；限制下一次 output 并不能预先封顶整次 input。两次实际 observable 为 101,653 / 107,774，均越过配置 100,000 阈值。不得承诺“绝不超过 100k”，也不得把 token 当作费用。后续运行须单独明确此停止语义及授权；若用户要求绝对硬封顶而当前机制无法保证，应先报告 blocker，不自行扩大预算。0.3 不包含预算控制重构。
+**预算口径不变：** observable 为已完成响应回报的 `input + cache.read + cache.write + output + reasoning`；它是停止阈值，不是严格费用或 token 封顶。§0.1／0.2 实际 101,653／107,774，保留超阈值事实。§0.4 的 7,278 是给定查询任务用量，不能据此推断自主探索预算足够。
 
-**方向约束：** 缺口表说明距离产品目标还有什么，不是新的实施清单或并行授权。先完成 0.3 并汇报，再据证据选择下一处真实阻碍；不得借此恢复暂停轨迹或扩建通用框架。
+**边界：** 在途 HTTP fetch 未接 run AbortSignal 的差距仍存在。下一切片若需声称硬取消，必须有实际接线证据；未实现能力不得写成保证。§0.3 测量不作 §0.5 前置，不启动单独测量或 compaction 建设。
 
 ---
 
-## 0.3 下一切片：修 cursor 簿记 + 量化上下文构成（不碰 compaction）
+## 0.3 已完成的本地切片：host 管 cursor + 上下文构成测量（真实 DVGA 数据待取得）
 
-> **唯一下一切片；三项仍未完成。** 先修 B，再测量 A。本次仅文档整理，不执行本切片；真实复跑另按 token 预算逐次授权。
+> **本地实现和验证完成，不代表自主探索的上下文测量判据已通过。** §0.4 已有短任务真实运行，但不能据此勾选下方完整测量判据。保留测量入口，在 §0.5 真题运行中按需收集；不为测量单独延后解题或启动模型。旧入口断言已单独修正；49 文件／273 项通过为既有验证记录。
 
 **做什么**
-- [ ] **修卡点 B**：observation.read 的续读游标改由 **host 维护**——模型只给 ref（可选"从头/继续"），host 记住每个 ref 的当前 cursor 并推进；模型不再手报 cursor 数字。复用 M0 的 observation cursor 机制，不新建。
+- [x] **B 的本地实现与验证**：模型只给 ref，可选 `mode=start|continue`；host 沿既有 observation map 维护每个 ref 的 cursor，只在片段成功发布并写入事件后推进。同 ref 在途并行读取被拒绝，失败不推进；支持显式从头读。plugin schema 与 prompt 同步移除模型输入 cursor；本地 OpenCode 接线与 host 测试通过。
+- [x] **A 的测量接线与本地验证**：通用 Web 的每次 `driver.call` 保存 `context_measurement`；仅记分类字节数、计数和来源口径，保留逐 assistant message 的真实 provider usage，不落盘原始会话内容。详见 [0.3 本地记录](../../gates/m1b-cursor-context-local-20261020.md)。
 - [ ] **量化卡点 A**：在同一条 DVGA run 里打点，把每轮 input 拆成**必要工作集**（当前目标、未决问题、最近若干步）与**可丢弃历史**（旧 preview、已消费的 observation、过期自述），得出"若只保留工作集，input 会压到多少"。**只测量、只出数据，不实现裁剪。**
 - [ ] 记录：B 修好后模型是否不再因 ref/cursor 读错而卡死；A 的量化结论——有界工作集能否把 input 压进预算，还是确实需要 compaction。
 
@@ -141,10 +140,109 @@ if (options.startLocalTarget || options.target === 'auto')
 **硬约束（同 0.1/0.2）**
 - 只做 B 的修复 + A 的**测量**；**不实现上下文裁剪、不开 compaction、不新增 fixture/gate/轨迹**。
 - 复用 M0 机制，不重建基础设施。不碰 ⑤⑥③④、不碰 TSecBench。
-- 新增测试仅限"host 维护 cursor、模型不报数字也能续读"的最小接线测试。
+- 测试限本切片必要的 host cursor 与上下文统计接线；不新增 challenge fixture 或 gate。
 - 真实模型调用按 **token 预算**逐次授权；跑完停下汇报，**不要顺手去实现裁剪或 compaction**。
 
-**判成功**：B——模型不再因手报 cursor 出错而卡死；A——拿到一份可信的"工作集 vs 历史重发"占比数据，足以判断下一步是"轻量上下文窗口裁剪"还是"必须上 §6.5 compaction"。**这一步本身不要求 DVGA 往前走更多**，它的产物是"把 A 的决策建立在数据上"。
+**本地判据**：B 的无 cursor 接线与 host 游标本地验证通过；A 的测量入口可记录分类字节和 usage 关联。真实判据尚未完成：没有 DVGA 实测的工作集/历史构成数据，暂不决定裁剪或 compaction。
+
+---
+
+## 0.4 已执行切片：给定查询的 DVGA 非公开 paste ID 重放（未提交）
+
+> **状态：已有真实执行记录，相关实现和证据尚未提交。** [run-1 result](../../gates/m1b-dvga-private-paste-20261020/run-1/result.md) 记录 3 次 provider 调用、7,278 observable tokens、候选登记与独立重放 `verified`，最终 `candidate_only / authoritative=false`，未提交 oracle。任务明确给定查询，因此只证明执行／验证接线，不证明自主发现或整题完成。本轮只同步已有记录，不追认未知授权、不重跑、不提交。以下保留该切片设计及当时预算，不作为新的执行授权。
+
+### 目标与已知依据
+
+- 具体目标：验证未认证客户端能否通过 `POST /graphql` 执行 `pastes(public: false) { id }` 并取得至少一个非公开 paste 标识符。
+- 选择依据：`m1b-real-web-scout-20261020/scout-record.md` 的 canonical 请求记录显示，同一未认证 DVGA 会话曾运行 `pastes(public: false) { id title content }` 并返回数据；该历史请求还取回了内容。本切片只请求 `id`，不重取或记录 paste 内容。
+- 范围：固定原授权 origin `http://localhost:5013`，只做这一条 GraphQL 查询和一次 host 独立重放；不登录、不修改数据、不枚举其他记录、不使用浏览器或外网。
+
+### 最小接线
+
+1. 让通用 Web OpenCode 工具面可用 `candidate.register`，并由 host 将候选绑定到一条成功、完整的 `http.request` canonical receipt 及其原始响应 artifact；不让模型提交 receipt ID、artifact ref 或 verifier 身份。
+2. 扩展现有 `createLocalHttpCandidateResolver` 的单请求重放，只覆盖此处所需的同源 POST、原始 body 与 `content-type`。复用现有 artifact 发布、独立 verification session、受管 `job.run`、execution receipt 和 candidate lifecycle；不新建 GraphQL client、通用 Web verifier 或模型循环。
+3. 独立验证器从被 host 固定的原始请求重放相同查询，不带认证。host 生成的重放脚本检查 HTTP 200、无 GraphQL `errors`、`data.pastes` 非空且每项只含 `id`；再由现有 verification service 检查完整重放输出与候选字节一致。通过时复用 `verification.status=verified` 及其 checks/evidence。
+4. 将该结果解释为“本地已验证发现”，最终 run 仍保持 `candidate_only`。不能将复现成功映射为平台 `accepted` 或 run `solved`；若要做正式 solved 判定，另需权威 oracle 或被用户明确认可的本地任务 oracle 设计。
+
+### 执行循环、预算与停止点
+
+- 既有 DVGA run 已证明这一只读查询返回数据，也已定位 Web 缺少 candidate.register 与 POST 独立复现。只接通这条任务所需的 host 候选绑定和 replay，再在同一道本地 DVGA 上跑一次具体任务；只修真实 run 暴露的下一个卡点并记录证据。
+- 不预设很低的预算。该次记录的配置为 **300,000 observable tokens、900 秒、60 steps、40 tool jobs**；该历史配置不是下一批授权，也不承诺 token 阈值严格封顶（usage 在响应完成后计入）。真实 provider 调用仍须用户逐批授权，并按实际完成结果停下，不自动重试。
+- 本切片不实施上下文裁剪或 compaction，不补暂停轨迹、fixture/gate、认证流程、目录导入、通用候选框架，也不改权威验收规则。
+- 停止条件：取得一条独立重放成功或失败的 canonical 证据链后立即记录并汇报；若 DVGA 返回空列表、无法确定非公开语义或重放不稳定，停止并按实际证据调整目标，不扩大枚举或读取内容。
+
+### 成功判据
+
+- **具体漏洞发现成功**：原始请求、候选、host 创建的独立 verifier、重放响应和 `verification.status=verified` 的检查结果均在同一 run / challenge 证据链中绑定；重复请求证实未认证访问确实返回非公开 paste ID。对话层可以称为“本地已验证发现”，canonical run 仍为 `candidate_only`。
+- **未解出边界**：即使上述判据通过，没有权威 oracle 时也仍是 verified finding / candidate-only，不是 solved。模型说“成功”、单次 HTTP 200 或旧 run 结果均不能单独构成成功判定。
+- 失败也有价值：若候选未登记、证据未绑定、POST 重放失败或列表为空，保存实际 FIRST_DIVERGENCE 并只修造成停滞的那一处。
+
+---
+
+
+## 0.5 下一切片：无额外解法提示，自主解出一道现成 Web CTF
+
+### 状态、目标与成功含义
+
+**仅文档计划已批准；实施、部署、真实模型调用、TSecBench 启动及提交 Git 均未授权。** 当前题号、靶机部署与模型批次均未确定，下面所有执行项保持未勾选。
+
+目标：通过现有产品 CLI → OpenCode → 受管工具，仅凭原始题面、入口和允许附件，自主产生真实 flag，经独立验证及可信本地 oracle 判定整题完成。一次成功只证明「该版本在该配置下自主解出过这一题」，不证明稳定性、泛化解题率、M1b 完成或 API 比赛流程完成。
+
+本地材料导入和 local oracle 是为尽快隔离求解问题；不为形式完整架设 CTFd、伪造 HTTP 接题 API 或自造挑战。产品方向仍为 API 接题 → OpenCode 自主求解 → 控制层 API 提交；平台端到端证据留给 M2。
+
+### 选题与输入（先定题，再接线）
+
+- 首选 **NYU CTF Bench development 中一道 Web 题**。尚未选定具体题号，也未验证本机部署／架构兼容性；不能写成已可运行。
+- 选择单一目标、优先单 flag、可重置、具有可信答案／完成判据、可用现有或最小复用工具求解的现成题。不查看 writeup 来选择一条已知解法，也不为触发某条韧性轨迹选题。
+- 若首选候选在本机存在明确部署阻塞，记录原因后停止该候选准备；可提出一道 XBOW 题作为替代工程冒烟。替换题目／范围须在模型批次授权前确定，不能在失败后静默换题并只报告成功。公开题集存在训练污染可能；成功不宣称未知漏洞泛化。
+- 冻结题库来源、commit／版本、题号、原始题面、公开附件清单、实际目标 origin、工具需求、单／多 flag 完成条件、初始状态与重置方式。
+- Solver 只接收参赛者可见材料和通用任务指令。不得额外给漏洞位置／类型、payload、查询、解法脚本或预期 flag；原题本身的提示／公开源码可保留并记录。
+- 裁判答案、私有服务端文件、部署配置中的秘密与参考解法不进入 Solver workspace、工具可读范围或模型上下文；运行期间不访问公共搜索／GitHub／writeup。准备阶段下载题库与运行阶段解题分开。
+- 原始静态 flag 若不能随机化，保持题目原貌并披露公开题污染限制；不能靠改题或泄漏答案制造成功。
+
+### 已知必须处理的最小接线（仅后续获授权时实施）
+
+1. 从通用 Web prompt 解除 §0.4 固定 GraphQL 查询要求；保留 scope 与禁止虚报成功边界。DVGA 历史证据不改写，不把其特化 resolver 扩写成新题解法。
+2. 使真实 flag 候选绑定到实际求解证据，接入现有 candidate／engineering／独立 verification／Platform Service 生命周期；host 管身份、ref 和预算，不要求模型手工搬运这些字段。
+3. 用题目提供的可信答案／完成条件配置既有 local oracle，由控制层持有并判定。验证模式依据具体题目选择必要重放或重算，不预设必须字节完全相同、指定 payload 或指定修复路线。
+4. 核对入选题需要的工具：能用 HTTP 与现有文件能力就不扩充；若必须脚本写改／执行，优先复用既有 workspace.patch／job.run 接线。需要浏览器或新能力且超出该批实施范围时，报告具体 blocker，先停止，不借此建设全部工具面。
+5. 保留现有 deadline／预算停止与凭据隔离，不宣称尚未实现的在途取消。只做上述真实通路所需的小改动，不新增 fixture、gate、轨迹枚举、领域解析库或通用框架。
+
+### 执行顺序与待办
+
+- [ ] **工作区收口**：核对当前分支、dirty state 和 §0.4 未提交改动归属；下一实现切片不得叠进未收口的上一切片。本轮完整保留现状；将来提交必须另获明确授权，不自动 stash、丢弃或提交已有改动。
+- [ ] **固定一道题**：完成上述输入记录和部署健康确认；只做可达性／环境预检，不预先人工解题。若必要预检接触了参考解法，标明污染并不得将其传给 Solver。
+- [ ] **最小接线验证**：按现有 TDD 约定，对实际改动的必要接线先失败后通过；不造新挑战 fixture。运行现有 `gate:m0`、`gate:m1`、typecheck／build 及与改动相关的测试；这些仅证明工程路径，不勾选自主成功。
+- [ ] **冻结批次并取得授权**：记录题号、模型／版本、代码身份（含未提交差异）、prompt、工具清单、允许材料、裁判隔离、预算、提交次数和人工介入政策；逐批明确 token 授权。
+- [ ] **一次自主 run**：模型独立探索、形成候选并经控制层验证／提交。运行中无人提示解法、不安装依赖、不换 provider、不静默重试。
+- [ ] **保存全部结果并停止**：保存成功或失败的原始证据、真实 usage、最终状态和第一个实际阻塞。若需要修复，只提出该阻塞的最小改动；实施／复跑按新授权进行，不自动进入下一批或 M2。
+
+### 建议预算与停止规则（不是当前授权）
+
+单次起始提案为 **300,000 observable tokens、900 秒、60 steps、40 tool jobs、最多 5 次裁判提交**；按题目限制取更严格值，最终数值在逐批授权时固定。一次 run 可含多次 provider 请求；阈值按完成响应 usage 累计，可能超出最后一轮，不承诺硬消费上限。usage 不可得写 `unavailable`，不写 0；token 不直接等同费用。
+
+以下任一情况立即停止新实验并记录：整题权威完成；预算／时间／步骤／提交上限触发；环境不可达；必要工具缺失；答案隔离失败；出现范围外访问需求；提交结果不明。未知提交不盲重发；按既有可证明的对账能力处理，否则保留 inconclusive。截止后只允许预先授权的清理与证据封存，不继续求解／提交。
+
+若人工提供了 payload、路线或答案，该 run 标注人工辅助，不能算自主成功。修复重跑使用新 run ID，保留原失败、改动及介入记录；同一题调试成功不包装成首次无辅助成功或泛化能力。此探索不套用历史轨迹 3 次验收／12 次上限，也不重置它们；本切片每批最多一个 run，复跑仍需新 token 授权。
+
+### 结果判据与最小证据
+
+| 结果 | 必须具备的事实 |
+| --- | --- |
+| 自主整题成功 | Solver 只获得允许材料，无人工解法介入；真实工具动作取得 flag；独立验证通过；同一 run／challenge 的可信 oracle 接受单 flag 或确认全部 required slots／整题完成 |
+| partial | 只有部分 flag 被接受，不记整题 solved |
+| candidate_only | 有候选或 verified finding，但无可信权威完成判定 |
+| 未成功／不确定 | 如实记录环境、接线、工具、预算或推理阻塞；不能由 fixture 失败直接判模型能力，也不能由预算停止推断加预算必定成功 |
+
+沿用 `docs/gates/` 与 canonical state，不建新报告框架。该批目录至少保存运行配置、题目来源／公开材料清单、代码身份、工具与候选证据、独立验证、裁判响应、逐调用可得 usage／时间、结果与人工介入／失败记录。裁判答案与控制凭据不得混入模型可读日志；裁判配置由控制层隔离保管。
+
+§0.3 现有测量若可随此次真实探索取得则记录，但不为量化工作集额外延长运行或开启 compaction。自然出现的③–⑥行为可记观察，不勾选其正式验收，也不修改暂停资料。
+
+### 与后续 M2 的交接
+
+§0.5 结束即汇报，不自动启动 M2。成功后优先规划 M2 首次单题 live：API List → 固定一题 → Start／ready → 自主求解 → 独立验证 → API Submit → 整题完成 → Close。本地成功不能代替该 API 证据；一枚新 accepted 若只是多 flag 中一部分也不代表整题完成。
+
+M2 启动须另有实施、VPN／任务、计时与模型预算授权。保留凭据隔离、scope、首次 List 保守计时、deadline、不明提交不盲重试及清理；完整恢复／异常矩阵和多题调度不作为首次探索的全部前置，但未完成时不得宣称完整 M2、恢复能力或 formal gate 通过。停止中的③–⑥、陌生平台网页操作、通用 Reference 与镜像交付不阻塞首题探索。
 
 ---
 
