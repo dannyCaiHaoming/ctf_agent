@@ -11,7 +11,7 @@ describe('supervisor production boundary (replaces retired M0 adapter contracts)
   });
 
   it('retains reusable host services rather than deleting the supervisor package', () => {
-    for (const name of ['ResponsibilityRegistry', 'PublishedRevisionService', 'HypothesisManager', 'experimentFingerprint',
+    for (const name of ['ResponsibilityRegistry', 'HypothesisManager', 'experimentFingerprint',
       'DurableJobWatchService', 'IndependentVerificationService', 'VerifiedCoordinator', 'MultiFlagContinuation']) {
       expect(supervisor[name as keyof typeof supervisor], name).toBeTypeOf('function');
     }

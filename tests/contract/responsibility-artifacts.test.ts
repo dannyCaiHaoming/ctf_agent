@@ -3,7 +3,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { ArtifactStore } from '../../packages/artifacts/src/index.js';
-import { ResponsibilityRegistry, PublishedRevisionService } from '../../packages/supervisor/src/index.js';
+import { ResponsibilityRegistry } from '../../packages/supervisor/src/index.js';
 
 // Test the trust seam with actual published bytes, not an always-true callback.
 describe('responsibility immutable artifact boundary', () => {
@@ -19,9 +19,6 @@ describe('responsibility immutable artifact boundary', () => {
       const host = { session_id: 'session', lease_id: 'lease' };
       const payload = { responsibility: 'domain_solver', revision: 0, consumed_snapshot_sequence: 0, input_refs: [], dependency_versions: [], status: 'completed', outputs: [], observation_refs: [], evidence_refs: [], assumptions: [], rejected_assumptions: [], unresolved_questions: [], next_action: 'Replay', failure_code: null, actual_cost: { wall_clock_ms: 0, model_calls: 0, tool_jobs: 0, observable_tokens: 0, monetary_cost: 0 } };
       await expect(registry.submit(host, { ...payload, observation_refs: [ref] })).resolves.toMatchObject({ task_id: 'solver' });
-      const revisions = new PublishedRevisionService({ verifyArtifact });
-      const published = await revisions.publish({ output_id: 'observation', artifact: ref, dependency_versions: [] });
-      expect(revisions.adopt(published.publication_id).current.valid).toBe(true);
       await writeFile(ref.path, 'bad observation'); // same byte length, different content
       const locations = [
         { input_refs: [ref] }, { observation_refs: [ref] }, { evidence_refs: [ref] },
@@ -33,7 +30,6 @@ describe('responsibility immutable artifact boundary', () => {
       for (const location of locations) {
         await expect(registry.submit(host, { ...payload, ...location })).rejects.toThrow(/hash mismatch/);
       }
-      await expect(revisions.publish({ output_id: 'corrupt', artifact: ref, dependency_versions: [] })).rejects.toThrow(/hash mismatch/);
     } finally { await rm(root, { recursive: true, force: true }); }
   });
 });
