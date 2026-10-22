@@ -8,6 +8,8 @@
 
 ## Evidence files
 
+> 以下日誌與腳本已在 2026-10-22 倉庫精簡中刪除，原文件保存在快照 commit `3a2c32a`（可用 `git show 3a2c32a:<路徑>` 取回）。本文結論為歷史摘要，不能在當前工作樹原樣重驗。
+
 - Setup log: `docs/gates/t0c-arm64-verify.log` (complete apt / Node / OpenCode / core-tool setup and first half of functional checks)
 - Final functional log: `docs/gates/t0c-arm64-verify-final.log` (ends with `T0C-VERIFY-OK`)
 - Main one-off script: `docs/gates/t0c-arm64-verify.sh`

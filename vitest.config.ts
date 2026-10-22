@@ -15,15 +15,12 @@ export default defineConfig({
       '@ctf/artifacts': fileURLToPath(new URL('./packages/artifacts/src/index.ts', import.meta.url)),
       '@ctf/policy': fileURLToPath(new URL('./packages/policy/src/index.ts', import.meta.url)),
       '@ctf/runtime': fileURLToPath(new URL('./packages/runtime/src/index.ts', import.meta.url)),
-      '@ctf/browser': fileURLToPath(new URL('./packages/browser/src/index.ts', import.meta.url)),
       '@ctf/opencode-plugin': fileURLToPath(new URL('./apps/opencode-plugin/src/index.ts', import.meta.url)),
       '@ctf/opencode-bridge': fileURLToPath(new URL('./packages/opencode-bridge/src/index.ts', import.meta.url)),
       '@ctf/local-oracle': fileURLToPath(new URL('./packages/local-oracle/src/index.ts', import.meta.url)),
       '@ctf/local-target': fileURLToPath(new URL('./fixtures/local-target/src/server.ts', import.meta.url)),
       '@ctf/platform': fileURLToPath(new URL('./packages/platform/src/index.ts', import.meta.url)),
-      '@ctf/supervisor': fileURLToPath(new URL('./packages/supervisor/src/index.ts', import.meta.url)),
-      '@ctf/reference': fileURLToPath(new URL('./packages/reference/src/index.ts', import.meta.url)),
-      '@ctf/reporting': fileURLToPath(new URL('./packages/reporting/src/index.ts', import.meta.url))
+      '@ctf/supervisor': fileURLToPath(new URL('./packages/supervisor/src/index.ts', import.meta.url))
     }
   }
 });

@@ -10,8 +10,6 @@
 - **現狀、清理方向與教訓**：[現狀、教訓與遷移記錄](docs/superpowers/specs/2026-10-22-ctf-agent-current-state-and-migration.md)。
 - **倉庫開發規矩**：[`AGENTS.md`](AGENTS.md)（授權、預算、工作區、驗證陳述等）。
 
-> ⚠️ `AGENTS.md` 尚未按 design v1 收斂：它仍把舊設計、路線圖和 M1 計劃列為依據，並要求跑 `gate:m0`／`gate:m1`、凍結保留舊軌跡。這些條文與 design v1 衝突時，**以 design v1 和遷移記錄為準**（收斂對照見遷移記錄第 5 節）。其餘開發規矩照 `AGENTS.md` 執行。`AGENTS.md` 收斂後刪除本段。
-
 **用途邊界**：本產品只用於 CTF 比賽與學習題，操作對象限於授權題目、靶場和附件，見 design v1 開頭。
 
 ---

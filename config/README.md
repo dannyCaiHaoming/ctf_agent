@@ -1,17 +1,13 @@
-# 当前配置与历史配置
+# 配置
 
-CLI 默认使用 `release-profile.m1-opencode.example.json`，模型设置由其引用的 `opencode.m1.example.json` 提供。Provider 凭证仅通过 OpenCode 配置的环境变量引用注入。加载配置不证明余额或网络可用。
+CLI 默認使用 `release-profile.m1-opencode.example.json`，模型設置由其引用的 `opencode.m1.example.json` 提供。Provider 憑證僅通過 OpenCode 配置的環境變量引用注入。加載配置不證明餘額或網絡可用。
 
-`release-profile.m1-td-bailian-20261019.json` 与 `opencode.m1-td-bailian-20261019.json` 是已完成的 b2 验收冻结配置；保留原字节，不因清理修改旧批次或恢复外部调用授权。
+- `release-profile.schema.json`：release profile 的 schema。
+- `release-profile.m1-opencode.example.json`：CLI 默認 profile，引用 `opencode.m1.example.json`。
 
-以下文件仅作历史证据，当前 loader/schema 已拒绝其直连模型格式：
+以下兩份是舊格式樣例，當前 loader 已拒絕其直連模型格式，保留作為拒絕用例（見 `tests/bootstrap/test-harness.test.ts`）：
 
-- `release-profile.example.json`（旧 M0 stub 默认）
-- `release-profile.m1.example.json`
+- `release-profile.example.json`
 - `release-profile.m1-bailian-deepseek-v4-flash.example.json`
-- `release-profile.m1-t1-formal-20261019.json`（旧 b1）
-- `release-profile.volcano.example.json`
-- `release-profile.volcano-anthropic.json`
-- `release-profile.volcano-payg.example.json`
 
-这些文件被历史结果/冻结 manifest 引用，因此原位保留。新配置必须使用 OpenCode 格式；不要重新启用 JSON 动作协议。
+新配置必須使用 OpenCode 格式；不要重新啟用 JSON 動作協議。

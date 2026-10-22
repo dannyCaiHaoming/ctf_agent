@@ -9,7 +9,7 @@ const root = resolve(import.meta.dirname, '../..');
 describe('M0 workspace bootstrap', () => {
   it('has clean-checkout scripts and a lockfile', async () => {
     const pkg = JSON.parse(await readFile(resolve(root, 'package.json'), 'utf8'));
-    expect(pkg.scripts).toMatchObject({ typecheck: expect.any(String), 'test:deterministic': expect.any(String), 'gate:m0': expect.any(String), cli: expect.any(String), build: expect.any(String) });
+    expect(pkg.scripts).toMatchObject({ typecheck: expect.any(String), 'test:deterministic': expect.any(String), cli: expect.any(String), build: expect.any(String) });
     await expect(access(resolve(root, 'package-lock.json'))).resolves.toBeUndefined();
     expect(await readFile(resolve(root, '.nvmrc'), 'utf8')).toContain('24');
   });

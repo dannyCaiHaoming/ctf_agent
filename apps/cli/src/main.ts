@@ -1,6 +1,5 @@
 import { loadLocalEnv } from './composition/localEnv.js';
 import { loadReleaseProfile } from './composition/releaseProfile.js';
-import { doctor } from './commands/doctor.js';
 import { resume } from './commands/resume.js';
 import { solve } from './commands/solve.js';
 
@@ -8,7 +7,6 @@ function usage(): string {
   return `ctf-agent
 Commands:
   resume --state-root <dir> --run <id> --authorization <host-local-policy.json>
-  doctor --profile <path>
   solve --target <authorized-url> [--trajectory t1|t2] [--description <text>] [--input <path>] [--material <path> ...] [--local-oracle-file <private-path>] --profile <opencode-release-profile> [--out <dir>] [--preset-trajectory1]
 `;
 }
@@ -47,10 +45,6 @@ async function main(): Promise<number> {
   }
   const profilePath = typeof parsed.profile === 'string' ? parsed.profile : 'config/release-profile.m1-opencode.example.json';
   const profile = await loadReleaseProfile(profilePath);
-  if (command === 'doctor') {
-    console.log(JSON.stringify(await doctor(profile), null, 2));
-    return 0;
-  }
   if (command === 'solve') {
     if (parsed.trajectory !== undefined && !['t1', 't2'].includes(String(parsed.trajectory))) throw new Error('--trajectory must be t1 or t2');
     if (typeof parsed.target !== 'string') {
