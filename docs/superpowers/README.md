@@ -11,5 +11,5 @@
 ## 目录约定
 
 - `specs/` — 设计与迁移记录。当前只有 design v1 与迁移记录两份。
-- `plans/` — 按 `CLAUDE.md` 约定的 §0 交接计划（如 [清理计划](plans/2026-10-22-cleanup-plan.md)）。不再放里程碑 plan。
-- `gates/` — 只保留经清理决定保留的最小证据（见迁移记录）。
+- `plans/` — 按 `CLAUDE.md` 约定的 §0 交接计划，是一次性交接物：design 不引用 plan，结论转入 design 或 `gates/` 后删除。不放里程碑 plan。
+- `gates/` — 只保留支撑 design 结论的最小原始证据（清理时保留的证据见迁移记录）。

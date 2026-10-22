@@ -18,9 +18,11 @@
 
 design 怎麼拆成 plan 見 `AGENTS.md`「开发方式」。Claude Code 這一層的約定：
 
+- 先有聚焦的 design，再有 plan：從 design v1 剝離一小塊寫成詳細 design 子文件（有未知數時寫明問題、候選做法與結果去向），plan 只從它生成；設計內容不只寫在 plan 裡。
 - 一份 plan 對應一個可獨立驗收的最小能力切片。§0 只寫**當前一步**，一步只回答一個卡點；做完按證據重寫 §0，結果與失敗追加在 §0 之後。
 - 某一步的結果讓後續步驟失去意義時（例如可行性不通過），直接改走 design 中的備案，不把剩下的步驟跑完。
 - 不預先排長期里程碑或階段 roadmap；交接物就是 plan 的 §0，不為分工另造文件。
+- plan 是一次性交接物：只有 plan 引用 design，design 不引用 plan。某步結論影響 design 時，連同版本、條件與關鍵觀察直接寫進 design；需長期保留的最小原始證據放 `docs/gates/`。plan 的結論都已轉入 design 或 `docs/gates/` 後即刪除該 plan，歷史由 git 保留。
 
 ## 模型分工
 
