@@ -42,7 +42,7 @@
 | --- | --- | --- | --- |
 | 開發 | 倉庫根目錄與 `apps/`、`packages/`、`tests/`、`docs/` | 開發用 `AGENTS.md`、`CLAUDE.md`、源碼、測試、文檔 | 不被運行中的 OpenCode 讀取 |
 | 產品資產 | `product/`（共用層 + `product/opencode/`） | 產品 `AGENTS.md`、角色、Skills、References、基礎 OpenCode 配置 | 只經啟動腳本白名單複製進入運行；不放運行配置、秘密或運行資料 |
-| 運行配置 | `config/` | 題目來源、模型 profile、預算；`*.example.*` 入庫，開發者本地實際配置不入庫 | 不含秘密值，只含 env 引用名；不放產品指令或角色 |
+| 運行配置 | `config/` | 題目來源、模型 profile、預算；`*.example.*` 入庫，開發者本地實際配置不入庫 | 不含秘密值，只含 env 引用名；不放產品指令或角色。模型 provider 暫定為火山引擎 token plan（使用者 2026-10-23 決定），apiKey 以 `{env:ARK_API_KEY}` 引用、值放本地 `.env`；需按 OpenCode 配置格式編寫，清理前的舊直連 provider 配置格式已不被接受，只沿用其端點與 env 名 |
 | 秘密 | 運行時環境；本地為 `.env`（git 忽略） | 平台 token、provider key 等 | 不寫入任何文件或證據；平台憑據只進控制服務進程 |
 | 運行資料 | 運行資料根目錄下 `<runId>/`，**位於倉庫之外** | 見下表 | 每次 run 新建；不在倉庫內、不在 `product/` 內 |
 
@@ -74,7 +74,7 @@
 
 ## 5. 會話綁定與題目接入
 
-- 根會話由 OpenCode 建立，宿主無法預先建立再綁定；根會話與子會話的身份綁定、預算准入與停止機制由 design v1 C 的詳細 design 定義（待寫），本文不定義。C 的驗證範圍須包含根會話。
+- 根會話由啟動腳本經 SDK 建立，送出啟動訊息前即取得其 ID，因此可由宿主預先綁定；子會話由 OpenCode 原生 `task` 建立。根會話與子會話的身份綁定、預算准入與停止機制見 [C 詳細 design](2026-10-23-design-v1-c-control-service.md)。
 - 一次 run 只啟動一個 OpenCode 實例，Coordinator 在同一 run 內處理多道題並共用預算（design v1 1.4）。
 - Intake 經受管接入工具按運行配置取得題目；接入工具由控制服務提供，Agent 看不到平台憑據（design v1 E、H）。
 
@@ -95,4 +95,4 @@
 ## 7. 與其他文件的關係
 
 - 產品資產目錄與載入方式：[A／B 詳細 design](2026-10-22-design-v1-ab-product-assets.md)；其中「啟動器檢查 `rg`」已按本文第 4 節改為不由啟動腳本硬編碼。
-- 本文已定稿，依次生成：啟動腳本與控制服務的框架實現 plan、現行 `solveM1` 編排與測試專用路徑的精簡 plan。多 Agent 綁定機制見 design v1 C 的詳細 design（待寫）。
+- 本文已定稿，依次生成：啟動腳本與控制服務的框架實現 plan、現行 `solveM1` 編排與測試專用路徑的精簡 plan。多 Agent 綁定機制見 [C 詳細 design](2026-10-23-design-v1-c-control-service.md)。

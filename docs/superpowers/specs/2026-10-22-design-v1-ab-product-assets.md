@@ -83,7 +83,7 @@
 
 **共用知識目錄：** 固定版本的本地 `references` 配置被接受但無可觀察效果（第一步觀察項 `EXREF`），不作為載入路徑。共用知識以唯讀目錄發布，由宿主隨 run 提供到工作目錄之外的固定路徑，Agent 經限定該路徑的唯讀規則以原生 `read` 查閱；不建檢索服務、不在運行時拉取。具體路徑、唯讀限制方式與來源／版本記錄在共用 Reference 步驟定稿；首版先接通 Skill 附屬 Reference。
 
-**與插件的關係：** 現行插件 `tool.execute.before` 拒絕全部非受管工具，包括 `skill` 與 `read`（遷移記錄 3.4）。目標是按 H 權限表放行：持有「知識讀取」能力的角色可用 `skill`，`read` 只限該 run 的 Skill 副本與共用知識目錄，以及經授權的題目材料。按角色核實身份依賴 C.1；`read` 的路徑限制由原生權限、插件或受管工具哪一層執行，依賴 design v1 第 3 節「接口的原生／受管映射」待決項。內建 Skill `customize-opencode` 會出現在列表中（J3），能否按名稱停用未驗證。
+**與插件的關係：** 現行插件 `tool.execute.before` 拒絕全部非受管工具，包括 `skill` 與 `read`（遷移記錄 3.4）。目標是按 H 權限表放行：持有「知識讀取」能力的角色可用 `skill`，`read` 只限該 run 的 Skill 副本與共用知識目錄，以及經授權的題目材料。按角色核實身份見 [C 詳細 design](2026-10-23-design-v1-c-control-service.md) 第 3、5 節；`read` 的路徑限制由原生權限、插件或受管工具哪一層執行，依賴 design v1 第 3 節「接口的原生／受管映射」待決項。內建 Skill `customize-opencode` 會出現在列表中（J3），能否按名稱停用未驗證。
 
 ## 5. `rg` 依賴
 
@@ -95,8 +95,8 @@ OpenCode 安裝包不含 ripgrep；1.19.3 在需要時從 GitHub 下載 `ripgrep
 
 | 項目 | 依賴 | 影響 |
 | --- | --- | --- |
-| 角色文件清單與各角色正文 | design v1 第 1 節、H；C.1 決定分派方式 | 第 1 節 `product/opencode/agents/` |
-| 插件按角色放行 `skill`／`read` 與路徑限制的執行層 | C.1；design v1 第 3 節原生／受管映射 | 第 4 節 |
+| 角色文件清單與各角色正文 | design v1 第 1 節、H；分派方式已由 [C 詳細 design](2026-10-23-design-v1-c-control-service.md) 定為原生 `task` | 第 1 節 `product/opencode/agents/` |
+| 插件按角色放行 `skill`／`read` 與路徑限制的執行層 | [C 詳細 design](2026-10-23-design-v1-c-control-service.md) 第 5 節（待實作）；design v1 第 3 節原生／受管映射 | 第 4 節 |
 | 原生 shell 的工作目錄與寫入範圍限制 | design v1 G 待決項 | 第 3 節規則 5 |
 | 共用知識目錄的路徑、唯讀限制與來源記錄 | 共用 Reference 步驟 | 第 4 節 |
 | 鏡像內 `product/`、工作目錄、題目工作區的具體路徑 | design v1 F | 第 1、3 節 |
