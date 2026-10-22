@@ -266,3 +266,56 @@ C.1 要驗證原生 `task` 子會話能否在首次模型／工具操作前完�
 3. §0.7 五到七項判據的實測結果，含 `npm test` 基線與清理後的對照。
 4. **本輪暫時沒有恢復的能力**（至少涵蓋）：里程碑 gate 命令（`gate:m0`／`gate:m1`）不再存在；`ctf-agent doctor` capability 探測入口消失，瀏覽器可用性目前無任何檢查入口；離線 Reference 檢索服務與 run metrics 聚合不再存在；宿主側 Web／Misc／Crypto 領域方法與 Skill 預載移除後，`solveM1` 路徑的領域能力減少；領域 fixture 題目移除後相應確定性測試不再存在。
 5. 需要設計模型接手的事項：design v1 第 4 節要求的「依真實剩餘能力修訂 design v1」，以及控制層去留仍待 C.1 驗證。
+
+---
+
+## §1 執行記錄
+
+### §1.1 第一步：倉庫文件精簡（已完成）
+
+- 清理前快照 commit：`3a2c32a`（§0.1 選「commit 成快照」）。
+- 清理 commit：`f101abd`（分支 `claude/cleanup-09123c`），已快進合入 `main`。刪除 293 個文件，修改 10 個。
+- 驗收：`npm run typecheck`、`npm run build` 通過；`npm run test:deterministic` 142/142 通過；`npm test` 唯一失敗是 `smoke-solve`，實作 session 報告其在清理前就已失敗，**未獨立重跑確認**。
+- 合併前補修：`docs/gates/t0c-arm64-results.md` 加註原日誌位於 `3a2c32a`；`AGENTS.md` 修正一處簡繁混用。
+
+### §1.2 第二步：工作樹整理（已完成）
+
+執行前現狀核對（2026-10-22，`git worktree list` 與各工作樹 `git status --short`；主工作區 `main@68cad26` 僅有未追蹤的 `docs/superpowers/plans/2026-10-22-c1-native-task-binding-plan.md`，不在本步範圍）：
+
+| 工作樹路徑 | 分支／HEAD | 未提交改動摘要 | 處理方式 |
+| --- | --- | --- | --- |
+| `.claude/worktrees/cleanup-09123c` | `claude/cleanup-09123c` @ `f101abd` | 乾淨；分支已包含於 `main` | 直接刪除工作樹與分支 `claude/cleanup-09123c` |
+| `~/.codex/worktrees/m1-host-contract/pentest-agent` | `codex/m1-host-contract` @ `67c3b57`（含 8 個不在 `main` 的 commit） | 16 個已修改（M1 contract probe、`solve`／`solveM1`、`provider-solver-driver`、`solver-loop` 及其測試、M1 plan／gate 文檔）；7 個未追蹤（`docs/gates/m1-contract-probe-*` 的 json／md） | 建 `archive/m1-host-contract`，commit 全部改動與未追蹤文件，刪除工作樹；存檔分支包含原分支後刪除 `codex/m1-host-contract` |
+| `~/.codex/worktrees/throwback-managed-attachments/pentest-agent` | detached @ `e26e289` | 15 個已修改（`AGENTS.md`、控制層 CLI、`packages/runtime`、舊 plan／spec、兩個 opencode 整合測試）；10 個未追蹤（`localHttpFindingResolver.ts`、`docs/gates/` 三個目錄、兩份舊 plan、`skills/`、兩個測試、`node_modules`） | 建 `archive/throwback-managed-attachments`，commit 全部改動與未追蹤文件，刪除工作樹。**`node_modules` 是指向主倉庫 `node_modules` 的符號連結，不提交** |
+| `~/.codex/worktrees/web-challenge-validation/pentest-agent` | detached @ `e26e289` | 4 個已修改（`localHttpCandidateResolver.ts`、`openCodeTask.ts`、`solveM1.ts`、`main.ts`）；3 個未追蹤（`docs/gates/m1-autonomous-first-challenge/`、`docs/gates/m1-web-validation/`、一份舊 plan） | 建 `archive/web-challenge-validation`，commit 全部改動與未追蹤文件，刪除工作樹 |
+| `~/Documents/pentest-agent-m1-autonomous` | `codex/m1-autonomous-first-challenge` @ `e26e289`（已包含於 `main`） | 13 個已修改（`AGENTS.md`、控制層 CLI、`config/README.md`、`docs/superpowers/README.md`、舊 plan／spec）；4 個未追蹤（`.dockerignore`、`Dockerfile.solver`、`docs/gates/m1-autonomous-first-challenge/`、一份舊 plan） | 建 `archive/pentest-agent-m1-autonomous`，commit 全部改動與未追蹤文件，刪除工作樹。**`Dockerfile.solver` 從未進過任何分支，存檔分支必須包含它**；存檔分支包含原分支後刪除 `codex/m1-autonomous-first-challenge` |
+
+無工作樹的舊分支：`codex/m1-task1-responsibilities` @ `a4d6a54`（已包含於 `main`）→ 改名為 `archive/m1-task1-responsibilities`。
+
+執行規則：
+
+- 存檔分支在各自工作樹內建立（`archive/<工作樹名>`），把全部已修改與未追蹤文件 commit 進去（排除上述 `node_modules` 符號連結）。
+- 刪除工作樹前逐一檢查：存檔分支 commit 成功，且該工作樹 `git status --short` 為空。任一不滿足即停下報告，不刪除。
+- 原分支 `codex/m1-host-contract`、`codex/m1-autonomous-first-challenge` 只在 `git merge-base --is-ancestor <原分支> archive/<工作樹名>` 成立時刪除。
+- 不 push，不動 `main`，不碰主工作區的未追蹤文件。
+
+#### 執行結果（2026-10-22）
+
+由 Haiku 5.5 實作 session 按上述規則執行，未使用 `--force`；第二輪由主 session 經使用者批准完成。
+
+| 存檔分支 | commit | 文件數 | 工作樹 |
+| --- | --- | --- | --- |
+| `archive/m1-host-contract` | `d2e434c`（改動與未追蹤文件）＋ `90028a9`（`git add -f` 補入被忽略的 `.superpowers/sdd/` 筆記） | 23 ＋ 13 | 已刪除（第二輪） |
+| `archive/throwback-managed-attachments` | `e3af87d` | 47（`node_modules` 符號連結未提交） | 已刪除 |
+| `archive/web-challenge-validation` | `e1fa77f` | 10 | 已刪除 |
+| `archive/pentest-agent-m1-autonomous` | `d7126eb` | 19（含 `Dockerfile.solver`、`.dockerignore`） | 已刪除（第二輪） |
+
+其他：
+
+- `.claude/worktrees/cleanup-09123c` 與分支 `claude/cleanup-09123c` 已刪除。
+- 確認被存檔分支包含後，`codex/m1-host-contract`、`codex/m1-autonomous-first-challenge` 已刪除。
+- `codex/m1-task1-responsibilities` 已改名為 `archive/m1-task1-responsibilities`（`a4d6a54`）。
+
+與計劃的偏差：第一輪中，`m1-host-contract` 與 `pentest-agent-m1-autonomous` 兩個工作樹因含被忽略的文件（`.superpowers/sdd/`、`dist/`、`node_modules/`、`.DS_Store`）而保留未刪。經使用者批准，第二輪把 `.superpowers/sdd/` 強制加入 `archive/m1-host-contract`，再以 `git worktree remove`（無 `--force`）刪除兩個工作樹；`dist/`、`node_modules/`、`.DS_Store` 隨工作樹刪除，未進任何 commit。兩處 `node_modules` 均為實體目錄而非符號連結，主倉庫 `node_modules` 不受影響。
+
+最終狀態：剩兩個工作樹——主工作區 `main`（`68cad26`）與實作 session 的工作樹 `claude/inspiring-lederberg-c45091`（無改動，可另行刪除）；五個 `archive/*` 分支均只在本地，未 push，`main` 未變動。
