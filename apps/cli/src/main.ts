@@ -1,13 +1,10 @@
 import { loadLocalEnv } from './composition/localEnv.js';
-import { loadReleaseProfile } from './composition/releaseProfile.js';
 import { resume } from './commands/resume.js';
-import { solve } from './commands/solve.js';
 
 function usage(): string {
   return `ctf-agent
 Commands:
   resume --state-root <dir> --run <id> --authorization <host-local-policy.json>
-  solve --target <authorized-url> [--trajectory t1|t2] [--description <text>] [--input <path>] [--material <path> ...] [--local-oracle-file <private-path>] --profile <opencode-release-profile> [--out <dir>] [--preset-trajectory1]
 `;
 }
 
@@ -40,30 +37,6 @@ async function main(): Promise<number> {
       return 2;
     }
     const result = await resume({ stateRoot: parsed['state-root'], runId: parsed.run, authorizationPath: parsed.authorization });
-    console.log(result.message);
-    return result.code;
-  }
-  const profilePath = typeof parsed.profile === 'string' ? parsed.profile : 'config/release-profile.m1-opencode.example.json';
-  const profile = await loadReleaseProfile(profilePath);
-  if (command === 'solve') {
-    if (parsed.trajectory !== undefined && !['t1', 't2'].includes(String(parsed.trajectory))) throw new Error('--trajectory must be t1 or t2');
-    if (typeof parsed.target !== 'string') {
-      console.error('--target is required');
-      return 2;
-    }
-    const result = await solve({
-      target: parsed.target,
-      description: typeof parsed.description === 'string' ? parsed.description : undefined,
-      input: typeof parsed.input === 'string' ? parsed.input : undefined,
-      materials: Array.isArray(parsed.material) ? parsed.material : [],
-      localOracleFile: typeof parsed['local-oracle-file'] === 'string' ? parsed['local-oracle-file'] : undefined,
-      profile,
-      out: typeof parsed.out === 'string' ? parsed.out : undefined,
-      allowStub: parsed['allow-stub'] === true,
-      startLocalTarget: parsed['start-local-target'] === true,
-      presetTrajectory1: parsed['preset-trajectory1'] === true,
-      trajectory: parsed.trajectory as 't1' | 't2' | undefined
-    });
     console.log(result.message);
     return result.code;
   }

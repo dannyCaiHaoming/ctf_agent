@@ -32,7 +32,7 @@
 
 **角色：** 產品角色按 design v1 第 1 節九項責任（Coordinator、Intake/Triage、Target Recon、Reference、Strategy、Domain Solver、Solution Engineer、Verifier、Recovery Critic）定義，Coordinator 為發布入口的 primary Agent，其餘角色經原生多 Agent 分派。不設單一 Solver 角色，也不設任何過渡 Solver。
 
-**退場：** 現行 `ctf-agent solve`（`apps/cli/src/commands/solveM1.ts`、`openCodeTask.ts`）由宿主經 SDK 建立會話、寫入 prompt、綁定單一 Solver 並轉發工具回調，屬 design v1 1.2 所稱「硬編碼的 Agent 編排器」，連同其單一 Solver 角色與 Solver prompt 一併移除；其中可復用的宿主能力（候選封存、獨立驗證、oracle 提交等）按 design v1 D 遷入控制服務。`--trajectory` 本地 job 路徑及其硬編碼 fixture flag 屬測試專用 Solver，不遷移。
+**退場（已執行）：** 舊 `ctf-agent solve`（`apps/cli/src/commands/solveM1.ts`、`openCodeTask.ts`）由宿主經 SDK 建立會話、寫入 prompt、綁定單一 Solver 並轉發工具回調，屬 design v1 1.2 所稱「硬編碼的 Agent 編排器」，連同其單一 Solver 角色與 Solver prompt 一併移除；其中可復用的宿主能力（候選封存、獨立驗證、oracle 提交等）按 design v1 D 遷入控制服務。`--trajectory` 本地 job 路徑及其硬編碼 fixture flag 屬測試專用 Solver，不遷移。上述入口、軌跡路徑及其專屬測試已於 2026-10-23 刪除；刪除後在控制服務按 design v1 C 實作完成前沒有可用的解題路徑。
 
 ## 2. 文件分區
 
