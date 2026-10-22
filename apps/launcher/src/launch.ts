@@ -1,7 +1,8 @@
 // Debug/release entry launcher: prepares an isolated run directory, copies product assets, starts
 // `opencode serve` through startManagedOpenCode, sends one fixed start message to the coordinator,
 // waits for the root session to go idle (or the deadline) and saves state + evidence. It never creates
-// child sessions, forwards tool calls or writes follow-up prompts.
+// child sessions, forwards tool calls or writes follow-up prompts. The control service (control-service.ts) runs in
+// this process: the product plugin binds sessions, admits model calls and authorizes tools through a loopback RPC.
 //
 // Usage: npx tsx apps/launcher/src/launch.ts --profile <release-profile.json>
 //          [--runs-root <dir>] [--run-id <id>] [--product <dir>] [--deadline-ms <n>]
@@ -14,6 +15,9 @@ import { basename, dirname, join, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { setTimeout as delay } from 'node:timers/promises';
 import { loadOpenCodeConfig, startManagedOpenCode } from '@ctf/opencode-bridge';
+import type { OpencodeClient } from '@opencode-ai/sdk/v2';
+import { ControlService, summarizeUsage } from './control-service.js';
+import { startControlRpc } from './control-rpc.js';
 import { loadLocalEnv } from '../../cli/src/composition/localEnv.js';
 import { loadReleaseProfile } from '../../cli/src/composition/releaseProfile.js';
 
@@ -24,7 +28,11 @@ class Blocked extends Error {
   constructor(reason: string) { super(`blocked_configuration: ${reason}`); }
 }
 
-export interface LaunchOptions { profile: string; runsRoot?: string; runId?: string; product?: string; deadlineMs?: number }
+export interface LaunchOptions {
+  profile: string; runsRoot?: string; runId?: string; product?: string; deadlineMs?: number;
+  /** Test seam: called once after the start message is sent, with the launcher's own SDK client. */
+  onStarted?: (context: { client: OpencodeClient; rootId: string }) => Promise<void>;
+}
 interface Copy { path: string; sha256: string; source: string }
 
 const sha256 = (bytes: Buffer | string) => createHash('sha256').update(bytes).digest('hex');
@@ -100,6 +108,16 @@ function assertNoAsk(value: unknown): void {
 }
 
 export async function launch(options: LaunchOptions): Promise<{ code: number; status: string; runDir?: string }> {
+  // Control service RPC: the handler is attached once the SDK client exists; until then every request is denied.
+  let control: ControlService | undefined;
+  const rpc = await startControlRpc(async (sessionID, operation, input) => {
+    if (!control) throw new Error('control service not ready');
+    return control.handle(sessionID, operation, input);
+  });
+  try { return await runLaunch(options, rpc, service => { control = service; }); } finally { await rpc.close(); }
+}
+
+async function runLaunch(options: LaunchOptions, rpc: { url: string; token: string }, attach: (service: ControlService) => void): Promise<{ code: number; status: string; runDir?: string }> {
   const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..', '..');
   const productDir = await realpath(resolve(options.product ?? join(repoRoot, 'product')));
   const repoReal = await realpath(repoRoot);
@@ -127,6 +145,8 @@ export async function launch(options: LaunchOptions): Promise<{ code: number; st
   for (const path of Object.values(paths)) await mkdir(path, { recursive: true });
   const real = Object.fromEntries(await Promise.all(Object.entries(paths).map(async ([k, v]) => [k, await realpath(v)]))) as typeof paths;
 
+  const secrets = [...loaded.secrets, rpc.token];
+
   // 3. Whitelist copy of product assets into <opencode>/config/opencode.
   const configDirectory = join(real.opencode, 'config', 'opencode');
   const targets = new Map<string, string>();
@@ -145,7 +165,7 @@ export async function launch(options: LaunchOptions): Promise<{ code: number; st
   const copies: Copy[] = [];
   for (const [target, source] of [...targets].sort()) {
     const bytes = await readFile(source);
-    if (loaded.secrets.some(secret => secret && bytes.includes(Buffer.from(secret)))) throw new Blocked(`control credential found in product asset ${target}`);
+    if (secrets.some(secret => secret && bytes.includes(Buffer.from(secret)))) throw new Blocked(`control credential found in product asset ${target}`);
     const destination = join(configDirectory, target);
     await mkdir(dirname(destination), { recursive: true });
     await copyFile(source, destination);
@@ -157,15 +177,16 @@ export async function launch(options: LaunchOptions): Promise<{ code: number; st
   };
 
   // 4. Merge runtime fields and start OpenCode through the managed launcher.
+  const pluginEntry = join(repoRoot, 'apps', 'opencode-plugin', 'src', 'entry.ts');
   const config = {
-    ...baseConfig, default_agent: COORDINATOR, model: loaded.config.model, small_model: loaded.config.model,
+    ...baseConfig, default_agent: COORDINATOR, plugin: [[pluginEntry, { controlUrl: rpc.url, controlToken: rpc.token, tools: [] }]], model: loaded.config.model, small_model: loaded.config.model,
     provider: loaded.config.provider, ...(loaded.config.enabled_providers ? { enabled_providers: loaded.config.enabled_providers } : {})
   };
   const deadlineMs = options.deadlineMs ?? profile.budget.wallClockMs;
   const timeline: Array<{ t: number; event: string; detail?: unknown }> = [];
   const t0 = Date.now();
   const mark = (event: string, detail?: unknown) => timeline.push({ t: Date.now() - t0, event, ...(detail === undefined ? {} : { detail }) });
-  const scrub = (text: string) => loaded.secrets.reduce((acc, s) => (s ? acc.split(s).join('<redacted>') : acc), text);
+  const scrub = (text: string) => secrets.reduce((acc, s) => (s ? acc.split(s).join('<redacted>') : acc), text);
   const controller = new AbortController();
   mark('start', { runId, deadlineMs });
   const engine = await startManagedOpenCode({ directory: real.opencode, config: config as never, environment: loaded.environment,
@@ -175,6 +196,11 @@ export async function launch(options: LaunchOptions): Promise<{ code: number; st
   let rootId = '';
   let status = 'completed';
   const sessionIds = new Set<string>();
+  const deadlineAt = Date.now() + deadlineMs; // one deadline for the launcher loop and for every binding's expiry
+  const control = new ControlService({ client, budget: { maxModelCalls: profile.budget.maxSteps, maxObservableTokens: profile.budget.maxObservableTokens },
+    expiresAt: deadlineAt, workdir: real.opencode, skillRoot: join(configDirectory, 'skills') });
+  attach(control);
+  const usageTotal = { input_tokens: 0, output_tokens: 0, reasoning_tokens: 0, lowerBound: false };
   const descendants = async (id: string): Promise<string[]> => {
     const children = (await client.session.children({ sessionID: id }, { throwOnError: true })).data ?? [];
     return [...children.map(c => c.id), ...(await Promise.all(children.map(c => descendants(c.id)))).flat()];
@@ -186,18 +212,20 @@ export async function launch(options: LaunchOptions): Promise<{ code: number; st
     await writeFile(join(real.evidence, 'inventory.json'), scrub(JSON.stringify({ agents, skills }, null, 2)), { flag: 'wx' });
     const session = await client.session.create({ title: 'CTF Agent run' }, { throwOnError: true });
     rootId = session.data!.id; sessionIds.add(rootId);
+    control.bindRoot(rootId); // bound as coordinator before the first message, hence before the first model request
+    mark('root_bound', { rootId });
     await client.session.promptAsync({ sessionID: rootId, agent: COORDINATOR, parts: [{ type: 'text', text: START_MESSAGE }] }, { throwOnError: true });
     mark('start_message_sent', { rootId });
+    await options.onStarted?.({ client, rootId });
     let idleSeen = 0;
-    const deadline = Date.now() + deadlineMs;
     while (true) {
-      if (Date.now() >= deadline) {
-        status = 'deadline_exceeded';
-        mark('deadline');
-        const all = [rootId, ...await descendants(rootId)];
-        all.forEach(id => sessionIds.add(id));
-        await Promise.all(all.map(id => client.session.abort({ sessionID: id }).catch(() => undefined)));
-        mark('aborted', { sessions: all });
+      await control.checkBudget();
+      const reason = control.stopReason ?? (Date.now() >= deadlineAt ? 'deadline' : undefined);
+      if (reason) {
+        status = reason === 'deadline' ? 'deadline_exceeded' : 'budget_exceeded';
+        mark(reason === 'deadline' ? 'deadline' : 'budget_stop');
+        await control.stopAll(reason); // marks every session first, then aborts them all
+        mark('aborted', { sessions: [...control.bindings.keys()] });
         await delay(500);
         break;
       }
@@ -206,28 +234,26 @@ export async function launch(options: LaunchOptions): Promise<{ code: number; st
         const messages = (await client.session.messages({ sessionID: rootId }, { throwOnError: true })).data ?? [];
         const done = messages.some(m => m.info.role === 'assistant' && m.info.time.completed !== undefined);
         idleSeen = done ? idleSeen + 1 : 0;
-        if (idleSeen >= 2) { mark('root_idle'); break; }
+        if (idleSeen >= 2) { mark('root_idle'); await control.stopAll('completed'); break; }
       } else idleSeen = 0;
       await delay(500);
     }
     // 5. Save sessions, messages and usage.
-    for (const id of await descendants(rootId)) sessionIds.add(id);
+    for (const id of [...await descendants(rootId), ...control.bindings.keys()]) sessionIds.add(id);
     const sessions: unknown[] = [];
     const finalStatus = (await client.session.status({}, { throwOnError: true })).data ?? {};
     for (const id of sessionIds) {
       const info = (await client.session.get({ sessionID: id }, { throwOnError: true })).data!;
       const messages = (await client.session.messages({ sessionID: id }, { throwOnError: true })).data ?? [];
-      let input = 0, output = 0, reasoning = 0, calls = 0, available = false;
+      const usage = summarizeUsage(messages as never);
       let error: unknown;
-      for (const m of messages) if (m.info.role === 'assistant') {
-        calls++;
-        const tokens = m.info.tokens;
-        if (tokens) { available = true; input += tokens.input; output += tokens.output; reasoning += tokens.reasoning; }
-        if (m.info.error) error = m.info.error;
-      }
+      for (const m of messages) if (m.info.role === 'assistant' && m.info.error) error = m.info.error;
+      usageTotal.input_tokens += usage.input; usageTotal.output_tokens += usage.output; usageTotal.reasoning_tokens += usage.reasoning;
+      if (usage.incomplete) usageTotal.lowerBound = true;
       sessions.push({ id, parentID: info.parentID ?? null, title: info.title, status: finalStatus[id]?.type ?? 'idle',
-        agents: [...new Set(messages.map(m => (m.info as { agent?: string }).agent).filter(Boolean))], assistantMessages: calls,
-        usage: available ? { availability: 'reported', input_tokens: input, output_tokens: output, reasoning_tokens: reasoning } : { availability: 'unavailable' },
+        agents: [...new Set(messages.map(m => (m.info as { agent?: string }).agent).filter(Boolean))], assistantMessages: usage.assistantMessages,
+        usage: usage.availability === 'reported' ? { availability: 'reported', input_tokens: usage.input, output_tokens: usage.output, reasoning_tokens: usage.reasoning,
+          complete: !usage.incomplete } : { availability: 'unavailable' },
         error: error ?? null });
       await writeFile(join(real.evidence, `messages-${id}.json`), scrub(JSON.stringify(messages, null, 2)), { flag: 'wx' });
       if (error && status === 'completed' && id === rootId) status = 'failed';
@@ -240,9 +266,15 @@ export async function launch(options: LaunchOptions): Promise<{ code: number; st
     await engine.close();
     mark('opencode_closed');
   }
+  // A stopped run can lose the usage of the aborted message, so its total is only a lower bound.
+  if (control.stopReason && control.stopReason !== 'completed') usageTotal.lowerBound = true;
+  await writeFile(join(real.evidence, 'bindings.json'), JSON.stringify([...control.bindings.values()], null, 2), { flag: 'wx' });
+  await writeFile(join(real.evidence, 'admissions.json'), JSON.stringify(control.audit.filter(r => r.op === 'model.call'), null, 2), { flag: 'wx' });
+  await writeFile(join(real.evidence, 'control-audit.json'), scrub(JSON.stringify(control.audit, null, 2)), { flag: 'wx' });
   await writeFile(join(real.evidence, 'assets.json'), JSON.stringify({ productRevision, copies }, null, 2), { flag: 'wx' });
   await writeFile(join(real.state, 'run.json'), JSON.stringify({ runId, status, rootSessionId: rootId || null, sessions: [...sessionIds],
-    deadlineMs, opencodeVersion: engine.version, model: loaded.config.model, configSha256: sha256(JSON.stringify(config)), productRevision,
+    deadlineMs, opencodeVersion: engine.version, model: loaded.config.model, configSha256: sha256(JSON.stringify({ ...config, plugin: undefined })), productRevision,
+    budget: profile.budget, admittedModelCalls: control.admitted, stopReason: control.stopReason ?? null, usageTotal,
     paths: real, timeline }, null, 2), { flag: 'wx' });
   return { code: status === 'completed' ? 0 : 1, status, runDir };
 }

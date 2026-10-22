@@ -1,13 +1,12 @@
 import { tool, type Hooks } from '@opencode-ai/plugin';
-import type { OpenCodeBridge } from '@ctf/opencode-bridge';
-import type { LeaseId, SessionId } from '@ctf/contracts';
 
 export interface CTFPluginOptions {
-  bridge?: OpenCodeBridge;
-  resolveBinding?: (sessionID: SessionId) => { lease: LeaseId; scope: string };
-  bridgeUrl?: string;
-  bridgeToken?: string;
-  tools?: string[];
+  controlUrl: string;
+  controlToken: string;
+  /** Managed tools to register; this version passes an empty list. */
+  tools: string[];
+  /** Per-request limit; an unanswered request is a denial. */
+  requestTimeoutMs?: number;
 }
 
 export const pluginId = 'ctf-agent-host-foundation';
@@ -31,67 +30,47 @@ const schemas = {
 export const managedToolId = (name: string) => `ctf_${name.replaceAll('.', '_')}`;
 
 export function createCtfAgentHooks(options: CTFPluginOptions): Hooks {
-  const direct = Boolean(options.bridge && options.resolveBinding);
-  const remote = Boolean(options.bridgeUrl && options.bridgeToken && Array.isArray(options.tools));
-  if (direct === remote) throw new Error('configure exactly one of direct bridge or authenticated bridge RPC');
-  const allowlist = direct ? options.bridge!.allowlistedTools() : options.tools!;
-  if (remote) {
-    const url = new URL(options.bridgeUrl!);
-    if (url.protocol !== 'http:' || url.hostname !== '127.0.0.1' || options.bridgeToken!.length < 32) throw new Error('invalid authenticated loopback bridge');
-    if (allowlist.some(name => !Object.hasOwn(schemas, name))) throw new Error('tool is not in the managed trajectory manifest');
-  }
-  const invoke = async (sessionID: string, path: 'tool' | 'control', body: object, signal?: AbortSignal) => {
-    const response = await fetch(new URL(`/${path}`, options.bridgeUrl!), {
-      method: 'POST', signal,
-      headers: { 'content-type': 'application/json', authorization: `Bearer ${options.bridgeToken!}` },
-      body: JSON.stringify({ sessionID, ...body })
-    });
-    if (!response.ok) throw new Error('host denied OpenCode operation');
-    return (await response.json() as { result: unknown }).result;
+  const url = new URL(options.controlUrl);
+  if (url.protocol !== 'http:' || url.hostname !== '127.0.0.1' || typeof options.controlToken !== 'string' || options.controlToken.length < 32 ||
+    !Array.isArray(options.tools)) throw new Error('invalid authenticated loopback control service');
+  if (options.tools.some(name => !Object.hasOwn(schemas, name))) throw new Error('tool is not in the managed tool manifest');
+  // The plugin decides nothing: it forwards and obeys. Any transport failure, bad reply or silence is a denial.
+  const control = async (sessionID: string, operation: string, input: unknown, signal?: AbortSignal): Promise<unknown> => {
+    let response: Response;
+    try {
+      const limit = AbortSignal.timeout(options.requestTimeoutMs ?? 15000);
+      response = await fetch(url, {
+        method: 'POST', signal: signal ? AbortSignal.any([signal, limit]) : limit,
+        headers: { 'content-type': 'application/json', authorization: `Bearer ${options.controlToken}` },
+        body: JSON.stringify({ sessionID, operation, input })
+      });
+    } catch { throw new Error('denied: control unavailable'); }
+    let payload: { result?: unknown; error?: unknown } = {};
+    try { payload = await response.json() as typeof payload; } catch { /* handled below */ }
+    if (!response.ok || !('result' in payload)) throw new Error(typeof payload.error === 'string' && payload.error.length <= 200 ? payload.error : 'denied: control reply');
+    return payload.result;
   };
   const tools: NonNullable<Hooks['tool']> = {};
-  for (const name of allowlist) {
-    const id = direct ? name : managedToolId(name);
-    tools[id] = tool({
-      description: name === 'observation.read'
-        ? 'Read a bounded page from an earlier large HTTP response. Pass its observation_ref; the host tracks the cursor. Default continues, mode start rereads from the beginning; fetch only bytes needed.'
-        : name === 'workspace.unpack'
-          ? 'Safely unpack a supplied workspace .tar.gz attachment into a host-created derived task directory. Choose the source path; the host validates entries, enforces size/file limits, rejects links and path traversal, and returns member paths with source/artifact provenance. Then list and read/search individual text members. Does not execute files.'
-        : `CTF managed ${name}. Use workspace-relative paths. The host supplies all identities, evidence references and budgets.`,
-      args: direct ? { args: tool.schema.any() } : schemas[name as keyof typeof schemas],
+  for (const name of options.tools) {
+    tools[managedToolId(name)] = tool({
+      description: `CTF managed ${name}. Use workspace-relative paths. The host supplies all identities, evidence references and budgets.`,
+      args: schemas[name as keyof typeof schemas],
       async execute(args, context) {
-        let result: unknown;
-        if (direct) {
-          const binding = options.resolveBinding!(context.sessionID as SessionId);
-          result = await options.bridge!.executeBound({ sessionID: context.sessionID as SessionId, tool: name,
-            args: (args as unknown as { args: unknown }).args }, binding.lease, binding.scope);
-        } else result = await invoke(context.sessionID, 'tool', { tool: name, args }, context.abort);
+        const result = await control(context.sessionID, 'tool.execute', { tool: name, args }, context.abort);
         return { title: name, output: JSON.stringify(result) };
       }
     });
   }
-  if (direct) return { tool: tools };
-  const control = (sessionID: string, operation: string, input: unknown) => invoke(sessionID, 'control', { operation, input });
   return {
     tool: tools,
-    async 'tool.execute.before'(input) {
-      if (!Object.hasOwn(tools, input.tool)) throw new Error('unmanaged OpenCode tool denied');
-      await control(input.sessionID, 'authorize', { tool: input.tool });
-    },
-    async 'experimental.chat.messages.transform'(_input, output) {
-      const ids = new Set(output.messages.map(message => message.info.sessionID));
-      if (ids.size !== 1) throw new Error('provider input requires one bound session');
-      await control([...ids][0]!, 'model.input', output.messages);
-    },
-    async 'experimental.chat.system.transform'(input, output) {
-      if (!input.sessionID) throw new Error('unbound provider system input denied');
-      await control(input.sessionID, 'model.system', output.system);
-    },
+    async 'chat.message'(input) { await control(input.sessionID, 'chat.message', { agent: input.agent }); },
     async 'chat.params'(input, output) {
-      const admitted = await control(input.sessionID, 'model.call', { provider: input.model.providerID, model: input.model.id,
-        temperature: output.temperature }) as { maxOutputTokens: number };
+      const admitted = await control(input.sessionID, 'model.call', { agent: input.agent, provider: input.model.providerID, model: input.model.id }) as { maxOutputTokens: number };
+      if (!Number.isFinite(admitted?.maxOutputTokens) || admitted.maxOutputTokens < 1) throw new Error('denied: control reply');
       output.maxOutputTokens = Math.min(output.maxOutputTokens ?? admitted.maxOutputTokens, admitted.maxOutputTokens);
-    }
+    },
+    async 'tool.execute.before'(input, output) { await control(input.sessionID, 'tool.before', { tool: input.tool, callID: input.callID, args: output.args }); },
+    async 'tool.execute.after'(input, output) { await control(input.sessionID, 'tool.after', { tool: input.tool, callID: input.callID, metadata: output.metadata }); }
   };
 }
 

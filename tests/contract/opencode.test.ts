@@ -44,26 +44,6 @@ describe('OpenCode bridge', () => {
 
 describe('OpenCode public adapter', () => {
   afterEach(() => vi.restoreAllMocks());
-  it('maps bridge allowlist to OpenCode tools using ToolContext sessionID', async () => {
-    const { createCtfAgentHooks } = await import('../../apps/opencode-plugin/src/index.js');
-    const bridge = bridgeWithWorkspaceTool();
-    const policy = bridge['policy'];
-    policy.register({ sessionId, challengeId: 'c' as ChallengeId, task: 't' as TaskId, lease, capabilities: new Set(['workspace.read']), scope, expiresAt: new Date(Date.now() + 60000).toISOString() });
-    const hooks = createCtfAgentHooks({ bridge, resolveBinding: () => ({ lease, scope }) });
-    const workspaceTool = hooks.tool?.['workspace.read']!;
-    const result = await workspaceTool.execute({ args: { path: 'x' } } as never, {
-      sessionID: 'session-1',
-      messageID: 'message-1',
-      agent: 'solver',
-      directory: '/tmp',
-      worktree: '/tmp',
-      abort: new AbortController().signal,
-      metadata: () => undefined,
-      ask: async () => undefined
-    } as never);
-    expect(JSON.parse((result as { output: string }).output)).toEqual({ session: 'session-1', args: { path: 'x' } });
-  });
-
   it('uses authenticated loopback RPC while retaining OpenCode session identity', async () => {
     const bridge = bridgeWithWorkspaceTool();
     const policy = bridge['policy'];
@@ -121,21 +101,22 @@ describe('OpenCode public adapter', () => {
   it('forwards the OpenCode ToolContext session ID over RPC without adding identity arguments', async () => {
     const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response(JSON.stringify({ result: { accepted: true } }), { status: 200 }));
     const { createCtfAgentHooks } = await import('../../apps/opencode-plugin/src/index.js');
-    const hooks = createCtfAgentHooks({ bridgeUrl: 'http://127.0.0.1:43210/tool',
-      bridgeToken: 'bridge-test-token-that-is-long-enough-123', tools: ['workspace.read'] });
+    const hooks = createCtfAgentHooks({ controlUrl: 'http://127.0.0.1:43210/control',
+      controlToken: 'bridge-test-token-that-is-long-enough-123', tools: ['workspace.read'] });
     await hooks.tool?.['ctf_workspace_read']!.execute({ path: 'x' } as never, {
       sessionID: 'session-1', messageID: 'message-1', agent: 'solver', directory: '/tmp', worktree: '/tmp',
       abort: new AbortController().signal, metadata: () => undefined, ask: async () => undefined
     } as never);
-    expect(fetchMock).toHaveBeenCalledWith(new URL('http://127.0.0.1:43210/tool'), expect.objectContaining({
+    expect(fetchMock).toHaveBeenCalledWith(new URL('http://127.0.0.1:43210/control'), expect.objectContaining({
       headers: expect.objectContaining({ authorization: 'Bearer bridge-test-token-that-is-long-enough-123' }),
-      body: JSON.stringify({ sessionID: 'session-1', tool: 'workspace.read', args: { path: 'x' } })
+      body: JSON.stringify({ sessionID: 'session-1', operation: 'tool.execute', input: { tool: 'workspace.read', args: { path: 'x' } } })
     }));
   });
 
-  it('does not create plugin tools without an explicit bridge allowlist', async () => {
+  it('rejects a plugin configuration that is not an authenticated loopback control service', async () => {
     const { createCtfAgentHooks } = await import('../../apps/opencode-plugin/src/index.js');
-    expect(() => createCtfAgentHooks({ bridgeUrl: 'http://127.0.0.1:1/tool', bridgeToken: 'a'.repeat(32) })).toThrow(/exactly one/);
+    expect(() => createCtfAgentHooks({ controlUrl: 'http://127.0.0.1:1/control', controlToken: 'a'.repeat(31), tools: [] })).toThrow(/invalid/);
+    expect(() => createCtfAgentHooks({ controlUrl: 'http://example.com/control', controlToken: 'a'.repeat(32), tools: [] })).toThrow(/invalid/);
   });
 
 });
