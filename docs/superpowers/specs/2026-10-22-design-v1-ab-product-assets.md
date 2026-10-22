@@ -89,14 +89,13 @@
 
 OpenCode 安裝包不含 ripgrep；1.19.3 在需要時從 GitHub 下載 `ripgrep-15.1.0` 到自身數據目錄 `bin/`。啟動器每次 run 使用全新的臨時數據目錄並禁止運行時下載，因此宿主無 `rg` 時原生 `skill` 失敗（J7）。
 
-按 [入口與本地調試詳細 design](2026-10-22-design-v1-entry-local-debug.md) 第 4 節，啟動腳本不硬編碼工具檢查：本地調試由開發者在 run 外安裝 ripgrep（`brew install ripgrep`），記錄在開發文檔；鏡像內的提供方式在 Docker 打包時決定。OpenCode 優先使用 PATH 上的 `rg` 而不下載，是依其代碼的推斷，安裝後確認。
+按 [入口與本地調試詳細 design](2026-10-22-design-v1-entry-local-debug.md) 第 4 節，啟動腳本不硬編碼工具檢查：本地調試由開發者在 run 外安裝 ripgrep（`brew install ripgrep`），記錄在開發文檔；鏡像內的提供方式在 Docker 打包時決定。已確認（2026-10-23）：開發機以 Homebrew 安裝 ripgrep 15.2.0（`/opt/homebrew/bin/rg`；與 OpenCode 自帶下載的 15.1.0 版本不同）後，經 `apps/launcher` 啟動 OpenCode 1.19.3、本地確定性替身 provider、token 0 運行一輪：原生 `skill` 狀態為 completed 並返回 Skill 正文與 `<skill_files>` 中附屬 Reference 的絕對路徑（位於本次 run 配置目錄的副本下），隨後原生 `read` 讀取該路徑成功；OpenCode 數據目錄下未出現 `bin/`，即使用 PATH 上的 `rg` 而未下載。
 
 ## 6. 未定稿項
 
 | 項目 | 依賴 | 影響 |
 | --- | --- | --- |
 | 角色文件清單與各角色正文 | design v1 第 1 節、H；C.1 決定分派方式 | 第 1 節 `product/opencode/agents/` |
-| 產品指令是否同樣作用於子會話 | [入口與本地調試詳細 design](2026-10-22-design-v1-entry-local-debug.md) 第 6 節的探針 | 第 2 節 |
 | 插件按角色放行 `skill`／`read` 與路徑限制的執行層 | C.1；design v1 第 3 節原生／受管映射 | 第 4 節 |
 | 原生 shell 的工作目錄與寫入範圍限制 | design v1 G 待決項 | 第 3 節規則 5 |
 | 共用知識目錄的路徑、唯讀限制與來源記錄 | 共用 Reference 步驟 | 第 4 節 |
