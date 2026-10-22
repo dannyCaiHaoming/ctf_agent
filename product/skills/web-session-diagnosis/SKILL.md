@@ -1,3 +1,8 @@
+---
+name: web-session-diagnosis
+description: Diagnose Web CTF tasks that depend on login, account state, CSRF state, or a response that appears to depend on an earlier request.
+---
+
 # Web Session Diagnosis
 
 Version: 2
