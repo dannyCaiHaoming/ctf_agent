@@ -1,0 +1,448 @@
+Historical isolated-worktree regression evidence; not the integrated test run.
+
+SOURCE: usage-red.log
+
+ RUN  v2.1.8 /Users/caihaoming/.codex/worktrees/c-failure-evidence/pentest-agent
+
+ ❯ tests/contract/control-service.test.ts (10 tests | 3 failed) 436ms
+   ✓ plugin denies when the control service cannot answer > rejects when the service never replies, is unreachable, or replies with something unusable 411ms
+   × retained usage evidence > retains usage by SDK message identity across abort, rereads and a new message 3ms
+     → service.observeUsage is not a function
+   × retained usage evidence > marks missing usage, including completed messages, while accepting reported zero 0ms
+     → service.observeUsage is not a function
+   × retained usage evidence > retains an earlier session observation when a later SDK read fails and denies the threshold 3ms
+     → expected +0 to be 1000 // Object.is equality
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 3 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/contract/control-service.test.ts > retained usage evidence > retains usage by SDK message identity across abort, rereads and a new message
+TypeError: service.observeUsage is not a function
+ ❯ tests/contract/control-service.test.ts:103:13
+    101|   it('retains usage by SDK message identity across abort, rereads and …
+    102|     const service = fakeService({});
+    103|     service.observeUsage('root', [message('m1')]);
+       |             ^
+    104|     const aborted = { info: { ...message('m1', 0, 0, 0).info, error: {…
+    105|     service.observeUsage('root', [aborted]);
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/3]⎯
+
+ FAIL  tests/contract/control-service.test.ts > retained usage evidence > marks missing usage, including completed messages, while accepting reported zero
+TypeError: service.observeUsage is not a function
+ ❯ tests/contract/control-service.test.ts:120:13
+    118|     const missing = { info: { id: 'missing', sessionID: 'root', role: …
+    119|     const service = fakeService({});
+    120|     service.observeUsage('root', [missing]);
+       |             ^
+    121|     expect(service.usageSnapshot().total).toMatchObject({ availability…
+    122|     service.observeUsage('root', [missing, message('known')]);
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/3]⎯
+
+ FAIL  tests/contract/control-service.test.ts > retained usage evidence > retains an earlier session observation when a later SDK read fails and denies the threshold
+AssertionError: expected +0 to be 1000 // Object.is equality
+
+- Expected
++ Received
+
+- 1000
++ 0
+
+ ❯ tests/contract/control-service.test.ts:141:30
+    139|     };
+    140|     await expect(service.checkBudget()).rejects.toThrow('usage read fa…
+    141|     expect(service.observed).toBe(1000);
+       |                              ^
+    142|     expect(service.usageSnapshot().total.incomplete).toBe(true);
+    143|     options.client.session.messages = async () => ({ data: [] });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/3]⎯
+
+ Test Files  1 failed (1)
+      Tests  3 failed | 7 passed (10)
+   Start at  19:11:24
+   Duration  702ms (transform 30ms, setup 0ms, collect 50ms, tests 436ms, environment 0ms, prepare 34ms)
+
+
+SOURCE: abort-red.log
+
+ RUN  v2.1.8 /Users/caihaoming/.codex/worktrees/c-failure-evidence/pentest-agent
+
+ ❯ tests/contract/control-service.test.ts (11 tests | 1 failed) 435ms
+   ✓ plugin denies when the control service cannot answer > rejects when the service never replies, is unreachable, or replies with something unusable 412ms
+   × abort evidence > records enumeration and revoke failures without claiming successful abort 5ms
+     → expected [ { seq: 1, t: +0, …(5) }, …(4) ] to deep equally contain ObjectContaining{…}
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/contract/control-service.test.ts > abort evidence > records enumeration and revoke failures without claiming successful abort
+AssertionError: expected [ { seq: 1, t: +0, …(5) }, …(4) ] to deep equally contain ObjectContaining{…}
+
+- Expected:
+ObjectContaining {
+  "allow": false,
+  "detail": StringContaining "abort refused",
+  "op": "aborted",
+  "sessionID": "child",
+}
+
++ Received:
+Array [
+  Object {
+    "allow": true,
+    "at": 1792750404825,
+    "detail": Object {
+      "role": "coordinator",
+      "via": "root",
+    },
+    "op": "bind",
+    "seq": 1,
+    "sessionID": "root",
+    "t": 0,
+  },
+  Object {
+    "allow": true,
+    "at": 1792750404825,
+    "detail": Object {
+      "tool": "task",
+    },
+    "op": "tool.before",
+    "seq": 2,
+    "sessionID": "root",
+    "t": 0,
+  },
+  Object {
+    "allow": true,
+    "at": 1792750404825,
+    "detail": Object {
+      "callID": "call-0.8353324596597703",
+      "role": "recon",
+      "sdkAgent": "recon",
+      "sdkMs": 0,
+      "sdkParentID": "root",
+      "via": "dispatch",
+    },
+    "op": "bind",
+    "seq": 3,
+    "sessionID": "child",
+    "t": 0,
+  },
+  Object {
+    "allow": true,
+    "at": 1792750404825,
+    "op": "chat.message",
+    "seq": 4,
+    "sessionID": "child",
+    "t": 0,
+  },
+  Object {
+    "allow": true,
+    "at": 1792750404825,
+    "op": "revoke",
+    "seq": 5,
+    "sessionID": "child",
+    "t": 0,
+  },
+]
+
+ ❯ tests/contract/control-service.test.ts:159:27
+    157|     session.children = async () => { throw new Error('enumeration fail…
+    158|     await service.revoke('child');
+    159|     expect(service.audit).toContainEqual(expect.objectContaining({ op:…
+       |                           ^
+    160|     await service.stopAll('test');
+    161|     expect(attempted).toContain('root');
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 10 passed (11)
+   Start at  19:13:24
+   Duration  682ms (transform 31ms, setup 0ms, collect 45ms, tests 435ms, environment 0ms, prepare 24ms)
+
+
+SOURCE: launch-red.log
+
+ RUN  v2.1.8 /Users/caihaoming/.codex/worktrees/c-failure-evidence/pentest-agent
+
+ ❯ tests/contract/launch-evidence.test.ts (7 tests | 7 failed) 2482ms
+   × launch failure evidence with SDK stand-in only > keeps normal success and complete reported usage 579ms
+     → expected { input_tokens: 1200, …(3) } to match object { availability: 'reported', …(4) }
+   × launch failure evidence with SDK stand-in only > retains admitted calls and known usage after SDK read failure 60ms
+     → ENOENT: no such file or directory, open '/private/var/folders/tn/x1hbkfy17sx0w1lb8kjzzr340000gn/T/launch-evidence-CoI0WX/runs/run/evidence/sessions.json'
+   × launch failure evidence with SDK stand-in only > continues other bound sessions after children failure 560ms
+     → ENOENT: no such file or directory, open '/private/var/folders/tn/x1hbkfy17sx0w1lb8kjzzr340000gn/T/launch-evidence-eQrPfa/runs/run/evidence/sessions.json'
+   × launch failure evidence with SDK stand-in only > continues other bound sessions after export failure 83ms
+     → ENOENT: no such file or directory, open '/private/var/folders/tn/x1hbkfy17sx0w1lb8kjzzr340000gn/T/launch-evidence-tD3PwF/runs/run/evidence/sessions.json'
+   × launch failure evidence with SDK stand-in only > keeps original and close errors plus memory evidence 52ms
+     → close failed: fictional-evidence-key-0123456789
+   × launch failure evidence with SDK stand-in only > records real per-session abort results and continues remaining aborts 560ms
+     → expected { code: +0, status: 'completed', …(1) } to match object { code: 1, status: 'failed' }
+(1 matching property omitted from actual)
+   × launch failure evidence with SDK stand-in only > continues evidence writes and records a single-file write failure 586ms
+     → injected write failure
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 7 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/contract/launch-evidence.test.ts > launch failure evidence with SDK stand-in only > keeps normal success and complete reported usage
+AssertionError: expected { input_tokens: 1200, …(3) } to match object { availability: 'reported', …(4) }
+
+- Expected
++ Received
+
+  Object {
+-   "availability": "reported",
+-   "input_tokens": 800,
++   "input_tokens": 1200,
+    "lowerBound": false,
+-   "output_tokens": 300,
+-   "reasoning_tokens": 100,
++   "output_tokens": 450,
++   "reasoning_tokens": 150,
+  }
+
+ ❯ tests/contract/launch-evidence.test.ts:89:31
+     87|     expect(await run()).toMatchObject({ code: 0, status: 'completed' }…
+     88|     const record = await checkEvidence();
+     89|     expect(record.usageTotal).toMatchObject({ availability: 'reported'…
+       |                               ^
+     90|     expect(record.opencodeVersion).toBe('fake-sdk-1');
+     91|   });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/7]⎯
+
+ FAIL  tests/contract/launch-evidence.test.ts > launch failure evidence with SDK stand-in only > retains admitted calls and known usage after SDK read failure
+Error: ENOENT: no such file or directory, open '/private/var/folders/tn/x1hbkfy17sx0w1lb8kjzzr340000gn/T/launch-evidence-CoI0WX/runs/run/evidence/sessions.json'
+ ❯ json tests/contract/launch-evidence.test.ts:76:49
+     74|   } });
+     75| }
+     76| const json = async (name: string) => JSON.parse(await readFile(join(di…
+       |                                                 ^
+     77| async function checkEvidence() {
+     78|   for (const name of ['bindings.json', 'admissions.json', 'control-aud…
+ ❯ checkEvidence tests/contract/launch-evidence.test.ts:78:114
+ ❯ tests/contract/launch-evidence.test.ts:95:20
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/7]⎯
+
+ FAIL  tests/contract/launch-evidence.test.ts > launch failure evidence with SDK stand-in only > continues other bound sessions after children failure
+Error: ENOENT: no such file or directory, open '/private/var/folders/tn/x1hbkfy17sx0w1lb8kjzzr340000gn/T/launch-evidence-eQrPfa/runs/run/evidence/sessions.json'
+ ❯ json tests/contract/launch-evidence.test.ts:76:49
+     74|   } });
+     75| }
+     76| const json = async (name: string) => JSON.parse(await readFile(join(di…
+       |                                                 ^
+     77| async function checkEvidence() {
+     78|   for (const name of ['bindings.json', 'admissions.json', 'control-aud…
+ ❯ checkEvidence tests/contract/launch-evidence.test.ts:78:114
+ ❯ tests/contract/launch-evidence.test.ts:103:20
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/7]⎯
+
+ FAIL  tests/contract/launch-evidence.test.ts > launch failure evidence with SDK stand-in only > continues other bound sessions after export failure
+Error: ENOENT: no such file or directory, open '/private/var/folders/tn/x1hbkfy17sx0w1lb8kjzzr340000gn/T/launch-evidence-tD3PwF/runs/run/evidence/sessions.json'
+ ❯ json tests/contract/launch-evidence.test.ts:76:49
+     74|   } });
+     75| }
+     76| const json = async (name: string) => JSON.parse(await readFile(join(di…
+       |                                                 ^
+     77| async function checkEvidence() {
+     78|   for (const name of ['bindings.json', 'admissions.json', 'control-aud…
+ ❯ checkEvidence tests/contract/launch-evidence.test.ts:78:114
+ ❯ tests/contract/launch-evidence.test.ts:103:20
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[4/7]⎯
+
+ FAIL  tests/contract/launch-evidence.test.ts > launch failure evidence with SDK stand-in only > keeps original and close errors plus memory evidence
+Error: close failed: fictional-evidence-key-0123456789
+ ❯ error tests/contract/launch-evidence.test.ts:28:33
+     26| let client: ReturnType<typeof makeClient>;
+     27| let close: ReturnType<typeof vi.fn>;
+     28| const error = (text: string) => new Error(`${text}: ${SECRET}`);
+       |                                 ^
+     29| function makeClient() {
+     30|   return { app: { agents: async () => ({ data: [] }), skills: async ()…
+ ❯ Object.<anonymous> tests/contract/launch-evidence.test.ts:62:82
+ ❯ runLaunch apps/launcher/src/launch.ts:275:18
+ ❯ Module.launch apps/launcher/src/launch.ts:117:16
+ ❯ tests/contract/launch-evidence.test.ts:112:12
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[5/7]⎯
+
+ FAIL  tests/contract/launch-evidence.test.ts > launch failure evidence with SDK stand-in only > records real per-session abort results and continues remaining aborts
+AssertionError: expected { code: +0, status: 'completed', …(1) } to match object { code: 1, status: 'failed' }
+(1 matching property omitted from actual)
+
+- Expected
++ Received
+
+  Object {
+-   "code": 1,
+-   "status": "failed",
++   "code": 0,
++   "status": "completed",
+  }
+
+ ❯ tests/contract/launch-evidence.test.ts:121:25
+    119|   it('records real per-session abort results and continues remaining a…
+    120|     mode = 'abort';
+    121|     expect(await run()).toMatchObject({ code: 1, status: 'failed' });
+       |                         ^
+    122|     await checkEvidence();
+    123|     expect(client.session.abort.mock.calls.map(([p]) => p.sessionID)).…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[6/7]⎯
+
+ FAIL  tests/contract/launch-evidence.test.ts > launch failure evidence with SDK stand-in only > continues evidence writes and records a single-file write failure
+Error: injected write failure
+ ❯ Proxy.writeFile tests/contract/launch-evidence.test.ts:7:75
+      7|
+      8| const fake = vi.hoisted(() => ({ start: vi.fn(), failWrite: '' }));
+      9| vi.mock('@ctf/opencode-bridge', async importOriginal => ({ ...await im…
+       |      ^
+     10| vi.mock('node:fs/promises', async importOriginal => {
+     11|   const fs = await importOriginal<typeof import('node:fs/promises')>();
+ ❯ runLaunch apps/launcher/src/launch.ts:281:9
+ ❯ Module.launch apps/launcher/src/launch.ts:117:16
+ ❯ tests/contract/launch-evidence.test.ts:130:12
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[7/7]⎯
+
+ Test Files  1 failed (1)
+      Tests  7 failed (7)
+   Start at  19:12:58
+   Duration  2.82s (transform 97ms, setup 0ms, collect 144ms, tests 2.48s, environment 0ms, prepare 32ms)
+
+
+SOURCE: edge-red.log
+
+ RUN  v2.1.8 /Users/caihaoming/.codex/worktrees/c-failure-evidence/pentest-agent
+
+ ❯ tests/contract/control-service.test.ts (13 tests | 2 failed) 440ms
+   ✓ plugin denies when the control service cannot answer > rejects when the service never replies, is unreachable, or replies with something unusable 411ms
+   × usage SDK edge cases > marks disappearing messages and malformed tokens incomplete without losing known consumption 6ms
+     → expected { assistantMessages: 1, …(5) } to match object { input: 400, incomplete: true }
+(4 matching properties omitted from actual)
+   × usage SDK edge cases > allows an in-progress reading to become complete when the SDK reports completion 1ms
+     → expected true to be false // Object.is equality
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 2 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/contract/control-service.test.ts > usage SDK edge cases > marks disappearing messages and malformed tokens incomplete without losing known consumption
+AssertionError: expected { assistantMessages: 1, …(5) } to match object { input: 400, incomplete: true }
+(4 matching properties omitted from actual)
+
+- Expected
++ Received
+
+  Object {
+-   "incomplete": true,
++   "incomplete": false,
+    "input": 400,
+  }
+
+ ❯ tests/contract/control-service.test.ts:172:43
+    170|     service.observeUsage('root', [message('m')]);
+    171|     service.observeUsage('root', []);
+    172|     expect(service.usageSnapshot().total).toMatchObject({ input: 400, …
+       |                                           ^
+    173|     service.observeUsage('root', [message('bad', Number.NaN, 0, 0)]);
+    174|     expect(service.usageSnapshot().total).toMatchObject({ input: 400, …
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/2]⎯
+
+ FAIL  tests/contract/control-service.test.ts > usage SDK edge cases > allows an in-progress reading to become complete when the SDK reports completion
+AssertionError: expected true to be false // Object.is equality
+
+- Expected
++ Received
+
+- false
++ true
+
+ ❯ tests/contract/control-service.test.ts:181:54
+    179|     expect(service.usageSnapshot().total.incomplete).toBe(true);
+    180|     service.observeUsage('root', [message('m')]);
+    181|     expect(service.usageSnapshot().total.incomplete).toBe(false);
+       |                                                      ^
+    182|   });
+    183| });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/2]⎯
+
+ Test Files  1 failed (1)
+      Tests  2 failed | 11 passed (13)
+   Start at  19:15:10
+   Duration  702ms (transform 33ms, setup 0ms, collect 55ms, tests 440ms, environment 0ms, prepare 32ms)
+
+
+SOURCE: launcher-edge-red.log
+
+ RUN  v2.1.8 /Users/caihaoming/.codex/worktrees/c-failure-evidence/pentest-agent
+
+ ❯ tests/contract/launch-evidence.test.ts (11 tests | 1 failed) 4337ms
+   ✓ launch failure evidence with SDK stand-in only > keeps normal success and complete reported usage 581ms
+   ✓ launch failure evidence with SDK stand-in only > continues other bound sessions after children failure 571ms
+   ✓ launch failure evidence with SDK stand-in only > continues other bound sessions after export failure 589ms
+   ✓ launch failure evidence with SDK stand-in only > records real per-session abort results and continues remaining aborts 564ms
+   ✓ launch failure evidence with SDK stand-in only > keeps retained message consumption in the actual run file after abort zeroes it 561ms
+   × launch failure evidence with SDK stand-in only > includes known SDK descendant usage even if the descendant never bound 566ms
+     → expected { availability: 'reported', …(4) } to match object { input_tokens: 1200, …(2) }
+(2 matching properties omitted from actual)
+   ✓ launch failure evidence with SDK stand-in only > continues evidence writes and records a single-file write failure 577ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/contract/launch-evidence.test.ts > launch failure evidence with SDK stand-in only > includes known SDK descendant usage even if the descendant never bound
+AssertionError: expected { availability: 'reported', …(4) } to match object { input_tokens: 1200, …(2) }
+(2 matching properties omitted from actual)
+
+- Expected
++ Received
+
+  Object {
+-   "input_tokens": 1200,
+-   "output_tokens": 450,
+-   "reasoning_tokens": 150,
++   "input_tokens": 800,
++   "output_tokens": 300,
++   "reasoning_tokens": 100,
+  }
+
+ ❯ tests/contract/launch-evidence.test.ts:161:31
+    159|     expect(await run()).toMatchObject({ code: 0, status: 'completed' }…
+    160|     const record = await checkEvidence();
+    161|     expect(record.usageTotal).toMatchObject({ input_tokens: 1200, outp…
+       |                               ^
+    162|   });
+    163|   it('continues evidence writes and records a single-file write failur…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 10 passed (11)
+   Start at  19:15:58
+   Duration  4.70s (transform 108ms, setup 0ms, collect 156ms, tests 4.34s, environment 0ms, prepare 35ms)
+
+
+SOURCE: focused-final.log
+
+ RUN  v2.1.8 /Users/caihaoming/.codex/worktrees/c-failure-evidence/pentest-agent
+
+ ✓ tests/contract/control-service.test.ts (13 tests) 430ms
+   ✓ plugin denies when the control service cannot answer > rejects when the service never replies, is unreachable, or replies with something unusable 407ms
+ ✓ tests/contract/run-prep.test.ts (13 tests) 653ms
+ ✓ tests/contract/launch-evidence.test.ts (12 tests) 4984ms
+   ✓ launch failure evidence with SDK stand-in only > keeps normal success and complete reported usage 594ms
+   ✓ launch failure evidence with SDK stand-in only > continues other bound sessions after children failure 565ms
+   ✓ launch failure evidence with SDK stand-in only > continues other bound sessions after export failure 584ms
+   ✓ launch failure evidence with SDK stand-in only > records real per-session abort results and continues remaining aborts 572ms
+   ✓ launch failure evidence with SDK stand-in only > keeps retained message consumption in the actual run file after abort zeroes it 567ms
+   ✓ launch failure evidence with SDK stand-in only > includes known SDK descendant usage even if the descendant never bound 565ms
+   ✓ launch failure evidence with SDK stand-in only > marks total as a lower bound if an unbound descendant export fails 588ms
+   ✓ launch failure evidence with SDK stand-in only > continues evidence writes and records a single-file write failure 586ms
+
+ Test Files  3 passed (3)
+      Tests  38 passed (38)
+   Start at  19:16:21
+   Duration  5.37s (transform 197ms, setup 0ms, collect 405ms, tests 6.07s, environment 0ms, prepare 129ms)

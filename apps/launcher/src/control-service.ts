@@ -65,16 +65,20 @@ export interface SessionUsage {
   incomplete: boolean;
 }
 
-interface Message { info: { role: string; tokens?: { input: number; output: number; reasoning: number }; error?: { name?: string }; time?: { completed?: number } } }
+export interface Message { info: { id?: string; sessionID?: string; role: string; tokens?: { input: number; output: number; reasoning: number }; error?: { name?: string }; time?: { completed?: number } } }
+
+const validTokens = (tokens: Message['info']['tokens']): tokens is NonNullable<Message['info']['tokens']> =>
+  !!tokens && [tokens.input, tokens.output, tokens.reasoning].every(n => Number.isFinite(n) && n >= 0);
 
 export function summarizeUsage(messages: Message[]): SessionUsage {
   const usage: SessionUsage = { assistantMessages: 0, availability: 'unavailable', input: 0, output: 0, reasoning: 0, incomplete: false };
   for (const { info } of messages) {
     if (info.role !== 'assistant') continue;
     usage.assistantMessages++;
-    if (info.tokens) { usage.availability = 'reported'; usage.input += info.tokens.input; usage.output += info.tokens.output; usage.reasoning += info.tokens.reasoning; }
-    if (info.error?.name === 'MessageAbortedError' || info.time?.completed === undefined) usage.incomplete = true;
+    if (validTokens(info.tokens)) { usage.availability = 'reported'; usage.input += info.tokens.input; usage.output += info.tokens.output; usage.reasoning += info.tokens.reasoning; }
+    if (!validTokens(info.tokens) || info.error?.name === 'MessageAbortedError' || info.time?.completed === undefined) usage.incomplete = true;
   }
+  if (!usage.assistantMessages) usage.incomplete = true;
   return usage;
 }
 
@@ -104,7 +108,8 @@ export class ControlService {
   private stopping?: Promise<void>;
   private readonly pending = new Map<string, Map<Role, { callID: string }>>();
   private readonly dispatched = new Map<string, { parent: string; role: Role }>();
-  private observedTokens = 0;
+  private readonly usageMessages = new Map<string, Map<string, Message>>();
+  private readonly usageGaps = new Set<string>();
 
   constructor(private readonly options: ControlOptions) {}
 
@@ -143,10 +148,23 @@ export class ControlService {
     this.record(this.rootId ?? '', 'stop_marked', true, undefined, { reason, sessions: [...this.bindings.keys()] });
     this.stopping = (async () => {
       const all = new Set(this.bindings.keys());
-      try { if (this.rootId) for (const id of await this.descendants(this.rootId)) all.add(id); } catch { /* abort what is known */ }
+      // Visit incrementally: one failing subtree must not discard already discovered siblings.
+      const visited = new Set<string>();
+      const visit = async (id: string): Promise<void> => {
+        if (visited.has(id)) return;
+        visited.add(id);
+        try {
+          const children = (await this.options.client.session.children({ sessionID: id }, { throwOnError: true })).data;
+          if (!children) throw new Error('children unavailable');
+          for (const child of children) {
+            all.add(child.id);
+            await visit(child.id);
+          }
+        } catch (error) { this.record(id, 'stop_enumerated', false, 'session enumeration failed', String(error)); }
+      };
+      if (this.rootId) await visit(this.rootId);
       this.record(this.rootId ?? '', 'stop_enumerated', true, undefined, { sessions: [...all] });
-      await Promise.all([...all].map(id => this.options.client.session.abort({ sessionID: id }).catch(() => undefined)));
-      this.record(this.rootId ?? '', 'aborted', true, undefined, { sessions: [...all] });
+      await Promise.all([...all].map(id => this.abortSession(id)));
     })();
     return this.stopping;
   }
@@ -157,39 +175,94 @@ export class ControlService {
     if (!binding || binding.via === 'root') throw new Error('only a bound child can be revoked');
     binding.state = 'revoked';
     this.record(sessionID, 'revoke', true);
-    await this.options.client.session.abort({ sessionID }).catch(() => undefined);
+    await this.abortSession(sessionID);
+  }
+
+  private async abortSession(sessionID: string): Promise<void> {
+    try {
+      const result = await this.options.client.session.abort({ sessionID }, { throwOnError: true });
+      if (result.data !== true) throw new Error('abort result unavailable or refused');
+      this.record(sessionID, 'aborted', true);
+    } catch (error) { this.record(sessionID, 'aborted', false, 'abort failed', String(error)); }
   }
 
   /** Refreshes the observed token count and stops the run once the limit is reached. */
   async checkBudget(): Promise<void> {
     if (this.stopReason) return;
     await this.refreshObserved();
-    if (this.observedTokens >= this.options.budget.maxObservableTokens) {
-      this.record(this.rootId ?? '', 'budget_reached', true, undefined, { observedTokens: this.observedTokens });
+    if (this.observed >= this.options.budget.maxObservableTokens) {
+      this.record(this.rootId ?? '', 'budget_reached', true, undefined, { observedTokens: this.observed });
       void this.stopAll('budget');
     }
   }
 
-  get observed(): number { return this.observedTokens; }
+  get observed(): number {
+    const total = this.usageSnapshot().total;
+    return total.input + total.output + total.reasoning;
+  }
+
+  /** SDK identities only; a later aborted/empty reading cannot erase previously reported consumption. */
+  observeUsage(sessionID: string, messages: Message[]): void {
+    if (!this.bindings.has(sessionID)) throw new Error('usage session not bound');
+    const known = this.usageMessages.get(sessionID) ?? new Map<string, Message>();
+    this.usageMessages.set(sessionID, known);
+    const seen = new Set<string>();
+    for (const message of messages) {
+      const { info } = message;
+      if (info.role !== 'assistant') continue;
+      if (!info.id || info.sessionID !== sessionID) { this.usageGaps.add(sessionID); continue; }
+      seen.add(info.id);
+      const previous = known.get(info.id)?.info;
+      const tokens = validTokens(info.tokens) ? {
+        input: Math.max(previous?.tokens?.input ?? 0, info.tokens.input),
+        output: Math.max(previous?.tokens?.output ?? 0, info.tokens.output),
+        reasoning: Math.max(previous?.tokens?.reasoning ?? 0, info.tokens.reasoning)
+      } : undefined;
+      if ((!validTokens(info.tokens) && info.tokens !== undefined) || (!info.tokens && previous?.tokens) || info.error) this.usageGaps.add(sessionID);
+      known.set(info.id, { info: { ...info, tokens: tokens ?? previous?.tokens } });
+    }
+    if ([...known.keys()].some(id => !seen.has(id))) this.usageGaps.add(sessionID);
+  }
+
+  /** A failed SDK read leaves known usage intact and makes the snapshot a lower bound. */
+  markUsageIncomplete(sessionID: string): void {
+    if (!this.bindings.has(sessionID)) throw new Error('usage session not bound');
+    this.usageGaps.add(sessionID);
+  }
+
+  usageSnapshot(): { sessions: Record<string, SessionUsage>; total: SessionUsage } {
+    const sessions: Record<string, SessionUsage> = {};
+    const total: SessionUsage = { assistantMessages: 0, availability: 'unavailable', input: 0, output: 0, reasoning: 0, incomplete: false };
+    for (const id of this.bindings.keys()) {
+      const usage = summarizeUsage([...(this.usageMessages.get(id)?.values() ?? [])]);
+      usage.incomplete ||= this.usageGaps.has(id);
+      sessions[id] = usage;
+      total.assistantMessages += usage.assistantMessages;
+      total.input += usage.input; total.output += usage.output; total.reasoning += usage.reasoning;
+      total.incomplete ||= usage.incomplete;
+      if (usage.availability === 'reported') total.availability = 'reported';
+    }
+    if (!this.bindings.size) total.incomplete = true;
+    return { sessions, total };
+  }
 
   private record(sessionID: string, op: string, allow: boolean, reason?: string, detail?: unknown): void {
     this.audit.push({ seq: ++this.seq, t: Date.now() - this.startedAt, at: Date.now(), sessionID, op, allow,
       ...(reason ? { reason } : {}), ...(detail === undefined ? {} : { detail }) });
   }
 
-  private async descendants(id: string): Promise<string[]> {
-    const children = (await this.options.client.session.children({ sessionID: id }, { throwOnError: true })).data ?? [];
-    return [...children.map(c => c.id), ...(await Promise.all(children.map(c => this.descendants(c.id)))).flat()];
-  }
-
   private async refreshObserved(): Promise<void> {
-    let total = 0;
     for (const id of this.bindings.keys()) {
-      const messages = (await this.options.client.session.messages({ sessionID: id }, { throwOnError: true })).data ?? [];
-      const usage = summarizeUsage(messages as Message[]);
-      total += usage.input + usage.output + usage.reasoning;
+      try {
+        const messages = (await this.options.client.session.messages({ sessionID: id }, { throwOnError: true })).data;
+        if (!messages) this.markUsageIncomplete(id);
+        else this.observeUsage(id, messages as Message[]);
+      } catch (error) {
+        this.markUsageIncomplete(id);
+        this.record(id, 'usage.read', false, 'usage unavailable', String(error));
+        throw error;
+      }
     }
-    this.observedTokens = total;
   }
 
   private live(binding: Binding): void {
@@ -242,13 +315,16 @@ export class ControlService {
   private async admit(binding: Binding): Promise<{ maxOutputTokens: number; admitNo: number; role: Role }> {
     this.releasePending(binding.sessionID);
     try { await this.refreshObserved(); } catch { throw new ControlDenied('usage unavailable'); }
+    // Stop, revocation or expiry may have occurred while the SDK usage query was pending.
+    if (this.stopReason) throw new ControlDenied('run stopped');
+    this.live(binding);
     const { maxModelCalls, maxObservableTokens } = this.options.budget;
-    if (this.admitted >= maxModelCalls || this.observedTokens >= maxObservableTokens) {
+    if (this.admitted >= maxModelCalls || this.observed >= maxObservableTokens) {
       void this.stopAll('budget');
-      throw new ControlDenied('budget', JSON.stringify({ admitted: this.admitted, observedTokens: this.observedTokens }));
+      throw new ControlDenied('budget', JSON.stringify({ admitted: this.admitted, observedTokens: this.observed }));
     }
     this.admitted++;
-    return { maxOutputTokens: maxObservableTokens - this.observedTokens, admitNo: this.admitted, role: binding.role };
+    return { maxOutputTokens: maxObservableTokens - this.observed, admitNo: this.admitted, role: binding.role };
   }
 
   private async toolBefore(binding: Binding, body: Record<string, unknown>): Promise<unknown> {

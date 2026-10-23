@@ -19,7 +19,7 @@ import type { OpencodeClient } from '@opencode-ai/sdk/v2';
 import { Blocked } from './blocked.js';
 import { prepareRun, type PreparedChallenge } from './run-prep.js';
 import { INTAKE_TOOLS } from './intake-tools.js';
-import { ControlService, summarizeUsage } from './control-service.js';
+import { ControlService, summarizeUsage, type Message, type SessionUsage } from './control-service.js';
 import { startControlRpc } from './control-rpc.js';
 import { loadLocalEnv } from '../../cli/src/composition/localEnv.js';
 import { loadReleaseProfile } from '../../cli/src/composition/releaseProfile.js';
@@ -114,10 +114,16 @@ export async function launch(options: LaunchOptions): Promise<{ code: number; st
     if (!control) throw new Error('control service not ready');
     return control.handle(sessionID, operation, input);
   });
-  try { return await runLaunch(options, rpc, service => { control = service; }); } finally { await rpc.close(); }
+  let closed = false;
+  const closeRpc = async () => { if (!closed) { closed = true; await rpc.close(); } };
+  try { return await runLaunch(options, { ...rpc, close: closeRpc }, service => { control = service; }); }
+  catch (error) {
+    try { await closeRpc(); } catch (cleanup) { throw new AggregateError([error, cleanup], 'launch and RPC cleanup failed'); }
+    throw error;
+  } finally { await closeRpc(); }
 }
 
-async function runLaunch(options: LaunchOptions, rpc: { url: string; token: string }, attach: (service: ControlService) => void): Promise<{ code: number; status: string; runDir?: string }> {
+async function runLaunch(options: LaunchOptions, rpc: { url: string; token: string; close: () => Promise<void> }, attach: (service: ControlService) => void): Promise<{ code: number; status: string; runDir?: string }> {
   const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..', '..');
   const productDir = await realpath(resolve(options.product ?? join(repoRoot, 'product')));
   const repoReal = await realpath(repoRoot);
@@ -209,10 +215,21 @@ async function runLaunch(options: LaunchOptions, rpc: { url: string; token: stri
   const control = new ControlService({ client, budget: { maxModelCalls: profile.budget.maxSteps, maxObservableTokens: profile.budget.maxObservableTokens },
     expiresAt: deadlineAt, workdir: real.opencode, skillRoot: join(configDirectory, 'skills'), challenges: prepared });
   attach(control);
-  const usageTotal = { input_tokens: 0, output_tokens: 0, reasoning_tokens: 0, lowerBound: false };
-  const descendants = async (id: string): Promise<string[]> => {
-    const children = (await client.session.children({ sessionID: id }, { throwOnError: true })).data ?? [];
-    return [...children.map(c => c.id), ...(await Promise.all(children.map(c => descendants(c.id)))).flat()];
+  const fail = (event: string, cause: unknown) => { status = 'failed'; mark(event, scrub(String(cause))); };
+  const save = async (path: string, value: unknown) => {
+    try { await writeFile(path, scrub(JSON.stringify(value, null, 2)), { flag: 'wx' }); }
+    catch (cause) { fail('evidence_write_error', `${path}: ${String(cause)}`); }
+  };
+  const enumerated = new Set<string>();
+  const descendants = async (id: string): Promise<void> => {
+    if (enumerated.has(id)) return;
+    enumerated.add(id);
+    try {
+      const children = (await client.session.children({ sessionID: id }, { throwOnError: true })).data;
+      if (!children) throw new Error('children unavailable');
+      for (const child of children) sessionIds.add(child.id);
+      for (const child of children) await descendants(child.id);
+    } catch (cause) { fail('session_enumeration_error', `${id}: ${String(cause)}`); }
   };
   try {
     const agents = (await client.app.agents({}, { throwOnError: true })).data ?? [];
@@ -234,7 +251,6 @@ async function runLaunch(options: LaunchOptions, rpc: { url: string; token: stri
         status = reason === 'deadline' ? 'deadline_exceeded' : 'budget_exceeded';
         mark(reason === 'deadline' ? 'deadline' : 'budget_stop');
         await control.stopAll(reason); // marks every session first, then aborts them all
-        mark('aborted', { sessions: [...control.bindings.keys()] });
         await delay(500);
         break;
       }
@@ -247,44 +263,75 @@ async function runLaunch(options: LaunchOptions, rpc: { url: string; token: stri
       } else idleSeen = 0;
       await delay(500);
     }
-    // 5. Save sessions, messages and usage.
-    for (const id of [...await descendants(rootId), ...control.bindings.keys()]) sessionIds.add(id);
-    const sessions: unknown[] = [];
-    const finalStatus = (await client.session.status({}, { throwOnError: true })).data ?? {};
-    for (const id of sessionIds) {
-      const info = (await client.session.get({ sessionID: id }, { throwOnError: true })).data!;
-      const messages = (await client.session.messages({ sessionID: id }, { throwOnError: true })).data ?? [];
-      const usage = summarizeUsage(messages as never);
-      let error: unknown;
-      for (const m of messages) if (m.info.role === 'assistant' && m.info.error) error = m.info.error;
-      usageTotal.input_tokens += usage.input; usageTotal.output_tokens += usage.output; usageTotal.reasoning_tokens += usage.reasoning;
-      if (usage.incomplete) usageTotal.lowerBound = true;
-      sessions.push({ id, parentID: info.parentID ?? null, title: info.title, status: finalStatus[id]?.type ?? 'idle',
-        agents: [...new Set(messages.map(m => (m.info as { agent?: string }).agent).filter(Boolean))], assistantMessages: usage.assistantMessages,
-        usage: usage.availability === 'reported' ? { availability: 'reported', input_tokens: usage.input, output_tokens: usage.output, reasoning_tokens: usage.reasoning,
-          complete: !usage.incomplete } : { availability: 'unavailable' },
-        error: error ?? null });
-      await writeFile(join(real.evidence, `messages-${id}.json`), scrub(JSON.stringify(messages, null, 2)), { flag: 'wx' });
-      if (error && status === 'completed' && id === rootId) status = 'failed';
-    }
-    await writeFile(join(real.evidence, 'sessions.json'), scrub(JSON.stringify(sessions, null, 2)), { flag: 'wx' });
   } catch (cause) {
-    status = 'failed';
-    mark('error', scrub(String(cause)));
-  } finally {
-    await engine.close();
-    mark('opencode_closed');
+    fail('error', cause);
+    await control.stopAll('error');
   }
-  // A stopped run can lose the usage of the aborted message, so its total is only a lower bound.
-  if (control.stopReason && control.stopReason !== 'completed') usageTotal.lowerBound = true;
-  await writeFile(join(real.evidence, 'bindings.json'), JSON.stringify([...control.bindings.values()], null, 2), { flag: 'wx' });
-  await writeFile(join(real.evidence, 'admissions.json'), JSON.stringify(control.audit.filter(r => r.op === 'model.call'), null, 2), { flag: 'wx' });
-  await writeFile(join(real.evidence, 'control-audit.json'), scrub(JSON.stringify(control.audit, null, 2)), { flag: 'wx' });
-  await writeFile(join(real.evidence, 'assets.json'), JSON.stringify({ productRevision, copies }, null, 2), { flag: 'wx' });
-  await writeFile(join(real.state, 'run.json'), JSON.stringify({ runId, status, rootSessionId: rootId || null, sessions: [...sessionIds],
+  // 5. Common best-effort finalization while the SDK remains available. Each query/write is independent.
+  for (const id of control.bindings.keys()) sessionIds.add(id);
+  if (rootId) await descendants(rootId);
+  let finalStatus: Record<string, { type: string }> = {};
+  try {
+    const data = (await client.session.status({}, { throwOnError: true })).data;
+    if (!data) throw new Error('session status unavailable');
+    finalStatus = data;
+  } catch (cause) { fail('session_status_error', cause); }
+  const sessions: unknown[] = [];
+  const unboundUsage: SessionUsage[] = [];
+  for (const id of sessionIds) {
+    let info: { parentID?: string; title?: string } | undefined;
+    let messages: Message[] | undefined;
+    const errors: string[] = [];
+    try {
+      info = (await client.session.get({ sessionID: id }, { throwOnError: true })).data;
+      if (!info) throw new Error('session info unavailable');
+    } catch (cause) { errors.push(String(cause)); fail('session_info_error', `${id}: ${String(cause)}`); }
+    try {
+      messages = (await client.session.messages({ sessionID: id }, { throwOnError: true })).data as Message[] | undefined;
+      if (!messages) throw new Error('messages unavailable');
+      if (control.bindings.has(id)) control.observeUsage(id, messages);
+      await save(join(real.evidence, `messages-${id}.json`), messages);
+    } catch (cause) {
+      if (control.bindings.has(id)) control.markUsageIncomplete(id);
+      errors.push(String(cause)); fail('session_messages_error', `${id}: ${String(cause)}`);
+    }
+    const usage = control.usageSnapshot().sessions[id] ?? summarizeUsage(messages ?? []);
+    // SDK descendants can exist without a role binding. Count their exported usage without granting authority.
+    if (!control.bindings.has(id)) unboundUsage.push(usage);
+    const messageError = messages?.findLast(m => m.info.role === 'assistant' && m.info.error)?.info.error;
+    if (messageError && status === 'completed' && id === rootId) status = 'failed';
+    sessions.push({ id, parentID: info?.parentID ?? control.bindings.get(id)?.parentID ?? null,
+      title: info?.title ?? null, status: finalStatus[id]?.type ?? 'unavailable',
+      agents: messages ? [...new Set(messages.map(m => (m.info as { agent?: string }).agent).filter(Boolean))] : null,
+      assistantMessages: usage.assistantMessages,
+      usage: { availability: usage.availability, input_tokens: usage.input, output_tokens: usage.output,
+        reasoning_tokens: usage.reasoning, complete: !usage.incomplete },
+      error: messageError ?? null, ...(errors.length ? { exportErrors: errors } : {}) });
+  }
+  // Abort failures are evidence of unsuccessful cleanup, never a successful completed run.
+  if (control.audit.some(r => !r.allow && ['aborted', 'stop_enumerated'].includes(r.op))) status = 'failed';
+  try { await engine.close(); mark('opencode_closed'); } catch (cause) { fail('opencode_close_error', cause); }
+  try { await rpc.close(); } catch (cause) { fail('rpc_close_error', cause); }
+  const total = control.usageSnapshot().total;
+  for (const usage of unboundUsage) {
+    total.input += usage.input; total.output += usage.output; total.reasoning += usage.reasoning;
+    total.incomplete ||= usage.incomplete;
+    if (usage.availability === 'reported') total.availability = 'reported';
+  }
+  // A failed enumeration leaves an unknown number of sessions outside the exported total.
+  total.incomplete ||= timeline.some(item => item.event === 'session_enumeration_error') ||
+    control.audit.some(r => r.op === 'stop_enumerated' && !r.allow);
+  const usageTotal = { availability: total.availability, input_tokens: total.input, output_tokens: total.output,
+    reasoning_tokens: total.reasoning, lowerBound: total.incomplete || (!!control.stopReason && control.stopReason !== 'completed') };
+  await save(join(real.evidence, 'sessions.json'), sessions);
+  await save(join(real.evidence, 'bindings.json'), [...control.bindings.values()]);
+  await save(join(real.evidence, 'admissions.json'), control.audit.filter(r => r.op === 'model.call'));
+  await save(join(real.evidence, 'control-audit.json'), control.audit);
+  await save(join(real.evidence, 'assets.json'), { productRevision, copies });
+  await save(join(real.state, 'run.json'), { runId, status, rootSessionId: rootId || null, sessions: [...sessionIds],
     deadlineMs, opencodeVersion: engine.version, model: loaded.config.model, configSha256: sha256(JSON.stringify({ ...config, plugin: undefined })), productRevision,
     budget: profile.budget, admittedModelCalls: control.admitted, stopReason: control.stopReason ?? null, usageTotal,
-    paths: real, timeline }, null, 2), { flag: 'wx' });
+    paths: real, timeline });
   return { code: status === 'completed' ? 0 : 1, status, runDir };
 }
 
