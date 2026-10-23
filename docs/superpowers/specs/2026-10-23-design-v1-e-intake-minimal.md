@@ -31,14 +31,15 @@
 | --- | --- | --- |
 | `id` | 是 | 穩定標識，只含 `[\w.-]`，清單內唯一；用於工作區目錄名與證據關聯 |
 | `title` | 否 | 題目名稱 |
-| `statement` | 否 | 題面：行內文字，或指向本地文字文件的路徑。題目公開提供的登入帳密等寫在題面裡，屬題目材料，不是秘密 |
+| `statement` | 否 | 題面的行內文字。題目公開提供的登入帳密等寫在題面裡，屬題目材料，不是秘密 |
+| `statementFile` | 否 | 題面文件的路徑；與 `statement` 最多填一個，兩者同時出現時拒絕啟動。不按字串內容猜測是文字還是路徑 |
 | `materials` | 否 | 附件路徑清單，每項是一個普通文件（含歸檔）；不接受目錄，多個文件請先打包 |
 | `target` | 否 | 已獲授權的入口：`{ protocol: "http"|"https"|"tcp", url 或 host+port }`；離線題留空。首版授權範圍即 `target` 本身 |
 
 規則：
 
 - 路徑由宿主解析，必須存在；相對路徑相對於題目清單文件所在目錄。
-- `statement`、`materials`、`target` 全缺時拒絕啟動——這樣的題目沒有任何可做的輸入。其餘欄位缺省時標為未知或不適用（design v1 E），不要求開發者為簡單靶場手寫繁複 manifest。
+- `statement`／`statementFile`、`materials`、`target` 全缺時拒絕啟動——這樣的題目沒有任何可做的輸入。其餘欄位缺省時標為未知或不適用（design v1 E），不要求開發者為簡單靶場手寫繁複 manifest。
 - 題目清單不含秘密值。
 
 ## 3. run 準備
@@ -46,7 +47,7 @@
 宿主在啟動 OpenCode 之前（入口 design 第 1 節第 2 步之後、第 4 步之前）完成以下步驟。**任一題任一步驟失敗，整個 run 拒絕啟動**，原因寫入證據後退出；不跳過該題繼續運行，使實際運行的題目始終與配置一致。
 
 1. 在運行資料目錄建立 `workspace/<challenge-id>/materials/`。
-2. 把 `statement` 寫成 `materials/statement.md`（行內文字或複製自文件），`materials` 中的文件複製進 `materials/`，保留原檔名。檔名彼此相同、與 `statement.md` 相同或以 `.` 開頭的，拒絕啟動。
+2. 把題面寫成 `materials/statement.md`（`statement` 的行內文字，或複製自 `statementFile`），`materials` 中的文件複製進 `materials/`，保留原檔名。檔名彼此相同、與 `statement.md` 相同或以 `.` 開頭的，拒絕啟動。
 3. 對每個固定下來的文件計算 sha256，與原始路徑一併寫入 `evidence/`（與產品資產副本清單同一做法，A／B 詳細 design 第 2 節）。
 4. 把 `materials/` 下的文件設為唯讀，防止誤寫；唯讀的主要邊界是受管工具不提供寫入（第 4 節）。
 5. 任一材料或題面含控制憑據（provider 憑據、RPC 傳輸憑據）時拒絕啟動，沿用現行啟動器對產品資產的掃描。

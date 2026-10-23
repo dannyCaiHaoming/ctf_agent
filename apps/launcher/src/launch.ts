@@ -16,6 +16,8 @@ import { fileURLToPath } from 'node:url';
 import { setTimeout as delay } from 'node:timers/promises';
 import { loadOpenCodeConfig, startManagedOpenCode } from '@ctf/opencode-bridge';
 import type { OpencodeClient } from '@opencode-ai/sdk/v2';
+import { Blocked } from './blocked.js';
+import { prepareRun } from './run-prep.js';
 import { ControlService, summarizeUsage } from './control-service.js';
 import { startControlRpc } from './control-rpc.js';
 import { loadLocalEnv } from '../../cli/src/composition/localEnv.js';
@@ -24,9 +26,6 @@ import { loadReleaseProfile } from '../../cli/src/composition/releaseProfile.js'
 export const START_MESSAGE = '開始運行。按產品運行約定，由 Coordinator 組織各角色並經 Intake 取得題目。';
 const COORDINATOR = 'coordinator';
 
-class Blocked extends Error {
-  constructor(reason: string) { super(`blocked_configuration: ${reason}`); }
-}
 
 export interface LaunchOptions {
   profile: string; runsRoot?: string; runId?: string; product?: string; deadlineMs?: number;
@@ -146,6 +145,14 @@ async function runLaunch(options: LaunchOptions, rpc: { url: string; token: stri
   const real = Object.fromEntries(await Promise.all(Object.entries(paths).map(async ([k, v]) => [k, await realpath(v)]))) as typeof paths;
 
   const secrets = [...loaded.secrets, rpc.token];
+
+  // 2b. Challenges: check and pin them before anything is started. A rejection is recorded in evidence/ and rethrown.
+  try { await prepareRun({ challengesPath: profile.challenges, workspace: real.workspace, evidence: real.evidence, secrets }); } catch (cause) {
+    const reason = String(cause instanceof Error ? cause.message : cause);
+    const scrubbed = secrets.reduce((acc, s) => (s ? acc.split(s).join('<redacted>') : acc), reason);
+    await writeFile(join(real.evidence, 'run-prep-rejection.json'), JSON.stringify({ reason: scrubbed, at: new Date().toISOString() }, null, 2), { flag: 'wx' });
+    throw cause instanceof Blocked ? new Blocked(scrubbed.replace(/^blocked_configuration: /, '')) : cause;
+  }
 
   // 3. Whitelist copy of product assets into <opencode>/config/opencode.
   const configDirectory = join(real.opencode, 'config', 'opencode');
