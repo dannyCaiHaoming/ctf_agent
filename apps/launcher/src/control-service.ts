@@ -5,6 +5,8 @@
 import { realpath } from 'node:fs/promises';
 import { isAbsolute, resolve, sep } from 'node:path';
 import type { OpencodeClient } from '@opencode-ai/sdk/v2';
+import { INTAKE_TOOLS, IntakeRefused, checkMaterialPath, findChallenge, listChallenges, readMaterial } from './intake-tools.js';
+import type { PreparedChallenge } from './run-prep.js';
 
 export const ROLES = ['coordinator', 'intake', 'recon', 'reference', 'strategy', 'domain-solver', 'engineer', 'verifier', 'recovery-critic'] as const;
 export type Role = typeof ROLES[number];
@@ -14,6 +16,9 @@ const isRole = (value: unknown): value is Role => typeof value === 'string' && (
 const DISPATCH: Partial<Record<Role, readonly Role[]>> = { coordinator: ROLES.filter(role => role !== 'coordinator') };
 /** First-version native capability table (managed tools are not part of this step, so every other tool is denied). */
 const NATIVE_TOOL_ROLES: Record<string, readonly Role[]> = { skill: ROLES, read: ROLES, task: ['coordinator'] };
+
+/** Managed intake tools (E design section 4): OpenCode reports them under their plugin ids, the plugin executes them under their names. */
+const INTAKE_BY_ID = new Map(INTAKE_TOOLS.map(name => [`ctf_${name.replaceAll('.', '_')}`, name]));
 
 export class ControlDenied extends Error {
   constructor(code: string, readonly detail?: string) { super(code === 'budget' ? 'budget denied' : `denied: ${code}`); }
@@ -82,6 +87,8 @@ export interface ControlOptions {
   workdir: string;
   /** Skill copy directory of this run; the only tree `read` may reach in this version. */
   skillRoot: string;
+  /** Challenges pinned by run preparation; the scope of the intake tools. Absent means none. */
+  challenges?: PreparedChallenge[];
 }
 
 export class ControlService {
@@ -203,7 +210,7 @@ export class ControlService {
       case 'chat.message': return { bound: true };
       case 'model.call': return this.admit(binding);
       case 'tool.before': return this.toolBefore(binding, body);
-      default: throw new ControlDenied('no managed tools'); // tool.execute: managed tools are not provided in this version
+      default: return this.executeManaged(binding, body); // tool.execute
     }
   }
 
@@ -246,12 +253,34 @@ export class ControlService {
 
   private async toolBefore(binding: Binding, body: Record<string, unknown>): Promise<unknown> {
     const tool = typeof body.tool === 'string' ? body.tool : '';
+    const intake = INTAKE_BY_ID.get(tool);
+    if (intake) { this.checkIntake(binding, intake, body.args); return { allowed: true }; }
     const allowed = Object.hasOwn(NATIVE_TOOL_ROLES, tool) && NATIVE_TOOL_ROLES[tool]!.includes(binding.role);
     if (!allowed) throw new ControlDenied('tool not permitted', tool);
     const args = (body.args && typeof body.args === 'object' ? body.args : {}) as Record<string, unknown>;
     if (tool === 'read') await this.checkReadPath(args);
     if (tool === 'task') this.registerDispatch(binding, typeof body.callID === 'string' ? body.callID : '', args);
     return { allowed: true };
+  }
+
+  /** Both layers (tool.before and tool.execute) run this: role must be intake, the challenge must belong to this run. */
+  private checkIntake(binding: Binding, name: string, rawArgs: unknown): Record<string, unknown> {
+    if (binding.role !== 'intake') throw new ControlDenied('tool not permitted', name);
+    const args = (rawArgs && typeof rawArgs === 'object' ? rawArgs : {}) as Record<string, unknown>;
+    if (name === 'challenge.read') {
+      try { findChallenge(this.options.challenges ?? [], args.id); checkMaterialPath(args.path); } catch (error) { throw this.refusal(error); }
+    }
+    return args;
+  }
+
+  private refusal(error: unknown): ControlDenied { return new ControlDenied(error instanceof IntakeRefused ? error.code : 'control error'); }
+
+  private async executeManaged(binding: Binding, body: Record<string, unknown>): Promise<unknown> {
+    const name = typeof body.tool === 'string' ? body.tool : '';
+    if (!INTAKE_TOOLS.includes(name)) throw new ControlDenied('no managed tools');
+    const args = this.checkIntake(binding, name, body.args);
+    const challenges = this.options.challenges ?? [];
+    try { return name === 'challenge.list' ? listChallenges(challenges) : await readMaterial(challenges, args); } catch (error) { throw this.refusal(error); }
   }
 
   private async checkReadPath(args: Record<string, unknown>): Promise<void> {

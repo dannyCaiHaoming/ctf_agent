@@ -17,7 +17,8 @@ import { setTimeout as delay } from 'node:timers/promises';
 import { loadOpenCodeConfig, startManagedOpenCode } from '@ctf/opencode-bridge';
 import type { OpencodeClient } from '@opencode-ai/sdk/v2';
 import { Blocked } from './blocked.js';
-import { prepareRun } from './run-prep.js';
+import { prepareRun, type PreparedChallenge } from './run-prep.js';
+import { INTAKE_TOOLS } from './intake-tools.js';
 import { ControlService, summarizeUsage } from './control-service.js';
 import { startControlRpc } from './control-rpc.js';
 import { loadLocalEnv } from '../../cli/src/composition/localEnv.js';
@@ -147,7 +148,8 @@ async function runLaunch(options: LaunchOptions, rpc: { url: string; token: stri
   const secrets = [...loaded.secrets, rpc.token];
 
   // 2b. Challenges: check and pin them before anything is started. A rejection is recorded in evidence/ and rethrown.
-  try { await prepareRun({ challengesPath: profile.challenges, workspace: real.workspace, evidence: real.evidence, secrets }); } catch (cause) {
+  let prepared: PreparedChallenge[];
+  try { prepared = await prepareRun({ challengesPath: profile.challenges, workspace: real.workspace, evidence: real.evidence, secrets }); } catch (cause) {
     const reason = String(cause instanceof Error ? cause.message : cause);
     const scrubbed = secrets.reduce((acc, s) => (s ? acc.split(s).join('<redacted>') : acc), reason);
     await writeFile(join(real.evidence, 'run-prep-rejection.json'), JSON.stringify({ reason: scrubbed, at: new Date().toISOString() }, null, 2), { flag: 'wx' });
@@ -186,7 +188,7 @@ async function runLaunch(options: LaunchOptions, rpc: { url: string; token: stri
   // 4. Merge runtime fields and start OpenCode through the managed launcher.
   const pluginEntry = join(repoRoot, 'apps', 'opencode-plugin', 'src', 'entry.ts');
   const config = {
-    ...baseConfig, default_agent: COORDINATOR, plugin: [[pluginEntry, { controlUrl: rpc.url, controlToken: rpc.token, tools: [] }]], model: loaded.config.model, small_model: loaded.config.model,
+    ...baseConfig, default_agent: COORDINATOR, plugin: [[pluginEntry, { controlUrl: rpc.url, controlToken: rpc.token, tools: INTAKE_TOOLS }]], model: loaded.config.model, small_model: loaded.config.model,
     provider: loaded.config.provider, ...(loaded.config.enabled_providers ? { enabled_providers: loaded.config.enabled_providers } : {})
   };
   const deadlineMs = options.deadlineMs ?? profile.budget.wallClockMs;
@@ -205,7 +207,7 @@ async function runLaunch(options: LaunchOptions, rpc: { url: string; token: stri
   const sessionIds = new Set<string>();
   const deadlineAt = Date.now() + deadlineMs; // one deadline for the launcher loop and for every binding's expiry
   const control = new ControlService({ client, budget: { maxModelCalls: profile.budget.maxSteps, maxObservableTokens: profile.budget.maxObservableTokens },
-    expiresAt: deadlineAt, workdir: real.opencode, skillRoot: join(configDirectory, 'skills') });
+    expiresAt: deadlineAt, workdir: real.opencode, skillRoot: join(configDirectory, 'skills'), challenges: prepared });
   attach(control);
   const usageTotal = { input_tokens: 0, output_tokens: 0, reasoning_tokens: 0, lowerBound: false };
   const descendants = async (id: string): Promise<string[]> => {

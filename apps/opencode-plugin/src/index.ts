@@ -3,7 +3,7 @@ import { tool, type Hooks } from '@opencode-ai/plugin';
 export interface CTFPluginOptions {
   controlUrl: string;
   controlToken: string;
-  /** Managed tools to register; this version passes an empty list. */
+  /** Managed tools to register by name; the launcher passes the intake tools. */
   tools: string[];
   /** Per-request limit; an unanswered request is a denial. */
   requestTimeoutMs?: number;
@@ -25,7 +25,13 @@ const schemas = {
     body: tool.schema.string().max(65536).optional(), content_type: tool.schema.string().max(256).optional() },
   'observation.read': { ref: tool.schema.string().regex(/^observation_[a-f0-9-]{36}$/), mode: tool.schema.enum(['continue', 'start']).optional(),
     max_bytes: tool.schema.number().int().positive().max(4096).optional() },
+  'challenge.list': {},
+  'challenge.read': { id: tool.schema.string().min(1), path: tool.schema.string().min(1), cursor: tool.schema.string().regex(/^\d{1,15}$/).optional() },
   'candidate.register': { value: tool.schema.string().min(1) }
+};
+const descriptions: Record<string, string> = {
+  'challenge.list': 'List every challenge of this run: id, title, authorized network target (or "無網路目標"), time of the start-up reachability check, and the pinned material files with size and sha256. Takes no arguments. The statement is the material statement.md.',
+  'challenge.read': 'Read one pinned material file of a challenge. Arguments: id (challenge id from challenge.list), path (file name relative to that challenge\'s materials, e.g. "statement.md"), cursor (optional, the nextCursor of the previous page). Text is returned in pages with nextCursor (null on the last page); a binary file returns only its size and first 8 bytes as hex. Read-only.'
 };
 export const managedToolId = (name: string) => `ctf_${name.replaceAll('.', '_')}`;
 
@@ -53,7 +59,7 @@ export function createCtfAgentHooks(options: CTFPluginOptions): Hooks {
   const tools: NonNullable<Hooks['tool']> = {};
   for (const name of options.tools) {
     tools[managedToolId(name)] = tool({
-      description: `CTF managed ${name}. Use workspace-relative paths. The host supplies all identities, evidence references and budgets.`,
+      description: descriptions[name] ?? `CTF managed ${name}. Use workspace-relative paths. The host supplies all identities, evidence references and budgets.`,
       args: schemas[name as keyof typeof schemas],
       async execute(args, context) {
         const result = await control(context.sessionID, 'tool.execute', { tool: name, args }, context.abort);
