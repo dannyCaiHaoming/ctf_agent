@@ -1,7 +1,15 @@
-import { describe, expect, it, vi } from 'vitest';
+import { afterAll, describe, expect, it, vi } from 'vitest';
+import { mkdirSync, mkdtempSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { ControlService } from '../../apps/launcher/src/control-service.js';
 import { startControlRpc } from '../../apps/launcher/src/control-rpc.js';
 import { createCtfAgentHooks } from '../../apps/opencode-plugin/src/index.js';
+
+const fixtureRoot = mkdtempSync(join(tmpdir(), 'control-contract-'));
+let fixtureNo = 0;
+function materials(id: string) { const dir = join(fixtureRoot, String(++fixtureNo), id, 'materials'); mkdirSync(dir, { recursive: true }); return dir; }
+afterAll(() => rmSync(fixtureRoot, { recursive: true, force: true }));
 
 /** SDK stand-in: session.get answers from a table, nothing else is needed without a model. */
 function fakeService(sessions: Record<string, { parentID?: string; agent?: string }>, options: {
@@ -13,8 +21,20 @@ function fakeService(sessions: Record<string, { parentID?: string; agent?: strin
     children: async () => ({ data: [] }), messages: options.messages ?? (async () => ({ data: [] })), abort: async () => ({ data: true })
   } };
   const service = new ControlService({ client: client as never, budget: { maxModelCalls: 10, maxObservableTokens: 1000 },
-    expiresAt: options.expiresAt ?? Date.now() + 60000, workdir: '/nonexistent', skillRoot: '/nonexistent' });
+    expiresAt: options.expiresAt ?? Date.now() + 60000, workdir: '/nonexistent', skillRoot: '/nonexistent', challenges: [{ id: 'C-fixture', title: null, target: null, reachability: null, materials: [], materialsDir: materials('C-fixture') }] });
   service.bindRoot('root');
+  // C tests exercise identity/budget independently; provide required G declarations before fresh dispatch.
+  const handle = service.handle.bind(service);
+  service.handle = async (id, op, input) => {
+    const b = input as { tool?: string; args?: { subagent_type?: string; task_id?: string } };
+    if (id === 'root' && op === 'tool.before' && b.tool === 'task' && !b.args?.task_id &&
+        ['recon', 'domain-solver', 'engineer', 'verifier'].includes(b.args?.subagent_type ?? '')) {
+      // A duplicate while pending must still reach C's original assertion.
+      try { await handle(id, 'tool.execute', { tool: 'challenge.assign', args: { role: b.args!.subagent_type, challenge: 'C-fixture' } }); }
+      catch (error) { if (!(error instanceof Error) || error.message !== 'denied: dispatch') throw error; }
+    }
+    return handle(id, op, input);
+  };
   return service;
 }
 const task = (role: string, extra: object = {}) => ({ tool: 'task', callID: `call-${Math.random()}`, args: { subagent_type: role, ...extra } });
@@ -99,21 +119,22 @@ describe('control service permission layer', () => {
     await service.handle('root', 'tool.before', task('recon'));
   });
 
-  it('releases unconsumed pending dispatches when the parent asks for its next model call', async () => {
+  it('preserves unconsumed pending dispatches across parent admission', async () => {
     const service = fakeService({});
     await service.handle('root', 'tool.before', task('recon'));
     await expect(service.handle('root', 'tool.before', task('recon'))).rejects.toThrow('denied: dispatch'); // same round: still refused
     await service.handle('root', 'model.call', { agent: 'coordinator' });
-    expect(service.audit.some(r => r.op === 'dispatch.release' && JSON.stringify(r.detail).includes('recon'))).toBe(true);
-    await service.handle('root', 'tool.before', task('recon')); // next round: allowed again
+    expect(service.audit.some(r => r.op === 'dispatch.release')).toBe(false);
+    await expect(service.handle('root', 'tool.before', task('recon'))).rejects.toThrow('denied: dispatch');
   });
 
-  it('releases pending dispatches even when the admission is refused for budget', async () => {
+  it('budget refusal stops the run and clears pending without granting another dispatch', async () => {
     const service = fakeService({});
     (service as unknown as { options: { budget: { maxModelCalls: number } } }).options.budget.maxModelCalls = 0;
     await service.handle('root', 'tool.before', task('recon'));
     await expect(service.handle('root', 'model.call', {})).rejects.toThrow('budget denied');
-    expect(service.audit.some(r => r.op === 'dispatch.release')).toBe(true);
+    expect(service.stopReason).toBe('budget');
+    await expect(service.handle('root', 'tool.before', task('recon'))).rejects.toThrow('run stopped');
   });
 
   it('refuses a session that was never dispatched and refuses task_id of a foreign session', async () => {
@@ -243,5 +264,128 @@ describe('usage SDK edge cases', () => {
     expect(service.usageSnapshot().total.incomplete).toBe(true);
     service.observeUsage('root', [message('m')]);
     expect(service.usageSnapshot().total.incomplete).toBe(false);
+  });
+});
+
+
+// G-V1: explicit declarations; unlike the C fixtures these tests never auto-declare.
+describe('G-V1 cross-round challenge binding', () => {
+  function fixture(get?: (id: string) => Promise<{ parentID?: string; agent?: string }>) {
+    const sessions: Record<string, { parentID?: string; agent?: string }> = { child: { parentID: 'root', agent: 'recon' } };
+    const client = { session: {
+      get: async ({ sessionID }: { sessionID: string }) => ({ data: get ? await get(sessionID) : sessions[sessionID] }),
+      messages: async () => ({ data: [] }), children: async () => ({ data: [] }), abort: async () => ({ data: true })
+    } };
+    const service = new ControlService({ client: client as never, budget: { maxModelCalls: 100, maxObservableTokens: 1000 },
+      expiresAt: Date.now() + 60000, workdir: '/nonexistent', skillRoot: '/nonexistent',
+      challenges: ['X', 'Y'].map(id => ({ id, title: null, target: null, reachability: null, materials: [], materialsDir: materials(id) })) });
+    service.bindRoot('root');
+    return service;
+  }
+  const assign = (s: ControlService, challenge = 'X', role = 'recon', id = 'root') =>
+    s.handle(id, 'tool.execute', { tool: 'challenge.assign', args: { challenge, role } });
+  const unassign = (s: ControlService, role = 'recon', id = 'root') =>
+    s.handle(id, 'tool.execute', { tool: 'challenge.unassign', args: { role } });
+  const dispatch = (s: ControlService, extra = {}) => s.handle('root', 'tool.before', task('recon', extra));
+  const bind = (s: ControlService) => s.handle('child', 'chat.message', { agent: 'recon' });
+  const topic = (s: ControlService) => (s.bindings.get('child') as { challengeId?: string } | undefined)?.challengeId;
+
+  it('T1 assign execute succeeds, parent readmission preserves it, binding precedes child admission', async () => {
+    const s = fixture();
+    await expect(assign(s)).resolves.toEqual({ challenge: 'X' });
+    await s.handle('root', 'model.call', {});
+    await dispatch(s); await bind(s); await s.handle('child', 'model.call', {});
+    expect(topic(s)).toBe('X');
+    expect(s.audit.find(r => r.op === 'bind' && r.sessionID === 'child')!.seq)
+      .toBeLessThan(s.audit.find(r => r.op === 'model.call' && r.sessionID === 'child')!.seq);
+  });
+  it('T2 precheck and free text do not declare or authorize task', async () => {
+    const s = fixture();
+    await s.handle('root', 'tool.before', { tool: 'ctf_challenge_assign', args: { challenge: 'X', role: 'recon' } });
+    await expect(dispatch(s, { prompt: 'challenge X' })).rejects.toThrow('denied: dispatch');
+    await expect(bind(s)).rejects.toThrow('denied: unbound session');
+    expect(s.bindings.size).toBe(1);
+    await assign(s); await dispatch(s); await bind(s); expect(topic(s)).toBe('X');
+  });
+  it('T3 duplicate declarations preserve original, unassign is idempotent, pending cannot be cancelled', async () => {
+    const s = fixture(); await assign(s);
+    await expect(assign(s)).rejects.toThrow('denied: dispatch');
+    await expect(assign(s, 'Y')).rejects.toThrow('denied: dispatch');
+    await dispatch(s); await expect(unassign(s)).rejects.toThrow('denied: dispatch');
+    await bind(s); expect(topic(s)).toBe('X');
+    await expect(unassign(s)).resolves.toEqual({ cleared: false });
+    await assign(s); await expect(unassign(s)).resolves.toEqual({ cleared: true });
+    await expect(unassign(s)).resolves.toEqual({ cleared: false }); await assign(s, 'Y');
+  });
+  it.each(['stop', 'revoke', 'expire'] as const)('T4 declaration survives rounds but is cleared on %s', async action => {
+    const s = fixture(); await assign(s);
+    await s.handle('root', 'model.call', {}); await s.handle('root', 'model.call', {});
+    await expect(assign(s, 'Y')).rejects.toThrow('denied: dispatch');
+    if (action === 'stop') await s.stopAll('test');
+    if (action === 'revoke') { await dispatch(s); await bind(s); await assign(s); s.bindings.get('root')!.state = 'revoked'; }
+    if (action === 'expire') s.bindings.get('root')!.expiresAt = 0;
+    await expect(dispatch(s)).rejects.toThrow('denied:');
+    // Inspect absence only for terminal cleanup; positive behaviour is asserted through dispatch above.
+    expect((s as unknown as { declarations: Map<string, unknown> }).declarations.get('root')).toBeUndefined();
+  });
+  it('T5 resume keeps topic; no/same declaration creates no pending, foreign/conflict preserves declaration', async () => {
+    const s = fixture(); await assign(s); await dispatch(s); await bind(s);
+    await dispatch(s, { task_id: 'child' });
+    await assign(s); await dispatch(s, { task_id: 'child' });
+    await assign(s, 'Y'); // same declaration was consumed, no pending
+    await expect(dispatch(s, { task_id: 'foreign' })).rejects.toThrow('denied: dispatch');
+    await expect(dispatch(s, { task_id: 'child' })).rejects.toThrow('denied: dispatch');
+    await expect(assign(s)).rejects.toThrow('denied: dispatch');
+    expect(topic(s)).toBe('X');
+    await expect(unassign(s)).resolves.toEqual({ cleared: true }); // no pending from resume
+    await dispatch(s, { task_id: 'child' });
+  });
+  it('T6 only coordinator, solver roles and in-run topics may declare', async () => {
+    const s = fixture(); await assign(s); await dispatch(s); await bind(s);
+    await expect(assign(s, 'X', 'recon', 'child')).rejects.toThrow('denied: tool not permitted');
+    await expect(unassign(s, 'recon', 'child')).rejects.toThrow('denied: tool not permitted');
+    for (const role of ['intake','reference','strategy','recovery-critic']) {
+      await expect(assign(s, 'X', role)).rejects.toThrow('denied: dispatch');
+      await expect(unassign(s, role)).rejects.toThrow('denied: dispatch');
+    }
+    await expect(assign(s, 'OTHER')).rejects.toThrow('denied: dispatch');
+  });
+  it('T7 task before delayed assign execute rejects; later declaration survives and next round succeeds', async () => {
+    const s = fixture(); const start = deferred(); const release = deferred();
+    const laterAssign = (async () => { start.resolve(); await release.promise; return assign(s); })();
+    await start.promise; await expect(dispatch(s)).rejects.toThrow('denied: dispatch');
+    release.resolve(); await laterAssign; await s.handle('root', 'model.call', {});
+    await dispatch(s); await bind(s); expect(topic(s)).toBe('X');
+    // Opposite same-round order is already covered by T3's successful assign→task without admission.
+  });
+  it('T8 pre-registration refusal preserves declaration; unknown registered task stays pending across admission', async () => {
+    const s = fixture(); await assign(s);
+    await expect(s.handle('root', 'tool.before', { tool: 'task', args: { subagent_type: 'recon' } })).rejects.toThrow('denied: dispatch');
+    await dispatch(s); // task fails before child hook; no tool.after
+    await expect(assign(s)).rejects.toThrow('denied: dispatch');
+    await s.handle('root', 'model.call', {});
+    await expect(dispatch(s)).rejects.toThrow('denied: dispatch');
+    await expect(assign(s, 'Y')).rejects.toThrow('denied: dispatch');
+  });
+  it.each(['stop', 'revoke', 'expire'] as const)('T9 %s during SDK binding wait cannot create valid binding', async action => {
+    const started = deferred(); const release = deferred();
+    const s = fixture(async () => { started.resolve(); await release.promise; return { parentID: 'root', agent: 'recon' }; });
+    await assign(s); await dispatch(s); const binding = bind(s); await started.promise;
+    if (action === 'stop') await s.stopAll('test');
+    if (action === 'revoke') s.bindings.get('root')!.state = 'revoked';
+    if (action === 'expire') s.bindings.get('root')!.expiresAt = 0;
+    release.resolve(); await expect(binding).rejects.toThrow('denied:'); expect(s.bindings.has('child')).toBe(false);
+    expect((s as unknown as { pending: Map<string, unknown> }).pending.get('root')).toBeUndefined();
+  });
+  it('T9 stop while assign/task are queued behind an SDK wait rejects both without new state', async () => {
+    const started = deferred(); const release = deferred();
+    const s = fixture(async () => { started.resolve(); await release.promise; return { parentID: 'root', agent: 'intake' }; });
+    await s.handle('root', 'tool.before', task('intake'));
+    const binding = s.handle('unknown', 'chat.message', { agent: 'intake' }); await started.promise;
+    const a = assign(s); const d = dispatch(s);
+    await s.stopAll('test'); release.resolve();
+    await expect(binding).rejects.toThrow('denied:'); await expect(a).rejects.toThrow('denied:'); await expect(d).rejects.toThrow('denied:');
+    expect(s.bindings.size).toBe(1);
+    expect((s as unknown as { declarations: Map<string, unknown> }).declarations.size).toBe(0);
   });
 });

@@ -1,0 +1,42 @@
+#0 building with "desktop-linux" instance using docker driver
+
+#1 [1/5] FROM docker.io/library/ubuntu:24.04@sha256:68ee22004a9109b44973313b02ff7b1de250f1de0f5ecb628d73f579aaff33ac
+#1 resolve docker.io/library/ubuntu:24.04@sha256:68ee22004a9109b44973313b02ff7b1de250f1de0f5ecb628d73f579aaff33ac done
+#1 CACHED
+
+#2 [internal] load build definition from Dockerfile
+#2 transferring dockerfile: 863B done
+#2 DONE 0.0s
+
+#3 [internal] load metadata for docker.io/library/ubuntu:24.04@sha256:68ee22004a9109b44973313b02ff7b1de250f1de0f5ecb628d73f579aaff33ac
+#3 DONE 0.0s
+
+#4 [internal] load .dockerignore
+#4 transferring context: 53B done
+#4 DONE 0.0s
+
+#5 [internal] load build context
+#5 transferring context: 80B done
+#5 DONE 0.0s
+
+#6 [3/5] RUN sed -i -e 's/^Components:.*/Components: main/' -e 's,http://,https://,g' /etc/apt/sources.list.d/ubuntu.sources && apt-get -o Acquire::Retries=1 -o Acquire::https::Timeout=20 update && DEBIAN_FRONTEND=noninteractive apt-get -o Acquire::Retries=1 -o Acquire::https::Timeout=20 install -y --no-install-recommends python3 util-linux procps && rm -rf /var/lib/apt/lists/*
+#6 CACHED
+
+#7 [4/5] RUN groupadd -g 3101 challenge-a && groupadd -g 3201 challenge-b && useradd -u 2101 -g 3101 session-a1 && useradd -u 2102 -g 3101 session-a2 && useradd -u 2201 -g 3201 session-b1
+#7 CACHED
+
+#8 [2/5] COPY ca-certificates.crt /etc/ssl/certs/ca-certificates.crt
+#8 CACHED
+
+#9 [5/5] COPY container-probe.py /opt/gdec/container-probe.py
+#9 CACHED
+
+#10 exporting to image
+#10 exporting layers done
+#10 exporting manifest sha256:a58c0c10f5b2ac4e35d45388193e3d9f0fcc70b728868a052c352ef2ae96be33 done
+#10 exporting config sha256:510cdc4c8b66537a5f25f56aac1cb00a5d789ae21a6fe395910db59ef23b7e9d done
+#10 exporting attestation manifest sha256:6a563872bff6475969c6a314a60abafc1e1372a508944d16c4b61ea762c63f3e done
+#10 exporting manifest list sha256:e55e891f83005c07295a805a1c8a6642839396e460f643c565851e5608d0d64a done
+#10 naming to docker.io/library/gdec-os-isolation-fixture:4fcd done
+#10 unpacking to docker.io/library/gdec-os-isolation-fixture:4fcd done
+#10 DONE 0.0s

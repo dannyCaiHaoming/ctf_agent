@@ -1,0 +1,265 @@
+[
+  {
+    "info": {
+      "id": "msg_168d4afe7001i0KLKHfsjWtD0y",
+      "sessionID": "ses_e972b501bffeG56R97qiaXRXLB",
+      "role": "user",
+      "time": {
+        "created": 1792760131560
+      },
+      "agent": "recon",
+      "model": {
+        "providerID": "stub",
+        "modelID": "scripted"
+      }
+    },
+    "parts": [
+      {
+        "id": "prt_168d4afe90014F949OCrSNdjQV",
+        "sessionID": "ses_e972b501bffeG56R97qiaXRXLB",
+        "messageID": "msg_168d4afe7001i0KLKHfsjWtD0y",
+        "type": "text",
+        "text": "LONG_JOB_CHILD execute one terminal job"
+      }
+    ]
+  },
+  {
+    "info": {
+      "id": "msg_168d4aff3001Z6y6aunAEmULM8",
+      "sessionID": "ses_e972b501bffeG56R97qiaXRXLB",
+      "role": "assistant",
+      "time": {
+        "created": 1792760131571,
+        "completed": 1792760147663
+      },
+      "parentID": "msg_168d4afe7001i0KLKHfsjWtD0y",
+      "modelID": "scripted",
+      "providerID": "stub",
+      "mode": "recon",
+      "agent": "recon",
+      "path": {
+        "cwd": "/private/var/folders/tn/x1hbkfy17sx0w1lb8kjzzr340000gn/T/gdec-long-job-Phywy1/runs/success/opencode",
+        "root": "/"
+      },
+      "cost": 0,
+      "tokens": {
+        "total": 0,
+        "input": 0,
+        "output": 0,
+        "reasoning": 0,
+        "cache": {
+          "read": 0,
+          "write": 0
+        }
+      },
+      "finish": "tool-calls"
+    },
+    "parts": [
+      {
+        "id": "prt_168d4affa001FclmNTwGazjbp5",
+        "sessionID": "ses_e972b501bffeG56R97qiaXRXLB",
+        "messageID": "msg_168d4aff3001Z6y6aunAEmULM8",
+        "type": "step-start"
+      },
+      {
+        "id": "prt_168d4affb001HZu0OPl8yzsp7R",
+        "sessionID": "ses_e972b501bffeG56R97qiaXRXLB",
+        "messageID": "msg_168d4aff3001Z6y6aunAEmULM8",
+        "type": "tool",
+        "callID": "call_3_0",
+        "tool": "ctf_job_run",
+        "state": {
+          "status": "completed",
+          "input": {
+            "argv": [
+              "/opt/homebrew/Cellar/node/26.3.0/bin/node",
+              "-e",
+              "console.log('early');setTimeout(()=>console.log('late'),16000)"
+            ],
+            "wait_ms": 20,
+            "timeout_ms": 20000,
+            "completion": "terminal"
+          },
+          "output": "{\"job\":\"c39e5d5d-1946-4611-9eac-06cf2ba556f2\",\"state\":\"exited\",\"exitCode\":0,\"signal\":null,\"reapIncomplete\":false}",
+          "title": "job.run",
+          "metadata": {
+            "truncated": false
+          },
+          "time": {
+            "start": 1792760131580,
+            "end": 1792760147655
+          }
+        }
+      },
+      {
+        "id": "prt_168d4eecb001g0Ae4th43ur0XD",
+        "sessionID": "ses_e972b501bffeG56R97qiaXRXLB",
+        "messageID": "msg_168d4aff3001Z6y6aunAEmULM8",
+        "type": "step-finish",
+        "reason": "tool-calls",
+        "cost": 0,
+        "tokens": {
+          "total": 0,
+          "input": 0,
+          "output": 0,
+          "reasoning": 0,
+          "cache": {
+            "read": 0,
+            "write": 0
+          }
+        }
+      }
+    ]
+  },
+  {
+    "info": {
+      "id": "msg_168d4eed100131ujlbuKtK91hO",
+      "sessionID": "ses_e972b501bffeG56R97qiaXRXLB",
+      "role": "assistant",
+      "time": {
+        "created": 1792760147665,
+        "completed": 1792760147705
+      },
+      "parentID": "msg_168d4afe7001i0KLKHfsjWtD0y",
+      "modelID": "scripted",
+      "providerID": "stub",
+      "mode": "recon",
+      "agent": "recon",
+      "path": {
+        "cwd": "/private/var/folders/tn/x1hbkfy17sx0w1lb8kjzzr340000gn/T/gdec-long-job-Phywy1/runs/success/opencode",
+        "root": "/"
+      },
+      "cost": 0,
+      "tokens": {
+        "total": 0,
+        "input": 0,
+        "output": 0,
+        "reasoning": 0,
+        "cache": {
+          "read": 0,
+          "write": 0
+        }
+      },
+      "finish": "tool-calls"
+    },
+    "parts": [
+      {
+        "id": "prt_168d4eeea0013Tzgkv3wPiArVk",
+        "sessionID": "ses_e972b501bffeG56R97qiaXRXLB",
+        "messageID": "msg_168d4eed100131ujlbuKtK91hO",
+        "type": "step-start"
+      },
+      {
+        "id": "prt_168d4eeeb001P9oT3k4UgAiY8w",
+        "sessionID": "ses_e972b501bffeG56R97qiaXRXLB",
+        "messageID": "msg_168d4eed100131ujlbuKtK91hO",
+        "type": "tool",
+        "callID": "call_4_0",
+        "tool": "ctf_job_read",
+        "state": {
+          "status": "completed",
+          "input": {
+            "job": "c39e5d5d-1946-4611-9eac-06cf2ba556f2",
+            "stream": "stdout"
+          },
+          "output": "{\"job\":\"c39e5d5d-1946-4611-9eac-06cf2ba556f2\",\"state\":\"exited\",\"exitCode\":0,\"signal\":null,\"reapIncomplete\":false,\"stream\":\"stdout\",\"encoding\":\"base64\",\"data\":\"ZWFybHkKbGF0ZQo=\",\"offset\":0,\"truncated\":false,\"nextCursor\":null,\"done\":true}",
+          "title": "job.read",
+          "metadata": {
+            "truncated": false
+          },
+          "time": {
+            "start": 1792760147693,
+            "end": 1792760147702
+          }
+        }
+      },
+      {
+        "id": "prt_168d4eef7001lG9mC4mSYMx2gl",
+        "sessionID": "ses_e972b501bffeG56R97qiaXRXLB",
+        "messageID": "msg_168d4eed100131ujlbuKtK91hO",
+        "type": "step-finish",
+        "reason": "tool-calls",
+        "cost": 0,
+        "tokens": {
+          "total": 0,
+          "input": 0,
+          "output": 0,
+          "reasoning": 0,
+          "cache": {
+            "read": 0,
+            "write": 0
+          }
+        }
+      }
+    ]
+  },
+  {
+    "info": {
+      "id": "msg_168d4eefa001WfTz2Nc6JWzPj1",
+      "sessionID": "ses_e972b501bffeG56R97qiaXRXLB",
+      "role": "assistant",
+      "time": {
+        "created": 1792760147706,
+        "completed": 1792760147727
+      },
+      "parentID": "msg_168d4afe7001i0KLKHfsjWtD0y",
+      "modelID": "scripted",
+      "providerID": "stub",
+      "mode": "recon",
+      "agent": "recon",
+      "path": {
+        "cwd": "/private/var/folders/tn/x1hbkfy17sx0w1lb8kjzzr340000gn/T/gdec-long-job-Phywy1/runs/success/opencode",
+        "root": "/"
+      },
+      "cost": 0,
+      "tokens": {
+        "total": 0,
+        "input": 0,
+        "output": 0,
+        "reasoning": 0,
+        "cache": {
+          "read": 0,
+          "write": 0
+        }
+      },
+      "finish": "stop"
+    },
+    "parts": [
+      {
+        "id": "prt_168d4ef0a001fBO9DcE2bzoX4v",
+        "sessionID": "ses_e972b501bffeG56R97qiaXRXLB",
+        "messageID": "msg_168d4eefa001WfTz2Nc6JWzPj1",
+        "type": "step-start"
+      },
+      {
+        "id": "prt_168d4ef0c001j5OM0vwvVUuafB",
+        "sessionID": "ses_e972b501bffeG56R97qiaXRXLB",
+        "messageID": "msg_168d4eefa001WfTz2Nc6JWzPj1",
+        "type": "text",
+        "text": "FINAL_STATE=exited; JOB=c39e5d5d-1946-4611-9eac-06cf2ba556f2; OUTPUT={\"job\":\"c39e5d5d-1946-4611-9eac-06cf2ba556f2\",\"state\":\"exited\",\"exitCode\":0,\"signal\":null,\"reapIncomplete\":false} {\"job\":\"c39e5d5d-1946-4611-9eac-06cf2ba556f2\",\"state\":\"exited\",\"exitCode\":0,\"signal\":null,\"reapIncomplete\":false,\"stream\":\"stdout\",\"encoding\":\"base64\",\"data\":\"ZWFybHkKbGF0ZQo=\",\"offset\":0,\"truncated\":false,\"nextCursor\":null,\"done\":true}",
+        "time": {
+          "start": 1792760147724,
+          "end": 1792760147725
+        }
+      },
+      {
+        "id": "prt_168d4ef0d001T81gXciQD0LLHH",
+        "sessionID": "ses_e972b501bffeG56R97qiaXRXLB",
+        "messageID": "msg_168d4eefa001WfTz2Nc6JWzPj1",
+        "type": "step-finish",
+        "reason": "stop",
+        "cost": 0,
+        "tokens": {
+          "total": 0,
+          "input": 0,
+          "output": 0,
+          "reasoning": 0,
+          "cache": {
+            "read": 0,
+            "write": 0
+          }
+        }
+      }
+    ]
+  }
+]

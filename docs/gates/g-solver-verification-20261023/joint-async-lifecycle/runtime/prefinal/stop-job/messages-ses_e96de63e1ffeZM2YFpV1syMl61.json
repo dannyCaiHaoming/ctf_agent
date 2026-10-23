@@ -1,0 +1,98 @@
+[
+  {
+    "info": {
+      "id": "msg_169219c20001F8Onlzqg1RcL93",
+      "sessionID": "ses_e96de63e1ffeZM2YFpV1syMl61",
+      "role": "user",
+      "time": {
+        "created": 1792765172769
+      },
+      "agent": "recon",
+      "model": {
+        "providerID": "stub",
+        "modelID": "scripted"
+      }
+    },
+    "parts": [
+      {
+        "id": "prt_169219c21001UN3AKge4Ys3ZmY",
+        "sessionID": "ses_e96de63e1ffeZM2YFpV1syMl61",
+        "messageID": "msg_169219c20001F8Onlzqg1RcL93",
+        "type": "text",
+        "text": "JOINT_A execute your job"
+      }
+    ]
+  },
+  {
+    "info": {
+      "id": "msg_169219c2f001cEgvAlMr1FLmxS",
+      "sessionID": "ses_e96de63e1ffeZM2YFpV1syMl61",
+      "role": "assistant",
+      "time": {
+        "created": 1792765172783,
+        "completed": 1792765173802
+      },
+      "error": {
+        "name": "MessageAbortedError",
+        "data": {
+          "message": "Aborted"
+        }
+      },
+      "parentID": "msg_169219c20001F8Onlzqg1RcL93",
+      "modelID": "scripted",
+      "providerID": "stub",
+      "mode": "recon",
+      "agent": "recon",
+      "path": {
+        "cwd": "/private/var/folders/tn/x1hbkfy17sx0w1lb8kjzzr340000gn/T/g-joint-eEWVUF/runs/stop-job/opencode",
+        "root": "/"
+      },
+      "cost": 0,
+      "tokens": {
+        "input": 0,
+        "output": 0,
+        "reasoning": 0,
+        "cache": {
+          "read": 0,
+          "write": 0
+        }
+      }
+    },
+    "parts": [
+      {
+        "id": "prt_169219c40001A9LBSUMK30OAs5",
+        "sessionID": "ses_e96de63e1ffeZM2YFpV1syMl61",
+        "messageID": "msg_169219c2f001cEgvAlMr1FLmxS",
+        "type": "step-start"
+      },
+      {
+        "id": "prt_169219c41001fuECCQIYV9J5Su",
+        "sessionID": "ses_e96de63e1ffeZM2YFpV1syMl61",
+        "messageID": "msg_169219c2f001cEgvAlMr1FLmxS",
+        "type": "tool",
+        "callID": "call_4_0",
+        "tool": "ctf_job_run",
+        "state": {
+          "status": "completed",
+          "input": {
+            "argv": [
+              "/opt/homebrew/Cellar/node/26.3.0/bin/node",
+              "-e",
+              "const ch=require('child_process').spawn(process.execPath,['-e','setInterval(()=>{},1000)'],{stdio:'inherit'});require('fs').writeFileSync('grandchild.pid',String(ch.pid));console.log('early');setInterval(()=>{},1000)"
+            ],
+            "timeout_ms": 30000
+          },
+          "output": "{\"job\":\"9e5bd20b-04f7-48f5-81a5-b81738c75d4a\",\"state\":\"cancelled\",\"exitCode\":null,\"signal\":\"SIGTERM\",\"reapIncomplete\":false}",
+          "title": "job.run",
+          "metadata": {
+            "truncated": false
+          },
+          "time": {
+            "start": 1792765172802,
+            "end": 1792765173801
+          }
+        }
+      }
+    ]
+  }
+]

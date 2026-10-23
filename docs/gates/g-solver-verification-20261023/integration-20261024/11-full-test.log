@@ -1,0 +1,78 @@
+
+> ctf-agent@0.1.0 test
+> vitest run
+
+
+ RUN  v2.1.8 /Users/caihaoming/.codex/worktrees/c323/pentest-agent
+
+ ✓ tests/contract/http-lifecycle.test.ts (10 tests) 39ms
+ ✓ tests/contract/http-tools.test.ts (10 tests) 160ms
+ ✓ tests/integration/candidate-verification.test.ts (7 tests) 209ms
+ ✓ tests/contract/hypothesis-lifecycle.test.ts (18 tests) 19ms
+ ✓ tests/contract/intake-tools.test.ts (8 tests) 21ms
+ ✓ tests/contract/control-service.test.ts (31 tests) 473ms
+   ✓ plugin denies when the control service cannot answer > rejects when the service never replies, is unreachable, or replies with something unusable 410ms
+ ✓ tests/contract/responsibility-sessions.test.ts (10 tests) 7ms
+ ✓ tests/contract/runtime-interactive-sessions.test.ts (10 tests) 815ms
+ ✓ tests/contract/run-prep.test.ts (13 tests) 845ms
+ ✓ tests/contract/hypothesis-progress.test.ts (8 tests) 15ms
+ ✓ tests/contract/workspace-tools.test.ts (9 tests) 44ms
+ ✓ tests/integration/compaction-evidence.test.ts (7 tests) 566ms
+ ✓ tests/contract/g-team-integration.test.ts (3 tests) 251ms
+ ✓ tests/contract/opencode.test.ts (7 tests) 25ms
+ ✓ tests/contract/hypothesis-routes.test.ts (7 tests) 9ms
+ ✓ tests/integration/verified-multiflag-candidate.test.ts (3 tests) 806ms
+   ✓ frozen verified multi-flag host components > returns verified oracle rejection with diagnostics and permits later candidates without losing accepted slots 401ms
+ ✓ tests/integration/runtime-tar-gzip.test.ts (4 tests) 90ms
+ ✓ tests/integration/runtime-http-session.test.ts (2 tests) 45ms
+ ✓ tests/integration/compaction-local-guards.test.ts (5 tests) 537ms
+ ✓ tests/integration/multiflag-continuation.test.ts (4 tests) 21ms
+ ✓ tests/contract/responsibility-handoff.test.ts (37 tests) 7ms
+ ✓ tests/contract/contracts.test.ts (5 tests) 3ms
+ ✓ tests/integration/long-job-continuation.test.ts (3 tests) 381ms
+   ✓ durable long-job continuation > releases the Worker, wakes from a terminal event, and claims one saved continuation 318ms
+ ✓ tests/contract/state.test.ts (4 tests) 18ms
+ ✓ tests/contract/job-tools.test.ts (9 tests) 2039ms
+   ✓ G-V5 managed jobs > kills the grandchild with the process group on timeout 1536ms
+ ✓ tests/integration/compaction-hypotheses.test.ts (3 tests) 17ms
+ ✓ tests/contract/policy.test.ts (4 tests) 3ms
+ ✓ tests/bootstrap/test-harness.test.ts (4 tests) 26ms
+ ✓ tests/contract/responsibility-artifacts.test.ts (1 test) 16ms
+ ✓ tests/contract/model.test.ts (4 tests) 25ms
+ ✓ tests/contract/opencode-config.test.ts (2 tests) 4ms
+ ✓ tests/contract/platform.test.ts (2 tests) 12ms
+ ✓ tests/contract/runtime.test.ts (5 tests) 377ms
+ ✓ tests/contract/artifacts.test.ts (2 tests) 7ms
+ ✓ tests/integration/compaction-snapshot.test.ts (2 tests) 2ms
+ ✓ tests/contract/job-start-cleanup.test.ts (1 test) 256ms
+ ✓ tests/contract/runtime-batch-output.test.ts (2 tests) 211ms
+ ✓ tests/integration/compaction-process-restart.test.ts (2 tests) 1331ms
+   ✓ ctf-agent canonical local process restart > kills the original process, ignores misleading JSON export, resumes original raw range and exact next action once 811ms
+   ✓ ctf-agent canonical local process restart > two fresh CLI processes race for one canonical dispatch and execute once 520ms
+ ✓ tests/contract/g-coordinator-stop.test.ts (9 tests) 3479ms
+   ✓ completed jobs remain exited when stopped; abort failure and unknown reap never claim stopped 3074ms
+ ✓ tests/contract/launch-evidence.test.ts (12 tests) 5081ms
+   ✓ launch failure evidence with SDK stand-in only > keeps normal success and complete reported usage 659ms
+   ✓ launch failure evidence with SDK stand-in only > continues other bound sessions after children failure 563ms
+   ✓ launch failure evidence with SDK stand-in only > continues other bound sessions after export failure 580ms
+   ✓ launch failure evidence with SDK stand-in only > records real per-session abort results and continues remaining aborts 587ms
+   ✓ launch failure evidence with SDK stand-in only > keeps retained message consumption in the actual run file after abort zeroes it 594ms
+   ✓ launch failure evidence with SDK stand-in only > includes known SDK descendant usage even if the descendant never bound 559ms
+   ✓ launch failure evidence with SDK stand-in only > marks total as a lower bound if an unbound descendant export fails 573ms
+   ✓ launch failure evidence with SDK stand-in only > continues evidence writes and records a single-file write failure 578ms
+ ✓ tests/contract/g-async-lifecycle.test.ts (13 tests) 5599ms
+   ✓ default job.run returns terminal without wait/completion modes 5575ms
+ ✓ tests/contract/slow-tools.test.ts (21 tests) 14358ms
+   ✓ stop during registered workspace preparation returns bounded unknown and prevents a late job spawn 4005ms
+   ✓ C retains HTTP cleanup_unknown reservation when response persistence is blocked 1007ms
+   ✓ expiry cancels an already delivered job and refuses its handle after expiry 1074ms
+   ✓ unknown process-group cleanup keeps its session quota reserved 3050ms
+   ✓ terminal candidate keeps one execute pending beyond wait_ms, permits admission and incremental reads, then returns final result once 770ms
+   ✓ terminal candidate timeout and binding expiry do not return an early running handle 705ms
+   ✓ terminal candidate reports incomplete reaping as unknown and keeps its slot reserved 3089ms
+
+ Test Files  42 passed (42)
+      Tests  323 passed (323)
+   Start at  00:23:25
+   Duration  14.75s (transform 605ms, setup 0ms, collect 2.07s, tests 38.25s, environment 3ms, prepare 1.32s)
+

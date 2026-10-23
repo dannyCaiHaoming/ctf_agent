@@ -1,0 +1,38 @@
+
+ RUN  v2.1.8 /Users/caihaoming/.codex/worktrees/g-v4-http-lifecycle/pentest-agent
+
+ ❯ tests/contract/http-lifecycle.test.ts (8 tests | 1 failed) 29ms
+   × G-V4 trusted HTTP lifecycle boundary > cancels while resolving a redirect and never starts the next hop 3ms
+     → expected { result: 'cancelled', …(2) } to deeply equal { result: 'cancelled', …(2) }
+ ✓ tests/contract/http-tools.test.ts (10 tests) 86ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/contract/http-lifecycle.test.ts > G-V4 trusted HTTP lifecycle boundary > cancels while resolving a redirect and never starts the next hop
+AssertionError: expected { result: 'cancelled', …(2) } to deeply equal { result: 'cancelled', …(2) }
+
+- Expected
++ Received
+
+  Object {
+-   "activeBeforeRelease": 0,
++   "activeBeforeRelease": 1,
+    "requests": 1,
+    "result": "cancelled",
+  }
+
+ ❯ tests/contract/http-lifecycle.test.ts:141:70
+    139|     await new Promise<void>(r => setImmediate(r));
+    140|     const activeBeforeRelease = host.active.size; gate.resolve(['127.0…
+    141|     expect({ result: await pending, activeBeforeRelease, requests }).t…
+       |                                                                      ^
+    142|   });
+    143| 
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+ Test Files  1 failed | 1 passed (2)
+      Tests  1 failed | 17 passed (18)
+   Start at  20:25:48
+   Duration  298ms (transform 38ms, setup 0ms, collect 56ms, tests 115ms, environment 0ms, prepare 61ms)
+

@@ -1,0 +1,63 @@
+Local SDK 1.19.0 excerpts. This is a narrow inspection, not proof of absence across every public API.
+
+export type SessionUpdateData = {
+    body?: {
+        title?: string;
+        metadata?: {
+            [key: string]: unknown;
+        };
+        permission?: PermissionRuleset;
+        time?: {
+            archived?: number;
+        };
+    };
+    path: {
+        sessionID: string;
+    };
+    query?: {
+        directory?: string;
+        workspace?: string;
+    };
+    url: "/session/{sessionID}";
+};
+
+export type SessionPromptAsyncData = {
+    body?: {
+        messageID?: string;
+        model?: {
+            providerID: string;
+            modelID: string;
+        };
+        agent?: string;
+        noReply?: boolean;
+        tools?: {
+            [key: string]: boolean;
+        };
+        format?: OutputFormat;
+        system?: string;
+        variant?: string;
+        parts: Array<TextPartInput | FilePartInput | AgentPartInput | SubtaskPartInput>;
+    };
+    path: {
+        sessionID: string;
+    };
+    query?: {
+        directory?: string;
+        workspace?: string;
+    };
+    url: "/session/{sessionID}/prompt_async";
+};
+
+export type PartUpdateData = {
+    body?: Part;
+    path: {
+        sessionID: string;
+        messageID: string;
+        partID: string;
+    };
+    query?: {
+        directory?: string;
+        workspace?: string;
+    };
+    url: "/session/{sessionID}/message/{messageID}/part/{partID}";
+};

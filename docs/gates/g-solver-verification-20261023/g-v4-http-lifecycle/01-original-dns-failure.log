@@ -1,0 +1,40 @@
+
+ RUN  v2.1.8 /Users/caihaoming/.codex/worktrees/g-v4-http-lifecycle/pentest-agent
+
+ ❯ tests/contract/http-tools.test.ts (10 tests | 1 failed) 53ms
+   × G-V4 DNS lifecycle regression > timeout during DNS settles promptly and never connects after resolution is released 4ms
+     → expected { code: 'allowed', …(3) } to deeply equal { code: 'timeout', …(3) }
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/contract/http-tools.test.ts > G-V4 DNS lifecycle regression > timeout during DNS settles promptly and never connects after resolution is released
+AssertionError: expected { code: 'allowed', …(3) } to deeply equal { code: 'timeout', …(3) }
+
+- Expected
++ Received
+
+  Object {
+-   "authorized": 0,
+-   "code": "timeout",
++   "authorized": 1,
++   "code": "allowed",
+    "outside": 0,
+-   "settledBeforeDns": true,
++   "settledBeforeDns": false,
+  }
+
+ ❯ tests/contract/http-tools.test.ts:251:10
+    249|       const code = await result;
+    250|       expect({ code, settledBeforeDns, authorized: authorized.connecti…
+    251|         .toEqual({ code: 'timeout', settledBeforeDns: true, authorized…
+       |          ^
+    252|     } finally { vi.useRealTimers(); }
+    253|   });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 9 passed (10)
+   Start at  20:23:21
+   Duration  273ms (transform 21ms, setup 0ms, collect 28ms, tests 53ms, environment 0ms, prepare 28ms)
+

@@ -1,0 +1,70 @@
+[
+  {
+    "at": 1792760313012,
+    "seq": 1,
+    "child": false,
+    "step": 0,
+    "calls": [
+      {
+        "name": "ctf_challenge_assign",
+        "args": {
+          "role": "recon",
+          "challenge": "X"
+        }
+      }
+    ],
+    "toolResults": []
+  },
+  {
+    "at": 1792760313086,
+    "seq": 2,
+    "child": false,
+    "step": 1,
+    "calls": [
+      {
+        "name": "task",
+        "args": {
+          "description": "long job candidate",
+          "subagent_type": "recon",
+          "prompt": "LONG_JOB_CHILD execute one terminal job"
+        }
+      }
+    ],
+    "toolResults": [
+      "{\"challenge\":\"X\"}"
+    ]
+  },
+  {
+    "at": 1792760313116,
+    "seq": 3,
+    "child": true,
+    "step": 0,
+    "calls": [
+      {
+        "name": "ctf_job_run",
+        "args": {
+          "argv": [
+            "/opt/homebrew/Cellar/node/26.3.0/bin/node",
+            "-e",
+            "console.log('early');setTimeout(()=>console.log('late'),30000)"
+          ],
+          "wait_ms": 20,
+          "timeout_ms": 20000,
+          "completion": "terminal"
+        }
+      }
+    ],
+    "toolResults": []
+  },
+  {
+    "at": 1792760313210,
+    "seq": 4,
+    "child": false,
+    "step": 2,
+    "calls": [],
+    "toolResults": [
+      "{\"challenge\":\"X\"}",
+      "Task cancelled"
+    ]
+  }
+]

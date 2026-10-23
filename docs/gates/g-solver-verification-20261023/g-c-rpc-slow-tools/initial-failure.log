@@ -1,0 +1,84 @@
+
+ RUN  v2.1.8 /Users/caihaoming/.codex/worktrees/g-c-rpc-slow-tools/pentest-agent
+
+ ❯ tests/contract/slow-tools.test.ts (6 tests | 6 failed) 21042ms
+   × real C lets another session admit and revoke before a blocked HTTP body is released 7ms
+     → denied: tool not permitted
+   × real C enforces eight HTTP slots per challenge, with independent capacity for another challenge 1009ms
+     → expected +0 to be 8 // Object.is equality
+   × RPC disconnect cancels the real registered operation and preserves its session/call trace 20007ms
+     → Test timed out in 20000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+   × jobs remain registered after handle delivery; revoke cancels only that session including grandchildren 5ms
+     → denied: tool not permitted
+   × fake-clock host wait approval caps at binding lifetime and expires an already registered HTTP operation 4ms
+     → denied: tool not permitted
+   × product plugin correlates trusted before/execute args without a non-public ToolContext.callID 10ms
+     → expected undefined to be 'trusted-call' // Object.is equality
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 6 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/contract/slow-tools.test.ts > real C lets another session admit and revoke before a blocked HTTP body is released
+ FAIL  tests/contract/slow-tools.test.ts > jobs remain registered after handle delivery; revoke cancels only that session including grandchildren
+ FAIL  tests/contract/slow-tools.test.ts > fake-clock host wait approval caps at binding lifetime and expires an already registered HTTP operation
+Error: denied: tool not permitted
+ ❯ ControlService.toolBefore apps/launcher/src/control-service.ts:351:25
+    349|     if (intake) { this.checkIntake(binding, intake, body.args); return…
+    350|     const allowed = Object.hasOwn(NATIVE_TOOL_ROLES, tool) && NATIVE_T…
+    351|     if (!allowed) throw new ControlDenied('tool not permitted', tool);
+       |                         ^
+    352|     const args = (body.args && typeof body.args === 'object' ? body.ar…
+    353|     if (tool === 'read') await this.checkReadPath(args);
+ ❯ ControlService.decide apps/launcher/src/control-service.ts:297:39
+ ❯ apps/launcher/src/control-service.ts:132:35
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/6]⎯
+
+ FAIL  tests/contract/slow-tools.test.ts > real C enforces eight HTTP slots per challenge, with independent capacity for another challenge
+AssertionError: expected +0 to be 8 // Object.is equality
+
+- Expected
++ Received
+
+- 8
++ 0
+
+ ❯ tests/contract/slow-tools.test.ts:61:40
+     59|   const { c, bind } = await fixture(target); await bind('b'); await bi…
+     60|   const calls = Array.from({ length: 8 }, (_, n) => execute(c, n % 2 ?…
+     61|   await vi.waitFor(() => expect(count).toBe(8));
+       |                                        ^
+     62|   await expect(execute(c, 'b', 'http.request', { url: target }, 'overf…
+     63|   const other = execute(c, 'other', 'http.request', { url: target }, '…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/6]⎯
+
+ FAIL  tests/contract/slow-tools.test.ts > RPC disconnect cancels the real registered operation and preserves its session/call trace
+Error: Test timed out in 20000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/6]⎯
+
+ FAIL  tests/contract/slow-tools.test.ts > product plugin correlates trusted before/execute args without a non-public ToolContext.callID
+AssertionError: expected undefined to be 'trusted-call' // Object.is equality
+
+- Expected: 
+"trusted-call"
+
++ Received: 
+undefined
+
+ ❯ tests/contract/slow-tools.test.ts:108:72
+    106|   await hooks['tool.execute.before']!({ sessionID: 'a', tool: 'ctf_htt…
+    107|   await hooks.tool!.ctf_http_request!.execute(args as never, { session…
+    108|   expect(seen.find(r => r.operation === 'tool.execute')?.input.callID)…
+       |                                                                        ^
+    109| });
+    110| 
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[4/6]⎯
+
+ Test Files  1 failed (1)
+      Tests  6 failed (6)
+   Start at  21:05:52
+   Duration  21.34s (transform 44ms, setup 0ms, collect 71ms, tests 21.04s, environment 0ms, prepare 45ms)
+

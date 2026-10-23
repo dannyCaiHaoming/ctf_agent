@@ -1,0 +1,63 @@
+{
+  "uid": 10001,
+  "gid": 10001,
+  "arch": "arm64",
+  "node": "v24.22.0",
+  "path": "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
+  "mounts": [
+    "tmpfs /quota tmpfs rw,nosuid,nodev,noexec,relatime,size=1024k,mode=700,uid=10001,gid=10001 0 0"
+  ],
+  "initialEntries": [],
+  "operations": [
+    {
+      "name": "below-1048576",
+      "ok": true,
+      "value": 1044480
+    },
+    {
+      "name": "equal-1048576",
+      "ok": true,
+      "value": 1048576
+    },
+    {
+      "name": "over-1048576",
+      "ok": false,
+      "code": "ENOSPC",
+      "message": "ENOSPC: no space left on device, write"
+    },
+    {
+      "name": "atomic-temp-spike",
+      "ok": false,
+      "code": "ENOSPC",
+      "message": "ENOSPC: no space left on device, write"
+    },
+    {
+      "name": "reuse-after-shrink",
+      "ok": true,
+      "value": 8192
+    },
+    {
+      "name": "sparse-logical-size-exceeds-storage-cap",
+      "ok": true,
+      "value": {
+        "logicalBytes": 2097152,
+        "allocatedBytes": 0
+      }
+    }
+  ],
+  "bytesAfterDeniedAppend": 1048576,
+  "parallel": {
+    "exit": 0,
+    "stdout": "[{\"name\":\"a\",\"exit\":2,\"out\":\"ENOSPC\"},{\"name\":\"b\",\"exit\":0,\"out\":\"ok\"}]\n",
+    "stderr": "",
+    "logicalBytes": 1048576
+  },
+  "tools": {
+    "node": "/usr/local/bin/node",
+    "python3": "",
+    "sh": "/usr/bin/sh",
+    "curl": "",
+    "prlimit": "/usr/bin/prlimit"
+  },
+  "criteriaMet": true
+}

@@ -1,0 +1,527 @@
+--- imported/apps/launcher/src/control-service.ts
++++ joint/apps/launcher/src/control-service.ts
+@@ -2,6 +2,7 @@
+ // ledger, the role capability table and the stop sequence. The product plugin inside OpenCode only forwards hook
+ // events here and obeys the reply. Every failure path is a denial; denial messages are fixed short codes and never
+ // contain words OpenCode could classify as retryable.
++import { randomUUID } from 'node:crypto';
+ import { mkdir, realpath } from 'node:fs/promises';
+ import { dirname, isAbsolute, join, resolve, sep } from 'node:path';
+ import type { OpencodeClient } from '@opencode-ai/sdk/v2';
+@@ -91,7 +92,8 @@
+ export const SOLVER_TOOLS = ['workspace.list', 'workspace.read', 'workspace.search', 'workspace.write', 'http.request', 'job.run', 'job.read', 'job.cancel'];
+ export const MANAGED_TOOLS = [...INTAKE_TOOLS, 'challenge.assign', 'challenge.unassign', 'task.stop', ...SOLVER_TOOLS];
+ interface Resource { run: string; sessionID: string; challengeId: string; callID: string; tool: string; state: 'active' | 'settled' | 'unknown'; result?: string; job?: string; controller: AbortController; deadline: number; timer?: ReturnType<typeof setTimeout>; done?: Promise<unknown>; detachRpc?: () => void }
+-interface TaskStopResult { state: 'stopped' | 'unknown'; resources: 'settled' | 'unknown'; sessionAbort: 'confirmed' | 'unknown' }
++interface TaskStopResult { state: 'stopped' | 'unknown' | 'completed' | 'failed'; resources: 'settled' | 'unknown'; sessionAbort: 'confirmed' | 'unknown' | 'not_required'; executionRef?: string }
++interface Execution { ref: string; run: string; parent: string; callID: string; role: Role; challengeId?: string; childID?: string; state: 'starting' | 'running' | 'completed' | 'failed' | 'cancelled'; delivered: boolean; noticeMessageID?: string; delivery?: 'queued' | 'consumed' | 'suppressed' | 'stop_reply'; lateResult?: string; initialOutput?: string; result?: string }
+ interface Outside { execute: () => Promise<unknown> }
+ 
+ export interface ControlOptions {
+@@ -119,8 +121,9 @@
+   readonly startedAt = Date.now();
+   private tail: Promise<unknown> = Promise.resolve();
+   private stopping?: Promise<void>;
+-  private readonly pending = new Map<string, Map<Role, { callID: string; challengeId?: string }>>();
++  private readonly pending = new Map<string, Map<Role, { callID: string; challengeId?: string; childID?: string; background?: boolean }>>();
+   private readonly declarations = new Map<string, Map<Role, string>>();
++  private readonly executions = new Map<string, Execution>();
+   private readonly childStops = new Map<string, Promise<TaskStopResult>>();
+   private readonly dispatched = new Map<string, { parent: string; role: Role }>();
+   private readonly usageMessages = new Map<string, Map<string, Message>>();
+@@ -132,6 +135,12 @@
+   private readonly jobs: JobManager;
+   private readonly rootsReady = new Map<string, Promise<void>>();
+   constructor(private readonly options: ControlOptions) { this.jobs = new JobManager({ jobsRoot: join(options.workdir, '..', 'state', 'jobs') }); }
++
++  executionSnapshot() { return [...this.executions.values()].map(e => ({...e})); }
++  hasOutstandingWork(status: Record<string, { type: string }>): boolean {
++    return [...this.executions.values()].some(e => e.state === 'starting' || e.state === 'running' || !e.delivered || e.delivery === 'queued') || [...this.pending.values()].some(p => p.size > 0) ||
++      [...this.resources.values()].some(r => r.state !== 'settled');
++  }
+ 
+   resourceSnapshot() { return [...this.resources.values()].map(({ controller: _c, timer: _t, done: _d, detachRpc: _detach, ...record }) => record); }
+   private serial<T>(fn: () => T): Promise<T> {
+@@ -153,13 +162,21 @@
+     const body = (input && typeof input === 'object' ? input : {}) as Record<string, unknown>;
+     try {
+       if (!sessionID || !/^[\w.-]{1,128}$/.test(sessionID)) throw new ControlDenied('unbound session');
+-      if (!['chat.message', 'model.call', 'tool.before', 'tool.execute', 'tool.after'].includes(operation)) throw new ControlDenied('unknown operation');
++      if (!['chat.message', 'model.call', 'tool.before', 'tool.execute', 'tool.after', 'task.event'].includes(operation)) throw new ControlDenied('unknown operation');
++      if (operation === 'task.event') return await this.serial(() => this.taskEvent(sessionID, body));
++      // Runtime-synthetic native completion is consumed once before admission; stopped runs retain it without waking.
++      if (operation === 'chat.message') await this.serial(() => this.receiveCompletion(sessionID, body));
+       let binding: Binding | undefined;
+       if (operation !== 'tool.after') {
+         const hookAgent = typeof body.agent === 'string' ? body.agent : undefined;
+         binding = this.bindings.get(sessionID) ?? await this.bindFromSdk(sessionID, hookAgent);
+         this.live(binding);
+         if (binding.challengeId) await this.initializeRoots(binding);
++        if ((operation === 'tool.before' && body.tool === 'ctf_task_stop' || operation === 'tool.execute' && body.tool === 'task.stop') && binding.role === 'coordinator') {
++          const childID = (body.args as {task_id?: string} | undefined)?.task_id;
++          const execution = [...this.executions.values()].find(e => e.parent === sessionID && e.childID === childID);
++          if (childID && !this.bindings.has(childID) && execution) await this.bindFromSdk(childID, execution.role);
++        }
+         if (hookAgent !== undefined && hookAgent !== binding.role) throw new ControlDenied('agent mismatch');
+         if (operation === 'model.call') {
+           try { await this.refreshObserved(); } catch { throw new ControlDenied('usage unavailable'); }
+@@ -173,7 +190,7 @@
+         this.live(binding!);
+         switch (operation) {
+           case 'chat.message': return { bound: true };
+-          case 'model.call': return this.admit(binding!);
++          case 'model.call': return this.admit(binding!, body);
+           case 'tool.before': return this.toolBefore(binding!, body);
+           default: return this.executeManaged(binding!, body, signal);
+         }
+@@ -191,6 +208,8 @@
+   stopAll(reason: string): Promise<void> {
+     if (this.stopping) return this.stopping;
+     this.stopReason = reason;
++    for (const e of this.executions.values()) if (e.state === 'starting' || e.state === 'running') { e.state = 'cancelled'; e.delivered = true; e.delivery = 'suppressed'; }
++    for (const e of this.executions.values()) if (e.delivery === 'queued') e.delivery = 'suppressed';
+     this.declarations.clear();
+     this.pending.clear();
+     for (const binding of this.bindings.values()) if (binding.state === 'active') binding.state = 'stopped';
+@@ -215,7 +234,7 @@
+       };
+       if (this.rootId) await visit(this.rootId);
+       this.record(this.rootId ?? '', 'stop_enumerated', true, undefined, { sessions: [...all] });
+-      await Promise.all([...all].map(id => this.abortSession(id)));
++      await Promise.all([...all].map(id => this.childStops.get(id) ?? this.abortSession(id)));
+     })();
+     return this.stopping;
+   }
+@@ -224,7 +243,7 @@
+   async revoke(sessionID: string): Promise<void> {
+     const binding = this.bindings.get(sessionID);
+     if (!binding || binding.via === 'root') throw new Error('only a bound child can be revoked');
+-    await this.stopChild(binding);
++    await this.stopChild(binding, true);
+   }
+ 
+   private checkTaskStop(parent: Binding, raw: unknown): Binding {
+@@ -239,8 +258,11 @@
+     return child;
+   }
+ 
+-  private stopChild(child: Binding): Promise<TaskStopResult> {
++  private stopChild(child: Binding, forceRevoke = false): Promise<TaskStopResult> {
+     const existing = this.childStops.get(child.sessionID); if (existing) return existing;
++    const execution = [...this.executions.values()].reverse().find(e => e.childID === child.sessionID);
++    if (!forceRevoke && execution && (execution.state === 'completed' || execution.state === 'failed')) return Promise.resolve({ state: execution.state, resources: this.resourceSnapshot().some(r => r.sessionID === child.sessionID && r.state !== 'settled') ? 'unknown' : 'settled', sessionAbort: 'not_required', executionRef: execution.ref });
++    if (execution && (execution.state === 'starting' || execution.state === 'running')) { execution.state = 'cancelled'; execution.delivered = true; execution.delivery = 'stop_reply'; this.record(child.sessionID, 'task.cancel', true, undefined, { ref: execution.ref, callID: execution.callID }); }
+     child.state = 'revoked';
+     this.clearDispatchState(child.sessionID);
+     this.record(child.sessionID, 'revoke', true);
+@@ -248,7 +270,7 @@
+       await this.cancelResources(child.sessionID);
+       const confirmed = await this.abortSession(child.sessionID, 4000);
+       const resources = this.resourceSnapshot().some(r => r.sessionID === child.sessionID && r.state !== 'settled') ? 'unknown' : 'settled';
+-      const result: TaskStopResult = { state: resources === 'settled' && confirmed ? 'stopped' : 'unknown', resources, sessionAbort: confirmed ? 'confirmed' : 'unknown' };
++      const result: TaskStopResult = { executionRef: execution?.ref, state: resources === 'settled' && confirmed ? 'stopped' : 'unknown', resources, sessionAbort: confirmed ? 'confirmed' : 'unknown' };
+       this.record(child.sessionID, 'task.stop.result', result.state === 'stopped', undefined, result);
+       return result;
+     })();
+@@ -361,6 +383,17 @@
+     const started = Date.now();
+     let info: { parentID?: string; agent?: string } | undefined;
+     try { info = (await this.options.client.session.get({ sessionID }, { throwOnError: true })).data; } catch { throw new ControlDenied('unbound session', 'session lookup failed'); }
++    // For asynchronous dispatch, the native running tool part binds a child ID to this exact call.
++    // Parent/role alone is insufficient once an earlier creation can arrive late.
++    const candidate = info?.parentID && isRole(info.agent) ? this.pending.get(info.parentID)?.get(info.agent) : undefined;
++    let nativeChild: string | undefined;
++    if (candidate?.background && info?.parentID) {
++      try {
++        const messages = (await this.options.client.session.messages({ sessionID: info.parentID }, { throwOnError: true })).data ?? [];
++        const part = messages.flatMap(m => m.parts).find(p => p.type === 'tool' && p.tool === 'task' && p.callID === candidate.callID);
++        if (part?.type === 'tool' && 'metadata' in part.state && typeof part.state.metadata?.sessionId === 'string') nativeChild = part.state.metadata.sessionId;
++      } catch { throw new ControlDenied('unbound session', 'native dispatch correlation unavailable'); }
++    }
+     return this.serial(() => {
+     if (this.stopReason) throw new ControlDenied('run stopped');
+     const already = this.bindings.get(sessionID); if (already) { this.live(already); return already; }
+@@ -374,19 +407,23 @@
+     if (hookAgent !== undefined && hookAgent !== info.agent) throw fail('hook agent differs from SDK agent');
+     const waiting = this.pending.get(info.parentID)?.get(info.agent);
+     if (!waiting) throw fail('no pending dispatch');
++    if (waiting.childID && waiting.childID !== sessionID) throw fail('dispatch child mismatch');
++    if (waiting.background && (candidate?.callID !== waiting.callID || (waiting.childID ?? nativeChild) !== sessionID)) throw fail('native call child mismatch');
+     this.pending.get(info.parentID)!.delete(info.agent);
+     const binding: Binding = { sessionID, role: info.agent, parentID: info.parentID, via: 'dispatch', dispatchCallID: waiting.callID, challengeId: waiting.challengeId, scope: 'run',
+       expiresAt: this.options.expiresAt, state: 'active', boundAt: Date.now() };
+     if (binding.challengeId) binding.workDir = this.roots(binding).workDir;
+     this.bindings.set(sessionID, binding);
+     this.dispatched.set(sessionID, { parent: info.parentID, role: info.agent });
++    const execution = [...this.executions.values()].find(e => e.parent === info.parentID && e.callID === waiting.callID);
++    if (execution) { execution.childID = sessionID; execution.state = 'running'; }
+     this.record(sessionID, 'bind', true, undefined, { role: binding.role, via: 'dispatch', sdkParentID: info.parentID, sdkAgent: info.agent, callID: waiting.callID, challengeId: waiting.challengeId, sdkMs });
+     return binding;
+     });
+   }
+ 
+-  private admit(binding: Binding): { maxOutputTokens: number; admitNo: number; role: Role } {
+-    this.releasePending(binding.sessionID);
++  private admit(binding: Binding, body: Record<string, unknown>): { maxOutputTokens: number; admitNo: number; role: Role } {
++    // Async dispatches survive parent admission; only trusted binding/terminal facts release them.
+     // Stop, revocation or expiry may have occurred while the SDK usage query was pending.
+     if (this.stopReason) throw new ControlDenied('run stopped');
+     this.live(binding);
+@@ -396,6 +433,7 @@
+       throw new ControlDenied('budget', JSON.stringify({ admitted: this.admitted, observedTokens: this.observed }));
+     }
+     this.admitted++;
++    for (const e of this.executions.values()) if (e.parent === binding.sessionID && e.delivery === 'queued' && e.noticeMessageID === body.messageID) { e.delivery = 'consumed'; this.record(binding.sessionID, 'task.delivered', true, undefined, {ref: e.ref, messageID: body.messageID, admitNo: this.admitted}); }
+     return { maxOutputTokens: maxObservableTokens - this.observed, admitNo: this.admitted, role: binding.role };
+   }
+ 
+@@ -414,7 +452,17 @@
+     if (!allowed) throw new ControlDenied('tool not permitted', tool);
+     const args = (body.args && typeof body.args === 'object' ? body.args : {}) as Record<string, unknown>;
+ 
+-    if (tool === 'task') this.registerDispatch(binding, typeof body.callID === 'string' ? body.callID : '', args);
++    if (tool === 'task') {
++      if ([...this.executions.values()].some(e => e.parent === binding.sessionID && e.callID === body.callID)) throw new ControlDenied('duplicate dispatch call');
++      this.registerDispatch(binding, typeof body.callID === 'string' ? body.callID : '', args);
++      if (args.background === true) {
++        const ref = randomUUID();
++        const taskID = typeof args.task_id === 'string' ? args.task_id : undefined;
++        this.executions.set(ref, { ref, run: this.options.runId ?? 'run', parent: binding.sessionID, callID: String(body.callID), role: args.subagent_type as Role, challengeId: taskID ? this.bindings.get(taskID)?.challengeId : this.pending.get(binding.sessionID)?.get(args.subagent_type as Role)?.challengeId, childID: taskID, state: taskID ? 'running' : 'starting', delivered: false });
++        this.record(binding.sessionID, 'task.execution', true, undefined, {...this.executions.get(ref)});
++        return { allowed: true, taskDescription: `[ctf:${ref}]` };
++      }
++    }
+     return { allowed: true };
+   }
+ 
+@@ -477,7 +525,7 @@
+       if (args.completion !== undefined && args.completion !== 'terminal') throw new ControlDenied('job completion');
+     }
+     const wait = name === 'http.request' ? bounded(args.timeout_ms, 15000, 60000) :
+-      name === 'job.run' ? (args.completion === 'terminal'
++      name === 'job.run' ? (args.completion === 'terminal' || args.wait_ms === undefined
+         ? bounded(args.timeout_ms, 60000, 600000) + 4000
+         : bounded(args.wait_ms, 5000, 30000, 0)) : name === 'job.cancel' ? 4000 : 15000;
+     return Math.max(0, Math.min(wait, binding.expiresAt - Date.now()));
+@@ -526,7 +574,7 @@
+             keep = true;
+             void done.then(snapshot => this.settleResource(operation, snapshot.reapIncomplete ? 'cleanup_unknown' : snapshot.state));
+             // Decision prototype: retain the same RPC/call until terminal cleanup, without a model polling loop.
+-            if (args.completion === 'terminal') result = await done;
++            if (args.completion === 'terminal' || args.wait_ms === undefined) result = await done;
+           } else if (name === 'job.read') result = this.jobs.read(this.jobBinding(binding, roots), args);
+           else if (name === 'job.cancel') result = await this.jobs.cancel(this.jobBinding(binding, roots), args.job);
+           else if (name === 'workspace.list') result = await listWorkspace(roots, args);
+@@ -619,6 +667,7 @@
+       const child = typeof taskId === 'string' ? this.bindings.get(taskId) : undefined;
+       if (!owned || owned.parent !== binding.sessionID || owned.role !== role || !child) throw new ControlDenied('dispatch', 'task id not owned');
+       this.live(child);
++      if ([...this.executions.values()].some(e => e.childID === taskId && (e.state === 'starting' || e.state === 'running'))) throw new ControlDenied('dispatch', 'execution still active');
+       const declared = this.declarations.get(binding.sessionID)?.get(role);
+       if (declared !== undefined && declared !== child.challengeId) throw new ControlDenied('dispatch', 'declared challenge differs from resumed session');
+       this.declarations.get(binding.sessionID)?.delete(role);
+@@ -629,22 +678,36 @@
+     if (byRole.has(role)) throw new ControlDenied('dispatch', 'pending dispatch exists for role');
+     const challengeId = this.declarations.get(binding.sessionID)?.get(role);
+     if (CHALLENGE_ROLES.includes(role) && challengeId === undefined) throw new ControlDenied('dispatch', 'no challenge declared for role');
+-    byRole.set(role, { callID, challengeId });
++    byRole.set(role, { callID, challengeId, background: args.background === true });
+     this.declarations.get(binding.sessionID)?.delete(role);
+     this.record(binding.sessionID, 'dispatch.register', true, undefined, { role, callID, challengeId });
+     this.pending.set(binding.sessionID, byRole);
+   }
+ 
+-  /**
+-   * C design section 3.1 release rule: OpenCode asks for the next model call only after every tool call of the
+-   * previous round returned, so a parent's unconsumed pending dispatches are over once it asks for admission again.
+-   * Runs before the budget check, so a refused admission releases them too.
+-   */
+-  private releasePending(parent: string): void {
+-    const waiting = this.pending.get(parent);
+-    if (!waiting?.size) return;
+-    this.record(parent, 'dispatch.release', true, undefined, { released: [...waiting].map(([role, w]) => ({ role, callID: w.callID })) });
+-    waiting.clear();
++  private taskEvent(parent: string, body: Record<string, unknown>): {ok: true} {
++    const execution = [...this.executions.values()].find(e => e.parent === parent && e.callID === body.callID);
++    if (!execution || body.state !== 'error' || execution.state !== 'starting') return {ok: true};
++    execution.state = 'failed'; execution.delivered = true; execution.delivery = 'stop_reply'; execution.result = typeof body.error === 'string' ? body.error : 'native task error';
++    for (const [role, waiting] of this.pending.get(parent) ?? []) if (waiting.callID === execution.callID) this.pending.get(parent)!.delete(role);
++    this.record(parent, 'task.start.failed', true, undefined, {ref: execution.ref, callID: execution.callID});
++    return {ok: true};
++  }
++
++  private receiveCompletion(parent: string, body: Record<string, unknown>): void {
++    if (!Array.isArray(body.parts)) return;
++    for (const part of body.parts as Array<{type?: string; synthetic?: boolean; text?: string}>) {
++      if (part.type !== 'text' || part.synthetic !== true || typeof part.text !== 'string') continue;
++      const match = /^<task id="([\w.-]+)" state="(completed|error)">\n<summary>Background task (?:completed|failed): \[ctf:([a-f0-9-]{36})\]<\/summary>/.exec(part.text);
++      if (!match) continue;
++      const execution = this.executions.get(match[3]!);
++      if (!execution || execution.parent !== parent || execution.childID !== match[1]) throw new ControlDenied('completion correlation');
++      if (execution.delivered) { execution.lateResult = part.text; this.record(parent, 'task.completion.ignored', true, undefined, { ref: execution.ref, reason: 'duplicate or late', messageID: body.messageID }); throw new ControlDenied('duplicate completion'); }
++      execution.state = match[2] === 'completed' ? 'completed' : 'failed'; execution.result = part.text;
++      execution.noticeMessageID = typeof body.messageID === 'string' ? body.messageID : undefined;
++      execution.delivered = true; execution.delivery = this.stopReason ? 'suppressed' : 'queued';
++      this.record(parent, 'task.completion', true, undefined, { ref: execution.ref, childID: execution.childID, callID: execution.callID, state: execution.state, messageID: execution.noticeMessageID, wake: !this.stopReason });
++      if (this.stopReason) throw new ControlDenied('run stopped');
++    }
+   }
+ 
+   /** Audit correlation only: ties the task call to the child session reported by OpenCode, and releases an unconsumed pending slot. */
+@@ -655,7 +718,9 @@
+       const callID = typeof body.callID === 'string' ? body.callID : '';
+       this.record(sessionID, 'task.correlate', true, undefined, { callID, childSessionID: child ?? null,
+         childBoundToCaller: child ? this.bindings.get(child)?.parentID === sessionID : false });
+-      for (const [role, waiting] of this.pending.get(sessionID) ?? []) if (waiting.callID === callID) this.pending.get(sessionID)!.delete(role);
++      const execution = [...this.executions.values()].find(e => e.parent === sessionID && e.callID === callID);
++      if (execution) { if (child && execution.childID && execution.childID !== child) throw new ControlDenied('completion correlation'); if (child) execution.childID = child; if (execution.initialOutput === undefined && typeof body.output === 'string') execution.initialOutput = body.output; }
++      for (const [, waiting] of this.pending.get(sessionID) ?? []) if (waiting.callID === callID && child) waiting.childID = child;
+     }
+     return { ok: true };
+   }
+--- imported/apps/launcher/src/launch.ts
++++ joint/apps/launcher/src/launch.ts
+@@ -253,11 +253,13 @@
+         await delay(500);
+         break;
+       }
+-      const current = (await client.session.status({}, { throwOnError: true })).data?.[rootId];
++      const statuses = (await client.session.status({}, { throwOnError: true })).data;
++      if (!statuses) throw new Error('session status unavailable');
++      const current = statuses[rootId];
+       if (!current || current.type === 'idle') {
+         const messages = (await client.session.messages({ sessionID: rootId }, { throwOnError: true })).data ?? [];
+         const done = messages.some(m => m.info.role === 'assistant' && m.info.time.completed !== undefined);
+-        idleSeen = done ? idleSeen + 1 : 0;
++        idleSeen = done && !control.hasOutstandingWork(statuses) ? idleSeen + 1 : 0;
+         if (idleSeen >= 2) { mark('root_idle'); await control.stopAll('completed'); break; }
+       } else idleSeen = 0;
+       await delay(500);
+@@ -266,6 +268,7 @@
+     fail('error', cause);
+     await control.stopAll('error');
+   }
++  await save(join(real.evidence, 'task-executions.json'), control.executionSnapshot());
+   // 5. Common best-effort finalization while the SDK remains available. Each query/write is independent.
+   for (const id of control.bindings.keys()) sessionIds.add(id);
+   if (rootId) await descendants(rootId);
+--- imported/apps/opencode-plugin/src/index.ts
++++ joint/apps/opencode-plugin/src/index.ts
+@@ -18,7 +18,7 @@
+   'workspace.search': { path: tool.schema.string().optional(), needle: tool.schema.string().min(1) },
+   'workspace.write': { path: tool.schema.string(), content: tool.schema.string(), encoding: tool.schema.enum(['utf8', 'base64']).optional() },
+   'task.stop': { task_id: tool.schema.string().min(1).max(128) },
+-  'job.run': { completion: tool.schema.literal('terminal').optional(), argv: tool.schema.array(tool.schema.string()).min(1).max(32), timeout_ms: tool.schema.number().int().positive().max(600000).optional(), wait_ms: tool.schema.number().int().min(0).max(30000).optional() },
++  'job.run': { argv: tool.schema.array(tool.schema.string()).min(1).max(32), timeout_ms: tool.schema.number().int().positive().max(600000).optional() },
+   'job.read': { job: tool.schema.string().uuid(), stream: tool.schema.enum(['stdout', 'stderr']), cursor: tool.schema.string().optional() },
+   'job.cancel': { job: tool.schema.string().uuid() },
+   'http.request': { url: tool.schema.string().url(), method: tool.schema.enum(['GET', 'HEAD', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS']).optional(),
+@@ -28,7 +28,7 @@
+   'challenge.read': { id: tool.schema.string().min(1), path: tool.schema.string().min(1), cursor: tool.schema.string().regex(/^\d{1,15}$/).optional() }
+ };
+ const descriptions: Record<string, string> = {
+-  'job.run': 'Start one managed job. Optional completion=terminal keeps this same tool call pending until final cleanup; wait_ms then only bounds the initial wait, and no early running handle is delivered. Without completion, return a handle after wait_ms. timeout_ms and host lifetime always bound the job.',
++  'job.run': 'Start one managed job and wait in this call until terminal cleanup. Output remains bounded and readable after completion. Host timeout and lifetime bound execution.',
+   'challenge.list': 'List every challenge of this run: id, title, authorized network target (or "無網路目標"), time of the start-up reachability check, and the pinned material files with size and sha256. Takes no arguments. The statement is the material statement.md.',
+   'challenge.read': 'Read one pinned material file of a challenge. Arguments: id (challenge id from challenge.list), path (file name relative to that challenge\'s materials, e.g. "statement.md"), cursor (optional, the nextCursor of the previous page). Text is returned in pages with nextCursor (null on the last page); a binary file returns only its size and first 8 bytes as hex. Read-only.'
+ };
+@@ -73,21 +73,28 @@
+   }
+   return {
+     tool: tools,
+-    async 'chat.message'(input) { await control(input.sessionID, 'chat.message', { agent: input.agent }); },
++    async event({event}) {
++      if (event.type !== 'message.part.updated') return;
++      const part = event.properties.part;
++      if (part.type === 'tool' && part.tool === 'task' && part.state.status === 'error')
++        await control(part.sessionID, 'task.event', {callID: part.callID, state: part.state.status, error: part.state.error});
++    },
++    async 'chat.message'(input, output) { await control(input.sessionID, 'chat.message', { agent: input.agent, messageID: input.messageID ?? output.message?.id, parts: output.parts }); },
+     async 'chat.params'(input, output) {
+-      const admitted = await control(input.sessionID, 'model.call', { agent: input.agent, provider: input.model.providerID, model: input.model.id }) as { maxOutputTokens: number };
++      const admitted = await control(input.sessionID, 'model.call', { agent: input.agent, provider: input.model.providerID, model: input.model.id, messageID: input.message?.id }) as { maxOutputTokens: number };
+       if (!Number.isFinite(admitted?.maxOutputTokens) || admitted.maxOutputTokens < 1) throw new Error('denied: control reply');
+       output.maxOutputTokens = Math.min(output.maxOutputTokens ?? admitted.maxOutputTokens, admitted.maxOutputTokens);
+     },
+     async 'tool.execute.before'(input, output) {
+-      const approval = await control(input.sessionID, 'tool.before', { tool: input.tool, callID: input.callID, args: output.args }) as { rpcTimeoutMs?: number };
++      const approval = await control(input.sessionID, 'tool.before', { tool: input.tool, callID: input.callID, args: output.args }) as { rpcTimeoutMs?: number; taskDescription?: string };
++      if (input.tool === 'task' && approval.taskDescription) output.args.description = approval.taskDescription;
+       if (input.tool.startsWith('ctf_')) {
+         const timeoutMs = approval?.rpcTimeoutMs ?? options.requestTimeoutMs ?? 15000;
+         if (!Number.isInteger(timeoutMs) || timeoutMs < 1 || timeoutMs > 609000) throw new Error('denied: control reply');
+         (output.args as Marked)[callMarker] = { sessionID: input.sessionID, callID: input.callID, tool: input.tool, timeoutMs };
+       }
+     },
+-    async 'tool.execute.after'(input, output) { await control(input.sessionID, 'tool.after', { tool: input.tool, callID: input.callID, metadata: output.metadata }); }
++    async 'tool.execute.after'(input, output) { await control(input.sessionID, 'tool.after', { tool: input.tool, callID: input.callID, metadata: output.metadata, output: output.output }); }
+   };
+ }
+ 
+--- imported/packages/opencode-bridge/src/server.ts
++++ joint/packages/opencode-bridge/src/server.ts
+@@ -67,7 +67,8 @@
+     OPENCODE_DISABLE_CLAUDE_CODE: 'true', OPENCODE_DISABLE_EXTERNAL_SKILLS: 'true',
+     OPENCODE_DISABLE_LSP_DOWNLOAD: 'true', OPENCODE_DISABLE_MODELS_FETCH: 'true',
+     OPENCODE_DISABLE_AUTOUPDATE: 'true', OPENCODE_DISABLE_AUTOCOMPACT: 'true',
+-    OPENCODE_EXPERIMENTAL_DISABLE_FILEWATCHER: 'true'
++    OPENCODE_EXPERIMENTAL_DISABLE_FILEWATCHER: 'true',
++    OPENCODE_EXPERIMENTAL_BACKGROUND_SUBAGENTS: input.environment.OPENCODE_EXPERIMENTAL_BACKGROUND_SUBAGENTS ?? 'true'
+   };
+   for (const name of ['HTTP_PROXY', 'HTTPS_PROXY', 'ALL_PROXY', 'NO_PROXY']) if (process.env[name]) env[name] = process.env[name]!;
+   const version = (await promisify(execFile)(binary, ['--version'], { env, timeout: 10000 })).stdout.trim();
+--- imported/tests/contract/control-service.test.ts
++++ joint/tests/contract/control-service.test.ts
+@@ -119,21 +119,22 @@
+     await service.handle('root', 'tool.before', task('recon'));
+   });
+ 
+-  it('releases unconsumed pending dispatches when the parent asks for its next model call', async () => {
++  it('preserves unconsumed pending dispatches across parent admission', async () => {
+     const service = fakeService({});
+     await service.handle('root', 'tool.before', task('recon'));
+     await expect(service.handle('root', 'tool.before', task('recon'))).rejects.toThrow('denied: dispatch'); // same round: still refused
+     await service.handle('root', 'model.call', { agent: 'coordinator' });
+-    expect(service.audit.some(r => r.op === 'dispatch.release' && JSON.stringify(r.detail).includes('recon'))).toBe(true);
+-    await service.handle('root', 'tool.before', task('recon')); // next round: allowed again
+-  });
+-
+-  it('releases pending dispatches even when the admission is refused for budget', async () => {
++    expect(service.audit.some(r => r.op === 'dispatch.release')).toBe(false);
++    await expect(service.handle('root', 'tool.before', task('recon'))).rejects.toThrow('denied: dispatch');
++  });
++
++  it('budget refusal stops the run and clears pending without granting another dispatch', async () => {
+     const service = fakeService({});
+     (service as unknown as { options: { budget: { maxModelCalls: number } } }).options.budget.maxModelCalls = 0;
+     await service.handle('root', 'tool.before', task('recon'));
+     await expect(service.handle('root', 'model.call', {})).rejects.toThrow('budget denied');
+-    expect(service.audit.some(r => r.op === 'dispatch.release')).toBe(true);
++    expect(service.stopReason).toBe('budget');
++    await expect(service.handle('root', 'tool.before', task('recon'))).rejects.toThrow('run stopped');
+   });
+ 
+   it('refuses a session that was never dispatched and refuses task_id of a foreign session', async () => {
+@@ -357,14 +358,14 @@
+     await dispatch(s); await bind(s); expect(topic(s)).toBe('X');
+     // Opposite same-round order is already covered by T3's successful assign→task without admission.
+   });
+-  it('T8 pre-registration refusal preserves declaration; failed registered task clears only pending at next admission', async () => {
++  it('T8 pre-registration refusal preserves declaration; unknown registered task stays pending across admission', async () => {
+     const s = fixture(); await assign(s);
+     await expect(s.handle('root', 'tool.before', { tool: 'task', args: { subagent_type: 'recon' } })).rejects.toThrow('denied: dispatch');
+     await dispatch(s); // task fails before child hook; no tool.after
+     await expect(assign(s)).rejects.toThrow('denied: dispatch');
+     await s.handle('root', 'model.call', {});
+     await expect(dispatch(s)).rejects.toThrow('denied: dispatch');
+-    await assign(s, 'Y'); await dispatch(s); await bind(s); expect(topic(s)).toBe('Y');
++    await expect(assign(s, 'Y')).rejects.toThrow('denied: dispatch');
+   });
+   it.each(['stop', 'revoke', 'expire'] as const)('T9 %s during SDK binding wait cannot create valid binding', async action => {
+     const started = deferred(); const release = deferred();
+--- imported/tests/contract/g-async-lifecycle.test.ts
++++ joint/tests/contract/g-async-lifecycle.test.ts
+@@ -0,0 +1,45 @@
++import {it,expect,afterEach} from 'vitest';
++import {mkdtemp,mkdir,rm} from 'node:fs/promises';import{tmpdir}from'node:os';import{join}from'node:path';
++import{ControlService}from'../../apps/launcher/src/control-service.js';
++const clean:Array<()=>Promise<unknown>>=[];afterEach(async()=>{for(const f of clean.splice(0).reverse())await f();});
++async function fixture(){const dir=await mkdtemp(join(tmpdir(),'g-async-'));clean.push(()=>rm(dir,{recursive:true,force:true}));const materials=join(dir,'X/materials');await mkdir(materials,{recursive:true});const identities:Record<string,unknown>={a:{parentID:'root',agent:'recon'},late:{parentID:'root',agent:'recon'}};const c=new ControlService({client:{session:{get:async({sessionID}:{sessionID:string})=>({data:identities[sessionID]}),messages:async()=>({data:[{info:{id:'user-1',role:'user'},parts:[{type:'tool',tool:'task',callID:'dispatch-1',state:{metadata:{sessionId:'a'}}}]}]}),children:async()=>({data:[]}),abort:async()=>({data:true})}}as never,budget:{maxModelCalls:20,maxObservableTokens:1000},expiresAt:Date.now()+60000,workdir:join(dir,'opencode'),skillRoot:dir,challenges:[{id:'X',title:null,target:null,materialsDir:materials,materials:[],reachability:null}]});c.bindRoot('root');clean.push(()=>c.stopAll('cleanup'));await c.handle('root','tool.execute',{tool:'challenge.assign',args:{role:'recon',challenge:'X'}});await c.handle('root','tool.before',{tool:'task',callID:'dispatch-1',args:{subagent_type:'recon',background:true}});return c;}
++it('parent next admission preserves starting async dispatch and delayed child binding',async()=>{const c=await fixture();await c.handle('root','model.call',{});await expect(c.handle('a','chat.message',{agent:'recon'})).resolves.toEqual({bound:true});expect(c.bindings.get('a')?.dispatchCallID).toBe('dispatch-1');});
++it('early task after with trusted child metadata keeps exact child pending across admission',async()=>{const c=await fixture();await c.handle('root','tool.after',{tool:'task',callID:'dispatch-1',metadata:{sessionId:'a',background:true}});await c.handle('root','model.call',{});await expect(c.handle('late','chat.message',{agent:'recon'})).rejects.toThrow('unbound session');await expect(c.handle('a','chat.message',{agent:'recon'})).resolves.toEqual({bound:true});});
++it('unknown dispatch outcome cannot free pending and rematch a late child',async()=>{const c=await fixture();await c.handle('root','tool.after',{tool:'task',callID:'dispatch-1',metadata:{}});await c.handle('root','model.call',{});await expect(c.handle('root','tool.execute',{tool:'challenge.assign',args:{role:'recon',challenge:'X'}})).rejects.toThrow('dispatch');});
++it('default job.run returns terminal without wait/completion modes',async()=>{const c=await fixture();await c.handle('a','chat.message',{agent:'recon'});const result=await c.handle('a','tool.execute',{tool:'job.run',callID:'job-default',args:{argv:[process.execPath,'-e',"setTimeout(()=>console.log('done'),5500)"],timeout_ms:7000}});expect(result).toMatchObject({state:'exited',exitCode:0});},10000);
++it('host execution tags distinguish generations; duplicate/late notifications never wake twice',async()=>{
++ const c=await fixture();
++ const approval=await c.handle('root','tool.before',{tool:'task',callID:'dispatch-2',args:{subagent_type:'recon',task_id:'a',background:true}}).catch(()=>null) as any;
++ // Fresh dispatch's host tag is recorded independently of model text and exported for audit.
++ const exec=(c as any).executionSnapshot?.()[0];expect(exec?.ref).toBeTypeOf('string');
++ await c.handle('a','chat.message',{agent:'recon'});
++ const event={agent:'coordinator',messageID:'notice-1',parts:[{type:'text',synthetic:true,text:`<task id="a" state="completed">\n<summary>Background task completed: [ctf:${exec.ref}]</summary>\n<task_result>A_DONE</task_result>\n</task>`}]};
++ await expect(c.handle('root','chat.message',event)).resolves.toMatchObject({bound:true});
++ await expect(c.handle('root','chat.message',{...event,messageID:'notice-duplicate'})).rejects.toThrow('duplicate completion');
++ const next=await c.handle('root','tool.before',{tool:'task',callID:'resume-1',args:{subagent_type:'recon',task_id:'a',background:true}}) as any;expect(next.taskDescription).not.toContain(exec.ref);
++ await expect(c.handle('root','chat.message',{...event,messageID:'notice-late'})).rejects.toThrow('duplicate completion');
++ expect((c as any).executionSnapshot().filter((e:any)=>e.state==='running')).toHaveLength(1);
++});
++it('outstanding unbound dispatch prevents idle completion; stopped notifications cannot restart the run',async()=>{const c=await fixture();expect(c.hasOutstandingWork({root:{type:'idle'}})).toBe(true);await c.stopAll('budget');const admitted=c.admitted;await expect(c.handle('root','chat.message',{agent:'coordinator',parts:[]})).rejects.toThrow('run stopped');expect(c.admitted).toBe(admitted);});
++it('trusted startup error releases only its call; late child cannot consume a later same-role dispatch',async()=>{
++ const c=await fixture();await c.handle('root','task.event',{callID:'dispatch-1',state:'error',error:'fixture creation failed'});
++ await c.handle('root','tool.execute',{tool:'challenge.assign',args:{role:'recon',challenge:'X'}});await c.handle('root','tool.before',{tool:'task',callID:'dispatch-2',args:{subagent_type:'recon',background:true}});
++ await expect(c.handle('late','chat.message',{agent:'recon'})).rejects.toThrow('unbound session');expect(c.bindings.has('late')).toBe(false);expect(c.executionSnapshot()[0]?.state).toBe('failed');
++});
++it('parent can stop a trusted early child reference before its first hook; delayed hook stays denied',async()=>{
++ const c=await fixture();await c.handle('root','tool.after',{tool:'task',callID:'dispatch-1',metadata:{sessionId:'a',background:true}});
++ await c.handle('root','tool.before',{tool:'ctf_task_stop',callID:'stop-early',args:{task_id:'a'}});
++ await c.handle('root','tool.execute',{tool:'task.stop',callID:'stop-early',args:{task_id:'a'}});
++ await expect(c.handle('a','model.call',{agent:'recon'})).rejects.toThrow('session revoked');expect(c.admitted).toBe(0);
++});
++it('global stop reuses confirmed/unknown child stop instead of issuing another SDK abort',async()=>{
++ const c=await fixture();await c.handle('a','chat.message',{agent:'recon'});await c.handle('root','tool.execute',{tool:'task.stop',args:{task_id:'a'}});await c.stopAll('global');expect(c.audit.filter(r=>r.sessionID==='a'&&r.op==='aborted')).toHaveLength(1);
++});
++it('completion wake is queued then re-admitted; budget rejection keeps result and usage incomplete',async()=>{
++ const c=await fixture();await c.handle('a','chat.message',{agent:'recon'});const e=c.executionSnapshot()[0]!;const notice={messageID:'completion-budget',parts:[{type:'text',synthetic:true,text:`<task id="a" state="completed">\n<summary>Background task completed: [ctf:${e.ref}]</summary>\n<task_result>retained</task_result>\n</task>`}]};
++ await c.handle('root','chat.message',notice);(c as any).options.budget.maxModelCalls=0;await expect(c.handle('root','model.call',{messageID:'completion-budget'})).rejects.toThrow('budget');expect(c.admitted).toBe(0);expect(c.executionSnapshot()[0]).toMatchObject({state:'completed',delivery:'suppressed',result:expect.stringContaining('retained')});expect(c.usageSnapshot().total.incomplete).toBe(true);
++});
++
++it('stop after natural completion reports original terminal without revoking or rewriting first reply',async()=>{const c=await fixture();await c.handle('a','chat.message',{agent:'recon'});const e=c.executionSnapshot()[0]!;await c.handle('root','chat.message',{messageID:'done',parts:[{type:'text',synthetic:true,text:`<task id="a" state="completed">\n<summary>Background task completed: [ctf:${e.ref}]</summary>\n<task_result>done</task_result>\n</task>`}]});await expect(c.handle('root','tool.execute',{tool:'task.stop',args:{task_id:'a'}})).resolves.toMatchObject({state:'completed',sessionAbort:'not_required'});expect(c.bindings.get('a')?.state).toBe('active');});
++it('initial task reply is immutable and another child cannot overwrite its execution mapping',async()=>{const c=await fixture();await c.handle('root','tool.after',{tool:'task',callID:'dispatch-1',metadata:{sessionId:'a'},output:'original-running'});await expect(c.handle('root','tool.after',{tool:'task',callID:'dispatch-1',metadata:{sessionId:'late'},output:'different'})).rejects.toThrow('completion correlation');expect(c.executionSnapshot()[0]).toMatchObject({childID:'a',initialOutput:'original-running'});});
++it('host revoke still revokes a naturally completed child session',async()=>{const c=await fixture();await c.handle('a','chat.message',{agent:'recon'});const e=c.executionSnapshot()[0]!;await c.handle('root','chat.message',{parts:[{type:'text',synthetic:true,text:`<task id="a" state="completed">\n<summary>Background task completed: [ctf:${e.ref}]</summary>\n<task_result>done</task_result>\n</task>`}]});await c.revoke('a');await expect(c.handle('a','model.call',{agent:'recon'})).rejects.toThrow('session revoked');expect(c.executionSnapshot()[0]?.state).toBe('completed');});
+--- imported/tests/manual/g-joint-lifecycle.ts
++++ joint/tests/manual/g-joint-lifecycle.ts
+@@ -0,0 +1,42 @@
++import assert from 'node:assert/strict';
++import {createServer} from 'node:http';
++import {mkdtemp,mkdir,readFile,writeFile,readdir} from 'node:fs/promises';
++import {tmpdir} from 'node:os';
++import {join,resolve} from 'node:path';
++import {launch} from '../../apps/launcher/src/launch.js';
++const batch=process.argv[2]??'initial';
++const scenarios=process.argv[3]?[process.argv[3]]:['success','stop-job','stop-http','resume','active','budget'];
++for(const scenario of scenarios){
++const out=resolve('docs/gates/g-solver-verification-20261023/joint-async-lifecycle/runtime',batch,scenario);await mkdir(out,{recursive:true});
++const root=await mkdtemp(join(tmpdir(),'g-joint-'));const provider:any[]=[];const events:any[]=[];const stopObservations:any[]=[];let seq=0;let pstep=0;let astep=0;let bstep=0;let job='';let child='';let sibling='';let result:any;let failure:string|undefined;let httpEntered=0;let httpClosed=0;
++const target=createServer((q,r)=>{httpEntered=Date.now();events.push({at:httpEntered,event:'http.enter',url:q.url});r.writeHead(200);r.write('early');const t=setTimeout(()=>r.end('late'),20000);r.once('close',()=>{clearTimeout(t);httpClosed=Date.now();events.push({at:httpClosed,event:'http.closed'});});});await new Promise<void>(r=>target.listen(0,'127.0.0.1',r));const targetURL=`http://127.0.0.1:${(target.address() as any).port}`;
++const stub=createServer((q,r)=>{void(async()=>{const chunks:Buffer[]=[];for await(const c of q)chunks.push(Buffer.from(c));if(!q.url?.endsWith('/chat/completions')){r.writeHead(404).end('{}');return;}const body=JSON.parse(Buffer.concat(chunks).toString());const first=JSON.stringify(body.messages.find((m:any)=>m.role==='user')?.content??'');const who=first.includes('JOINT_A')?'a':first.includes('JOINT_B')?'b':'p';const step=who==='p'?pstep++:who==='a'?astep++:bstep++;const results=body.messages.filter((m:any)=>m.role==='tool').map((m:any)=>String(m.content));for(const s of results){const j=/"job":"([a-f0-9-]{36})"/.exec(s);if(j)job=j[1]!;const id=/<task id="(ses_[\w]+)"/.exec(s);if(id&&s.includes('recon'))child=id[1]!;}
++const calls:Array<{name:string,args:object}>=[];const all=JSON.stringify(body.messages);
++if(who==='p'){
++ if(step===0)calls.push({name:'ctf_challenge_assign',args:{role:'recon',challenge:'X'}});
++ if(step===1)calls.push({name:'task',args:{description:'JOINT recon',subagent_type:'recon',prompt:'JOINT_A execute your job',background:true}});
++ if(scenario.startsWith('stop')&&step===2)calls.push({name:'ctf_challenge_assign',args:{role:'engineer',challenge:'X'}});
++ if(scenario.startsWith('stop')&&step===3)calls.push({name:'task',args:{description:'JOINT sibling',subagent_type:'engineer',prompt:'JOINT_B wait then signal readiness',background:true}});
++ if(scenario.startsWith('stop')&&all.includes('SIBLING_READY')&&!all.includes('ctf_task_stop')){
++  // Trusted early reference is from native task output, selected by fixture only; C rechecks ownership.
++  const initial=results.find((s:string)=>s.includes('Background task started')&&s.includes('<task id='));
++  const match=initial&&/<task id="(ses_[\w]+)"/.exec(initial);if(match){child=match[1]!;calls.push({name:'ctf_task_stop',args:{task_id:child}});}
++ }
++ if(scenario.startsWith('stop')&&results.some((s:string)=>s.includes('\"state\":\"stopped\"'))&&!all.includes('JOINT_B_AFTER_STOP')){const refs=results.filter((s:string)=>s.includes('Background task started'));const m=refs[1]&&/<task id="(ses_[\w]+)"/.exec(refs[1]);if(m)calls.push({name:'task',args:{description:'sibling after stop',subagent_type:'engineer',task_id:m[1],prompt:'JOINT_B_AFTER_STOP',background:true}});}
++ if(scenario==='resume'&&all.includes('A_DONE')&&!all.includes('JOINT_RESUME')){const initial=results.find((s:string)=>s.includes('<task id='));const m=initial&&/<task id="(ses_[\w]+)"/.exec(initial);if(m)calls.push({name:'task',args:{description:'JOINT resume',subagent_type:'recon',task_id:m[1],prompt:'JOINT_RESUME',background:true}});}
++}else if(who==='a'){
++ if(step===0){if(scenario==='stop-http')calls.push({name:'ctf_http_request',args:{url:targetURL,timeout_ms:30000}});else calls.push({name:'ctf_job_run',args:{argv:[process.execPath,'-e',scenario==='stop-job'?"const ch=require('child_process').spawn(process.execPath,['-e','setInterval(()=>{},1000)'],{stdio:'inherit'});require('fs').writeFileSync('grandchild.pid',String(ch.pid));console.log('early');setInterval(()=>{},1000)":"console.log('early');setTimeout(()=>console.log('late'),6500)"],timeout_ms:30000}});}
++ if(step===1&&!scenario.startsWith('stop'))calls.push({name:'ctf_job_read',args:{job,stream:'stdout'}});
++}else if(step===2&&all.includes('JOINT_B_AFTER_STOP'))calls.push({name:'ctf_job_run',args:{argv:[process.execPath,'-e',"console.log('sibling-after-stop')"],timeout_ms:5000}});else if(step===0)calls.push({name:'ctf_job_run',args:{argv:[process.execPath,'-e',"console.log('sibling-start');setTimeout(()=>console.log('sibling-done'),800)"],timeout_ms:5000}});
++if(scenario==='active'&&who==='p'&&step===2)await new Promise(r=>setTimeout(r,8000));
++const content=who==='p'?'PARENT_IDLE':who==='a'?(all.includes('JOINT_RESUME')?'RESUMED_DONE':'A_DONE'):all.includes('JOINT_B_AFTER_STOP')?'SIBLING_AFTER_STOP':'SIBLING_READY';
++provider.push({at:Date.now(),seq:++seq,who,step,calls,toolResults:results,messages:body.messages,tools:body.tools});const base={id:`chatcmpl-${seq}`,object:'chat.completion.chunk',created:Math.floor(Date.now()/1000),model:'scripted'};r.writeHead(200,{'content-type':'text/event-stream'});const delta=calls.length?{role:'assistant',tool_calls:calls.map((c,i)=>({index:i,id:`call_${seq}_${i}`,type:'function',function:{name:c.name,arguments:JSON.stringify(c.args)}}))}:{role:'assistant',content};for(const v of [{...base,choices:[{index:0,delta,finish_reason:null}]},{...base,choices:[{index:0,delta:{},finish_reason:calls.length?'tool_calls':'stop'}]},{...base,choices:[],usage:{prompt_tokens:0,completion_tokens:0,total_tokens:0}}])r.write(`data: ${JSON.stringify(v)}\n\n`);r.end('data: [DONE]\n\n');})().catch(e=>{failure=String(e);r.end('{}');});});await new Promise<void>(r=>stub.listen(0,'127.0.0.1',r));
++process.env.JOINT_STUB_KEY='local-only';process.env.HTTP_PROXY=process.env.HTTPS_PROXY=process.env.ALL_PROXY='http://127.0.0.1:9';process.env.NO_PROXY='127.0.0.1,localhost';
++await writeFile(join(root,'opencode.json'),JSON.stringify({model:'stub/scripted',enabled_providers:['stub'],provider:{stub:{npm:'@ai-sdk/openai-compatible',options:{baseURL:`http://127.0.0.1:${(stub.address() as any).port}/v1`,apiKey:'{env:JOINT_STUB_KEY}'},models:{scripted:{limit:{context:65536,output:2048}}}}}}));await writeFile(join(root,'challenges.json'),JSON.stringify({challenges:[{id:'X',statement:'Joint no-model verification',...(scenario==='stop-http'?{target:{protocol:'http',url:targetURL}}:{})}]}));await writeFile(join(root,'profile.json'),JSON.stringify({profileId:'joint-local',challenges:'challenges.json',opencode:{configPath:'opencode.json',binaryPath:'/Users/caihaoming/.opencode/bin/opencode'},reference:{enabled:false},budget:{wallClockMs:12000,maxSteps:scenario==='budget'?6:30,maxObservableTokens:100000,maxToolJobs:3},os:{platform:'macos'}}));
++const abort=new AbortController();
++try{result=await launch({profile:join(root,'profile.json'),runsRoot:join(root,'runs'),runId:scenario,onStarted:async({client,rootId})=>{const s=await client.event.subscribe({},{signal:abort.signal,throwOnError:true});void(async()=>{try{for await(const e of s.stream){events.push({at:Date.now(),...e});if(scenario==='stop-job'&&e.type==='message.part.updated'&&e.properties.part.type==='tool'&&e.properties.part.tool==='ctf_task_stop'&&e.properties.part.state.status==='completed'){try{const id=(e.properties.part.state.input as any).task_id;const pid=Number(await readFile(join(root,'runs',scenario,'workspace/X/work',id,'grandchild.pid'),'utf8'));let alive=true;try{process.kill(pid,0);}catch{alive=false;}stopObservations.push({at:Date.now(),pid,alive,phase:'task.stop completed before global cleanup'});}catch(error){stopObservations.push({error:String(error)});}}}}catch{}})();}});
++assert.equal(result.status,scenario==='budget'?'budget_exceeded':'completed');assert(provider[0].tools.find((t:any)=>t.function.name==='task').function.parameters.properties.background,'background must be in installed runtime schema');
++const parentRows=provider.filter(p=>p.who==='p');if(scenario==='budget'){assert.equal(parentRows.length,3);const a=JSON.parse(await readFile(join(result.runDir,'evidence/control-audit.json'),'utf8'));assert(a.some((r:any)=>r.reason==='budget denied'));}else assert(parentRows.some(p=>JSON.stringify(p.messages).includes('Background task completed')),'automatic native completion must wake original parent');
++if(!scenario.startsWith('stop')){if(scenario!=='budget')assert(parentRows.some(p=>JSON.stringify(p.messages).includes('A_DONE')));const resources=JSON.parse(await readFile(join(result.runDir,'evidence/tool-resources.json'),'utf8'));assert(resources.some((r:any)=>r.tool==='job.run'&&r.result==='exited'));}else{assert(provider.some(p=>p.calls.some((c:any)=>c.name==='ctf_task_stop')),'parent must naturally stop child');assert(parentRows.some(p=>p.toolResults.some((r:string)=>r.includes('"state":"stopped"'))));assert(provider.some(p=>p.who==='b'&&p.calls.some((c:any)=>JSON.stringify(c.args).includes('sibling-after-stop'))),'sibling must run a real job after stop');if(scenario==='stop-job')assert(stopObservations.some(o=>o.pid&&!o.alive),'grandchild must be gone at stop reply before global cleanup');if(scenario==='stop-http')assert(httpClosed&&httpClosed<parentRows.find(p=>p.calls.some((c:any)=>c.name==='task'&&JSON.stringify(c.args).includes('JOINT_B_AFTER_STOP'))).at);}
++}catch(e){failure=String(e);process.exitCode=1;}finally{abort.abort();if(result?.runDir){for(const f of await readdir(join(result.runDir,'evidence')))if(/^(control-audit|tool-resources|bindings|admissions|sessions|messages-|task-executions)/.test(f))await writeFile(join(out,f),await readFile(join(result.runDir,'evidence',f)));await writeFile(join(out,'run.json'),await readFile(join(result.runDir,'state/run.json')));const jobroot=join(result.runDir,'state/jobs');try{for(const sid of await readdir(jobroot))for(const jid of await readdir(join(jobroot,sid)))for(const stream of ['stdout.bin','stderr.bin']){await mkdir(join(out,'job-output',sid,jid),{recursive:true});await writeFile(join(out,'job-output',sid,jid,stream),await readFile(join(jobroot,sid,jid,stream)));}}catch{}}await writeFile(join(out,'provider.json'),JSON.stringify(provider,null,2));await writeFile(join(out,'stop-observations.json'),JSON.stringify(stopObservations,null,2));await writeFile(join(out,'events.json'),JSON.stringify(events,null,2));await writeFile(join(out,'result.json'),JSON.stringify({result,failure,root,scenario,httpEntered,httpClosed,realModelCalls:0,usage:'local scripted zero usage; not real model usage'},null,2));await new Promise<void>(r=>{stub.close(()=>r());stub.closeAllConnections();});await new Promise<void>(r=>{target.close(()=>r());target.closeAllConnections();});}console.log(JSON.stringify({scenario,result,failure,out}));
++}
+--- imported/tests/manual/g-joint-native-probe.ts
++++ joint/tests/manual/g-joint-native-probe.ts
+@@ -0,0 +1,10 @@
++import {mkdtemp,mkdir,writeFile} from 'node:fs/promises';
++import {tmpdir} from 'node:os';
++import {join,resolve} from 'node:path';
++import {startManagedOpenCode} from '../../packages/opencode-bridge/src/server.js';
++const out=resolve('docs/gates/g-solver-verification-20261023/joint-async-lifecycle/native');await mkdir(out,{recursive:true});
++for(const flag of ['false','true']){
++ const directory=await mkdtemp(join(tmpdir(),'g-joint-native-'));const controller=new AbortController();
++ const engine=await startManagedOpenCode({directory,environment:{OPENCODE_EXPERIMENTAL_BACKGROUND_SUBAGENTS:flag},signal:controller.signal,binaryPath:'/Users/caihaoming/.opencode/bin/opencode',config:{model:'stub/scripted',enabled_providers:['stub'],provider:{stub:{npm:'@ai-sdk/openai-compatible',options:{baseURL:'http://127.0.0.1:9/v1',apiKey:'local-stub'},models:{scripted:{}}}}}});
++ try{const tools=await engine.client.tool.list({provider:'stub',model:'scripted'},{throwOnError:true});const config=await engine.client.config.get({},{throwOnError:true});await writeFile(join(out,`flag-${flag}.json`),JSON.stringify({version:engine.version,directory,flag,tools:tools.data,config:config.data},null,2));console.log(JSON.stringify({flag,task:tools.data?.find(t=>t.id==='task')}));}finally{await engine.close();}
++}

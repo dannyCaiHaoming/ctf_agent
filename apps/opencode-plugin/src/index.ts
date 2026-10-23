@@ -11,25 +11,24 @@ export interface CTFPluginOptions {
 
 export const pluginId = 'ctf-agent-host-foundation';
 const schemas = {
+  'challenge.assign': { role: tool.schema.enum(['recon', 'domain-solver', 'engineer', 'verifier']), challenge: tool.schema.string().min(1) },
+  'challenge.unassign': { role: tool.schema.enum(['recon', 'domain-solver', 'engineer', 'verifier']) },
   'workspace.list': { path: tool.schema.string().optional() },
-  'workspace.read': { path: tool.schema.string() },
-  'workspace.search': { path: tool.schema.string(), needle: tool.schema.string() },
-  'workspace.unpack': { path: tool.schema.string() },
-  'workspace.patch': { path: tool.schema.string(), find: tool.schema.string().min(1), replace: tool.schema.string() },
-  'job.run': { command: tool.schema.array(tool.schema.string()).min(2), timeout_ms: tool.schema.number().int().positive().optional() },
-  'hypothesis.propose': { claim: tool.schema.string().min(1), falsifier: tool.schema.string().min(1),
-    prediction: tool.schema.enum(['expression_evaluates', 'other']), command: tool.schema.array(tool.schema.string()).min(2),
-    route_reason: tool.schema.string().min(1).optional() },
-  'hypothesis.conclude': { verdict: tool.schema.enum(['rejected', 'inconclusive']), rationale: tool.schema.string().min(1) },
-  'http.request': { url: tool.schema.string().url(), method: tool.schema.enum(['GET', 'POST']).optional(),
-    body: tool.schema.string().max(65536).optional(), content_type: tool.schema.string().max(256).optional() },
-  'observation.read': { ref: tool.schema.string().regex(/^observation_[a-f0-9-]{36}$/), mode: tool.schema.enum(['continue', 'start']).optional(),
-    max_bytes: tool.schema.number().int().positive().max(4096).optional() },
+  'workspace.read': { path: tool.schema.string(), cursor: tool.schema.string().optional() },
+  'workspace.search': { path: tool.schema.string().optional(), needle: tool.schema.string().min(1) },
+  'workspace.write': { path: tool.schema.string(), content: tool.schema.string(), encoding: tool.schema.enum(['utf8', 'base64']).optional() },
+  'task.stop': { task_id: tool.schema.string().min(1).max(128) },
+  'job.run': { argv: tool.schema.array(tool.schema.string()).min(1).max(32), timeout_ms: tool.schema.number().int().positive().max(600000).optional() },
+  'job.read': { job: tool.schema.string().uuid(), stream: tool.schema.enum(['stdout', 'stderr']), cursor: tool.schema.string().optional() },
+  'job.cancel': { job: tool.schema.string().uuid() },
+  'http.request': { url: tool.schema.string().url(), method: tool.schema.enum(['GET', 'HEAD', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS']).optional(),
+    body: tool.schema.string().max(65536).optional(), body_base64: tool.schema.string().optional(), headers: tool.schema.record(tool.schema.string(), tool.schema.string()).optional(),
+    follow_redirects: tool.schema.boolean().optional(), timeout_ms: tool.schema.number().int().positive().max(60000).optional() },
   'challenge.list': {},
-  'challenge.read': { id: tool.schema.string().min(1), path: tool.schema.string().min(1), cursor: tool.schema.string().regex(/^\d{1,15}$/).optional() },
-  'candidate.register': { value: tool.schema.string().min(1) }
+  'challenge.read': { id: tool.schema.string().min(1), path: tool.schema.string().min(1), cursor: tool.schema.string().regex(/^\d{1,15}$/).optional() }
 };
 const descriptions: Record<string, string> = {
+  'job.run': 'Start one managed job and wait in this call until terminal cleanup. Output remains bounded and readable after completion. Host timeout and lifetime bound execution.',
   'challenge.list': 'List every challenge of this run: id, title, authorized network target (or "無網路目標"), time of the start-up reachability check, and the pinned material files with size and sha256. Takes no arguments. The statement is the material statement.md.',
   'challenge.read': 'Read one pinned material file of a challenge. Arguments: id (challenge id from challenge.list), path (file name relative to that challenge\'s materials, e.g. "statement.md"), cursor (optional, the nextCursor of the previous page). Text is returned in pages with nextCursor (null on the last page); a binary file returns only its size and first 8 bytes as hex. Read-only.'
 };
@@ -41,10 +40,12 @@ export function createCtfAgentHooks(options: CTFPluginOptions): Hooks {
     !Array.isArray(options.tools)) throw new Error('invalid authenticated loopback control service');
   if (options.tools.some(name => !Object.hasOwn(schemas, name))) throw new Error('tool is not in the managed tool manifest');
   // The plugin decides nothing: it forwards and obeys. Any transport failure, bad reply or silence is a denial.
-  const control = async (sessionID: string, operation: string, input: unknown, signal?: AbortSignal): Promise<unknown> => {
+  const callMarker = Symbol('ctf trusted call');
+  type Marked = Record<symbol, { sessionID: string; callID: string; tool: string; timeoutMs: number } | undefined>;
+  const control = async (sessionID: string, operation: string, input: unknown, signal?: AbortSignal, timeoutMs?: number): Promise<unknown> => {
     let response: Response;
     try {
-      const limit = AbortSignal.timeout(options.requestTimeoutMs ?? 15000);
+      const limit = AbortSignal.timeout(timeoutMs ?? options.requestTimeoutMs ?? 15000);
       response = await fetch(url, {
         method: 'POST', signal: signal ? AbortSignal.any([signal, limit]) : limit,
         headers: { 'content-type': 'application/json', authorization: `Bearer ${options.controlToken}` },
@@ -62,21 +63,38 @@ export function createCtfAgentHooks(options: CTFPluginOptions): Hooks {
       description: descriptions[name] ?? `CTF managed ${name}. Use workspace-relative paths. The host supplies all identities, evidence references and budgets.`,
       args: schemas[name as keyof typeof schemas],
       async execute(args, context) {
-        const result = await control(context.sessionID, 'tool.execute', { tool: name, args }, context.abort);
+        const mark = (args as Marked)[callMarker];
+        if (!mark || mark.sessionID !== context.sessionID || mark.tool !== managedToolId(name)) throw new Error('denied: missing trusted call');
+        delete (args as Marked)[callMarker]; // single consumption; an error or disconnect never retries the same call
+        const result = await control(context.sessionID, 'tool.execute', { tool: name, args, callID: mark.callID }, context.abort, mark.timeoutMs);
         return { title: name, output: JSON.stringify(result) };
       }
     });
   }
   return {
     tool: tools,
-    async 'chat.message'(input) { await control(input.sessionID, 'chat.message', { agent: input.agent }); },
+    async event({event}) {
+      if (event.type !== 'message.part.updated') return;
+      const part = event.properties.part;
+      if (part.type === 'tool' && part.tool === 'task' && part.state.status === 'error')
+        await control(part.sessionID, 'task.event', {callID: part.callID, state: part.state.status, error: part.state.error});
+    },
+    async 'chat.message'(input, output) { await control(input.sessionID, 'chat.message', { agent: input.agent, messageID: input.messageID ?? output.message?.id, parts: output.parts }); },
     async 'chat.params'(input, output) {
-      const admitted = await control(input.sessionID, 'model.call', { agent: input.agent, provider: input.model.providerID, model: input.model.id }) as { maxOutputTokens: number };
+      const admitted = await control(input.sessionID, 'model.call', { agent: input.agent, provider: input.model.providerID, model: input.model.id, messageID: input.message?.id }) as { maxOutputTokens: number };
       if (!Number.isFinite(admitted?.maxOutputTokens) || admitted.maxOutputTokens < 1) throw new Error('denied: control reply');
       output.maxOutputTokens = Math.min(output.maxOutputTokens ?? admitted.maxOutputTokens, admitted.maxOutputTokens);
     },
-    async 'tool.execute.before'(input, output) { await control(input.sessionID, 'tool.before', { tool: input.tool, callID: input.callID, args: output.args }); },
-    async 'tool.execute.after'(input, output) { await control(input.sessionID, 'tool.after', { tool: input.tool, callID: input.callID, metadata: output.metadata }); }
+    async 'tool.execute.before'(input, output) {
+      const approval = await control(input.sessionID, 'tool.before', { tool: input.tool, callID: input.callID, args: output.args }) as { rpcTimeoutMs?: number; taskDescription?: string };
+      if (input.tool === 'task' && approval.taskDescription) output.args.description = approval.taskDescription;
+      if (input.tool.startsWith('ctf_')) {
+        const timeoutMs = approval?.rpcTimeoutMs ?? options.requestTimeoutMs ?? 15000;
+        if (!Number.isInteger(timeoutMs) || timeoutMs < 1 || timeoutMs > 609000) throw new Error('denied: control reply');
+        (output.args as Marked)[callMarker] = { sessionID: input.sessionID, callID: input.callID, tool: input.tool, timeoutMs };
+      }
+    },
+    async 'tool.execute.after'(input, output) { await control(input.sessionID, 'tool.after', { tool: input.tool, callID: input.callID, metadata: output.metadata, output: output.output }); }
   };
 }
 

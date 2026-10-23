@@ -1,0 +1,330 @@
+[
+  {
+    "info": {
+      "id": "msg_168d6a4ab001iTjdWqwCb4VmtI",
+      "sessionID": "ses_e97295b56ffefeF3TpXHbKbgjs",
+      "role": "user",
+      "time": {
+        "created": 1792760259756
+      },
+      "agent": "recon",
+      "model": {
+        "providerID": "stub",
+        "modelID": "scripted"
+      }
+    },
+    "parts": [
+      {
+        "id": "prt_168d6a4ad0014ppW2EBsIsLEF8",
+        "sessionID": "ses_e97295b56ffefeF3TpXHbKbgjs",
+        "messageID": "msg_168d6a4ab001iTjdWqwCb4VmtI",
+        "type": "text",
+        "text": "STOP_A prepare a delivered job"
+      }
+    ]
+  },
+  {
+    "info": {
+      "id": "msg_168d6a4b6001PR9FEV3rTgNmJs",
+      "sessionID": "ses_e97295b56ffefeF3TpXHbKbgjs",
+      "role": "assistant",
+      "time": {
+        "created": 1792760259766,
+        "completed": 1792760259801
+      },
+      "parentID": "msg_168d6a4ab001iTjdWqwCb4VmtI",
+      "modelID": "scripted",
+      "providerID": "stub",
+      "mode": "recon",
+      "agent": "recon",
+      "path": {
+        "cwd": "/private/var/folders/tn/x1hbkfy17sx0w1lb8kjzzr340000gn/T/gdec-coordinator-stop-eEEk3X/runs/product/opencode",
+        "root": "/"
+      },
+      "cost": 0,
+      "tokens": {
+        "total": 0,
+        "input": 0,
+        "output": 0,
+        "reasoning": 0,
+        "cache": {
+          "read": 0,
+          "write": 0
+        }
+      },
+      "finish": "tool-calls"
+    },
+    "parts": [
+      {
+        "id": "prt_168d6a4bd001h1AEkG6tXNNi1f",
+        "sessionID": "ses_e97295b56ffefeF3TpXHbKbgjs",
+        "messageID": "msg_168d6a4b6001PR9FEV3rTgNmJs",
+        "type": "step-start"
+      },
+      {
+        "id": "prt_168d6a4bd002lD6YmUT6uS1kmU",
+        "sessionID": "ses_e97295b56ffefeF3TpXHbKbgjs",
+        "messageID": "msg_168d6a4b6001PR9FEV3rTgNmJs",
+        "type": "tool",
+        "callID": "call_3_0",
+        "tool": "ctf_job_run",
+        "state": {
+          "status": "completed",
+          "input": {
+            "argv": [
+              "/opt/homebrew/Cellar/node/26.3.0/bin/node",
+              "-e",
+              "const ch=require('child_process').spawn(process.execPath,['-e','setInterval(()=>{},1000)'],{stdio:'inherit'});require('fs').writeFileSync('grandchild.pid',String(ch.pid));console.log('retained-grandchild.pid');setInterval(()=>{},1000)"
+            ],
+            "wait_ms": 20,
+            "timeout_ms": 60000
+          },
+          "output": "{\"job\":\"61e4194f-b576-49e7-9ebb-347170ba48eb\",\"state\":\"running\",\"exitCode\":null,\"signal\":null,\"reapIncomplete\":false}",
+          "title": "job.run",
+          "metadata": {
+            "truncated": false
+          },
+          "time": {
+            "start": 1792760259774,
+            "end": 1792760259799
+          }
+        }
+      },
+      {
+        "id": "prt_168d6a4d80012IHYVuQa2bTtDh",
+        "sessionID": "ses_e97295b56ffefeF3TpXHbKbgjs",
+        "messageID": "msg_168d6a4b6001PR9FEV3rTgNmJs",
+        "type": "step-finish",
+        "reason": "tool-calls",
+        "cost": 0,
+        "tokens": {
+          "total": 0,
+          "input": 0,
+          "output": 0,
+          "reasoning": 0,
+          "cache": {
+            "read": 0,
+            "write": 0
+          }
+        }
+      }
+    ]
+  },
+  {
+    "info": {
+      "id": "msg_168d6a4da001ElneKU2gQefRaH",
+      "sessionID": "ses_e97295b56ffefeF3TpXHbKbgjs",
+      "role": "assistant",
+      "time": {
+        "created": 1792760259802,
+        "completed": 1792760259817
+      },
+      "parentID": "msg_168d6a4ab001iTjdWqwCb4VmtI",
+      "modelID": "scripted",
+      "providerID": "stub",
+      "mode": "recon",
+      "agent": "recon",
+      "path": {
+        "cwd": "/private/var/folders/tn/x1hbkfy17sx0w1lb8kjzzr340000gn/T/gdec-coordinator-stop-eEEk3X/runs/product/opencode",
+        "root": "/"
+      },
+      "cost": 0,
+      "tokens": {
+        "total": 0,
+        "input": 0,
+        "output": 0,
+        "reasoning": 0,
+        "cache": {
+          "read": 0,
+          "write": 0
+        }
+      },
+      "finish": "stop"
+    },
+    "parts": [
+      {
+        "id": "prt_168d6a4e4001S9Lx2PKbzOM01I",
+        "sessionID": "ses_e97295b56ffefeF3TpXHbKbgjs",
+        "messageID": "msg_168d6a4da001ElneKU2gQefRaH",
+        "type": "step-start"
+      },
+      {
+        "id": "prt_168d6a4e5001YITOp7042GXhwa",
+        "sessionID": "ses_e97295b56ffefeF3TpXHbKbgjs",
+        "messageID": "msg_168d6a4da001ElneKU2gQefRaH",
+        "type": "text",
+        "text": "script complete",
+        "time": {
+          "start": 1792760259813,
+          "end": 1792760259814
+        }
+      },
+      {
+        "id": "prt_168d6a4e7001giGGHI28kXseCc",
+        "sessionID": "ses_e97295b56ffefeF3TpXHbKbgjs",
+        "messageID": "msg_168d6a4da001ElneKU2gQefRaH",
+        "type": "step-finish",
+        "reason": "stop",
+        "cost": 0,
+        "tokens": {
+          "total": 0,
+          "input": 0,
+          "output": 0,
+          "reasoning": 0,
+          "cache": {
+            "read": 0,
+            "write": 0
+          }
+        }
+      }
+    ]
+  },
+  {
+    "info": {
+      "id": "msg_168d6a5be001KXsyK7e3fTqmPr",
+      "sessionID": "ses_e97295b56ffefeF3TpXHbKbgjs",
+      "role": "user",
+      "time": {
+        "created": 1792760260030
+      },
+      "agent": "recon",
+      "model": {
+        "providerID": "stub",
+        "modelID": "scripted"
+      }
+    },
+    "parts": [
+      {
+        "id": "prt_168d6a5c10011ILlSwsNZnOVb8",
+        "sessionID": "ses_e97295b56ffefeF3TpXHbKbgjs",
+        "messageID": "msg_168d6a5be001KXsyK7e3fTqmPr",
+        "type": "text",
+        "text": "FIXTURE_WAIT begin in-flight operation"
+      }
+    ]
+  },
+  {
+    "info": {
+      "id": "msg_168d6a5d8001Rz964QzhTPn6gi",
+      "sessionID": "ses_e97295b56ffefeF3TpXHbKbgjs",
+      "role": "assistant",
+      "time": {
+        "created": 1792760260056,
+        "completed": 1792760260173
+      },
+      "parentID": "msg_168d6a5be001KXsyK7e3fTqmPr",
+      "modelID": "scripted",
+      "providerID": "stub",
+      "mode": "recon",
+      "agent": "recon",
+      "path": {
+        "cwd": "/private/var/folders/tn/x1hbkfy17sx0w1lb8kjzzr340000gn/T/gdec-coordinator-stop-eEEk3X/runs/product/opencode",
+        "root": "/"
+      },
+      "cost": 0,
+      "tokens": {
+        "total": 0,
+        "input": 0,
+        "output": 0,
+        "reasoning": 0,
+        "cache": {
+          "read": 0,
+          "write": 0
+        }
+      },
+      "finish": "tool-calls"
+    },
+    "parts": [
+      {
+        "id": "prt_168d6a607001lf7lJEZqvg9K6H",
+        "sessionID": "ses_e97295b56ffefeF3TpXHbKbgjs",
+        "messageID": "msg_168d6a5d8001Rz964QzhTPn6gi",
+        "type": "step-start"
+      },
+      {
+        "id": "prt_168d6a607002G8qjLHvRneAkPP",
+        "sessionID": "ses_e97295b56ffefeF3TpXHbKbgjs",
+        "messageID": "msg_168d6a5d8001Rz964QzhTPn6gi",
+        "type": "tool",
+        "callID": "call_9_0",
+        "tool": "ctf_job_run",
+        "state": {
+          "status": "completed",
+          "input": {
+            "argv": [
+              "/opt/homebrew/Cellar/node/26.3.0/bin/node",
+              "-e",
+              "const ch=require('child_process').spawn(process.execPath,['-e','setInterval(()=>{},1000)'],{stdio:'inherit'});require('fs').writeFileSync('waiting.pid',String(ch.pid));console.log('retained-waiting.pid');setInterval(()=>{},1000)"
+            ],
+            "wait_ms": 30000,
+            "timeout_ms": 60000
+          },
+          "output": "{\"job\":\"61e27a86-2d0a-4ede-b20c-ed2790eaa083\",\"state\":\"cancelled\",\"exitCode\":null,\"signal\":\"SIGTERM\",\"reapIncomplete\":false}",
+          "title": "job.run",
+          "metadata": {
+            "truncated": false
+          },
+          "time": {
+            "start": 1792760260105,
+            "end": 1792760260171
+          }
+        }
+      },
+      {
+        "id": "prt_168d6a64c001yhsEqvePnI3a2T",
+        "sessionID": "ses_e97295b56ffefeF3TpXHbKbgjs",
+        "messageID": "msg_168d6a5d8001Rz964QzhTPn6gi",
+        "type": "step-finish",
+        "reason": "tool-calls",
+        "cost": 0,
+        "tokens": {
+          "total": 0,
+          "input": 0,
+          "output": 0,
+          "reasoning": 0,
+          "cache": {
+            "read": 0,
+            "write": 0
+          }
+        }
+      }
+    ]
+  },
+  {
+    "info": {
+      "id": "msg_168d6a64e001Hde1jvv5sQhqMd",
+      "sessionID": "ses_e97295b56ffefeF3TpXHbKbgjs",
+      "role": "assistant",
+      "time": {
+        "created": 1792760260174,
+        "completed": 1792760260180
+      },
+      "error": {
+        "name": "UnknownError",
+        "data": {
+          "message": "denied: session revoked"
+        }
+      },
+      "parentID": "msg_168d6a5be001KXsyK7e3fTqmPr",
+      "modelID": "scripted",
+      "providerID": "stub",
+      "mode": "recon",
+      "agent": "recon",
+      "path": {
+        "cwd": "/private/var/folders/tn/x1hbkfy17sx0w1lb8kjzzr340000gn/T/gdec-coordinator-stop-eEEk3X/runs/product/opencode",
+        "root": "/"
+      },
+      "cost": 0,
+      "tokens": {
+        "input": 0,
+        "output": 0,
+        "reasoning": 0,
+        "cache": {
+          "read": 0,
+          "write": 0
+        }
+      }
+    },
+    "parts": []
+  }
+]

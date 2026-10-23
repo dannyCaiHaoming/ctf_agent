@@ -1,0 +1,35 @@
+
+ RUN  v2.1.8 /Users/caihaoming/.codex/worktrees/c323/pentest-agent
+
+ ✓ tests/contract/intake-tools.test.ts (8 tests) 28ms
+ ✓ tests/contract/g-team-integration.test.ts (3 tests) 267ms
+ ✓ tests/contract/control-service.test.ts (31 tests) 454ms
+   ✓ plugin denies when the control service cannot answer > rejects when the service never replies, is unreachable, or replies with something unusable 407ms
+ ✓ tests/contract/run-prep.test.ts (13 tests) 687ms
+ ✓ tests/contract/g-coordinator-stop.test.ts (9 tests) 3404ms
+   ✓ completed jobs remain exited when stopped; abort failure and unknown reap never claim stopped 3066ms
+ ✓ tests/contract/launch-evidence.test.ts (12 tests) 4939ms
+   ✓ launch failure evidence with SDK stand-in only > keeps normal success and complete reported usage 611ms
+   ✓ launch failure evidence with SDK stand-in only > continues other bound sessions after children failure 566ms
+   ✓ launch failure evidence with SDK stand-in only > continues other bound sessions after export failure 574ms
+   ✓ launch failure evidence with SDK stand-in only > records real per-session abort results and continues remaining aborts 562ms
+   ✓ launch failure evidence with SDK stand-in only > keeps retained message consumption in the actual run file after abort zeroes it 560ms
+   ✓ launch failure evidence with SDK stand-in only > includes known SDK descendant usage even if the descendant never bound 564ms
+   ✓ launch failure evidence with SDK stand-in only > marks total as a lower bound if an unbound descendant export fails 584ms
+   ✓ launch failure evidence with SDK stand-in only > continues evidence writes and records a single-file write failure 583ms
+ ✓ tests/contract/g-async-lifecycle.test.ts (13 tests) 5600ms
+   ✓ default job.run returns terminal without wait/completion modes 5575ms
+ ✓ tests/contract/slow-tools.test.ts (21 tests) 14291ms
+   ✓ stop during registered workspace preparation returns bounded unknown and prevents a late job spawn 4006ms
+   ✓ C retains HTTP cleanup_unknown reservation when response persistence is blocked 1007ms
+   ✓ expiry cancels an already delivered job and refuses its handle after expiry 1029ms
+   ✓ unknown process-group cleanup keeps its session quota reserved 3042ms
+   ✓ terminal candidate keeps one execute pending beyond wait_ms, permits admission and incremental reads, then returns final result once 789ms
+   ✓ terminal candidate timeout and binding expiry do not return an early running handle 702ms
+   ✓ terminal candidate reports incomplete reaping as unknown and keeps its slot reserved 3086ms
+
+ Test Files  8 passed (8)
+      Tests  110 passed (110)
+   Start at  00:20:39
+   Duration  14.66s (transform 495ms, setup 0ms, collect 1.23s, tests 29.67s, environment 1ms, prepare 415ms)
+

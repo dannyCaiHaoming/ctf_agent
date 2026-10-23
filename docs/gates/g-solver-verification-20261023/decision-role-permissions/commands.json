@@ -1,0 +1,42 @@
+[
+  {
+    "command": "npm ci",
+    "log": "install.log",
+    "exitCode": 0
+  },
+  {
+    "command": "npx vitest run tests/contract/g-role-permissions.test.ts --reporter=verbose (initial fixture)",
+    "log": "contract-first.log",
+    "exitCode": 1
+  },
+  {
+    "command": "G_ROLE_EVIDENCE=docs/gates/g-solver-verification-20261023/decision-role-permissions/replay-fixture npx vitest run tests/contract/g-role-permissions.test.ts --reporter=verbose",
+    "log": "contract-final.log",
+    "exitCode": 0
+  },
+  {
+    "command": "npx tsx tests/manual/g-role-permissions-runtime.ts first",
+    "log": "runtime-first.log",
+    "exitCode": 0
+  },
+  {
+    "command": "npx tsx tests/manual/g-role-permissions-boundary-probe.ts",
+    "log": "boundary-probe.log",
+    "exitCode": 1
+  },
+  {
+    "command": "npm run typecheck",
+    "log": "typecheck-final.log",
+    "exitCode": 0
+  },
+  {
+    "command": "npm run build",
+    "log": "build.log",
+    "exitCode": 0
+  },
+  {
+    "command": "npm test",
+    "log": "full-suite.log",
+    "exitCode": 0
+  }
+]

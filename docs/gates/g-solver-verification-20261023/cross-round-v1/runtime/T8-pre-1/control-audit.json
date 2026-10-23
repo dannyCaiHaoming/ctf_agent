@@ -1,0 +1,250 @@
+[
+  {
+    "seq": 1,
+    "t": 658,
+    "at": 1792751489168,
+    "sessionID": "ses_e97af2f75ffeBw1k6mKS2FizKh",
+    "op": "bind",
+    "allow": true,
+    "detail": {
+      "role": "coordinator",
+      "via": "root"
+    }
+  },
+  {
+    "seq": 2,
+    "t": 678,
+    "at": 1792751489188,
+    "sessionID": "ses_e97af2f75ffeBw1k6mKS2FizKh",
+    "op": "chat.message",
+    "allow": true
+  },
+  {
+    "seq": 3,
+    "t": 1295,
+    "at": 1792751489805,
+    "sessionID": "ses_e97af2f75ffeBw1k6mKS2FizKh",
+    "op": "model.call",
+    "allow": true,
+    "detail": {
+      "maxOutputTokens": 100000,
+      "admitNo": 1,
+      "role": "coordinator"
+    }
+  },
+  {
+    "seq": 4,
+    "t": 1357,
+    "at": 1792751489867,
+    "sessionID": "ses_e97af2f75ffeBw1k6mKS2FizKh",
+    "op": "tool.before",
+    "allow": true,
+    "detail": {
+      "tool": "ctf_challenge_assign"
+    }
+  },
+  {
+    "seq": 5,
+    "t": 1359,
+    "at": 1792751489869,
+    "sessionID": "ses_e97af2f75ffeBw1k6mKS2FizKh",
+    "op": "assign",
+    "allow": true,
+    "detail": {
+      "role": "recon",
+      "challenge": "X"
+    }
+  },
+  {
+    "seq": 6,
+    "t": 1359,
+    "at": 1792751489869,
+    "sessionID": "ses_e97af2f75ffeBw1k6mKS2FizKh",
+    "op": "tool.execute",
+    "allow": true,
+    "detail": {
+      "tool": "challenge.assign"
+    }
+  },
+  {
+    "seq": 7,
+    "t": 1359,
+    "at": 1792751489869,
+    "sessionID": "ses_e97af2f75ffeBw1k6mKS2FizKh",
+    "op": "tool.after",
+    "allow": true,
+    "detail": {
+      "tool": "ctf_challenge_assign"
+    }
+  },
+  {
+    "seq": 8,
+    "t": 1376,
+    "at": 1792751489886,
+    "sessionID": "ses_e97af2f75ffeBw1k6mKS2FizKh",
+    "op": "model.call",
+    "allow": true,
+    "detail": {
+      "maxOutputTokens": 100000,
+      "admitNo": 2,
+      "role": "coordinator"
+    }
+  },
+  {
+    "seq": 9,
+    "t": 1393,
+    "at": 1792751489903,
+    "sessionID": "ses_e97af2f75ffeBw1k6mKS2FizKh",
+    "op": "model.call",
+    "allow": true,
+    "detail": {
+      "maxOutputTokens": 100000,
+      "admitNo": 3,
+      "role": "coordinator"
+    }
+  },
+  {
+    "seq": 10,
+    "t": 1397,
+    "at": 1792751489907,
+    "sessionID": "ses_e97af2f75ffeBw1k6mKS2FizKh",
+    "op": "dispatch.register",
+    "allow": true,
+    "detail": {
+      "role": "recon",
+      "callID": "call_3_0",
+      "challengeId": "X"
+    }
+  },
+  {
+    "seq": 11,
+    "t": 1397,
+    "at": 1792751489907,
+    "sessionID": "ses_e97af2f75ffeBw1k6mKS2FizKh",
+    "op": "tool.before",
+    "allow": true,
+    "detail": {
+      "tool": "task"
+    }
+  },
+  {
+    "seq": 12,
+    "t": 1408,
+    "at": 1792751489918,
+    "sessionID": "ses_e97af2c8affepQnGt22SSDQzy2",
+    "op": "bind",
+    "allow": true,
+    "detail": {
+      "role": "recon",
+      "via": "dispatch",
+      "sdkParentID": "ses_e97af2f75ffeBw1k6mKS2FizKh",
+      "sdkAgent": "recon",
+      "callID": "call_3_0",
+      "challengeId": "X",
+      "sdkMs": 5
+    }
+  },
+  {
+    "seq": 13,
+    "t": 1408,
+    "at": 1792751489918,
+    "sessionID": "ses_e97af2c8affepQnGt22SSDQzy2",
+    "op": "chat.message",
+    "allow": true
+  },
+  {
+    "seq": 14,
+    "t": 1417,
+    "at": 1792751489927,
+    "sessionID": "ses_e97af2c8affepQnGt22SSDQzy2",
+    "op": "model.call",
+    "allow": true,
+    "detail": {
+      "maxOutputTokens": 100000,
+      "admitNo": 4,
+      "role": "recon"
+    }
+  },
+  {
+    "seq": 15,
+    "t": 1423,
+    "at": 1792751489933,
+    "sessionID": "ses_e97af2f75ffeBw1k6mKS2FizKh",
+    "op": "task.correlate",
+    "allow": true,
+    "detail": {
+      "callID": "call_3_0",
+      "childSessionID": "ses_e97af2c8affepQnGt22SSDQzy2",
+      "childBoundToCaller": true
+    }
+  },
+  {
+    "seq": 16,
+    "t": 1423,
+    "at": 1792751489933,
+    "sessionID": "ses_e97af2f75ffeBw1k6mKS2FizKh",
+    "op": "tool.after",
+    "allow": true,
+    "detail": {
+      "tool": "task"
+    }
+  },
+  {
+    "seq": 17,
+    "t": 1437,
+    "at": 1792751489947,
+    "sessionID": "ses_e97af2f75ffeBw1k6mKS2FizKh",
+    "op": "model.call",
+    "allow": true,
+    "detail": {
+      "maxOutputTokens": 100000,
+      "admitNo": 5,
+      "role": "coordinator"
+    }
+  },
+  {
+    "seq": 18,
+    "t": 2747,
+    "at": 1792751491257,
+    "sessionID": "ses_e97af2f75ffeBw1k6mKS2FizKh",
+    "op": "stop_marked",
+    "allow": true,
+    "detail": {
+      "reason": "probe_done",
+      "sessions": [
+        "ses_e97af2f75ffeBw1k6mKS2FizKh",
+        "ses_e97af2c8affepQnGt22SSDQzy2"
+      ]
+    }
+  },
+  {
+    "seq": 19,
+    "t": 2758,
+    "at": 1792751491268,
+    "sessionID": "ses_e97af2f75ffeBw1k6mKS2FizKh",
+    "op": "stop_enumerated",
+    "allow": true,
+    "detail": {
+      "sessions": [
+        "ses_e97af2f75ffeBw1k6mKS2FizKh",
+        "ses_e97af2c8affepQnGt22SSDQzy2"
+      ]
+    }
+  },
+  {
+    "seq": 20,
+    "t": 2762,
+    "at": 1792751491272,
+    "sessionID": "ses_e97af2f75ffeBw1k6mKS2FizKh",
+    "op": "aborted",
+    "allow": true
+  },
+  {
+    "seq": 21,
+    "t": 2773,
+    "at": 1792751491283,
+    "sessionID": "ses_e97af2c8affepQnGt22SSDQzy2",
+    "op": "aborted",
+    "allow": true
+  }
+]

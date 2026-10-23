@@ -1,0 +1,32 @@
+{
+  "label": "fixture-provision",
+  "argv": [
+    "docker",
+    "run",
+    "--rm",
+    "--name",
+    "gdec-os-isolation-5e1a60fb24-provision",
+    "--network",
+    "none",
+    "--user",
+    "0:0",
+    "--cap-drop",
+    "ALL",
+    "--cap-add",
+    "CHOWN",
+    "--cap-add",
+    "FOWNER",
+    "--cap-add",
+    "DAC_OVERRIDE",
+    "--security-opt",
+    "no-new-privileges",
+    "--mount",
+    "type=volume,src=gdec-os-isolation-5e1a60fb24-data,dst=/fixture",
+    "gdec-os-isolation-fixture:4fcd",
+    "setup"
+  ],
+  "exit_code": 0,
+  "elapsed_seconds": 0.11,
+  "stdout": "{\"fixture_provisioned\": true, \"uid\": 0}\n",
+  "stderr": ""
+}

@@ -1,0 +1,356 @@
+[
+  {
+    "info": {
+      "id": "msg_1695ca646001ojWk29yS2SwbPI",
+      "sessionID": "ses_e96a359bbffeYO82GxQUuImkvT",
+      "role": "user",
+      "time": {
+        "created": 1792769041990
+      },
+      "agent": "recon",
+      "model": {
+        "providerID": "stub",
+        "modelID": "scripted"
+      }
+    },
+    "parts": [
+      {
+        "id": "prt_1695ca647001Bd14fgkqbPh3fZ",
+        "sessionID": "ses_e96a359bbffeYO82GxQUuImkvT",
+        "messageID": "msg_1695ca646001ojWk29yS2SwbPI",
+        "type": "text",
+        "text": "JOINT_A execute your job"
+      }
+    ]
+  },
+  {
+    "info": {
+      "id": "msg_1695ca656001ItUO7LeaMsEr7o",
+      "sessionID": "ses_e96a359bbffeYO82GxQUuImkvT",
+      "role": "assistant",
+      "time": {
+        "created": 1792769042006,
+        "completed": 1792769048593
+      },
+      "parentID": "msg_1695ca646001ojWk29yS2SwbPI",
+      "modelID": "scripted",
+      "providerID": "stub",
+      "mode": "recon",
+      "agent": "recon",
+      "path": {
+        "cwd": "/private/var/folders/tn/x1hbkfy17sx0w1lb8kjzzr340000gn/T/g-joint-3Q5AFv/runs/resume/opencode",
+        "root": "/"
+      },
+      "cost": 0,
+      "tokens": {
+        "total": 0,
+        "input": 0,
+        "output": 0,
+        "reasoning": 0,
+        "cache": {
+          "read": 0,
+          "write": 0
+        }
+      },
+      "finish": "tool-calls"
+    },
+    "parts": [
+      {
+        "id": "prt_1695ca66e00170wcgzIllEUr4O",
+        "sessionID": "ses_e96a359bbffeYO82GxQUuImkvT",
+        "messageID": "msg_1695ca656001ItUO7LeaMsEr7o",
+        "type": "step-start"
+      },
+      {
+        "id": "prt_1695ca66f001qRDXnbyib4pgae",
+        "sessionID": "ses_e96a359bbffeYO82GxQUuImkvT",
+        "messageID": "msg_1695ca656001ItUO7LeaMsEr7o",
+        "type": "tool",
+        "callID": "call_4_0",
+        "tool": "ctf_job_run",
+        "state": {
+          "status": "completed",
+          "input": {
+            "argv": [
+              "/opt/homebrew/Cellar/node/26.3.0/bin/node",
+              "-e",
+              "console.log('early');setTimeout(()=>console.log('late'),6500)"
+            ],
+            "timeout_ms": 30000
+          },
+          "output": "{\"job\":\"2fc4e6bc-47d2-4021-b6ea-f841ee055f46\",\"state\":\"exited\",\"exitCode\":0,\"signal\":null,\"reapIncomplete\":false}",
+          "title": "job.run",
+          "metadata": {
+            "truncated": false
+          },
+          "time": {
+            "start": 1792769042032,
+            "end": 1792769048588
+          }
+        }
+      },
+      {
+        "id": "prt_1695cc00e001teLvJBIyZhrwPL",
+        "sessionID": "ses_e96a359bbffeYO82GxQUuImkvT",
+        "messageID": "msg_1695ca656001ItUO7LeaMsEr7o",
+        "type": "step-finish",
+        "reason": "tool-calls",
+        "cost": 0,
+        "tokens": {
+          "total": 0,
+          "input": 0,
+          "output": 0,
+          "reasoning": 0,
+          "cache": {
+            "read": 0,
+            "write": 0
+          }
+        }
+      }
+    ]
+  },
+  {
+    "info": {
+      "id": "msg_1695cc0120011imdj1sfJTv2i2",
+      "sessionID": "ses_e96a359bbffeYO82GxQUuImkvT",
+      "role": "assistant",
+      "time": {
+        "created": 1792769048594,
+        "completed": 1792769048629
+      },
+      "parentID": "msg_1695ca646001ojWk29yS2SwbPI",
+      "modelID": "scripted",
+      "providerID": "stub",
+      "mode": "recon",
+      "agent": "recon",
+      "path": {
+        "cwd": "/private/var/folders/tn/x1hbkfy17sx0w1lb8kjzzr340000gn/T/g-joint-3Q5AFv/runs/resume/opencode",
+        "root": "/"
+      },
+      "cost": 0,
+      "tokens": {
+        "total": 0,
+        "input": 0,
+        "output": 0,
+        "reasoning": 0,
+        "cache": {
+          "read": 0,
+          "write": 0
+        }
+      },
+      "finish": "tool-calls"
+    },
+    "parts": [
+      {
+        "id": "prt_1695cc026001M5OqpTteTNhR4F",
+        "sessionID": "ses_e96a359bbffeYO82GxQUuImkvT",
+        "messageID": "msg_1695cc0120011imdj1sfJTv2i2",
+        "type": "step-start"
+      },
+      {
+        "id": "prt_1695cc0270016ZocgduzaWxxx0",
+        "sessionID": "ses_e96a359bbffeYO82GxQUuImkvT",
+        "messageID": "msg_1695cc0120011imdj1sfJTv2i2",
+        "type": "tool",
+        "callID": "call_5_0",
+        "tool": "ctf_job_read",
+        "state": {
+          "status": "completed",
+          "input": {
+            "job": "2fc4e6bc-47d2-4021-b6ea-f841ee055f46",
+            "stream": "stdout"
+          },
+          "output": "{\"job\":\"2fc4e6bc-47d2-4021-b6ea-f841ee055f46\",\"state\":\"exited\",\"exitCode\":0,\"signal\":null,\"reapIncomplete\":false,\"stream\":\"stdout\",\"encoding\":\"base64\",\"data\":\"ZWFybHkKbGF0ZQo=\",\"offset\":0,\"truncated\":false,\"nextCursor\":null,\"done\":true}",
+          "title": "job.read",
+          "metadata": {
+            "truncated": false
+          },
+          "time": {
+            "start": 1792769048617,
+            "end": 1792769048626
+          }
+        }
+      },
+      {
+        "id": "prt_1695cc033001tlXfDDaakQveU3",
+        "sessionID": "ses_e96a359bbffeYO82GxQUuImkvT",
+        "messageID": "msg_1695cc0120011imdj1sfJTv2i2",
+        "type": "step-finish",
+        "reason": "tool-calls",
+        "cost": 0,
+        "tokens": {
+          "total": 0,
+          "input": 0,
+          "output": 0,
+          "reasoning": 0,
+          "cache": {
+            "read": 0,
+            "write": 0
+          }
+        }
+      }
+    ]
+  },
+  {
+    "info": {
+      "id": "msg_1695cc036001TSMaeUQnUkV1JO",
+      "sessionID": "ses_e96a359bbffeYO82GxQUuImkvT",
+      "role": "assistant",
+      "time": {
+        "created": 1792769048630,
+        "completed": 1792769048647
+      },
+      "parentID": "msg_1695ca646001ojWk29yS2SwbPI",
+      "modelID": "scripted",
+      "providerID": "stub",
+      "mode": "recon",
+      "agent": "recon",
+      "path": {
+        "cwd": "/private/var/folders/tn/x1hbkfy17sx0w1lb8kjzzr340000gn/T/g-joint-3Q5AFv/runs/resume/opencode",
+        "root": "/"
+      },
+      "cost": 0,
+      "tokens": {
+        "total": 0,
+        "input": 0,
+        "output": 0,
+        "reasoning": 0,
+        "cache": {
+          "read": 0,
+          "write": 0
+        }
+      },
+      "finish": "stop"
+    },
+    "parts": [
+      {
+        "id": "prt_1695cc044001WlEBMN2x9o5UdL",
+        "sessionID": "ses_e96a359bbffeYO82GxQUuImkvT",
+        "messageID": "msg_1695cc036001TSMaeUQnUkV1JO",
+        "type": "step-start"
+      },
+      {
+        "id": "prt_1695cc045001Mz269kJmFpFaEq",
+        "sessionID": "ses_e96a359bbffeYO82GxQUuImkvT",
+        "messageID": "msg_1695cc036001TSMaeUQnUkV1JO",
+        "type": "text",
+        "text": "A_DONE",
+        "time": {
+          "start": 1792769048645,
+          "end": 1792769048645
+        }
+      },
+      {
+        "id": "prt_1695cc046001CwPte0kJ86tIaL",
+        "sessionID": "ses_e96a359bbffeYO82GxQUuImkvT",
+        "messageID": "msg_1695cc036001TSMaeUQnUkV1JO",
+        "type": "step-finish",
+        "reason": "stop",
+        "cost": 0,
+        "tokens": {
+          "total": 0,
+          "input": 0,
+          "output": 0,
+          "reasoning": 0,
+          "cache": {
+            "read": 0,
+            "write": 0
+          }
+        }
+      }
+    ]
+  },
+  {
+    "info": {
+      "id": "msg_1695cc0660017gKIc14zWcX7ky",
+      "sessionID": "ses_e96a359bbffeYO82GxQUuImkvT",
+      "role": "user",
+      "time": {
+        "created": 1792769048678
+      },
+      "agent": "recon",
+      "model": {
+        "providerID": "stub",
+        "modelID": "scripted"
+      }
+    },
+    "parts": [
+      {
+        "id": "prt_1695cc066002VL1qARF9XqnUCj",
+        "sessionID": "ses_e96a359bbffeYO82GxQUuImkvT",
+        "messageID": "msg_1695cc0660017gKIc14zWcX7ky",
+        "type": "text",
+        "text": "JOINT_RESUME"
+      }
+    ]
+  },
+  {
+    "info": {
+      "id": "msg_1695cc073001RV7rk0HtFy8inT",
+      "sessionID": "ses_e96a359bbffeYO82GxQUuImkvT",
+      "role": "assistant",
+      "time": {
+        "created": 1792769048691,
+        "completed": 1792769048710
+      },
+      "parentID": "msg_1695cc0660017gKIc14zWcX7ky",
+      "modelID": "scripted",
+      "providerID": "stub",
+      "mode": "recon",
+      "agent": "recon",
+      "path": {
+        "cwd": "/private/var/folders/tn/x1hbkfy17sx0w1lb8kjzzr340000gn/T/g-joint-3Q5AFv/runs/resume/opencode",
+        "root": "/"
+      },
+      "cost": 0,
+      "tokens": {
+        "total": 0,
+        "input": 0,
+        "output": 0,
+        "reasoning": 0,
+        "cache": {
+          "read": 0,
+          "write": 0
+        }
+      },
+      "finish": "stop"
+    },
+    "parts": [
+      {
+        "id": "prt_1695cc083001vK7MsB3TulUeqh",
+        "sessionID": "ses_e96a359bbffeYO82GxQUuImkvT",
+        "messageID": "msg_1695cc073001RV7rk0HtFy8inT",
+        "type": "step-start"
+      },
+      {
+        "id": "prt_1695cc084001HnPmeNjJIzcAZv",
+        "sessionID": "ses_e96a359bbffeYO82GxQUuImkvT",
+        "messageID": "msg_1695cc073001RV7rk0HtFy8inT",
+        "type": "text",
+        "text": "RESUMED_DONE",
+        "time": {
+          "start": 1792769048708,
+          "end": 1792769048709
+        }
+      },
+      {
+        "id": "prt_1695cc085001Bi9rn9wdd0toZj",
+        "sessionID": "ses_e96a359bbffeYO82GxQUuImkvT",
+        "messageID": "msg_1695cc073001RV7rk0HtFy8inT",
+        "type": "step-finish",
+        "reason": "stop",
+        "cost": 0,
+        "tokens": {
+          "total": 0,
+          "input": 0,
+          "output": 0,
+          "reasoning": 0,
+          "cache": {
+            "read": 0,
+            "write": 0
+          }
+        }
+      }
+    ]
+  }
+]

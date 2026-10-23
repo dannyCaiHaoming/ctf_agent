@@ -1,0 +1,32 @@
+
+ RUN  v2.1.8 /Users/caihaoming/.codex/worktrees/g-joint-async-lifecycle/pentest-agent
+
+ ❯ tests/contract/g-async-lifecycle.test.ts (13 tests | 1 failed | 12 skipped) 7ms
+   × host revoke still revokes a naturally completed child session 6ms
+     → promise resolved "{ maxOutputTokens: 1000, …(2) }" instead of rejecting
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/contract/g-async-lifecycle.test.ts > host revoke still revokes a naturally completed child session
+AssertionError: promise resolved "{ maxOutputTokens: 1000, …(2) }" instead of rejecting
+
+- Expected
++ Received
+
+- [Error: rejected promise]
++ Object {
++   "admitNo": 1,
++   "maxOutputTokens": 1000,
++   "role": "recon",
++ }
+
+ ❯ tests/contract/g-async-lifecycle.test.ts:45:482
+
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 12 skipped (13)
+   Start at  23:20:27
+   Duration  252ms (transform 49ms, setup 0ms, collect 51ms, tests 7ms, environment 0ms, prepare 40ms)
+

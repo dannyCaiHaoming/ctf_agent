@@ -2,14 +2,19 @@
 // ledger, the role capability table and the stop sequence. The product plugin inside OpenCode only forwards hook
 // events here and obeys the reply. Every failure path is a denial; denial messages are fixed short codes and never
 // contain words OpenCode could classify as retryable.
-import { realpath } from 'node:fs/promises';
-import { isAbsolute, resolve, sep } from 'node:path';
+import { randomUUID } from 'node:crypto';
+import { mkdir, realpath } from 'node:fs/promises';
+import { dirname, isAbsolute, join, resolve, sep } from 'node:path';
 import type { OpencodeClient } from '@opencode-ai/sdk/v2';
 import { INTAKE_TOOLS, IntakeRefused, checkMaterialPath, findChallenge, listChallenges, readMaterial } from './intake-tools.js';
+import { createHttpTools, CookieJar, HttpRefused } from './http-tools.js';
+import { JobManager, JobRefused, type JobBinding } from './job-tools.js';
+import { listWorkspace, readWorkspace, searchWorkspace, writeWorkspace, WorkspaceRefused, type WorkspaceRoots } from './workspace-tools.js';
 import type { PreparedChallenge } from './run-prep.js';
 
 export const ROLES = ['coordinator', 'intake', 'recon', 'reference', 'strategy', 'domain-solver', 'engineer', 'verifier', 'recovery-critic'] as const;
 export type Role = typeof ROLES[number];
+const CHALLENGE_ROLES: readonly Role[] = ['recon', 'domain-solver', 'engineer', 'verifier'];
 const isRole = (value: unknown): value is Role => typeof value === 'string' && (ROLES as readonly string[]).includes(value);
 
 /** C design section 5: only the coordinator dispatches, and it may dispatch every other role. */
@@ -37,6 +42,8 @@ export interface Binding {
   parentID: string | null;
   via: 'root' | 'dispatch';
   dispatchCallID?: string;
+  challengeId?: string;
+  workDir?: string;
   scope: 'run';
   expiresAt: number;
   state: 'active' | 'stopped' | 'revoked';
@@ -82,7 +89,15 @@ export function summarizeUsage(messages: Message[]): SessionUsage {
   return usage;
 }
 
+export const SOLVER_TOOLS = ['workspace.list', 'workspace.read', 'workspace.search', 'workspace.write', 'http.request', 'job.run', 'job.read', 'job.cancel'];
+export const MANAGED_TOOLS = [...INTAKE_TOOLS, 'challenge.assign', 'challenge.unassign', 'task.stop', ...SOLVER_TOOLS];
+interface Resource { run: string; sessionID: string; challengeId: string; callID: string; tool: string; state: 'active' | 'settled' | 'unknown'; result?: string; job?: string; controller: AbortController; deadline: number; timer?: ReturnType<typeof setTimeout>; done?: Promise<unknown>; detachRpc?: () => void }
+interface TaskStopResult { state: 'stopped' | 'unknown' | 'completed' | 'failed'; resources: 'settled' | 'unknown'; sessionAbort: 'confirmed' | 'unknown' | 'not_required'; executionRef?: string }
+interface Execution { ref: string; run: string; parent: string; callID: string; role: Role; challengeId?: string; childID?: string; state: 'starting' | 'running' | 'completed' | 'failed' | 'cancelled'; delivered: boolean; noticeMessageID?: string; delivery?: 'queued' | 'consumed' | 'suppressed' | 'stop_reply'; lateResult?: string; initialOutput?: string; result?: string }
+interface Outside { execute: () => Promise<unknown> }
+
 export interface ControlOptions {
+  runId?: string;
   client: OpencodeClient;
   budget: RunBudget;
   /** Absolute time (epoch ms) after which every binding lapses. */
@@ -106,12 +121,32 @@ export class ControlService {
   readonly startedAt = Date.now();
   private tail: Promise<unknown> = Promise.resolve();
   private stopping?: Promise<void>;
-  private readonly pending = new Map<string, Map<Role, { callID: string }>>();
+  private readonly pending = new Map<string, Map<Role, { callID: string; challengeId?: string; childID?: string; background?: boolean }>>();
+  private readonly declarations = new Map<string, Map<Role, string>>();
+  private readonly executions = new Map<string, Execution>();
+  private readonly childStops = new Map<string, Promise<TaskStopResult>>();
   private readonly dispatched = new Map<string, { parent: string; role: Role }>();
   private readonly usageMessages = new Map<string, Map<string, Message>>();
   private readonly usageGaps = new Set<string>();
 
-  constructor(private readonly options: ControlOptions) {}
+  private readonly resources = new Map<string, Resource>();
+  private readonly http = new Map<string, ReturnType<typeof createHttpTools>>();
+  private readonly jars = new Map<string, CookieJar>();
+  private readonly jobs: JobManager;
+  private readonly rootsReady = new Map<string, Promise<void>>();
+  constructor(private readonly options: ControlOptions) { this.jobs = new JobManager({ jobsRoot: join(options.workdir, '..', 'state', 'jobs') }); }
+
+  executionSnapshot() { return [...this.executions.values()].map(e => ({...e})); }
+  hasOutstandingWork(status: Record<string, { type: string }>): boolean {
+    return [...this.executions.values()].some(e => e.state === 'starting' || e.state === 'running' || !e.delivered || e.delivery === 'queued') || [...this.pending.values()].some(p => p.size > 0) ||
+      [...this.resources.values()].some(r => r.state !== 'settled');
+  }
+
+  resourceSnapshot() { return [...this.resources.values()].map(({ controller: _c, timer: _t, done: _d, detachRpc: _detach, ...record }) => record); }
+  private serial<T>(fn: () => T): Promise<T> {
+    const result = this.tail.then(fn); this.tail = result.catch(() => undefined); return result;
+  }
+
 
   /** Root session is bound by the launcher itself before the start message is sent. */
   bindRoot(sessionID: string): void {
@@ -122,31 +157,66 @@ export class ControlService {
     this.record(sessionID, 'bind', true, undefined, { role: 'coordinator', via: 'root' });
   }
 
-  /** Entry point of the RPC. Requests are handled one at a time so concurrent sessions cannot spend the same quota twice. */
-  handle(sessionID: string, operation: string, input: unknown): Promise<unknown> {
-    const run = this.tail.then(async () => {
-      try {
-        const result = await this.decide(sessionID, operation, input);
-        const tool = (input as { tool?: unknown } | null)?.tool;
-        this.record(sessionID, operation, true, undefined, operation === 'model.call' ? result : operation === 'tool.before' || operation === 'tool.after' ? { tool } : undefined);
-        return result;
-      } catch (error) {
-        const denied = error instanceof ControlDenied ? error : new ControlDenied('control error', String(error));
-        this.record(sessionID, operation, false, denied.message, denied.detail);
-        throw denied;
+  /** Only trusted state transitions use the queue. SDK, filesystem and resource waits happen outside it. */
+  async handle(sessionID: string, operation: string, input: unknown, signal?: AbortSignal): Promise<unknown> {
+    const body = (input && typeof input === 'object' ? input : {}) as Record<string, unknown>;
+    try {
+      if (!sessionID || !/^[\w.-]{1,128}$/.test(sessionID)) throw new ControlDenied('unbound session');
+      if (!['chat.message', 'model.call', 'tool.before', 'tool.execute', 'tool.after', 'task.event'].includes(operation)) throw new ControlDenied('unknown operation');
+      if (operation === 'task.event') return await this.serial(() => this.taskEvent(sessionID, body));
+      // Runtime-synthetic native completion is consumed once before admission; stopped runs retain it without waking.
+      if (operation === 'chat.message') await this.serial(() => this.receiveCompletion(sessionID, body));
+      let binding: Binding | undefined;
+      if (operation !== 'tool.after') {
+        const hookAgent = typeof body.agent === 'string' ? body.agent : undefined;
+        binding = this.bindings.get(sessionID) ?? await this.bindFromSdk(sessionID, hookAgent);
+        this.live(binding);
+        if (binding.challengeId) await this.initializeRoots(binding);
+        if ((operation === 'tool.before' && body.tool === 'ctf_task_stop' || operation === 'tool.execute' && body.tool === 'task.stop') && binding.role === 'coordinator') {
+          const childID = (body.args as {task_id?: string} | undefined)?.task_id;
+          const execution = [...this.executions.values()].find(e => e.parent === sessionID && e.childID === childID);
+          if (childID && !this.bindings.has(childID) && execution) await this.bindFromSdk(childID, execution.role);
+        }
+        if (hookAgent !== undefined && hookAgent !== binding.role) throw new ControlDenied('agent mismatch');
+        if (operation === 'model.call') {
+          try { await this.refreshObserved(); } catch { throw new ControlDenied('usage unavailable'); }
+        }
+        if (operation === 'tool.before' && body.tool === 'read') await this.checkReadPath((body.args ?? {}) as Record<string, unknown>);
       }
-    });
-    this.tail = run.catch(() => undefined);
-    return run;
+      const prepared = await this.serial(() => {
+        if (signal?.aborted) throw new ControlDenied('rpc abandoned');
+        if (operation === 'tool.after') return this.toolAfter(sessionID, body);
+        if (this.stopReason) throw new ControlDenied('run stopped');
+        this.live(binding!);
+        switch (operation) {
+          case 'chat.message': return { bound: true };
+          case 'model.call': return this.admit(binding!, body);
+          case 'tool.before': return this.toolBefore(binding!, body);
+          default: return this.executeManaged(binding!, body, signal);
+        }
+      });
+      const result = prepared && typeof prepared === 'object' && 'execute' in prepared ? await (prepared as Outside).execute() : prepared;
+      this.record(sessionID, operation, true, undefined, operation === 'model.call' ? result : { tool: body.tool, callID: body.callID, result: 'returned' });
+      return result;
+    } catch (error) {
+      const denied = error instanceof ControlDenied ? error : new ControlDenied(error instanceof HttpRefused || error instanceof JobRefused || error instanceof WorkspaceRefused ? error.code : 'control error', String(error));
+      this.record(sessionID, operation, false, denied.message, { tool: body.tool, callID: body.callID, error: denied.detail }); throw denied;
+    }
   }
 
   /** Mark first, then abort, so an in-flight tool call is refused at its next hook (C design section 6). */
   stopAll(reason: string): Promise<void> {
     if (this.stopping) return this.stopping;
     this.stopReason = reason;
+    for (const e of this.executions.values()) if (e.state === 'starting' || e.state === 'running') { e.state = 'cancelled'; e.delivered = true; e.delivery = 'suppressed'; }
+    for (const e of this.executions.values()) if (e.delivery === 'queued') e.delivery = 'suppressed';
+    this.declarations.clear();
+    this.pending.clear();
     for (const binding of this.bindings.values()) if (binding.state === 'active') binding.state = 'stopped';
     this.record(this.rootId ?? '', 'stop_marked', true, undefined, { reason, sessions: [...this.bindings.keys()] });
+    const resources = this.cancelResources();
     this.stopping = (async () => {
+      await resources;
       const all = new Set(this.bindings.keys());
       // Visit incrementally: one failing subtree must not discard already discovered siblings.
       const visited = new Set<string>();
@@ -164,7 +234,7 @@ export class ControlService {
       };
       if (this.rootId) await visit(this.rootId);
       this.record(this.rootId ?? '', 'stop_enumerated', true, undefined, { sessions: [...all] });
-      await Promise.all([...all].map(id => this.abortSession(id)));
+      await Promise.all([...all].map(id => this.childStops.get(id) ?? this.abortSession(id)));
     })();
     return this.stopping;
   }
@@ -173,17 +243,48 @@ export class ControlService {
   async revoke(sessionID: string): Promise<void> {
     const binding = this.bindings.get(sessionID);
     if (!binding || binding.via === 'root') throw new Error('only a bound child can be revoked');
-    binding.state = 'revoked';
-    this.record(sessionID, 'revoke', true);
-    await this.abortSession(sessionID);
+    await this.stopChild(binding, true);
   }
 
-  private async abortSession(sessionID: string): Promise<void> {
+  private checkTaskStop(parent: Binding, raw: unknown): Binding {
+    if (parent.role !== 'coordinator') throw new ControlDenied('tool not permitted');
+    const id = (raw && typeof raw === 'object' ? raw : {}) as Record<string, unknown>;
+    const child = typeof id.task_id === 'string' ? this.bindings.get(id.task_id) : undefined;
+    const dispatch = child && this.dispatched.get(child.sessionID);
+    if (!child || child.via !== 'dispatch' || child.parentID !== parent.sessionID ||
+      !dispatch || dispatch.parent !== parent.sessionID || dispatch.role !== child.role) throw new ControlDenied('task handle');
+    if (Date.now() >= child.expiresAt) throw new ControlDenied('task expired');
+    if (child.state !== 'active' && !this.childStops.has(child.sessionID)) throw new ControlDenied('task handle');
+    return child;
+  }
+
+  private stopChild(child: Binding, forceRevoke = false): Promise<TaskStopResult> {
+    const existing = this.childStops.get(child.sessionID); if (existing) return existing;
+    const execution = [...this.executions.values()].reverse().find(e => e.childID === child.sessionID);
+    if (!forceRevoke && execution && (execution.state === 'completed' || execution.state === 'failed')) return Promise.resolve({ state: execution.state, resources: this.resourceSnapshot().some(r => r.sessionID === child.sessionID && r.state !== 'settled') ? 'unknown' : 'settled', sessionAbort: 'not_required', executionRef: execution.ref });
+    if (execution && (execution.state === 'starting' || execution.state === 'running')) { execution.state = 'cancelled'; execution.delivered = true; execution.delivery = 'stop_reply'; this.record(child.sessionID, 'task.cancel', true, undefined, { ref: execution.ref, callID: execution.callID }); }
+    child.state = 'revoked';
+    this.clearDispatchState(child.sessionID);
+    this.record(child.sessionID, 'revoke', true);
+    const stopped = (async (): Promise<TaskStopResult> => {
+      await this.cancelResources(child.sessionID);
+      const confirmed = await this.abortSession(child.sessionID, 4000);
+      const resources = this.resourceSnapshot().some(r => r.sessionID === child.sessionID && r.state !== 'settled') ? 'unknown' : 'settled';
+      const result: TaskStopResult = { executionRef: execution?.ref, state: resources === 'settled' && confirmed ? 'stopped' : 'unknown', resources, sessionAbort: confirmed ? 'confirmed' : 'unknown' };
+      this.record(child.sessionID, 'task.stop.result', result.state === 'stopped', undefined, result);
+      return result;
+    })();
+    this.childStops.set(child.sessionID, stopped); return stopped;
+  }
+
+  private async abortSession(sessionID: string, timeoutMs?: number): Promise<boolean> {
+    let timeout: ReturnType<typeof setTimeout> | undefined;
     try {
-      const result = await this.options.client.session.abort({ sessionID }, { throwOnError: true });
+      const abort = this.options.client.session.abort({ sessionID }, { throwOnError: true, ...(timeoutMs ? { signal: AbortSignal.timeout(timeoutMs) } : {}) });
+      const result = timeoutMs ? await Promise.race([abort, new Promise<never>((_, reject) => { timeout = setTimeout(() => reject(new Error('abort result unknown')), timeoutMs); })]) : await abort;
       if (result.data !== true) throw new Error('abort result unavailable or refused');
-      this.record(sessionID, 'aborted', true);
-    } catch (error) { this.record(sessionID, 'aborted', false, 'abort failed', String(error)); }
+      this.record(sessionID, 'aborted', true); return true;
+    } catch (error) { this.record(sessionID, 'aborted', false, 'abort failed', String(error)); return false; } finally { clearTimeout(timeout); }
   }
 
   /** Refreshes the observed token count and stops the run once the limit is reached. */
@@ -265,26 +366,15 @@ export class ControlService {
     }
   }
 
-  private live(binding: Binding): void {
-    if (binding.state !== 'active') throw new ControlDenied(binding.state === 'stopped' ? 'run stopped' : 'session revoked');
-    if (Date.now() >= binding.expiresAt) throw new ControlDenied('binding lapsed');
+  private clearDispatchState(sessionID: string): void {
+    this.declarations.delete(sessionID);
+    this.pending.delete(sessionID);
   }
 
-  private async decide(sessionID: string, operation: string, input: unknown): Promise<unknown> {
-    const body = (input && typeof input === 'object' ? input : {}) as Record<string, unknown>;
-    if (!sessionID) throw new ControlDenied('unbound session');
-    if (operation === 'tool.after') return this.toolAfter(sessionID, body);
-    if (!['chat.message', 'model.call', 'tool.before', 'tool.execute'].includes(operation)) throw new ControlDenied('unknown operation');
-    const hookAgent = typeof body.agent === 'string' ? body.agent : undefined;
-    const binding = this.bindings.get(sessionID) ?? await this.bindFromSdk(sessionID, hookAgent);
-    this.live(binding);
-    if (hookAgent !== undefined && hookAgent !== binding.role) throw new ControlDenied('agent mismatch');
-    switch (operation) {
-      case 'chat.message': return { bound: true };
-      case 'model.call': return this.admit(binding);
-      case 'tool.before': return this.toolBefore(binding, body);
-      default: return this.executeManaged(binding, body); // tool.execute
-    }
+  private live(binding: Binding): void {
+    if (binding.state !== 'active' || Date.now() >= binding.expiresAt) this.clearDispatchState(binding.sessionID);
+    if (binding.state !== 'active') throw new ControlDenied(binding.state === 'stopped' ? 'run stopped' : 'session revoked');
+    if (Date.now() >= binding.expiresAt) throw new ControlDenied('binding lapsed');
   }
 
   /** C design section 3.2: first hook of an unknown session; facts come only from the launcher's own SDK queries. */
@@ -293,6 +383,20 @@ export class ControlService {
     const started = Date.now();
     let info: { parentID?: string; agent?: string } | undefined;
     try { info = (await this.options.client.session.get({ sessionID }, { throwOnError: true })).data; } catch { throw new ControlDenied('unbound session', 'session lookup failed'); }
+    // For asynchronous dispatch, the native running tool part binds a child ID to this exact call.
+    // Parent/role alone is insufficient once an earlier creation can arrive late.
+    const candidate = info?.parentID && isRole(info.agent) ? this.pending.get(info.parentID)?.get(info.agent) : undefined;
+    let nativeChild: string | undefined;
+    if (candidate?.background && info?.parentID) {
+      try {
+        const messages = (await this.options.client.session.messages({ sessionID: info.parentID }, { throwOnError: true })).data ?? [];
+        const part = messages.flatMap(m => m.parts).find(p => p.type === 'tool' && p.tool === 'task' && p.callID === candidate.callID);
+        if (part?.type === 'tool' && 'metadata' in part.state && typeof part.state.metadata?.sessionId === 'string') nativeChild = part.state.metadata.sessionId;
+      } catch { throw new ControlDenied('unbound session', 'native dispatch correlation unavailable'); }
+    }
+    return this.serial(() => {
+    if (this.stopReason) throw new ControlDenied('run stopped');
+    const already = this.bindings.get(sessionID); if (already) { this.live(already); return already; }
     const sdkMs = Date.now() - started;
     const fail = (detail: string) => new ControlDenied('unbound session', JSON.stringify({ detail, sdkParentID: info?.parentID ?? null, sdkAgent: info?.agent ?? null }));
     if (!info?.parentID) throw fail('no parent');
@@ -303,18 +407,23 @@ export class ControlService {
     if (hookAgent !== undefined && hookAgent !== info.agent) throw fail('hook agent differs from SDK agent');
     const waiting = this.pending.get(info.parentID)?.get(info.agent);
     if (!waiting) throw fail('no pending dispatch');
+    if (waiting.childID && waiting.childID !== sessionID) throw fail('dispatch child mismatch');
+    if (waiting.background && (candidate?.callID !== waiting.callID || (waiting.childID ?? nativeChild) !== sessionID)) throw fail('native call child mismatch');
     this.pending.get(info.parentID)!.delete(info.agent);
-    const binding: Binding = { sessionID, role: info.agent, parentID: info.parentID, via: 'dispatch', dispatchCallID: waiting.callID, scope: 'run',
+    const binding: Binding = { sessionID, role: info.agent, parentID: info.parentID, via: 'dispatch', dispatchCallID: waiting.callID, challengeId: waiting.challengeId, scope: 'run',
       expiresAt: this.options.expiresAt, state: 'active', boundAt: Date.now() };
+    if (binding.challengeId) binding.workDir = this.roots(binding).workDir;
     this.bindings.set(sessionID, binding);
     this.dispatched.set(sessionID, { parent: info.parentID, role: info.agent });
-    this.record(sessionID, 'bind', true, undefined, { role: binding.role, via: 'dispatch', sdkParentID: info.parentID, sdkAgent: info.agent, callID: waiting.callID, sdkMs });
+    const execution = [...this.executions.values()].find(e => e.parent === info.parentID && e.callID === waiting.callID);
+    if (execution) { execution.childID = sessionID; execution.state = 'running'; }
+    this.record(sessionID, 'bind', true, undefined, { role: binding.role, via: 'dispatch', sdkParentID: info.parentID, sdkAgent: info.agent, callID: waiting.callID, challengeId: waiting.challengeId, sdkMs });
     return binding;
+    });
   }
 
-  private async admit(binding: Binding): Promise<{ maxOutputTokens: number; admitNo: number; role: Role }> {
-    this.releasePending(binding.sessionID);
-    try { await this.refreshObserved(); } catch { throw new ControlDenied('usage unavailable'); }
+  private admit(binding: Binding, body: Record<string, unknown>): { maxOutputTokens: number; admitNo: number; role: Role } {
+    // Async dispatches survive parent admission; only trusted binding/terminal facts release them.
     // Stop, revocation or expiry may have occurred while the SDK usage query was pending.
     if (this.stopReason) throw new ControlDenied('run stopped');
     this.live(binding);
@@ -324,18 +433,36 @@ export class ControlService {
       throw new ControlDenied('budget', JSON.stringify({ admitted: this.admitted, observedTokens: this.observed }));
     }
     this.admitted++;
+    for (const e of this.executions.values()) if (e.parent === binding.sessionID && e.delivery === 'queued' && e.noticeMessageID === body.messageID) { e.delivery = 'consumed'; this.record(binding.sessionID, 'task.delivered', true, undefined, {ref: e.ref, messageID: body.messageID, admitNo: this.admitted}); }
     return { maxOutputTokens: maxObservableTokens - this.observed, admitNo: this.admitted, role: binding.role };
   }
 
-  private async toolBefore(binding: Binding, body: Record<string, unknown>): Promise<unknown> {
+  private toolBefore(binding: Binding, body: Record<string, unknown>): unknown {
     const tool = typeof body.tool === 'string' ? body.tool : '';
+    if (tool === 'ctf_challenge_assign' || tool === 'ctf_challenge_unassign') {
+      this.checkDeclaration(binding, body.args, tool === 'ctf_challenge_assign');
+      return { allowed: true }; // Precheck only: execution is the declaration's linearization point.
+    }
+    if (tool === 'ctf_task_stop') { this.checkTaskStop(binding, body.args); return { allowed: true, rpcTimeoutMs: 10000 }; }
+    const managed = SOLVER_TOOLS.find(name => `ctf_${name.replaceAll('.', '_')}` === tool);
+    if (managed) { this.checkSolver(binding, managed); return { allowed: true, rpcTimeoutMs: this.waitLimit(binding, managed, (body.args ?? {}) as Record<string, unknown>) + 5000 }; }
     const intake = INTAKE_BY_ID.get(tool);
     if (intake) { this.checkIntake(binding, intake, body.args); return { allowed: true }; }
     const allowed = Object.hasOwn(NATIVE_TOOL_ROLES, tool) && NATIVE_TOOL_ROLES[tool]!.includes(binding.role);
     if (!allowed) throw new ControlDenied('tool not permitted', tool);
     const args = (body.args && typeof body.args === 'object' ? body.args : {}) as Record<string, unknown>;
-    if (tool === 'read') await this.checkReadPath(args);
-    if (tool === 'task') this.registerDispatch(binding, typeof body.callID === 'string' ? body.callID : '', args);
+
+    if (tool === 'task') {
+      if ([...this.executions.values()].some(e => e.parent === binding.sessionID && e.callID === body.callID)) throw new ControlDenied('duplicate dispatch call');
+      this.registerDispatch(binding, typeof body.callID === 'string' ? body.callID : '', args);
+      if (args.background === true) {
+        const ref = randomUUID();
+        const taskID = typeof args.task_id === 'string' ? args.task_id : undefined;
+        this.executions.set(ref, { ref, run: this.options.runId ?? 'run', parent: binding.sessionID, callID: String(body.callID), role: args.subagent_type as Role, challengeId: taskID ? this.bindings.get(taskID)?.challengeId : this.pending.get(binding.sessionID)?.get(args.subagent_type as Role)?.challengeId, childID: taskID, state: taskID ? 'running' : 'starting', delivered: false });
+        this.record(binding.sessionID, 'task.execution', true, undefined, {...this.executions.get(ref)});
+        return { allowed: true, taskDescription: `[ctf:${ref}]` };
+      }
+    }
     return { allowed: true };
   }
 
@@ -351,12 +478,170 @@ export class ControlService {
 
   private refusal(error: unknown): ControlDenied { return new ControlDenied(error instanceof IntakeRefused ? error.code : 'control error'); }
 
-  private async executeManaged(binding: Binding, body: Record<string, unknown>): Promise<unknown> {
+  private executeManaged(binding: Binding, body: Record<string, unknown>, signal?: AbortSignal): unknown {
     const name = typeof body.tool === 'string' ? body.tool : '';
+    if (name === 'task.stop') {
+      const child = this.checkTaskStop(binding, body.args);
+      const alreadyStopped = this.childStops.has(child.sessionID);
+      const stopped = this.stopChild(child);
+      return { execute: async () => ({ ...await stopped, alreadyStopped }) };
+    }
+    if (name === 'challenge.assign' || name === 'challenge.unassign') {
+      const { role, challenge } = this.checkDeclaration(binding, body.args, name === 'challenge.assign');
+      this.live(binding);
+      if (name === 'challenge.unassign') {
+        const cleared = this.declarations.get(binding.sessionID)?.delete(role) ?? false;
+        this.record(binding.sessionID, 'assign.clear', true, undefined, { role, cleared });
+        return { cleared };
+      }
+      const declared = this.declarations.get(binding.sessionID) ?? new Map<Role, string>();
+      declared.set(role, challenge!);
+      this.declarations.set(binding.sessionID, declared);
+      this.record(binding.sessionID, 'assign', true, undefined, { role, challenge });
+      return { challenge };
+    }
+    if (SOLVER_TOOLS.includes(name)) return this.prepareSolver(binding, name, (body.args ?? {}) as Record<string, unknown>, body.callID, signal);
     if (!INTAKE_TOOLS.includes(name)) throw new ControlDenied('no managed tools');
     const args = this.checkIntake(binding, name, body.args);
     const challenges = this.options.challenges ?? [];
-    try { return name === 'challenge.list' ? listChallenges(challenges) : await readMaterial(challenges, args); } catch (error) { throw this.refusal(error); }
+    if (name === 'challenge.list') return listChallenges(challenges);
+    return { execute: async () => { try { return await readMaterial(challenges, args); } catch (error) { throw this.refusal(error); } } };
+  }
+
+  private checkSolver(binding: Binding, name: string): void {
+    if (!binding.challengeId || !CHALLENGE_ROLES.includes(binding.role) ||
+      (name === 'http.request' && !['recon', 'domain-solver'].includes(binding.role))) throw new ControlDenied('tool not permitted');
+    if (!this.options.challenges?.some(c => c.id === binding.challengeId)) throw new ControlDenied('challenge outside run');
+  }
+
+  private waitLimit(binding: Binding, name: string, args: Record<string, unknown>): number {
+    const bounded = (value: unknown, fallback: number, max: number, min = 1) => {
+      if (value === undefined) return fallback;
+      if (typeof value !== 'number' || !Number.isInteger(value) || value < min || value > max) throw new ControlDenied('tool timeout');
+      return value;
+    };
+    if (name === 'job.run') {
+      bounded(args.wait_ms, 5000, 30000, 0);
+      if (args.completion !== undefined && args.completion !== 'terminal') throw new ControlDenied('job completion');
+    }
+    const wait = name === 'http.request' ? bounded(args.timeout_ms, 15000, 60000) :
+      name === 'job.run' ? (args.completion === 'terminal' || args.wait_ms === undefined
+        ? bounded(args.timeout_ms, 60000, 600000) + 4000
+        : bounded(args.wait_ms, 5000, 30000, 0)) : name === 'job.cancel' ? 4000 : 15000;
+    return Math.max(0, Math.min(wait, binding.expiresAt - Date.now()));
+  }
+
+  private prepareSolver(binding: Binding, name: string, args: Record<string, unknown>, call: unknown, rpcSignal?: AbortSignal): Outside {
+    this.checkSolver(binding, name);
+    if (typeof call !== 'string' || !/^[\w.-]{1,128}$/.test(call)) throw new ControlDenied('call id');
+    const key = `${binding.sessionID}/${call}`;
+    if (this.resources.has(key)) throw new ControlDenied('duplicate tool call');
+    const active = [...this.resources.values()].filter(r => r.state !== 'settled');
+    if (name === 'http.request' && active.filter(r => r.tool === name && r.challengeId === binding.challengeId).length >= 8) throw new ControlDenied('http limit');
+    this.waitLimit(binding, name, args);
+    const duration = name === 'http.request' ? Math.min(typeof args.timeout_ms === 'number' ? args.timeout_ms : 15000, 60000) :
+      name === 'job.run' ? Math.min(typeof args.timeout_ms === 'number' ? args.timeout_ms : 60000, 600000) : 15000;
+    const operation: Resource = { run: this.options.runId ?? 'run', sessionID: binding.sessionID, challengeId: binding.challengeId!, callID: call, tool: name,
+      state: 'active', controller: new AbortController(), deadline: Math.min(binding.expiresAt, Date.now() + duration) };
+    this.resources.set(key, operation);
+    this.record(binding.sessionID, 'tool.registered', true, undefined, { callID: call, tool: name, challengeId: binding.challengeId, deadline: operation.deadline });
+    const abandon = () => { this.record(binding.sessionID, 'rpc.abandoned', true, undefined, { callID: call, tool: name, job: operation.job, delivery: 'not_finished' }); operation.controller.abort('rpc abandoned'); };
+    rpcSignal?.addEventListener('abort', abandon, { once: true });
+    operation.detachRpc = () => rpcSignal?.removeEventListener('abort', abandon);
+    operation.timer = setTimeout(() => operation.controller.abort('deadline'), Math.max(0, operation.deadline - Date.now()));
+    if (rpcSignal?.aborted) abandon();
+    return { execute: () => {
+      const work = (async () => {
+        let keep = false;
+        try {
+          const roots = this.roots(binding);
+          await Promise.all([mkdir(roots.workDir, { recursive: true }), mkdir(roots.publishedDir, { recursive: true })]);
+          operation.controller.signal.throwIfAborted(); this.live(binding);
+          let result: unknown;
+          if (name === 'http.request') {
+            const challenge = this.options.challenges!.find(c => c.id === binding.challengeId)!;
+            if (!challenge.target?.url) throw new ControlDenied('http target');
+            let adapter = this.http.get(binding.sessionID);
+            if (!adapter) {
+              const jar = this.jars.get(binding.challengeId!) ?? new CookieJar(); this.jars.set(binding.challengeId!, jar);
+              adapter = createHttpTools({ target: challenge.target.url, jar, workDir: roots.workDir }); this.http.set(binding.sessionID, adapter);
+            }
+            result = await adapter.request(args, { ...operation, signal: operation.controller.signal });
+          } else if (name === 'job.run') {
+            const jobBinding = this.jobBinding(binding, roots);
+            result = await this.jobs.run(jobBinding, args, { signal: operation.controller.signal, deadline: operation.deadline, onRegistered: job => { operation.job = job; } });
+            const done = this.jobs.waitSettled(jobBinding, operation.job!);
+            keep = true;
+            void done.then(snapshot => this.settleResource(operation, snapshot.reapIncomplete ? 'cleanup_unknown' : snapshot.state));
+            // Decision prototype: retain the same RPC/call until terminal cleanup, without a model polling loop.
+            if (args.completion === 'terminal' || args.wait_ms === undefined) result = await done;
+          } else if (name === 'job.read') result = this.jobs.read(this.jobBinding(binding, roots), args);
+          else if (name === 'job.cancel') result = await this.jobs.cancel(this.jobBinding(binding, roots), args.job);
+          else if (name === 'workspace.list') result = await listWorkspace(roots, args);
+          else if (name === 'workspace.read') result = await readWorkspace(roots, args);
+          else if (name === 'workspace.search') result = await searchWorkspace(roots, args);
+          else result = await writeWorkspace(roots, args);
+          if (!keep) this.settleResource(operation, 'completed');
+          return result;
+        } catch (error) {
+          const reason = error instanceof HttpRefused || error instanceof JobRefused || error instanceof WorkspaceRefused ? error.code :
+            operation.controller.signal.aborted ? operation.controller.signal.reason === 'deadline' ? 'timeout' : 'cancelled' : 'failed';
+          this.settleResource(operation, reason);
+          throw error instanceof ControlDenied ? error : new ControlDenied(reason);
+        } finally { if (!keep) operation.detachRpc?.(); }
+      })();
+      operation.done = work; return work;
+    } };
+  }
+
+  private initializeRoots(binding: Binding): Promise<void> {
+    let ready = this.rootsReady.get(binding.sessionID);
+    if (!ready) {
+      const roots = this.roots(binding);
+      ready = Promise.all([mkdir(roots.workDir, { recursive: true }), mkdir(roots.publishedDir, { recursive: true })]).then(() => {
+        if (this.stopReason) throw new ControlDenied('run stopped'); this.live(binding);
+      });
+      this.rootsReady.set(binding.sessionID, ready);
+    }
+    return ready;
+  }
+
+  private roots(binding: Binding): WorkspaceRoots {
+    const challenge = this.options.challenges!.find(c => c.id === binding.challengeId)!;
+    const base = dirname(challenge.materialsDir);
+    return { materialsDir: challenge.materialsDir, publishedDir: join(base, 'published'), workDir: join(base, 'work', binding.sessionID) };
+  }
+  private jobBinding(binding: Binding, roots: WorkspaceRoots): JobBinding { return { sessionId: binding.sessionID, challengeId: binding.challengeId!, ...roots }; }
+  private settleResource(resource: Resource, result: string): void {
+    if (resource.state === 'settled') return;
+    clearTimeout(resource.timer); resource.detachRpc?.(); resource.state = result === 'cleanup_unknown' ? 'unknown' : 'settled'; resource.result = result;
+    this.record(resource.sessionID, 'tool.settled', result !== 'cleanup_unknown', undefined, { callID: resource.callID, tool: resource.tool, job: resource.job, result });
+  }
+  private async cancelResources(sessionID?: string): Promise<void> {
+    const resources = [...this.resources.values()].filter(r => (!sessionID || r.sessionID === sessionID) && r.state !== 'settled');
+    for (const resource of resources) resource.controller.abort('stopped');
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    try {
+      const completed = await Promise.race([
+        Promise.allSettled([this.jobs.cancelAll(sessionID), ...resources.map(r => r.done)]).then(() => true),
+        new Promise<false>(resolve => { timer = setTimeout(() => resolve(false), 4000); })
+      ]);
+      if (!completed) for (const resource of resources) if (resource.state === 'active') this.settleResource(resource, 'cleanup_unknown');
+    } finally { clearTimeout(timer); }
+  }
+
+  /** G §2.1: declarations are distinct from in-flight dispatches and survive model admissions. */
+  private checkDeclaration(binding: Binding, raw: unknown, assigning: boolean): { role: Role; challenge?: string } {
+    if (binding.role !== 'coordinator') throw new ControlDenied('tool not permitted');
+    const args = (raw && typeof raw === 'object' ? raw : {}) as Record<string, unknown>;
+    const role = args.role;
+    if (!isRole(role) || !CHALLENGE_ROLES.includes(role)) throw new ControlDenied('dispatch', 'role cannot accept challenge');
+    if (this.pending.get(binding.sessionID)?.has(role)) throw new ControlDenied('dispatch', 'pending dispatch exists for role');
+    if (!assigning) return { role };
+    if (this.declarations.get(binding.sessionID)?.has(role)) throw new ControlDenied('dispatch', 'challenge already declared');
+    const challenge = args.challenge;
+    if (typeof challenge !== 'string' || !this.options.challenges?.some(c => c.id === challenge)) throw new ControlDenied('dispatch', 'challenge outside run');
+    return { role, challenge };
   }
 
   private async checkReadPath(args: Record<string, unknown>): Promise<void> {
@@ -380,25 +665,49 @@ export class ControlService {
     if (taskId !== undefined && taskId !== null && taskId !== '') {
       const owned = typeof taskId === 'string' ? this.dispatched.get(taskId) : undefined;
       const child = typeof taskId === 'string' ? this.bindings.get(taskId) : undefined;
-      if (!owned || owned.parent !== binding.sessionID || owned.role !== role || child?.state !== 'active') throw new ControlDenied('dispatch', 'task id not owned');
+      if (!owned || owned.parent !== binding.sessionID || owned.role !== role || !child) throw new ControlDenied('dispatch', 'task id not owned');
+      this.live(child);
+      if ([...this.executions.values()].some(e => e.childID === taskId && (e.state === 'starting' || e.state === 'running'))) throw new ControlDenied('dispatch', 'execution still active');
+      const declared = this.declarations.get(binding.sessionID)?.get(role);
+      if (declared !== undefined && declared !== child.challengeId) throw new ControlDenied('dispatch', 'declared challenge differs from resumed session');
+      this.declarations.get(binding.sessionID)?.delete(role);
+      this.record(binding.sessionID, 'dispatch.resume', true, undefined, { role, taskId, challengeId: child.challengeId, declarationConsumed: declared !== undefined });
       return;
     }
     const byRole = this.pending.get(binding.sessionID) ?? new Map();
     if (byRole.has(role)) throw new ControlDenied('dispatch', 'pending dispatch exists for role');
-    byRole.set(role, { callID });
+    const challengeId = this.declarations.get(binding.sessionID)?.get(role);
+    if (CHALLENGE_ROLES.includes(role) && challengeId === undefined) throw new ControlDenied('dispatch', 'no challenge declared for role');
+    byRole.set(role, { callID, challengeId, background: args.background === true });
+    this.declarations.get(binding.sessionID)?.delete(role);
+    this.record(binding.sessionID, 'dispatch.register', true, undefined, { role, callID, challengeId });
     this.pending.set(binding.sessionID, byRole);
   }
 
-  /**
-   * C design section 3.1 release rule: OpenCode asks for the next model call only after every tool call of the
-   * previous round returned, so a parent's unconsumed pending dispatches are over once it asks for admission again.
-   * Runs before the budget check, so a refused admission releases them too.
-   */
-  private releasePending(parent: string): void {
-    const waiting = this.pending.get(parent);
-    if (!waiting?.size) return;
-    this.record(parent, 'dispatch.release', true, undefined, { released: [...waiting].map(([role, w]) => ({ role, callID: w.callID })) });
-    waiting.clear();
+  private taskEvent(parent: string, body: Record<string, unknown>): {ok: true} {
+    const execution = [...this.executions.values()].find(e => e.parent === parent && e.callID === body.callID);
+    if (!execution || body.state !== 'error' || execution.state !== 'starting') return {ok: true};
+    execution.state = 'failed'; execution.delivered = true; execution.delivery = 'stop_reply'; execution.result = typeof body.error === 'string' ? body.error : 'native task error';
+    for (const [role, waiting] of this.pending.get(parent) ?? []) if (waiting.callID === execution.callID) this.pending.get(parent)!.delete(role);
+    this.record(parent, 'task.start.failed', true, undefined, {ref: execution.ref, callID: execution.callID});
+    return {ok: true};
+  }
+
+  private receiveCompletion(parent: string, body: Record<string, unknown>): void {
+    if (!Array.isArray(body.parts)) return;
+    for (const part of body.parts as Array<{type?: string; synthetic?: boolean; text?: string}>) {
+      if (part.type !== 'text' || part.synthetic !== true || typeof part.text !== 'string') continue;
+      const match = /^<task id="([\w.-]+)" state="(completed|error)">\n<summary>Background task (?:completed|failed): \[ctf:([a-f0-9-]{36})\]<\/summary>/.exec(part.text);
+      if (!match) continue;
+      const execution = this.executions.get(match[3]!);
+      if (!execution || execution.parent !== parent || execution.childID !== match[1]) throw new ControlDenied('completion correlation');
+      if (execution.delivered) { execution.lateResult = part.text; this.record(parent, 'task.completion.ignored', true, undefined, { ref: execution.ref, reason: 'duplicate or late', messageID: body.messageID }); throw new ControlDenied('duplicate completion'); }
+      execution.state = match[2] === 'completed' ? 'completed' : 'failed'; execution.result = part.text;
+      execution.noticeMessageID = typeof body.messageID === 'string' ? body.messageID : undefined;
+      execution.delivered = true; execution.delivery = this.stopReason ? 'suppressed' : 'queued';
+      this.record(parent, 'task.completion', true, undefined, { ref: execution.ref, childID: execution.childID, callID: execution.callID, state: execution.state, messageID: execution.noticeMessageID, wake: !this.stopReason });
+      if (this.stopReason) throw new ControlDenied('run stopped');
+    }
   }
 
   /** Audit correlation only: ties the task call to the child session reported by OpenCode, and releases an unconsumed pending slot. */
@@ -409,7 +718,9 @@ export class ControlService {
       const callID = typeof body.callID === 'string' ? body.callID : '';
       this.record(sessionID, 'task.correlate', true, undefined, { callID, childSessionID: child ?? null,
         childBoundToCaller: child ? this.bindings.get(child)?.parentID === sessionID : false });
-      for (const [role, waiting] of this.pending.get(sessionID) ?? []) if (waiting.callID === callID) this.pending.get(sessionID)!.delete(role);
+      const execution = [...this.executions.values()].find(e => e.parent === sessionID && e.callID === callID);
+      if (execution) { if (child && execution.childID && execution.childID !== child) throw new ControlDenied('completion correlation'); if (child) execution.childID = child; if (execution.initialOutput === undefined && typeof body.output === 'string') execution.initialOutput = body.output; }
+      for (const [, waiting] of this.pending.get(sessionID) ?? []) if (waiting.callID === callID && child) waiting.childID = child;
     }
     return { ok: true };
   }

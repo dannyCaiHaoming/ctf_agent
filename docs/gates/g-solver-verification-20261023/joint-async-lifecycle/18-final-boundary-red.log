@@ -1,0 +1,50 @@
+
+ RUN  v2.1.8 /Users/caihaoming/.codex/worktrees/g-joint-async-lifecycle/pentest-agent
+
+ ❯ tests/contract/g-async-lifecycle.test.ts (10 tests | 2 failed | 8 skipped) 9ms
+   × global stop reuses confirmed/unknown child stop instead of issuing another SDK abort 6ms
+     → expected [ { seq: 11, t: 1, …(4) }, …(1) ] to have a length of 1 but got 2
+   × completion wake is queued then re-admitted; budget rejection keeps result and usage incomplete 3ms
+     → expected { …(12) } to match object { state: 'completed', …(2) }
+(9 matching properties omitted from actual)
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 2 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/contract/g-async-lifecycle.test.ts > global stop reuses confirmed/unknown child stop instead of issuing another SDK abort
+AssertionError: expected [ { seq: 11, t: 1, …(4) }, …(1) ] to have a length of 1 but got 2
+
+- Expected
++ Received
+
+- 1
++ 2
+
+ ❯ tests/contract/g-async-lifecycle.test.ts:36:242
+
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/2]⎯
+
+ FAIL  tests/contract/g-async-lifecycle.test.ts > completion wake is queued then re-admitted; budget rejection keeps result and usage incomplete
+AssertionError: expected { …(12) } to match object { state: 'completed', …(2) }
+(9 matching properties omitted from actual)
+
+- Expected
++ Received
+
+  Object {
+-   "delivery": "suppressed",
++   "delivery": "queued",
+    "result": StringContaining "retained",
+    "state": "completed",
+  }
+
+ ❯ tests/contract/g-async-lifecycle.test.ts:40:251
+
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/2]⎯
+
+ Test Files  1 failed (1)
+      Tests  2 failed | 8 skipped (10)
+   Start at  23:10:42
+   Duration  283ms (transform 47ms, setup 0ms, collect 55ms, tests 9ms, environment 0ms, prepare 37ms)
+

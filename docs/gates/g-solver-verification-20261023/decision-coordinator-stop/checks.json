@@ -1,0 +1,42 @@
+[
+  {
+    "command": "npm ci",
+    "exit_code": 0,
+    "log": "npm-ci.log"
+  },
+  {
+    "command": "vitest initial RED",
+    "exit_code": "unavailable",
+    "log": "red.log"
+  },
+  {
+    "command": "npx --no-install vitest run tests/contract/g-coordinator-stop.test.ts tests/contract/control-service.test.ts tests/contract/slow-tools.test.ts",
+    "exit_code": 0,
+    "log": "targeted.log"
+  },
+  {
+    "command": "npx --no-install tsx tests/manual/g-coordinator-stop-runtime.ts accepted",
+    "exit_code": 0,
+    "log": "runtime-accepted.log"
+  },
+  {
+    "command": "npx --no-install tsx tests/manual/g-coordinator-stop-runtime.ts native-control foreground",
+    "exit_code": 0,
+    "log": "runtime-native-control.log"
+  },
+  {
+    "command": "npm run typecheck",
+    "exit_code": 0,
+    "log": "typecheck-final.log"
+  },
+  {
+    "command": "npm run build",
+    "exit_code": 0,
+    "log": "build.log"
+  },
+  {
+    "command": "npm test",
+    "exit_code": 0,
+    "log": "full.log"
+  }
+]

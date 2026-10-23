@@ -1,0 +1,49 @@
+
+ RUN  v2.1.8 /Users/caihaoming/.codex/worktrees/c323/pentest-agent
+
+ ❯ tests/contract/g-team-integration.test.ts (3 tests | 3 failed) 13ms
+   × E prepareRun binds the real materials and prepares separate work before first admission 6ms
+     → denied: no managed tools
+   × E and G read the same UTF-8 pages and binary signature and reject escaping links 2ms
+     → denied: no managed tools
+   × enforces all nine roles at both hooks and execution, with independent Verifier work 4ms
+     → expected [Function] to throw error including 'role capability' but got 'denied: tool not permitted'
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 3 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/contract/g-team-integration.test.ts > E prepareRun binds the real materials and prepares separate work before first admission
+ FAIL  tests/contract/g-team-integration.test.ts > E and G read the same UTF-8 pages and binary signature and reject escaping links
+Error: denied: no managed tools
+ ❯ ControlService.executeManaged apps/launcher/src/control-service.ts:356:45
+    354|   private async executeManaged(binding: Binding, body: Record<string, …
+    355|     const name = typeof body.tool === 'string' ? body.tool : '';
+    356|     if (!INTAKE_TOOLS.includes(name)) throw new ControlDenied('no mana…
+       |                                             ^
+    357|     const args = this.checkIntake(binding, name, body.args);
+    358|     const challenges = this.options.challenges ?? [];
+ ❯ ControlService.decide apps/launcher/src/control-service.ts:286:28
+ ❯ apps/launcher/src/control-service.ts:129:35
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/3]⎯
+
+ FAIL  tests/contract/g-team-integration.test.ts > enforces all nine roles at both hooks and execution, with independent Verifier work
+AssertionError: expected [Function] to throw error including 'role capability' but got 'denied: tool not permitted'
+
+Expected: "role capability"
+Received: "denied: tool not permitted"
+
+ ❯ tests/contract/g-team-integration.test.ts:87:7
+     85|     await bind(role, role);
+     86|     for (const tool of ['workspace.write', 'job.run', 'http.request'])…
+     87|       await expect(execute(role, tool, { path: 'work/x', content: 'no'…
+       |       ^
+     88|       await expect(c.handle(role, 'tool.execute', { tool, callID: `byp…
+     89|     }
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/3]⎯
+
+ Test Files  1 failed (1)
+      Tests  3 failed (3)
+   Start at  00:20:03
+   Duration  237ms (transform 36ms, setup 0ms, collect 37ms, tests 13ms, environment 0ms, prepare 39ms)
+

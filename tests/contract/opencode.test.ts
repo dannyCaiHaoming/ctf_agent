@@ -99,17 +99,19 @@ describe('OpenCode public adapter', () => {
   });
 
   it('forwards the OpenCode ToolContext session ID over RPC without adding identity arguments', async () => {
-    const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response(JSON.stringify({ result: { accepted: true } }), { status: 200 }));
+    const fetchMock = vi.spyOn(globalThis, 'fetch').mockImplementation(async () => new Response(JSON.stringify({ result: { accepted: true } }), { status: 200 }));
     const { createCtfAgentHooks } = await import('../../apps/opencode-plugin/src/index.js');
     const hooks = createCtfAgentHooks({ controlUrl: 'http://127.0.0.1:43210/control',
       controlToken: 'bridge-test-token-that-is-long-enough-123', tools: ['workspace.read'] });
-    await hooks.tool?.['ctf_workspace_read']!.execute({ path: 'x' } as never, {
+    const args = { path: 'x' };
+    await hooks['tool.execute.before']!({ sessionID: 'session-1', tool: 'ctf_workspace_read', callID: 'call-from-hook' }, { args });
+    await hooks.tool?.['ctf_workspace_read']!.execute(args as never, {
       sessionID: 'session-1', messageID: 'message-1', agent: 'solver', directory: '/tmp', worktree: '/tmp',
       abort: new AbortController().signal, metadata: () => undefined, ask: async () => undefined
     } as never);
     expect(fetchMock).toHaveBeenCalledWith(new URL('http://127.0.0.1:43210/control'), expect.objectContaining({
       headers: expect.objectContaining({ authorization: 'Bearer bridge-test-token-that-is-long-enough-123' }),
-      body: JSON.stringify({ sessionID: 'session-1', operation: 'tool.execute', input: { tool: 'workspace.read', args: { path: 'x' } } })
+      body: JSON.stringify({ sessionID: 'session-1', operation: 'tool.execute', input: { tool: 'workspace.read', args: { path: 'x' }, callID: 'call-from-hook' } })
     }));
   });
 

@@ -1,0 +1,26 @@
+
+ RUN  v2.1.8 /Users/caihaoming/.codex/worktrees/g-c-rpc-slow-tools/pentest-agent
+
+ ❯ tests/contract/slow-tools.test.ts (15 tests | 1 failed | 14 skipped) 5ms
+   × creates the design-mapped private work directory before a child can request its first model admission 4ms
+     → ENOENT: no such file or directory, scandir '/var/folders/tn/x1hbkfy17sx0w1lb8kjzzr340000gn/T/g-c-slow-Qi77JK/X/work/a'
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/contract/slow-tools.test.ts > creates the design-mapped private work directory before a child can request its first model admission
+Error: ENOENT: no such file or directory, scandir '/var/folders/tn/x1hbkfy17sx0w1lb8kjzzr340000gn/T/g-c-slow-Qi77JK/X/work/a'
+ ❯ tests/contract/slow-tools.test.ts:222:10
+    220| it('creates the design-mapped private work directory before a child ca…
+    221|   const { c, dir } = await fixture();
+    222|   expect(await import('node:fs/promises').then(fs => fs.readdir(join(d…
+       |          ^
+    223|   expect(await c.handle('a', 'model.call', { agent: 'recon' })).toMatc…
+    224| });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 14 skipped (15)
+   Start at  21:14:51
+   Duration  288ms (transform 55ms, setup 0ms, collect 78ms, tests 5ms, environment 0ms, prepare 29ms)
+

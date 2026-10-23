@@ -1,0 +1,15 @@
+{
+  "label": "a-host-publish-and-content",
+  "argv": [
+    "docker",
+    "exec",
+    "gdec-os-isolation-139fe3bb70-a-shared",
+    "python3",
+    "-c",
+    "from pathlib import Path; import json; p=Path('/fixture/a/challenges/a/published/new.txt'); p.write_text('host-published'); print(json.dumps({str(x):x.read_text() for x in Path('/fixture/a/challenges').glob('*/materials/sentinel.txt')}))"
+  ],
+  "exit_code": 0,
+  "elapsed_seconds": 0.096,
+  "stdout": "{}\n",
+  "stderr": ""
+}

@@ -1,0 +1,15 @@
+{
+  "label": "negative-control-same-uid",
+  "argv": [
+    "docker",
+    "exec",
+    "gdec-os-isolation-5e1a60fb24-a-shared",
+    "python3",
+    "-c",
+    "from pathlib import Path; import json; print(json.dumps({p:Path(p).read_text() for p in ['/fixture/b/control/provider.txt','/fixture/b/control/rpc.txt','/fixture/b/control/oracle.txt','/fixture/b/challenges/a/work/a2/private.txt','/fixture/b/challenges/b/materials/sentinel.txt']}))"
+  ],
+  "exit_code": 0,
+  "elapsed_seconds": 0.062,
+  "stdout": "{\"/fixture/b/control/provider.txt\": \"nonsecret-provider\\n\", \"/fixture/b/control/rpc.txt\": \"nonsecret-rpc\\n\", \"/fixture/b/control/oracle.txt\": \"nonsecret-oracle\\n\", \"/fixture/b/challenges/a/work/a2/private.txt\": \"nonsecret-a2-private\\n\", \"/fixture/b/challenges/b/materials/sentinel.txt\": \"nonsecret-b-b-materials\\n\"}\n",
+  "stderr": ""
+}

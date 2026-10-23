@@ -1,0 +1,93 @@
+{
+  "share": "disabled",
+  "snapshot": false,
+  "autoupdate": false,
+  "lsp": false,
+  "formatter": false,
+  "mcp": {},
+  "instructions": [],
+  "compaction": {
+    "auto": false,
+    "prune": false
+  },
+  "default_agent": "coordinator",
+  "permission": {
+    "*": "deny"
+  },
+  "agent": {
+    "build": {
+      "disable": true
+    },
+    "plan": {
+      "disable": true
+    },
+    "general": {
+      "disable": true
+    },
+    "explore": {
+      "disable": true
+    },
+    "title": {
+      "disable": true
+    },
+    "summary": {
+      "disable": true
+    },
+    "compaction": {
+      "disable": true
+    },
+    "coordinator": {
+      "mode": "primary",
+      "description": "probe coordinator",
+      "prompt": "You coordinate the probe.",
+      "permission": {
+        "*": "deny",
+        "task": "allow",
+        "ctf_challenge_assign": "allow",
+        "ctf_challenge_unassign": "allow"
+      }
+    },
+    "recon": {
+      "mode": "subagent",
+      "description": "probe recon",
+      "prompt": "You are the probe recon.",
+      "permission": {
+        "*": "deny"
+      }
+    }
+  },
+  "model": "stub/scripted",
+  "small_model": "stub/scripted",
+  "enabled_providers": [
+    "stub"
+  ],
+  "provider": {
+    "stub": {
+      "npm": "@ai-sdk/openai-compatible",
+      "name": "stub",
+      "options": {
+        "baseURL": "http://127.0.0.1:57880/v1",
+        "apiKey": "{env:G_PROBE_KEY}"
+      },
+      "models": {
+        "scripted": {
+          "name": "scripted",
+          "limit": {
+            "context": 8192,
+            "output": 1024
+          }
+        }
+      }
+    }
+  },
+  "plugin": [
+    [
+      "/Users/caihaoming/.codex/worktrees/g-v1-cross-round/pentest-agent/scratch/g-v1/probe-plugin.ts",
+      {
+        "controlUrl": "http://127.0.0.1:57884/control",
+        "controlToken": "<redacted>",
+        "tools": []
+      }
+    ]
+  ]
+}

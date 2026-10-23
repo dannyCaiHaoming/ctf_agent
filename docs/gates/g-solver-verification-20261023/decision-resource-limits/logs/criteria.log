@@ -1,0 +1,40 @@
+{
+  "outcome": "partial; aggregate limits and product default applicability are NOT finalized",
+  "criteria": [
+    {
+      "criterion": "workspace aggregate denies overflow, including HTTP and direct job writes",
+      "met": false,
+      "evidence": "observations.json workspaceAggregate / aggregateWriters"
+    },
+    {
+      "criterion": "job PATH fixed by product rather than inherited launcher environment",
+      "met": false,
+      "evidence": "observations.json path"
+    },
+    {
+      "criterion": "durable run tool admission and reservation recovery without resetting totals",
+      "met": false,
+      "evidence": "observations.json runAccounting; control-service.ts constructor; launch.ts final-only saves"
+    },
+    {
+      "criterion": "eight same-challenge HTTP slots reserve atomically and confirmed cancellation releases",
+      "met": true,
+      "evidence": "observations.json httpTrace"
+    },
+    {
+      "criterion": "unknown HTTP keeps eight reservations and blocks ninth",
+      "met": true,
+      "evidence": "observations.json httpUnknownTrace"
+    },
+    {
+      "criterion": "job session/challenge limits and known cancellation/failure release",
+      "met": true,
+      "evidence": "observations.json jobTrace"
+    },
+    {
+      "criterion": "numeric defaults calibrated against real solving needs",
+      "met": null,
+      "evidence": "not run; no model authorization"
+    }
+  ]
+}

@@ -1,0 +1,84 @@
+[
+  {
+    "seq": 1,
+    "at": 1792751329701,
+    "kind": "coordinator",
+    "step": 0,
+    "calls": [
+      "ctf_challenge_assign",
+      "task"
+    ],
+    "childIdSeen": null,
+    "firstUser": "\"PROBE_START\""
+  },
+  {
+    "seq": 2,
+    "at": 1792751329747,
+    "kind": "child",
+    "snapshot": {
+      "auditSeq": 12,
+      "bindings": [
+        {
+          "sessionID": "ses_e97b1a1beffe13Oq9TxNDtkcdR",
+          "role": "coordinator",
+          "parentID": null,
+          "via": "root",
+          "scope": "run",
+          "expiresAt": 1792751447854,
+          "state": "stopped",
+          "boundAt": 1792751328843
+        },
+        {
+          "sessionID": "ses_e97b19e44ffeVKVb7Y2WoSYclP",
+          "role": "recon",
+          "parentID": "ses_e97b1a1beffe13Oq9TxNDtkcdR",
+          "via": "dispatch",
+          "dispatchCallID": "call_1_1",
+          "challengeId": "X",
+          "scope": "run",
+          "expiresAt": 1792751447854,
+          "state": "stopped",
+          "boundAt": 1792751329730
+        }
+      ],
+      "admissions": [
+        {
+          "seq": 3,
+          "t": 1796,
+          "at": 1792751329650,
+          "sessionID": "ses_e97b1a1beffe13Oq9TxNDtkcdR",
+          "op": "model.call",
+          "allow": true,
+          "detail": {
+            "maxOutputTokens": 100000,
+            "admitNo": 1,
+            "role": "coordinator"
+          }
+        },
+        {
+          "seq": 12,
+          "t": 1892,
+          "at": 1792751329746,
+          "sessionID": "ses_e97b19e44ffeVKVb7Y2WoSYclP",
+          "op": "model.call",
+          "allow": true,
+          "detail": {
+            "maxOutputTokens": 100000,
+            "admitNo": 2,
+            "role": "recon"
+          }
+        }
+      ]
+    },
+    "firstUser": "\"PROBE_CHILD after-assign\""
+  },
+  {
+    "seq": 3,
+    "at": 1792751329786,
+    "kind": "coordinator",
+    "step": 1,
+    "calls": [],
+    "childIdSeen": "ses_e97b19e44ffeVKVb7Y2WoSYclP",
+    "firstUser": "\"PROBE_START\""
+  }
+]

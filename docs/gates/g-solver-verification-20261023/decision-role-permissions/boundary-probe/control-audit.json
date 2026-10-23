@@ -1,0 +1,244 @@
+[
+  {
+    "seq": 1,
+    "t": 1,
+    "at": 1792760174372,
+    "sessionID": "root",
+    "op": "bind",
+    "allow": true,
+    "detail": {
+      "role": "coordinator",
+      "via": "root"
+    }
+  },
+  {
+    "seq": 2,
+    "t": 1,
+    "at": 1792760174372,
+    "sessionID": "root",
+    "op": "assign",
+    "allow": true,
+    "detail": {
+      "role": "verifier",
+      "challenge": "X"
+    }
+  },
+  {
+    "seq": 3,
+    "t": 1,
+    "at": 1792760174372,
+    "sessionID": "root",
+    "op": "tool.execute",
+    "allow": true,
+    "detail": {
+      "tool": "challenge.assign",
+      "result": "returned"
+    }
+  },
+  {
+    "seq": 4,
+    "t": 1,
+    "at": 1792760174372,
+    "sessionID": "root",
+    "op": "dispatch.register",
+    "allow": true,
+    "detail": {
+      "role": "verifier",
+      "callID": "dispatch",
+      "challengeId": "X"
+    }
+  },
+  {
+    "seq": 5,
+    "t": 1,
+    "at": 1792760174372,
+    "sessionID": "root",
+    "op": "tool.before",
+    "allow": true,
+    "detail": {
+      "tool": "task",
+      "callID": "dispatch",
+      "result": "returned"
+    }
+  },
+  {
+    "seq": 6,
+    "t": 1,
+    "at": 1792760174372,
+    "sessionID": "verifier",
+    "op": "bind",
+    "allow": true,
+    "detail": {
+      "role": "verifier",
+      "via": "dispatch",
+      "sdkParentID": "root",
+      "sdkAgent": "verifier",
+      "callID": "dispatch",
+      "challengeId": "X",
+      "sdkMs": 0
+    }
+  },
+  {
+    "seq": 7,
+    "t": 1,
+    "at": 1792760174372,
+    "sessionID": "verifier",
+    "op": "chat.message",
+    "allow": true,
+    "detail": {
+      "result": "returned"
+    }
+  },
+  {
+    "seq": 8,
+    "t": 3,
+    "at": 1792760174374,
+    "sessionID": "verifier",
+    "op": "tool.execute",
+    "allow": false,
+    "reason": "denied: tool not permitted",
+    "detail": {
+      "tool": "http.request",
+      "callID": "forbidden-http"
+    }
+  },
+  {
+    "seq": 9,
+    "t": 3,
+    "at": 1792760174374,
+    "sessionID": "verifier",
+    "op": "tool.before",
+    "allow": true,
+    "detail": {
+      "tool": "ctf_job_run",
+      "callID": "boundary-job",
+      "result": "returned"
+    }
+  },
+  {
+    "seq": 10,
+    "t": 3,
+    "at": 1792760174374,
+    "sessionID": "verifier",
+    "op": "tool.registered",
+    "allow": true,
+    "detail": {
+      "callID": "boundary-job",
+      "tool": "job.run",
+      "challengeId": "X",
+      "deadline": 1792760184374
+    }
+  },
+  {
+    "seq": 11,
+    "t": 78,
+    "at": 1792760174449,
+    "sessionID": "verifier",
+    "op": "tool.execute",
+    "allow": true,
+    "detail": {
+      "tool": "job.run",
+      "callID": "boundary-job",
+      "result": "returned"
+    }
+  },
+  {
+    "seq": 12,
+    "t": 79,
+    "at": 1792760174450,
+    "sessionID": "verifier",
+    "op": "tool.settled",
+    "allow": true,
+    "detail": {
+      "callID": "boundary-job",
+      "tool": "job.run",
+      "job": "4dbbd787-caee-41aa-8be3-cf74ca9a81b8",
+      "result": "exited"
+    }
+  },
+  {
+    "seq": 13,
+    "t": 79,
+    "at": 1792760174450,
+    "sessionID": "verifier",
+    "op": "tool.registered",
+    "allow": true,
+    "detail": {
+      "callID": "stdout",
+      "tool": "job.read",
+      "challengeId": "X",
+      "deadline": 1792760189450
+    }
+  },
+  {
+    "seq": 14,
+    "t": 79,
+    "at": 1792760174450,
+    "sessionID": "verifier",
+    "op": "tool.settled",
+    "allow": true,
+    "detail": {
+      "callID": "stdout",
+      "tool": "job.read",
+      "result": "completed"
+    }
+  },
+  {
+    "seq": 15,
+    "t": 79,
+    "at": 1792760174450,
+    "sessionID": "verifier",
+    "op": "tool.execute",
+    "allow": true,
+    "detail": {
+      "tool": "job.read",
+      "callID": "stdout",
+      "result": "returned"
+    }
+  },
+  {
+    "seq": 16,
+    "t": 79,
+    "at": 1792760174450,
+    "sessionID": "root",
+    "op": "stop_marked",
+    "allow": true,
+    "detail": {
+      "reason": "probe complete",
+      "sessions": [
+        "root",
+        "verifier"
+      ]
+    }
+  },
+  {
+    "seq": 17,
+    "t": 79,
+    "at": 1792760174450,
+    "sessionID": "root",
+    "op": "stop_enumerated",
+    "allow": true,
+    "detail": {
+      "sessions": [
+        "root",
+        "verifier"
+      ]
+    }
+  },
+  {
+    "seq": 18,
+    "t": 79,
+    "at": 1792760174450,
+    "sessionID": "root",
+    "op": "aborted",
+    "allow": true
+  },
+  {
+    "seq": 19,
+    "t": 79,
+    "at": 1792760174450,
+    "sessionID": "verifier",
+    "op": "aborted",
+    "allow": true
+  }
+]

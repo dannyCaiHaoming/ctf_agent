@@ -1,0 +1,130 @@
+
+ RUN  v2.1.8 /Users/caihaoming/.codex/worktrees/g-v1-cross-round/pentest-agent
+
+ ❯ tests/contract/control-service.test.ts (31 tests | 14 failed) 452ms
+   ✓ plugin denies when the control service cannot answer > rejects when the service never replies, is unreachable, or replies with something unusable 413ms
+   × G-V1 cross-round challenge binding > T1 assign execute succeeds, parent readmission preserves it, binding precedes child admission 7ms
+     → promise rejected "Error: denied: no managed tools { …(1) }" instead of resolving
+   × G-V1 cross-round challenge binding > T2 precheck and free text do not declare or authorize task 1ms
+     → denied: tool not permitted
+   × G-V1 cross-round challenge binding > T3 duplicate declarations preserve original, unassign is idempotent, pending cannot be cancelled 0ms
+     → denied: no managed tools
+   × G-V1 cross-round challenge binding > T4 declaration survives rounds but is cleared on stop 0ms
+     → denied: no managed tools
+   × G-V1 cross-round challenge binding > T4 declaration survives rounds but is cleared on revoke 0ms
+     → denied: no managed tools
+   × G-V1 cross-round challenge binding > T4 declaration survives rounds but is cleared on expire 0ms
+     → denied: no managed tools
+   × G-V1 cross-round challenge binding > T5 resume keeps topic; no/same declaration creates no pending, foreign/conflict preserves declaration 0ms
+     → denied: no managed tools
+   × G-V1 cross-round challenge binding > T6 only coordinator, solver roles and in-run topics may declare 0ms
+     → denied: no managed tools
+   × G-V1 cross-round challenge binding > T7 task before delayed assign execute rejects; later declaration survives and next round succeeds 3ms
+     → promise resolved "{ allowed: true }" instead of rejecting
+   × G-V1 cross-round challenge binding > T8 pre-registration refusal preserves declaration; failed registered task clears only pending at next admission 0ms
+     → denied: no managed tools
+   × G-V1 cross-round challenge binding > T9 stop during SDK binding wait cannot create valid binding 0ms
+     → denied: no managed tools
+   × G-V1 cross-round challenge binding > T9 revoke during SDK binding wait cannot create valid binding 0ms
+     → denied: no managed tools
+   × G-V1 cross-round challenge binding > T9 expire during SDK binding wait cannot create valid binding 0ms
+     → denied: no managed tools
+   × G-V1 cross-round challenge binding > T9 stop while assign/task are queued behind an SDK wait rejects both without new state 3ms
+     → Cannot read properties of undefined (reading 'size')
+
+⎯⎯⎯⎯⎯⎯ Failed Tests 14 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/contract/control-service.test.ts > G-V1 cross-round challenge binding > T1 assign execute succeeds, parent readmission preserves it, binding precedes child admission
+AssertionError: promise rejected "Error: denied: no managed tools { …(1) }" instead of resolving
+ ❯ tests/contract/control-service.test.ts:274:27
+    272|   it('T1 assign execute succeeds, parent readmission preserves it, bin…
+    273|     const s = fixture();
+    274|     await expect(assign(s)).resolves.toEqual({ challenge: 'X' });
+       |                           ^
+    275|     await s.handle('root', 'model.call', {});
+    276|     await dispatch(s); await bind(s); await s.handle('child', 'model.c…
+
+Caused by: Error: denied: no managed tools
+ ❯ ControlService.executeManaged apps/launcher/src/control-service.ts:356:45
+ ❯ ControlService.decide apps/launcher/src/control-service.ts:286:28
+ ❯ apps/launcher/src/control-service.ts:129:35
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯
+Serialized Error: { detail: undefined }
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/14]⎯
+
+ FAIL  tests/contract/control-service.test.ts > G-V1 cross-round challenge binding > T2 precheck and free text do not declare or authorize task
+Error: denied: tool not permitted
+ ❯ ControlService.toolBefore apps/launcher/src/control-service.ts:335:25
+    333|     if (intake) { this.checkIntake(binding, intake, body.args); return…
+    334|     const allowed = Object.hasOwn(NATIVE_TOOL_ROLES, tool) && NATIVE_T…
+    335|     if (!allowed) throw new ControlDenied('tool not permitted', tool);
+       |                         ^
+    336|     const args = (body.args && typeof body.args === 'object' ? body.ar…
+    337|     if (tool === 'read') await this.checkReadPath(args);
+ ❯ ControlService.decide apps/launcher/src/control-service.ts:285:39
+ ❯ apps/launcher/src/control-service.ts:129:35
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/14]⎯
+
+ FAIL  tests/contract/control-service.test.ts > G-V1 cross-round challenge binding > T3 duplicate declarations preserve original, unassign is idempotent, pending cannot be cancelled
+ FAIL  tests/contract/control-service.test.ts > G-V1 cross-round challenge binding > T4 declaration survives rounds but is cleared on stop
+ FAIL  tests/contract/control-service.test.ts > G-V1 cross-round challenge binding > T4 declaration survives rounds but is cleared on revoke
+ FAIL  tests/contract/control-service.test.ts > G-V1 cross-round challenge binding > T4 declaration survives rounds but is cleared on expire
+ FAIL  tests/contract/control-service.test.ts > G-V1 cross-round challenge binding > T5 resume keeps topic; no/same declaration creates no pending, foreign/conflict preserves declaration
+ FAIL  tests/contract/control-service.test.ts > G-V1 cross-round challenge binding > T6 only coordinator, solver roles and in-run topics may declare
+ FAIL  tests/contract/control-service.test.ts > G-V1 cross-round challenge binding > T8 pre-registration refusal preserves declaration; failed registered task clears only pending at next admission
+ FAIL  tests/contract/control-service.test.ts > G-V1 cross-round challenge binding > T9 stop during SDK binding wait cannot create valid binding
+ FAIL  tests/contract/control-service.test.ts > G-V1 cross-round challenge binding > T9 revoke during SDK binding wait cannot create valid binding
+ FAIL  tests/contract/control-service.test.ts > G-V1 cross-round challenge binding > T9 expire during SDK binding wait cannot create valid binding
+Error: denied: no managed tools
+ ❯ ControlService.executeManaged apps/launcher/src/control-service.ts:356:45
+    354|   private async executeManaged(binding: Binding, body: Record<string, …
+    355|     const name = typeof body.tool === 'string' ? body.tool : '';
+    356|     if (!INTAKE_TOOLS.includes(name)) throw new ControlDenied('no mana…
+       |                                             ^
+    357|     const args = this.checkIntake(binding, name, body.args);
+    358|     const challenges = this.options.challenges ?? [];
+ ❯ ControlService.decide apps/launcher/src/control-service.ts:286:28
+ ❯ apps/launcher/src/control-service.ts:129:35
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/14]⎯
+
+ FAIL  tests/contract/control-service.test.ts > G-V1 cross-round challenge binding > T7 task before delayed assign execute rejects; later declaration survives and next round succeeds
+AssertionError: promise resolved "{ allowed: true }" instead of rejecting
+
+- Expected
++ Received
+
+- [Error: rejected promise]
++ Object {
++   "allowed": true,
++ }
+
+ ❯ tests/contract/control-service.test.ts:335:50
+    333|     const s = fixture(); const start = deferred(); const release = def…
+    334|     const laterAssign = (async () => { start.resolve(); await release.…
+    335|     await start.promise; await expect(dispatch(s)).rejects.toThrow('de…
+       |                                                  ^
+    336|     release.resolve(); await laterAssign; await s.handle('root', 'mode…
+    337|     await dispatch(s); await bind(s); expect(topic(s)).toBe('X');
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[4/14]⎯
+
+ FAIL  tests/contract/control-service.test.ts > G-V1 cross-round challenge binding > T9 stop while assign/task are queued behind an SDK wait rejects both without new state
+TypeError: Cannot read properties of undefined (reading 'size')
+ ❯ tests/contract/control-service.test.ts:368:82
+    366|     await expect(binding).rejects.toThrow('denied:'); await expect(a).…
+    367|     expect(s.bindings.size).toBe(1);
+    368|     expect((s as unknown as { declarations: Map<string, unknown> }).de…
+       |                                                                                  ^
+    369|   });
+    370| });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[5/14]⎯
+
+ Test Files  1 failed (1)
+      Tests  14 failed | 17 passed (31)
+   Start at  19:26:23
+   Duration  717ms (transform 36ms, setup 0ms, collect 57ms, tests 452ms, environment 0ms, prepare 35ms)
+

@@ -1,0 +1,126 @@
+
+ RUN  v2.1.8 /Users/caihaoming/.codex/worktrees/32d7/pentest-agent
+
+ ❯ tests/contract/slow-tools.test.ts (20 tests | 5 failed | 15 skipped) 1440ms
+   × terminal candidate keeps one execute pending beyond wait_ms, permits admission and incremental reads, then returns final result once 234ms
+     → expected true to be false // Object.is equality
+   × terminal candidate cancellation is idempotent and returns to the same call without a completion notifier 80ms
+     → expected { …(5) } to match object { …(2) }
+(3 matching properties omitted from actual)
+   × terminal candidate timeout and binding expiry do not return an early running handle 29ms
+     → expected { …(5) } to match object { state: 'timed_out' }
+(4 matching properties omitted from actual)
+   × terminal candidate RPC disconnect cancels the still waiting job and never starts a duplicate 1093ms
+     → expected { run: 'run-fixture', …(7) } to match object { state: 'settled', …(1) }
+(7 matching properties omitted from actual)
+   × terminal candidate RPC limit follows timeout and cleanup rather than wait_ms, and plugin accepts the bounded approval 4ms
+     → expected 5001 to be 609000 // Object.is equality
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 5 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/contract/slow-tools.test.ts > terminal candidate keeps one execute pending beyond wait_ms, permits admission and incremental reads, then returns final result once
+AssertionError: expected true to be false // Object.is equality
+
+- Expected
++ Received
+
+- false
++ true
+
+ ❯ tests/contract/slow-tools.test.ts:232:65
+
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/5]⎯
+
+ FAIL  tests/contract/slow-tools.test.ts > terminal candidate cancellation is idempotent and returns to the same call without a completion notifier
+AssertionError: expected { …(5) } to match object { …(2) }
+(3 matching properties omitted from actual)
+
+- Expected
++ Received
+
+  Object {
+    "job": "90c6380a-a85b-4c85-9dd7-1f44fd07d248",
+-   "state": "cancelled",
++   "state": "running",
+  }
+
+ ❯ tests/contract/slow-tools.test.ts:250:25
+    248|   const handle = c.resourceSnapshot().find(r => r.callID === 'terminal…
+    249|   expect(await execute(c, 'a', 'job.cancel', { job: handle })).toMatch…
+    250|   expect(await pending).toMatchObject({ job: handle, state: 'cancelled…
+       |                         ^
+    251|   expect(await execute(c, 'a', 'job.cancel', { job: handle })).toMatch…
+    252|   expect(c.audit.filter(r => r.op === 'tool.settled' && r.detail?.call…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/5]⎯
+
+ FAIL  tests/contract/slow-tools.test.ts > terminal candidate timeout and binding expiry do not return an early running handle
+AssertionError: expected { …(5) } to match object { state: 'timed_out' }
+(4 matching properties omitted from actual)
+
+- Expected
++ Received
+
+  Object {
+-   "state": "timed_out",
++   "state": "running",
+  }
+
+ ❯ tests/contract/slow-tools.test.ts:257:144
+    255| it('terminal candidate timeout and binding expiry do not return an ear…
+    256|   const { c } = await fixture();
+    257|   expect(await execute(c, 'a', 'job.run', { argv: ['sleep', '30'], wai…
+       |                                                                                                                                                ^
+    258|   const expiring = await fixture(undefined, Date.now() + 500);
+    259|   expect(await execute(expiring.c, 'a', 'job.run', { argv: ['sleep', '…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/5]⎯
+
+ FAIL  tests/contract/slow-tools.test.ts > terminal candidate RPC disconnect cancels the still waiting job and never starts a duplicate
+AssertionError: expected { run: 'run-fixture', …(7) } to match object { state: 'settled', …(1) }
+(7 matching properties omitted from actual)
+
+- Expected
++ Received
+
+  Object {
+-   "result": "cancelled",
+-   "state": "settled",
++   "state": "active",
+  }
+
+ ❯ tests/contract/slow-tools.test.ts:269:101
+    267|   await vi.waitFor(() => expect(c.resourceSnapshot().find(r => r.callI…
+    268|   abort.abort(); await request;
+    269|   await vi.waitFor(() => expect(c.resourceSnapshot().find(r => r.callI…
+       |                                                                                                     ^
+    270|   expect(c.audit.filter(r => r.op === 'tool.registered' && r.detail?.c…
+    271|   expect(c.audit.some(r => r.op === 'rpc.abandoned' && r.detail?.callI…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[4/5]⎯
+
+ FAIL  tests/contract/slow-tools.test.ts > terminal candidate RPC limit follows timeout and cleanup rather than wait_ms, and plugin accepts the bounded approval
+AssertionError: expected 5001 to be 609000 // Object.is equality
+
+- Expected
++ Received
+
+- 609000
++ 5001
+
+ ❯ tests/contract/slow-tools.test.ts:278:33
+    276|   const args = { argv: ['true'], wait_ms: 1, timeout_ms: 600000, compl…
+    277|   const approval = await c.handle('a', 'tool.before', { tool: 'ctf_job…
+    278|   expect(approval.rpcTimeoutMs).toBe(609000);
+       |                                 ^
+    279|   const rpc = await startControlRpc(async (_id, op) => op === 'tool.be…
+    280|   const hooks = createCtfAgentHooks({ controlUrl: rpc.url, controlToke…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[5/5]⎯
+
+ Test Files  1 failed (1)
+      Tests  5 failed | 15 skipped (20)
+   Start at  21:53:44
+   Duration  1.80s (transform 67ms, setup 0ms, collect 114ms, tests 1.44s, environment 0ms, prepare 29ms)
+

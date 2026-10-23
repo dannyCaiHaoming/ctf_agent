@@ -1,3 +1,4 @@
+import { filePage } from './file-page.js';
 // Intake's two managed tools (E design section 4), executed host-side by the control service. They only read what
 // run preparation pinned under workspace/<id>/materials/; nothing here writes, and no host path is ever returned.
 import { lstat, readFile, realpath } from 'node:fs/promises';
@@ -52,22 +53,5 @@ export async function readMaterial(challenges: PreparedChallenge[], args: Record
 
   const bytes = await readFile(current);
   const base = { id: challenge.id, path: segments.join('/'), size: bytes.length };
-  let text: string;
-  try {
-    text = new TextDecoder('utf-8', { fatal: true }).decode(bytes);
-    if (text.includes('\0')) throw new Error('binary data');
-  } catch { return { ...base, binary: true, signature: bytes.subarray(0, 8).toString('hex') || 'empty' }; }
-
-  // Cursor is the decimal byte offset of the next page; a page never splits a UTF-8 character.
-  const cursor = args.cursor;
-  let start = 0;
-  if (cursor !== undefined && cursor !== null && cursor !== '') {
-    if (typeof cursor !== 'string' || !/^\d{1,15}$/.test(cursor)) throw new IntakeRefused('cursor');
-    start = Number(cursor);
-    if (start > bytes.length || (start < bytes.length && (bytes[start]! & 0xc0) === 0x80)) throw new IntakeRefused('cursor');
-  }
-  let end = Math.min(start + PAGE_BYTES, bytes.length);
-  while (end < bytes.length && (bytes[end]! & 0xc0) === 0x80) end--;
-  if (end <= start && start < bytes.length) throw new IntakeRefused('cursor');
-  return { ...base, text: bytes.subarray(start, end).toString('utf8'), offset: start, nextCursor: end < bytes.length ? String(end) : null, done: end >= bytes.length };
+  return { ...base, ...filePage(bytes, args.cursor, code => { throw new IntakeRefused(code); }) };
 }

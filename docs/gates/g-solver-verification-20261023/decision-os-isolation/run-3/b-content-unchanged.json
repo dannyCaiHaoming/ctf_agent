@@ -1,0 +1,15 @@
+{
+  "label": "b-content-unchanged",
+  "argv": [
+    "docker",
+    "exec",
+    "gdec-os-isolation-5e1a60fb24-b-host",
+    "python3",
+    "-c",
+    "from pathlib import Path; import json; print(json.dumps({str(p):p.read_text() for p in Path('/fixture/b/challenges').glob('*/*/sentinel.txt')}))"
+  ],
+  "exit_code": 0,
+  "elapsed_seconds": 0.065,
+  "stdout": "{\"/fixture/b/challenges/b/materials/sentinel.txt\": \"nonsecret-b-b-materials\\n\", \"/fixture/b/challenges/b/published/sentinel.txt\": \"nonsecret-b-b-published\\n\", \"/fixture/b/challenges/a/materials/sentinel.txt\": \"nonsecret-b-a-materials\\n\", \"/fixture/b/challenges/a/published/sentinel.txt\": \"nonsecret-b-a-published\\n\"}\n",
+  "stderr": ""
+}

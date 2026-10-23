@@ -1,0 +1,73 @@
+
+ RUN  v2.1.8 /Users/caihaoming/.codex/worktrees/93f6/pentest-agent
+
+ ❯ tests/contract/g-coordinator-stop.test.ts (5 tests | 5 failed) 144ms
+   × Coordinator product plugin stops only owned child, idempotently through real RPC 8ms
+     → tool is not in the managed tool manifest
+   × rejects every other role in before and execute, forged/other parent/run/expired handles 3ms
+     → expected [Function] to throw error including 'tool not permitted' but got 'denied: no managed tools'
+   × execute rechecks ownership and expiry after before approval 2ms
+     → denied: tool not permitted
+   × cancels blocked HTTP and delivered process group, retains output, sibling continues 84ms
+     → denied: tool not permitted
+   × completed jobs remain exited when stopped; abort failure and unknown reap never claim stopped 46ms
+     → denied: tool not permitted
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 5 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/contract/g-coordinator-stop.test.ts > Coordinator product plugin stops only owned child, idempotently through real RPC
+Error: tool is not in the managed tool manifest
+ ❯ Module.createCtfAgentHooks apps/opencode-plugin/src/index.ts:39:72
+     37|   if (url.protocol !== 'http:' || url.hostname !== '127.0.0.1' || type…
+     38|     !Array.isArray(options.tools)) throw new Error('invalid authentica…
+     39|   if (options.tools.some(name => !Object.hasOwn(schemas, name))) throw…
+       |                                                                        ^
+     40|   // The plugin decides nothing: it forwards and obeys. Any transport …
+     41|   const callMarker = Symbol('ctf trusted call');
+ ❯ tests/contract/g-coordinator-stop.test.ts:34:17
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/5]⎯
+
+ FAIL  tests/contract/g-coordinator-stop.test.ts > rejects every other role in before and execute, forged/other parent/run/expired handles
+AssertionError: expected [Function] to throw error including 'tool not permitted' but got 'denied: no managed tools'
+
+Expected: "tool not permitted"
+Received: "denied: no managed tools"
+
+ ❯ tests/contract/g-coordinator-stop.test.ts:43:217
+
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/5]⎯
+
+ FAIL  tests/contract/g-coordinator-stop.test.ts > execute rechecks ownership and expiry after before approval
+Error: denied: tool not permitted
+ ❯ ControlService.toolBefore apps/launcher/src/control-service.ts:385:25
+    383|     if (intake) { this.checkIntake(binding, intake, body.args); return…
+    384|     const allowed = Object.hasOwn(NATIVE_TOOL_ROLES, tool) && NATIVE_T…
+    385|     if (!allowed) throw new ControlDenied('tool not permitted', tool);
+       |                         ^
+    386|     const args = (body.args && typeof body.args === 'object' ? body.ar…
+    387| 
+ ❯ apps/launcher/src/control-service.ts:175:43
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/5]⎯
+
+ FAIL  tests/contract/g-coordinator-stop.test.ts > cancels blocked HTTP and delivered process group, retains output, sibling continues
+ FAIL  tests/contract/g-coordinator-stop.test.ts > completed jobs remain exited when stopped; abort failure and unknown reap never claim stopped
+Error: denied: tool not permitted
+ ❯ ControlService.toolBefore apps/launcher/src/control-service.ts:385:25
+    383|     if (intake) { this.checkIntake(binding, intake, body.args); return…
+    384|     const allowed = Object.hasOwn(NATIVE_TOOL_ROLES, tool) && NATIVE_T…
+    385|     if (!allowed) throw new ControlDenied('tool not permitted', tool);
+       |                         ^
+    386|     const args = (body.args && typeof body.args === 'object' ? body.ar…
+    387| 
+ ❯ apps/launcher/src/control-service.ts:175:43
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[4/5]⎯
+
+ Test Files  1 failed (1)
+      Tests  5 failed (5)
+   Start at  21:53:52
+   Duration  439ms (transform 50ms, setup 0ms, collect 76ms, tests 144ms, environment 0ms, prepare 40ms)
+

@@ -1,0 +1,49 @@
+
+ RUN  v2.1.8 /Users/caihaoming/.codex/worktrees/g-c-rpc-slow-tools/pentest-agent
+
+ ❯ tests/contract/slow-tools.test.ts (9 tests | 2 failed) 31245ms
+   × fake-clock host wait approval caps at binding lifetime and expires an already registered HTTP operation 5ms
+     → expected 'Error: denied: cancelled' to match /timeout|lapsed/
+   × stop during registered workspace preparation returns bounded unknown and prevents a late job spawn 30004ms
+     → Test timed out in 20000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+     → Hook timed out in 10000ms.
+If this is a long-running hook, pass a timeout value as the last argument or configure it globally with "hookTimeout".
+   ✓ C retains HTTP cleanup_unknown reservation when response persistence is blocked 1010ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 2 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/contract/slow-tools.test.ts > fake-clock host wait approval caps at binding lifetime and expires an already registered HTTP operation
+AssertionError: expected 'Error: denied: cancelled' to match /timeout|lapsed/
+
+- Expected: 
+/timeout|lapsed/
+
++ Received: 
+"Error: denied: cancelled"
+
+ ❯ tests/contract/slow-tools.test.ts:108:72
+    106|   await entered.promise;
+    107|   expect(c.resourceSnapshot().find(r => r.callID === 'deadline')?.stat…
+    108|   await vi.advanceTimersByTimeAsync(10000); expect(String(await work))…
+       |                                                                        ^
+    109|   expect(c.resourceSnapshot().find(r => r.callID === 'deadline')?.stat…
+    110| });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/3]⎯
+
+ FAIL  tests/contract/slow-tools.test.ts > stop during registered workspace preparation returns bounded unknown and prevents a late job spawn
+Error: Test timed out in 20000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/3]⎯
+
+ FAIL  tests/contract/slow-tools.test.ts > stop during registered workspace preparation returns bounded unknown and prevents a late job spawn
+Error: Hook timed out in 10000ms.
+If this is a long-running hook, pass a timeout value as the last argument or configure it globally with "hookTimeout".
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/3]⎯
+
+ Test Files  1 failed (1)
+      Tests  2 failed | 7 passed (9)
+   Start at  21:09:59
+   Duration  31.55s (transform 50ms, setup 0ms, collect 75ms, tests 31.24s, environment 0ms, prepare 35ms)
+

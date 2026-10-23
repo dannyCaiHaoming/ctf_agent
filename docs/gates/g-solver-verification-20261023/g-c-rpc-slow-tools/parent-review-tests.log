@@ -1,0 +1,157 @@
+
+ RUN  v2.1.8 /Users/caihaoming/.codex/worktrees/g-c-rpc-slow-tools/pentest-agent
+
+ ❯ tests/contract/control-service.test.ts (31 tests | 16 failed) 446ms
+   × model admission after an in-flight usage query > 'stop': rechecks validity before spending a call 5ms
+     → denied: control error
+   × model admission after an in-flight usage query > 'revoke': rechecks validity before spending a call 0ms
+     → denied: control error
+   × model admission after an in-flight usage query > 'expire': rechecks validity before spending a call 0ms
+     → denied: control error
+   × model admission after an in-flight usage query > 'active': rechecks validity before spending a call 0ms
+     → denied: control error
+   × control service permission layer > refuses task from a non-coordinator even when visibility would allow it 0ms
+     → denied: control error
+   × control service permission layer > allows one pending dispatch per parent and role until it is consumed 1ms
+     → denied: control error
+   ✓ plugin denies when the control service cannot answer > rejects when the service never replies, is unreachable, or replies with something unusable 413ms
+   × retained usage evidence > retains an earlier session observation when a later SDK read fails and denies the threshold 1ms
+     → denied: control error
+   × abort evidence > records enumeration and revoke failures without claiming successful abort 1ms
+     → denied: control error
+   × G-V1 cross-round challenge binding > T1 assign execute succeeds, parent readmission preserves it, binding precedes child admission 1ms
+     → denied: control error
+   × G-V1 cross-round challenge binding > T2 precheck and free text do not declare or authorize task 1ms
+     → denied: control error
+   × G-V1 cross-round challenge binding > T3 duplicate declarations preserve original, unassign is idempotent, pending cannot be cancelled 1ms
+     → denied: control error
+   × G-V1 cross-round challenge binding > T4 declaration survives rounds but is cleared on revoke 0ms
+     → denied: control error
+   × G-V1 cross-round challenge binding > T5 resume keeps topic; no/same declaration creates no pending, foreign/conflict preserves declaration 0ms
+     → denied: control error
+   × G-V1 cross-round challenge binding > T6 only coordinator, solver roles and in-run topics may declare 0ms
+     → denied: control error
+   × G-V1 cross-round challenge binding > T7 task before delayed assign execute rejects; later declaration survives and next round succeeds 0ms
+     → denied: control error
+   × G-V1 cross-round challenge binding > T8 pre-registration refusal preserves declaration; failed registered task clears only pending at next admission 1ms
+     → denied: control error
+ ✓ tests/contract/slow-tools.test.ts (15 tests) 9531ms
+   ✓ stop during registered workspace preparation returns bounded unknown and prevents a late job spawn 4007ms
+   ✓ C retains HTTP cleanup_unknown reservation when response persistence is blocked 1015ms
+   ✓ expiry cancels an already delivered job and refuses its handle after expiry 1046ms
+   ✓ unknown process-group cleanup keeps its session quota reserved 3048ms
+
+⎯⎯⎯⎯⎯⎯ Failed Tests 16 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/contract/control-service.test.ts > model admission after an in-flight usage query > 'stop': rechecks validity before spending a call
+ FAIL  tests/contract/control-service.test.ts > model admission after an in-flight usage query > 'revoke': rechecks validity before spending a call
+ FAIL  tests/contract/control-service.test.ts > model admission after an in-flight usage query > 'expire': rechecks validity before spending a call
+ FAIL  tests/contract/control-service.test.ts > model admission after an in-flight usage query > 'active': rechecks validity before spending a call
+Error: denied: control error
+ ❯ ControlService.handle apps/launcher/src/control-service.ts:183:63
+
+ ❯ tests/contract/control-service.test.ts:65:7
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/16]⎯
+
+ FAIL  tests/contract/control-service.test.ts > control service permission layer > refuses task from a non-coordinator even when visibility would allow it
+Error: denied: control error
+ ❯ ControlService.handle apps/launcher/src/control-service.ts:183:63
+
+ ❯ tests/contract/control-service.test.ts:99:5
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/16]⎯
+
+ FAIL  tests/contract/control-service.test.ts > control service permission layer > allows one pending dispatch per parent and role until it is consumed
+Error: denied: control error
+ ❯ ControlService.handle apps/launcher/src/control-service.ts:183:63
+
+ ❯ tests/contract/control-service.test.ts:110:5
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/16]⎯
+
+ FAIL  tests/contract/control-service.test.ts > retained usage evidence > retains an earlier session observation when a later SDK read fails and denies the threshold
+Error: denied: control error
+ ❯ ControlService.handle apps/launcher/src/control-service.ts:183:63
+
+ ❯ tests/contract/control-service.test.ts:210:5
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[4/16]⎯
+
+ FAIL  tests/contract/control-service.test.ts > abort evidence > records enumeration and revoke failures without claiming successful abort
+Error: denied: control error
+ ❯ ControlService.handle apps/launcher/src/control-service.ts:183:63
+
+ ❯ tests/contract/control-service.test.ts:229:5
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[5/16]⎯
+
+ FAIL  tests/contract/control-service.test.ts > G-V1 cross-round challenge binding > T1 assign execute succeeds, parent readmission preserves it, binding precedes child admission
+Error: denied: control error
+ ❯ ControlService.handle apps/launcher/src/control-service.ts:183:63
+
+ ❯ tests/contract/control-service.test.ts:288:24
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[6/16]⎯
+
+ FAIL  tests/contract/control-service.test.ts > G-V1 cross-round challenge binding > T2 precheck and free text do not declare or authorize task
+Error: denied: control error
+ ❯ ControlService.handle apps/launcher/src/control-service.ts:183:63
+
+ ❯ tests/contract/control-service.test.ts:299:41
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[7/16]⎯
+
+ FAIL  tests/contract/control-service.test.ts > G-V1 cross-round challenge binding > T3 duplicate declarations preserve original, unassign is idempotent, pending cannot be cancelled
+Error: denied: control error
+ ❯ ControlService.handle apps/launcher/src/control-service.ts:183:63
+
+ ❯ tests/contract/control-service.test.ts:306:5
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[8/16]⎯
+
+ FAIL  tests/contract/control-service.test.ts > G-V1 cross-round challenge binding > T4 declaration survives rounds but is cleared on revoke
+Error: denied: control error
+ ❯ ControlService.handle apps/launcher/src/control-service.ts:183:63
+
+ ❯ tests/contract/control-service.test.ts:316:51
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[9/16]⎯
+
+ FAIL  tests/contract/control-service.test.ts > G-V1 cross-round challenge binding > T5 resume keeps topic; no/same declaration creates no pending, foreign/conflict preserves declaration
+Error: denied: control error
+ ❯ ControlService.handle apps/launcher/src/control-service.ts:183:63
+
+ ❯ tests/contract/control-service.test.ts:323:62
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[10/16]⎯
+
+ FAIL  tests/contract/control-service.test.ts > G-V1 cross-round challenge binding > T6 only coordinator, solver roles and in-run topics may declare
+Error: denied: control error
+ ❯ ControlService.handle apps/launcher/src/control-service.ts:183:63
+
+ ❯ tests/contract/control-service.test.ts:335:62
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[11/16]⎯
+
+ FAIL  tests/contract/control-service.test.ts > G-V1 cross-round challenge binding > T7 task before delayed assign execute rejects; later declaration survives and next round succeeds
+Error: denied: control error
+ ❯ ControlService.handle apps/launcher/src/control-service.ts:183:63
+
+ ❯ tests/contract/control-service.test.ts:349:24
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[12/16]⎯
+
+ FAIL  tests/contract/control-service.test.ts > G-V1 cross-round challenge binding > T8 pre-registration refusal preserves declaration; failed registered task clears only pending at next admission
+Error: denied: control error
+ ❯ ControlService.handle apps/launcher/src/control-service.ts:183:63
+
+ ❯ tests/contract/control-service.test.ts:359:46
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[13/16]⎯
+
+ Test Files  1 failed | 1 passed (2)
+      Tests  16 failed | 30 passed (46)
+   Start at  21:15:36
+   Duration  9.83s (transform 69ms, setup 0ms, collect 158ms, tests 9.98s, environment 0ms, prepare 67ms)
+

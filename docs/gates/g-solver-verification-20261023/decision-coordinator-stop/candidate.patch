@@ -1,0 +1,129 @@
+--- prototype/apps/launcher/src/control-service.ts
++++ candidate/apps/launcher/src/control-service.ts
+@@ -89,8 +89,9 @@
+ }
+ 
+ export const SOLVER_TOOLS = ['workspace.list', 'workspace.read', 'workspace.search', 'workspace.write', 'http.request', 'job.run', 'job.read', 'job.cancel'];
+-export const MANAGED_TOOLS = [...INTAKE_TOOLS, 'challenge.assign', 'challenge.unassign', ...SOLVER_TOOLS];
++export const MANAGED_TOOLS = [...INTAKE_TOOLS, 'challenge.assign', 'challenge.unassign', 'task.stop', ...SOLVER_TOOLS];
+ interface Resource { run: string; sessionID: string; challengeId: string; callID: string; tool: string; state: 'active' | 'settled' | 'unknown'; result?: string; job?: string; controller: AbortController; deadline: number; timer?: ReturnType<typeof setTimeout>; done?: Promise<unknown>; detachRpc?: () => void }
++interface TaskStopResult { state: 'stopped' | 'unknown'; resources: 'settled' | 'unknown'; sessionAbort: 'confirmed' | 'unknown' }
+ interface Outside { execute: () => Promise<unknown> }
+ 
+ export interface ControlOptions {
+@@ -120,6 +121,7 @@
+   private stopping?: Promise<void>;
+   private readonly pending = new Map<string, Map<Role, { callID: string; challengeId?: string }>>();
+   private readonly declarations = new Map<string, Map<Role, string>>();
++  private readonly childStops = new Map<string, Promise<TaskStopResult>>();
+   private readonly dispatched = new Map<string, { parent: string; role: Role }>();
+   private readonly usageMessages = new Map<string, Map<string, Message>>();
+   private readonly usageGaps = new Set<string>();
+@@ -222,19 +224,45 @@
+   async revoke(sessionID: string): Promise<void> {
+     const binding = this.bindings.get(sessionID);
+     if (!binding || binding.via === 'root') throw new Error('only a bound child can be revoked');
+-    binding.state = 'revoked';
+-    this.clearDispatchState(sessionID);
+-    this.record(sessionID, 'revoke', true);
+-    await this.cancelResources(sessionID);
+-    await this.abortSession(sessionID);
+-  }
+-
+-  private async abortSession(sessionID: string): Promise<void> {
++    await this.stopChild(binding);
++  }
++
++  private checkTaskStop(parent: Binding, raw: unknown): Binding {
++    if (parent.role !== 'coordinator') throw new ControlDenied('tool not permitted');
++    const id = (raw && typeof raw === 'object' ? raw : {}) as Record<string, unknown>;
++    const child = typeof id.task_id === 'string' ? this.bindings.get(id.task_id) : undefined;
++    const dispatch = child && this.dispatched.get(child.sessionID);
++    if (!child || child.via !== 'dispatch' || child.parentID !== parent.sessionID ||
++      !dispatch || dispatch.parent !== parent.sessionID || dispatch.role !== child.role) throw new ControlDenied('task handle');
++    if (Date.now() >= child.expiresAt) throw new ControlDenied('task expired');
++    if (child.state !== 'active' && !this.childStops.has(child.sessionID)) throw new ControlDenied('task handle');
++    return child;
++  }
++
++  private stopChild(child: Binding): Promise<TaskStopResult> {
++    const existing = this.childStops.get(child.sessionID); if (existing) return existing;
++    child.state = 'revoked';
++    this.clearDispatchState(child.sessionID);
++    this.record(child.sessionID, 'revoke', true);
++    const stopped = (async (): Promise<TaskStopResult> => {
++      await this.cancelResources(child.sessionID);
++      const confirmed = await this.abortSession(child.sessionID, 4000);
++      const resources = this.resourceSnapshot().some(r => r.sessionID === child.sessionID && r.state !== 'settled') ? 'unknown' : 'settled';
++      const result: TaskStopResult = { state: resources === 'settled' && confirmed ? 'stopped' : 'unknown', resources, sessionAbort: confirmed ? 'confirmed' : 'unknown' };
++      this.record(child.sessionID, 'task.stop.result', result.state === 'stopped', undefined, result);
++      return result;
++    })();
++    this.childStops.set(child.sessionID, stopped); return stopped;
++  }
++
++  private async abortSession(sessionID: string, timeoutMs?: number): Promise<boolean> {
++    let timeout: ReturnType<typeof setTimeout> | undefined;
+     try {
+-      const result = await this.options.client.session.abort({ sessionID }, { throwOnError: true });
++      const abort = this.options.client.session.abort({ sessionID }, { throwOnError: true, ...(timeoutMs ? { signal: AbortSignal.timeout(timeoutMs) } : {}) });
++      const result = timeoutMs ? await Promise.race([abort, new Promise<never>((_, reject) => { timeout = setTimeout(() => reject(new Error('abort result unknown')), timeoutMs); })]) : await abort;
+       if (result.data !== true) throw new Error('abort result unavailable or refused');
+-      this.record(sessionID, 'aborted', true);
+-    } catch (error) { this.record(sessionID, 'aborted', false, 'abort failed', String(error)); }
++      this.record(sessionID, 'aborted', true); return true;
++    } catch (error) { this.record(sessionID, 'aborted', false, 'abort failed', String(error)); return false; } finally { clearTimeout(timeout); }
+   }
+ 
+   /** Refreshes the observed token count and stops the run once the limit is reached. */
+@@ -377,6 +405,7 @@
+       this.checkDeclaration(binding, body.args, tool === 'ctf_challenge_assign');
+       return { allowed: true }; // Precheck only: execution is the declaration's linearization point.
+     }
++    if (tool === 'ctf_task_stop') { this.checkTaskStop(binding, body.args); return { allowed: true, rpcTimeoutMs: 10000 }; }
+     const managed = SOLVER_TOOLS.find(name => `ctf_${name.replaceAll('.', '_')}` === tool);
+     if (managed) { this.checkSolver(binding, managed); return { allowed: true, rpcTimeoutMs: this.waitLimit(binding, managed, (body.args ?? {}) as Record<string, unknown>) + 5000 }; }
+     const intake = INTAKE_BY_ID.get(tool);
+@@ -403,6 +432,12 @@
+ 
+   private executeManaged(binding: Binding, body: Record<string, unknown>, signal?: AbortSignal): unknown {
+     const name = typeof body.tool === 'string' ? body.tool : '';
++    if (name === 'task.stop') {
++      const child = this.checkTaskStop(binding, body.args);
++      const alreadyStopped = this.childStops.has(child.sessionID);
++      const stopped = this.stopChild(child);
++      return { execute: async () => ({ ...await stopped, alreadyStopped }) };
++    }
+     if (name === 'challenge.assign' || name === 'challenge.unassign') {
+       const { role, challenge } = this.checkDeclaration(binding, body.args, name === 'challenge.assign');
+       this.live(binding);
+--- prototype/apps/opencode-plugin/src/index.ts
++++ candidate/apps/opencode-plugin/src/index.ts
+@@ -19,6 +19,7 @@
+   'workspace.write': { path: tool.schema.string(), content: tool.schema.string(), encoding: tool.schema.enum(['utf8', 'base64']).optional() },
+   'job.run': { argv: tool.schema.array(tool.schema.string()).min(1).max(32), timeout_ms: tool.schema.number().int().positive().max(600000).optional(), wait_ms: tool.schema.number().int().min(0).max(30000).optional() },
+   'job.read': { job: tool.schema.string().uuid(), stream: tool.schema.enum(['stdout', 'stderr']), cursor: tool.schema.string().optional() },
++  'task.stop': { task_id: tool.schema.string().min(1).max(128) },
+   'job.cancel': { job: tool.schema.string().uuid() },
+   'http.request': { url: tool.schema.string().url(), method: tool.schema.enum(['GET', 'HEAD', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS']).optional(),
+     body: tool.schema.string().max(65536).optional(), body_base64: tool.schema.string().optional(), headers: tool.schema.record(tool.schema.string(), tool.schema.string()).optional(),
+@@ -27,6 +28,7 @@
+   'challenge.read': { id: tool.schema.string().min(1), path: tool.schema.string().min(1), cursor: tool.schema.string().regex(/^\d{1,15}$/).optional() }
+ };
+ const descriptions: Record<string, string> = {
++  'task.stop': 'Stop a directly dispatched task using its native task_id. Revokes further work, cancels its HTTP/jobs and preserves saved output. Other tasks cannot be stopped. Unknown cleanup is reported explicitly; repeating this call returns the existing result.',
+   'challenge.list': 'List every challenge of this run: id, title, authorized network target (or "無網路目標"), time of the start-up reachability check, and the pinned material files with size and sha256. Takes no arguments. The statement is the material statement.md.',
+   'challenge.read': 'Read one pinned material file of a challenge. Arguments: id (challenge id from challenge.list), path (file name relative to that challenge\'s materials, e.g. "statement.md"), cursor (optional, the nextCursor of the previous page). Text is returned in pages with nextCursor (null on the last page); a binary file returns only its size and first 8 bytes as hex. Read-only.'
+ };
+--- prototype/product/opencode/opencode.json
++++ candidate/product/opencode/opencode.json
+@@ -49,7 +49,8 @@
+         "skill": "allow",
+         "task": "allow",
+         "ctf_challenge_assign": "allow",
+-        "ctf_challenge_unassign": "allow"
++        "ctf_challenge_unassign": "allow",
++        "ctf_task_stop": "allow"
+       }
+     },
+     "intake": {

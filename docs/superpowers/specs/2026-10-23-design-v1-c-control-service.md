@@ -2,7 +2,7 @@
 
 記錄日期：2026-10-23（Asia/Tokyo）。
 
-**狀態：** [CTF Agent 核心設計 v1](2026-10-22-ctf-agent-design-v1.md)（下稱 design v1）第 2 節 C（含 C.1）與 H 的詳細 design 子文件；控制服務、插件接線、會話身份綁定、逐次預算准入與角色能力落地以本文為準。**已定稿（2026-10-23）：採用原生 `task` 分支**。第 3 節的綁定機制已經無模型探針驗證（第 8 節），可從本文生成實現 plan。本文只定義設計，不構成執行授權；探針只驗證時序、權限與計量接線，不驗證多 Agent 協作效果或 provider 計費精度。
+**狀態：** [CTF Agent 核心設計 v1](2026-10-22-ctf-agent-design-v1.md)（下稱 design v1）第 2 節 C（含 C.1）與 H 的詳細 design 子文件；控制服務、插件接線、會話身份綁定、逐次預算准入與角色能力落地以本文為準。**既有前台綁定已定稿（2026-10-23）：採用原生 `task` 分支；G 異步生命週期採原生背景路徑，已完成聯合驗證、主 session 複核及主區接入（G §9.2）**。第 3 節既有前台綁定的證據見第 8 節；已定且驗證充分的部分可生成實現 plan，異步增量的固定映射與驗證邊界見 G §7.2.2。本文只定義設計，不構成執行授權；探針只驗證時序、權限與計量接線，不驗證多 Agent 協作效果或 provider 計費精度。
 
 **前提：** [入口與本地調試詳細 design](2026-10-22-design-v1-entry-local-debug.md)（下稱入口 design）已定：一次 run 由 `apps/launcher` 經 `startManagedOpenCode` 啟動 `opencode serve`，用 SDK 建立 Coordinator 根會話並送出一則啟動訊息；控制服務在 launcher 進程內，與 OpenCode 進程分開；權限不得使用 `ask`。[A／B 詳細 design](2026-10-22-design-v1-ab-product-assets.md) 已定：產品角色與 Skill 經配置目錄副本載入。
 
@@ -51,20 +51,25 @@
 
 **根會話（已確定）：** launcher 用 SDK 建立根會話，在送出啟動訊息前取得其 ID，立即在綁定表登記為 `coordinator`、本次 run、全部授權範圍。根會話在第一次模型請求前即已綁定，不屬未知數。
 
-**子會話（已驗證，第 8 節 V1–V5）：**
+**子會話（既有前台路徑已驗證，第 8 節 V1–V5；以下異步 pending 增量已在隔離原型聯合驗證，見 §6.2）：**
 
 1. **分派登記**：已綁定會話調用原生 `task` 時，插件在 `tool.execute.before` 把 `{sessionID, callID, args.subagent_type, args.task_id}` 送給控制服務。控制服務檢查：
    - 該會話的角色是否允許分派該 `subagent_type`（第 5 節分派表）；
    - 若帶 `task_id`，它必須是同一父會話先前分派、同一角色、仍有效的子會話；否則拒絕。
    
-   通過後登記一筆待綁定分派 `{父會話, callID, subagent_type}`。**同一父會話對同一角色同時只允許一筆未消費的待綁定分派**：已有一筆待綁定時，同角色的第二個 `task` 在 `tool.execute.before` 被拒，Coordinator 可在前一個子會話綁定後再分派。理由：待綁定分派按「父會話 + 角色」匹配，同角色並行時無法分辨哪個子會話對應哪個任務；身份與權限不會錯，但任務各自的工作區或 scope 會對調（探針未覆蓋此情形）。不同角色的並行分派不受限制（V6 已驗證）。
+   通過後登記一筆待綁定分派 `{父會話, callID, subagent_type}`。**同一父會話對同一角色同時只允許一筆未消費的待綁定分派**：已有一筆待綁定時，同角色的第二個 `task` 在 `tool.execute.before` 被拒，Coordinator 可在前一個子會話綁定後再分派。本片保留此保守限制；異步綁定另須原生父 tool part 的 callID→sessionId 精確關聯，不能只按父＋角色猜測。不同角色的並行分派不受限制（V6 已驗證）。
 
-   **釋放**：待綁定分派在兩種情況下釋放：被子會話首次綁定消費；或其父會話下一次申請模型調用准入（`chat.params`）時，該父會話全部未消費的待綁定分派一併釋放。理由：OpenCode 要等一輪中全部工具調用返回（成功或失敗）後才發起下一次模型請求，因此父會話再次申請准入時，該輪的 `task` 必然已結束，未被消費的分派不會再被消費；若 `task` 在子會話建立前失敗（此時 `tool.execute.after` 不觸發），不釋放會使 Coordinator 之後無法再分派同一角色。此規則不設逾時，也不影響同一輪內的並行分派。
-2. **首次綁定**：任何 hook 帶有未知的 `sessionID` 時，控制服務以 SDK `session.get` 取得 `parentID` 與 `agent`。僅當 `parentID` 是本次 run 已綁定且未撤銷的會話，且該父會話有一筆 `subagent_type` 與 `agent` 相同、尚未消費的待綁定分派時，才綁定並消費該分派；否則拒絕。
+   **釋放（依 G 異步契約修訂）：** 由可信首次綁定消費；或在確認分派失敗、取消、父會話撤銷／停止或到期後釋放。父會話下一次 `chat.params` 不再構成釋放條件：背景分派返回後 child 仍可能正在建立。結果未知時保留 pending、拒絕同父同角色新分派；清除後到達且不能可信對應的 child 必須拒絕，不能配給後來的新任務。公開 task error 事件的按 callID 釋放、延遲綁定與遲到錯配拒絕已有 G §7.2.2 的確定性證據；保持同父同角色一筆限制，不以猜測擴大並行。舊「父下輪准入清理」僅為前台原型歷史行為，不能沿用為異步設計。
+
+2. **首次綁定**：任何 hook 帶有未知的 `sessionID` 時，控制服務以 SDK `session.get` 取得 `parentID` 與 `agent`。僅當 `parentID` 是本次 run 已綁定且未撤銷的會話，且該父會話有一筆 `subagent_type` 與 `agent` 相同、尚未消費的待綁定分派時，才綁定並消費該分派；否則拒絕。異步新增條件：若存在已取消／釋放分派的遲到 child，不能僅憑父＋角色重用新 pending；必須有可信分派關聯或已確認舊建立流程不會再產生 child，否則拒絕並保留未知狀態，固定 runtime 已能由 SDK 查父 tool part 的可信 metadata 精確核對；讀取失敗或無匹配即拒絕，不釋放 unknown。
 3. **綁定內容**：會話 ID、角色、父會話、run、題目 scope、工作區、到期時間。角色決定能力（第 5 節），不能由後續任何參數改變。
 4. **未綁定的會話**：所有 hook 拒絕，因此不能發出模型請求、不能執行任何工具。子會話的第一個非 `event` hook 是 `chat.message`，綁定在其中完成；首次查詢 SDK 約 40–50 毫秒。
 5. **審計關聯**：`task` 的 `tool.execute.after` 輸出 `metadata` 含 `sessionId` 與 `parentSessionId`，用來把 `callID` 與實際子會話對應並寫入證據。
 6. **`task_id` 恢復**：帶合法 `task_id`（同一父會話先前分派、同一角色、仍有效）時，OpenCode 恢復同一會話並以原角色運行，已綁定的會話不再消費待綁定分派（探針 S3c）。
+
+**历史G-V1题目绑定增量（当时为独立原型，主线尚未实现）：** 解題角色的 challengeId 來自 [G 詳細 design §2](2026-10-23-design-v1-g-solver-minimal.md)，不解析 task 自由文字。尚未消費的選題宣告跨模型輪保留，與本節的待綁定分派分開；當時原型「父會話下次准入清理」只清理已發出而未綁定的 pending；現已由上述異步釋放規則取代，舊驗證不證明新時序。恢復既有 task_id 不建立新 pending，宣告同題消費、異題拒絕且保留。G-V1 已以 14 項確定性回歸和 OpenCode 1.19.3＋loopback 替身的 T1／T5／T7／T8 驗證修訂協議；舊失敗與本輪 T5 首次失敗均保留。結論與證據已同步主工作區，見 [G-V1 報告](../../gates/g-solver-verification-20261023/cross-round-v1/REPORT.md)。這是獨立工作區原型結果，非 C 舊身份探針推論；產品代碼未合併，当时正式插件/launcher接线与工作目录建立仍未验证；本轮结果见第6.1节。
+
+G 的慢工具接线、取消与 RPC 时限以该子文件 §7.2、§7.2.1 为准。本轮独立工作区已完成产品 entry／launcher／C 的无模型接线：SDK 与外部等待不占状态队列，队列仅做存活复核、准入／分派／资源登记等短暂变更；保留第 10.1、10.3 节既有修补。绑定的私有目录在首次准入前准备，停止发生在任何异步等待中时，返回后再复核，不允许新启动。产品代码尚未合并主区。
 
 ## 4. 預算准入與計量
 
@@ -95,15 +100,15 @@
 | H 能力 | 首版工具 | 授予角色 | 執行時檢查 |
 | --- | --- | --- | --- |
 | 知識讀取 | 原生 `skill`；原生 `read`（限本次 run 的 Skill 副本與共用知識目錄） | 全部角色 | `read` 路徑解析 realpath 後必須位於允許根目錄內 |
-| 任務分派／交接 | 原生 `task` | `coordinator` | 第 3 節分派登記 |
+| 任務分派／交接 | 優先原生 `task`；G 解題子任務採背景交付契約，公開映射已在隔離原型驗證（§6.2） | `coordinator` | 第 3 節分派登記 |
 | 任務狀態讀取 | 受管工具（待定） | 全部角色 | 只返回本 run、本角色可見的狀態 |
-| 工作區讀寫 | 受管 `workspace.*`（待 G） | Intake、Recon、Domain Solver、Engineer、Verifier（獨立工作區） | 路徑限於該會話綁定的工作區；原始材料唯讀 |
+| 工作區讀寫 | 受管 `workspace.*`（待 G） | Recon、Domain Solver、Engineer、Verifier（獨立工作區）；Intake 最小版只用 E 唯讀接入 | 路徑限於該會話綁定的工作區；原始材料唯讀 |
 | 實驗與作業控制 | 受管 `http.request`、`job.run` 等（待 G） | Recon、Domain Solver；Engineer 僅本地；Verifier 僅按驗證模式授予 | scope、句柄綁定題目與會話、資源上限 |
 | 題目接入 | 受管 `challenge.list`、`challenge.read`（[E 最小版詳細 design](2026-10-23-design-v1-e-intake-minimal.md) 第 4 節） | Intake | 角色為 `intake`、題目屬本 run；讀取限於該題 `materials/` |
 | 產物發布／候選登記 | 受管工具（待 D） | Domain Solver、Engineer | 只產生未驗證候選 |
 | 驗證結果登記 | 受管工具（待 D） | Verifier | 只接受綁定為 Verifier 的會話 |
 | 平台操作請求 | 受管工具（待 D、E） | Coordinator | 由控制服務檢查驗證有效性後執行 |
-| 任務停止 | 受管工具（待定） | Coordinator | 只能停止自己分派的子會話 |
+| 任務停止 | 受管 task.stop 語義已選定，背景控制時序已在隔離原型驗證（G §7） | Coordinator | 核實本實例 dispatched 與 binding 的直接父關係；task_id 只用於選擇，不作授權 |
 
 Reference、Strategy、Recovery Critic 只有知識讀取與狀態讀取（design v1 H 的「不授予」欄全部保留）。角色合併只能在分派時由控制服務明確綁定，不允許 Agent 自稱兼任取得權限。
 
@@ -111,19 +116,41 @@ Reference、Strategy、Recovery Critic 只有知識讀取與狀態讀取（desig
 
 ## 6. 停止、撤銷與到期
 
-- **全局停止**（時限、預算、Coordinator 結束後的收尾）：控制服務以 SDK 遞迴列舉根會話的全部子會話，逐一 `session.abort`，並在綁定表標記為已停止；之後這些會話的任何 hook 一律拒絕。
-- **單一子會話撤銷**：Coordinator 經「任務停止」能力請求，控制服務只允許停止其分派的子會話。
-- **到期**：綁定帶到期時間；到期後的 hook 一律拒絕。
-- 停止順序：先在綁定表標記，再發 abort，使在途的工具調用在下一個 hook 即被拒絕。
+- **全局停止**（時限、預算、明確結束 run）：先標記 run／綁定停止並拒絕新准入，再於狀態隊列外取消歸屬 HTTP／job、以公開 SDK 列舉及 abort 子會話，保存各項確認／失敗／unknown。不得等 SDK 返回才撤銷，也不得以 abort 成功代替資源回收確認。
+- **單一子會話撤銷**：採受管 `task.stop(task_id)`，只允許可信直接分派關係，核實 run、角色與有效期並在 execute 再核實。先撤銷，再於隊列外回收／abort；資源與 SDK 結果分開，重複停止冪等。局部接線有證據，後續原生背景路徑的自然停止已在隔離原型通過，條件及覆蓋以 [G §7](2026-10-23-design-v1-g-solver-minimal.md) 為準。
+- **到期**：綁定帶到期時間；到期後的 hook 一律拒絕，由宿主取消歸屬資源，不等待 Agent 自願停止。
+- **父 idle 不等於 run 完成**：存在活動 child、pending 或待交付結果時不得因父會話暫時 idle／assistant 訊息結束而全局停止。正常收束須可信確認任務處置、結果交付及資源結算；主動結束走全局停止。正常收束依 C 的 execution／pending／queued 交付與資源結算，固定公開接線證據見 §6.2。
+- **異步交付與准入**：首次分派回覆交付可信引用，後續完成訊息關聯同一邏輯任務及該次執行，不改寫首次工具回覆。進度／完成喚醒仍經共享預算准入；停止後只保存遲到結果，不重啟模型。只提供授權任務的必要狀態／摘要，不擴大私有工作區權限。
 
-## 7. 綁定機制不成立時的去向
+### 6.1 G 慢工具与停止的本轮接口增量
 
-沿用 design v1 C.1 的三個分支。**驗證結果：採用第一個分支**；SDK 分支的原語（先建立、綁定、再執行、可隔離）已在探針中成立，作為備案保留，不實作。
+本节记录原型验证；后续 G 已定接线已整合主区，当前验收状态见 G §9.2。
+
+真实产品插件仅使用公开 `tool.execute.before` 的 session/call 与 output.args 私有 Symbol，将 callID 和宿主核准时限带到 execute；ToolContext 公开类型没有 callID，不依赖非公开字段。Symbol 不进入模型 schema／JSON，单次消费；并发同会话同工具与 runtime 均已验证。RPC 断开 signal 传到 C 与适配器；普通 hook 15 秒，等待型调用使用 C 核准的 min(等待上限,绑定剩余)+5 秒。
+
+run/session/call 登记先于 HTTP／job 启动，旧短等待原型的 job 在句柄响应后保持登记直到程序组与输出结算；新契约同次等待终态，收尾 unknown 仍须保持登记；已停止或过期的会话不新增操作。stop/revoke 同时取消归属资源；HTTP 清理最多1000ms，C资源收尾最多4000ms，unknown保留状态和配额，不能写已释放。response 未 writableFinished 的断开取消并审计原call；旧短等待原型正常finish不取消已交付running job；新终态等待不正常提前交付running。finish不是客户端应用回执，交付未知不自动重发。
+
+真实 OpenCode 1.19.3、plugin/SDK 1.19.0、loopback确定性替身在同一产品入口完成绑定、文件、HTTP16004ms、job16054ms、增量输出与统一停止。C的短串行/配额/停止及交付屏障有无模型回归。该批长job超过wait_ms的直接promptAsync恢复不能更新已结束父task，失败仍保留。后续同次终态等待已验可行；现已选定Solver终态等待＋Coordinator异步交付／停止契约，该批尚未验证父层公开接线；后续联合结果见本节6.2及G §7.1–7.2.2；OS机制与部署限制另见G §5.4，不拼接为同一次验收。本批无真实模型或D/oracle验证。完整条件和失败：[G本轮报告](../../gates/g-solver-verification-20261023/g-c-rpc-slow-tools/REPORT.md)。
+
+### 6.2 原生異步生命週期的固定映射（隔離原型）
+
+採 OpenCode 1.19.3 的公開 `OPENCODE_EXPERIMENTAL_BACKGROUND_SUBAGENTS=true` 與 `task(background=true)`。實際 flag false/true schema 對照已確認可用；不使用 SDK 備案。模型／工具內循環、child 執行與通知都由 OpenCode 完成，C 不增加調度／provider 循環。
+
+- before 由 C 生成 run／parent／callID／role／challenge 關聯的執行 ref，覆寫原生 description 為固定標記；不由模型維護。首次綁定另以 SDK child parentID／agent 及父 tool part 的 callID／sessionId 核實，不以標記自由文字授權。父先下一輪不清 pending，unknown 保留，公開 task error 只釋放自己的 starting call。
+- 原生 synthetic 完成通知攜帶固定標記，C 核對原父、child 與 ref；重複／遲到通知拒絕再次喚醒並留痕。已完成 session 再執行用新 ref，仍在執行的同 session extend 拒絕。queued 與經共享准入後 consumed 分開；預算／停止後為 suppressed，結果及不完整用量保留。首次 running 工具回覆單獨保存，不改寫。
+- 早期 child 引用可在首個 child hook 前由父發 stop；C 先用 SDK 完成可信綁定，再撤銷與回收，遲到 hook 不得獲模型准入。停止後全局收尾復用同一停止 promise，不重發已確認或 unknown 的 SDK abort。完成先到則 task.stop 回報原終態；host revoke 仍撤銷會話。取消由 task.stop 關聯回覆交代，不依賴原生另發取消通知，亦不稱成功完成。
+- 正常父 idle 收尾必須沒有 starting／running execution、pending、queued 結果或未結算資源。各等待在短狀態隊列外；unknown 繼續保額。
+
+同一固定候選完成六個完整 runtime 情境及 86/86 定向、319/319 全套，typecheck/build 通過。原失敗與 runtime／確定性覆蓋界線見 [聯合報告](../../gates/g-solver-verification-20261023/joint-async-lifecycle/REPORT.md)。該批次當時尚未合併產品代碼，後續整合見 G §9.2；主 session 已獨立重跑六個 runtime 情境及 86 項定向測試，核對原始證據與來源 hash；見同目錄 parent-review.json。重複通知／啟動失敗／unknown 等故障為確定性覆蓋，不冒稱全部經 runtime 注入；跨重啟帳本、真實模型與 OS／網路隔離未驗。原型保留舊 direct-host 測試的顯式 wait/completion 內部路徑，模型工具 schema 只提供 job 同次終態等待；最終整合仍須按 G 固定外部契約。
+
+## 7. 公開接口不足時的去向
+
+沿用 design v1 C.1 的三個分支。**既有前台綁定採用第一個分支**；G 的背景分派／通知已以固定 runtime 原生公開接口驗證可行（§6.2）。SDK 分支的建立、綁定、執行及隔離原語曾有探針證據，但完整異步交付與停止契約未驗，不據此宣稱備案可用。只有原生公開接口不能滿足 G 契約時才評估有界 SDK，不另建通用排程、監工 Agent 或 provider 循環。
 
 | 第 8 節驗證結果 | 去向 |
 | --- | --- |
 | 子會話在第一次模型請求與工具操作前可被綁定，且 V2–V9 成立 | 採用原生 `task`，即本文第 3 節機制 |
-| 原生 `task` 不滿足時序，但 SDK 能「先建立會話、綁定、再執行」並可隔離與取消 | 改為有界 SDK 接線：由 Coordinator 調用受管分派工具，控制服務經 SDK 建立子會話、完成綁定後才送出任務；決策仍由 Agent 作出，模型與工具循環仍由 OpenCode 執行 |
+| 原生 `task` 不滿足綁定或 G 異步生命週期契約，但 SDK 能「先建立會話、綁定、再執行」並可隔離與取消 | 改為有界 SDK 接線：由 Coordinator 調用受管分派工具，控制服務經 SDK 建立子會話、完成綁定後才送出任務；決策仍由 Agent 作出，模型與工具循環仍由 OpenCode 執行 |
 | 兩者都不成立 | 列為架構阻塞，報告缺失接口與可選的產品範圍調整；不自寫 provider 循環、不維護 fork |
 
 ## 8. 已驗證的前提
@@ -164,7 +191,7 @@ Reference、Strategy、Recovery Critic 只有知識讀取與狀態讀取（desig
 
 ## 10. 首題流程測試前的修補安排
 
-本節限定 C 的修補範圍，不是整個首題流程已可運行的判定。先完成 10.1 與 10.3 的最低要求；10.2 不作為首題測試的前置條件。修補使用無模型回歸，不新增 provider 求解循環、配套 gate 或完整恢復系統。後續實現 plan 從本節生成，每份只覆蓋一個可獨立驗收的能力；本節不引用 plan，也不把待做項目記為已驗證。
+本節限定 C 的修補範圍，不是整個首題流程已可運行的判定。 G 的首題前置與延後項以 [G §10](2026-10-23-design-v1-g-solver-minimal.md) 為準：保留結果交付、pending／idle 與停止的必要接線；不因此提前實作完整進度系統、跨重啟恢復或精細資源帳本。先完成 10.1 與 10.3 的最低要求；10.2 不作為首題測試的前置條件。修補使用無模型回歸，不新增 provider 求解循環、配套 gate 或完整恢復系統。後續實現 plan 從本節生成，每份只覆蓋一個可獨立驗收的能力；本節不引用 plan，也不把待做項目記為已驗證。
 
 ### 10.1 停止後仍可能放行模型請求——當前修補
 

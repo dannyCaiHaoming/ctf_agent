@@ -1,0 +1,21 @@
+
+> ctf-agent@0.1.0 typecheck
+> tsc --noEmit
+
+apps/opencode-plugin/src/index.ts(24,122): error TS2554: Expected 2-3 arguments, but got 1.
+tests/contract/slow-tools.test.ts(15,53): error TS2345: Argument of type '(value: void | PromiseLike<void>) => void' is not assignable to parameter of type '(err?: Error | undefined) => void'.
+  Types of parameters 'value' and 'err' are incompatible.
+    Type 'Error | undefined' is not assignable to type 'void | PromiseLike<void>'.
+      Type 'Error' is not assignable to type 'void | PromiseLike<void>'.
+tests/contract/slow-tools.test.ts(45,31): error TS2559: Type '(_req: any, res: any) => Promise<void>' has no properties in common with type 'ServerOptions<typeof IncomingMessage, { new (req: IncomingMessage): ServerResponse<IncomingMessage>; prototype: ServerResponse<any>; ... 29 more ...; EventEmitterAsyncResource: typeof EventEmitterAsyncResource; }>'.
+tests/contract/slow-tools.test.ts(45,38): error TS7006: Parameter '_req' implicitly has an 'any' type.
+tests/contract/slow-tools.test.ts(45,44): error TS7006: Parameter 'res' implicitly has an 'any' type.
+tests/contract/slow-tools.test.ts(58,31): error TS2559: Type '(_req: any, res: any) => void' has no properties in common with type 'ServerOptions<typeof IncomingMessage, { new (req: IncomingMessage): ServerResponse<IncomingMessage>; prototype: ServerResponse<any>; ... 29 more ...; EventEmitterAsyncResource: typeof EventEmitterAsyncResource; }>'.
+tests/contract/slow-tools.test.ts(58,32): error TS7006: Parameter '_req' implicitly has an 'any' type.
+tests/contract/slow-tools.test.ts(58,38): error TS7006: Parameter 'res' implicitly has an 'any' type.
+tests/contract/slow-tools.test.ts(69,55): error TS2559: Type '(_req: any, res: any) => void' has no properties in common with type 'ServerOptions<typeof IncomingMessage, { new (req: IncomingMessage): ServerResponse<IncomingMessage>; prototype: ServerResponse<any>; ... 29 more ...; EventEmitterAsyncResource: typeof EventEmitterAsyncResource; }>'.
+tests/contract/slow-tools.test.ts(69,56): error TS7006: Parameter '_req' implicitly has an 'any' type.
+tests/contract/slow-tools.test.ts(69,62): error TS7006: Parameter 'res' implicitly has an 'any' type.
+tests/contract/slow-tools.test.ts(91,31): error TS2559: Type '(_req: any, res: any) => void' has no properties in common with type 'ServerOptions<typeof IncomingMessage, { new (req: IncomingMessage): ServerResponse<IncomingMessage>; prototype: ServerResponse<any>; ... 29 more ...; EventEmitterAsyncResource: typeof EventEmitterAsyncResource; }>'.
+tests/contract/slow-tools.test.ts(91,32): error TS7006: Parameter '_req' implicitly has an 'any' type.
+tests/contract/slow-tools.test.ts(91,38): error TS7006: Parameter 'res' implicitly has an 'any' type.

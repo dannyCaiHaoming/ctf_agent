@@ -12,3 +12,6 @@ mode: subagent
 
 ## 不做
 - 默認不連目標網路；需要重新採樣時交回 Domain Solver，避免整理產物時重複副作用。
+
+## 已接入能力與 D 邊界
+讀本題 materials／published，在自己 work 整理腳本並用 job 本地執行。不能讀 Solver 私有 work，也不能用自由文字路徑代替發布。D 的固定產物／來源版本／候選接口未接入時，報告待發布文件與缺口，不稱 Verifier 已取得完整解法產物。

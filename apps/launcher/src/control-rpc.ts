@@ -8,12 +8,16 @@ import { ControlDenied } from './control-service.js';
 
 const MAX_BODY_BYTES = 1024 * 1024;
 
-export type ControlHandler = (sessionID: string, operation: string, input: unknown) => Promise<unknown>;
+export type ControlHandler = (sessionID: string, operation: string, input: unknown, signal: AbortSignal) => Promise<unknown>;
 
 export async function startControlRpc(handler: ControlHandler): Promise<{ url: string; token: string; close: () => Promise<void> }> {
   const token = randomBytes(24).toString('hex');
   const expected = Buffer.from(token);
+  const active = new Set<AbortController>();
   const server = createServer((request, response) => {
+    const controller = new AbortController(); active.add(controller);
+    response.once('close', () => { if (!response.writableFinished) controller.abort('rpc abandoned'); active.delete(controller); });
+    request.once('aborted', () => controller.abort('rpc abandoned'));
     void (async () => {
       const header = request.headers.authorization ?? '';
       const supplied = Buffer.from(header.startsWith('Bearer ') ? header.slice('Bearer '.length) : '');
@@ -29,10 +33,12 @@ export async function startControlRpc(handler: ControlHandler): Promise<{ url: s
         }
         const body = JSON.parse(Buffer.concat(chunks).toString('utf8')) as Record<string, unknown>;
         if (typeof body.sessionID !== 'string' || !/^[\w.-]{1,128}$/.test(body.sessionID) || typeof body.operation !== 'string') throw new ControlDenied('malformed request');
-        const result = await handler(body.sessionID, body.operation, body.input);
+        const result = await handler(body.sessionID, body.operation, body.input, controller.signal);
+        if (response.destroyed) return;
         response.writeHead(200, { 'content-type': 'application/json' }).end(JSON.stringify({ result }));
       } catch (error) {
         const message = error instanceof ControlDenied ? error.message : 'denied: control error';
+        if (response.destroyed) return;
         response.writeHead(403, { 'content-type': 'application/json' }).end(JSON.stringify({ error: message }));
       }
     })();
@@ -45,6 +51,6 @@ export async function startControlRpc(handler: ControlHandler): Promise<{ url: s
   if (!address || typeof address === 'string') throw new Error('control RPC did not bind a TCP port');
   return {
     url: `http://127.0.0.1:${address.port}/control`, token,
-    close: () => new Promise<void>(done => { server.close(() => done()); server.closeAllConnections(); })
+    close: () => new Promise<void>(done => { for (const controller of active) controller.abort('rpc closed'); server.close(() => done()); server.closeAllConnections(); })
   };
 }

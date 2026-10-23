@@ -1,0 +1,35 @@
+
+ RUN  v2.1.8 /Users/caihaoming/.codex/worktrees/b30f/pentest-agent
+
+ ✓ tests/contract/g-role-permissions.test.ts > G role permissions: managed interface boundaries, not OS isolation > product visibility exposes read-only Intake and local Verifier tools
+ ✓ tests/contract/g-role-permissions.test.ts > G role permissions: managed interface boundaries, not OS isolation > E host preparation gives Intake complete pinned facts without any workspace write
+ ✓ tests/contract/g-role-permissions.test.ts > G role permissions: managed interface boundaries, not OS isolation > C denies forbidden Intake/Verifier tools in both hooks even if visibility is misconfigured or args claim another role
+ ✓ tests/contract/g-role-permissions.test.ts > G role permissions: managed interface boundaries, not OS isolation > Verifier managed paths map private work and reject materials, published, sibling sessions, other challenges and symlinks
+ ✓ tests/contract/g-role-permissions.test.ts > G role permissions: managed interface boundaries, not OS isolation > Verifier can recompute a saved input in its private work without a managed HTTP permission
+ ✓ tests/contract/g-role-permissions.test.ts > D HTTP replay candidate: fixture-trusted operations, never verb-based classification > fresh replay jar rebuilds safe state, binds evidence and consumes an intent before sending
+ × tests/contract/g-role-permissions.test.ts > D HTTP replay candidate: fixture-trusted operations, never verb-based classification > the existing scoped adapter stops a redirect before any out-of-scope request and keeps jars separate
+   → expected '{"status":302,"headers":{"location":"…' to contain 'out_of_scope'
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/contract/g-role-permissions.test.ts > D HTTP replay candidate: fixture-trusted operations, never verb-based classification > the existing scoped adapter stops a redirect before any out-of-scope request and keeps jars separate
+AssertionError: expected '{"status":302,"headers":{"location":"…' to contain 'out_of_scope'
+
+Expected: "out_of_scope"
+Received: "{"status":302,"headers":{"location":"http://127.0.0.1:50558","set-cookie":["s=verifier; Path=/"],"date":"Fri, 23 Oct 2026 12:54:15 GMT","connection":"close","transfer-encoding":"chunked"},"headersTruncated":false,"redirectChain":[{"origin":"http://127.0.0.1:50559","path":"/","status":302}],"bodyPath":"work/http/1.bin","bodyBytes":0,"bodyTruncated":false,"preview":""}"
+
+ ❯ tests/contract/g-role-permissions.test.ts:168:38
+    166|     const adapter = createHttpTools({ target: url, jar: verifierJar, w…
+    167|     const response = await adapter.request({ url }, { run: 'fixture', …
+    168|     expect(JSON.stringify(response)).toContain('out_of_scope'); expect…
+       |                                      ^
+    169|     expect(solverJar.header(new URL(url))).toBe('s=solver'); expect(ve…
+    170|   });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 6 passed (7)
+   Start at  21:54:15
+   Duration  412ms (transform 53ms, setup 0ms, collect 64ms, tests 89ms, environment 0ms, prepare 47ms)
+

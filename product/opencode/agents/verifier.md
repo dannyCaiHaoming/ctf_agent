@@ -13,3 +13,6 @@ mode: subagent
 
 ## 不做
 - 不繼承 Solver 的私有推理，不改原候選或其證據，不做平台提示、實例管理或提交。
+
+## 已接入能力與 D 邊界
+在獨立會話讀 materials／published，在自己 work 用 job 本地重算；不能讀 sibling work，沒有普通 HTTP。材料重算只證明該計算，不自動驗證 Solver 候選；缺少 D 固定候選、依賴版本或安全重放能力時保持 inconclusive。角色報告不能直接登記 verified 或更改 solved。

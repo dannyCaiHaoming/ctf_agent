@@ -1,0 +1,253 @@
+--- a/apps/launcher/src/control-service.ts
++++ b/apps/launcher/src/control-service.ts
+@@ -437,8 +437,14 @@
+       if (typeof value !== 'number' || !Number.isInteger(value) || value < min || value > max) throw new ControlDenied('tool timeout');
+       return value;
+     };
++    if (name === 'job.run') {
++      bounded(args.wait_ms, 5000, 30000, 0);
++      if (args.completion !== undefined && args.completion !== 'terminal') throw new ControlDenied('job completion');
++    }
+     const wait = name === 'http.request' ? bounded(args.timeout_ms, 15000, 60000) :
+-      name === 'job.run' ? bounded(args.wait_ms, 5000, 30000, 0) : name === 'job.cancel' ? 4000 : 15000;
++      name === 'job.run' ? (args.completion === 'terminal'
++        ? bounded(args.timeout_ms, 60000, 600000) + 4000
++        : bounded(args.wait_ms, 5000, 30000, 0)) : name === 'job.cancel' ? 4000 : 15000;
+     return Math.max(0, Math.min(wait, binding.expiresAt - Date.now()));
+   }
+ 
+@@ -484,6 +490,8 @@
+             const done = this.jobs.waitSettled(jobBinding, operation.job!);
+             keep = true;
+             void done.then(snapshot => this.settleResource(operation, snapshot.reapIncomplete ? 'cleanup_unknown' : snapshot.state));
++            // Decision prototype: retain the same RPC/call until terminal cleanup, without a model polling loop.
++            if (args.completion === 'terminal') result = await done;
+           } else if (name === 'job.read') result = this.jobs.read(this.jobBinding(binding, roots), args);
+           else if (name === 'job.cancel') result = await this.jobs.cancel(this.jobBinding(binding, roots), args.job);
+           else if (name === 'workspace.list') result = await listWorkspace(roots, args);
+--- a/apps/opencode-plugin/src/index.ts
++++ b/apps/opencode-plugin/src/index.ts
+@@ -17,7 +17,7 @@
+   'workspace.read': { path: tool.schema.string(), cursor: tool.schema.string().optional() },
+   'workspace.search': { path: tool.schema.string().optional(), needle: tool.schema.string().min(1) },
+   'workspace.write': { path: tool.schema.string(), content: tool.schema.string(), encoding: tool.schema.enum(['utf8', 'base64']).optional() },
+-  'job.run': { argv: tool.schema.array(tool.schema.string()).min(1).max(32), timeout_ms: tool.schema.number().int().positive().max(600000).optional(), wait_ms: tool.schema.number().int().min(0).max(30000).optional() },
++  'job.run': { completion: tool.schema.literal('terminal').optional(), argv: tool.schema.array(tool.schema.string()).min(1).max(32), timeout_ms: tool.schema.number().int().positive().max(600000).optional(), wait_ms: tool.schema.number().int().min(0).max(30000).optional() },
+   'job.read': { job: tool.schema.string().uuid(), stream: tool.schema.enum(['stdout', 'stderr']), cursor: tool.schema.string().optional() },
+   'job.cancel': { job: tool.schema.string().uuid() },
+   'http.request': { url: tool.schema.string().url(), method: tool.schema.enum(['GET', 'HEAD', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS']).optional(),
+@@ -27,6 +27,7 @@
+   'challenge.read': { id: tool.schema.string().min(1), path: tool.schema.string().min(1), cursor: tool.schema.string().regex(/^\d{1,15}$/).optional() }
+ };
+ const descriptions: Record<string, string> = {
++  'job.run': 'Start one managed job. Optional completion=terminal keeps this same tool call pending until final cleanup; wait_ms then only bounds the initial wait, and no early running handle is delivered. Without completion, return a handle after wait_ms. timeout_ms and host lifetime always bound the job.',
+   'challenge.list': 'List every challenge of this run: id, title, authorized network target (or "無網路目標"), time of the start-up reachability check, and the pinned material files with size and sha256. Takes no arguments. The statement is the material statement.md.',
+   'challenge.read': 'Read one pinned material file of a challenge. Arguments: id (challenge id from challenge.list), path (file name relative to that challenge\'s materials, e.g. "statement.md"), cursor (optional, the nextCursor of the previous page). Text is returned in pages with nextCursor (null on the last page); a binary file returns only its size and first 8 bytes as hex. Read-only.'
+ };
+@@ -81,7 +82,7 @@
+       const approval = await control(input.sessionID, 'tool.before', { tool: input.tool, callID: input.callID, args: output.args }) as { rpcTimeoutMs?: number };
+       if (input.tool.startsWith('ctf_')) {
+         const timeoutMs = approval?.rpcTimeoutMs ?? options.requestTimeoutMs ?? 15000;
+-        if (!Number.isInteger(timeoutMs) || timeoutMs < 1 || timeoutMs > 65000) throw new Error('denied: control reply');
++        if (!Number.isInteger(timeoutMs) || timeoutMs < 1 || timeoutMs > 609000) throw new Error('denied: control reply');
+         (output.args as Marked)[callMarker] = { sessionID: input.sessionID, callID: input.callID, tool: input.tool, timeoutMs };
+       }
+     },
+--- a/tests/contract/slow-tools.test.ts
++++ b/tests/contract/slow-tools.test.ts
+@@ -222,3 +222,79 @@
+   expect(await import('node:fs/promises').then(fs => fs.readdir(join(dir, 'X/work/a')))).toEqual([]);
+   expect(await c.handle('a', 'model.call', { agent: 'recon' })).toMatchObject({ admitNo: 1 });
+ });
++
++// Long-job decision prototype: removing C's terminal wait makes the first assertion fail.
++it('terminal candidate keeps one execute pending beyond wait_ms, permits admission and incremental reads, then returns final result once', async () => {
++  const { c, bind } = await fixture(); await bind('b', 'Y');
++  let delivered = false;
++  const pending = execute(c, 'a', 'job.run', { argv: [process.execPath, '-e', "console.log('early');setTimeout(()=>console.log('late'),700)"], wait_ms: 20, timeout_ms: 2000, completion: 'terminal' }, 'terminal-one').then(value => { delivered = true; return value; });
++  await vi.waitFor(() => expect(c.resourceSnapshot().find(r => r.callID === 'terminal-one')?.job).toBeTruthy());
++  await new Promise(r => setTimeout(r, 150)); expect(delivered).toBe(false);
++  const handle = c.resourceSnapshot().find(r => r.callID === 'terminal-one')!.job!;
++  const early = await execute(c, 'a', 'job.read', { job: handle, stream: 'stdout' }) as { data: string; nextCursor: string; done: boolean };
++  expect(Buffer.from(early.data, 'base64').toString()).toBe('early\n'); expect(early.done).toBe(false);
++  expect(await Promise.race([c.handle('b', 'model.call', { agent: 'recon' }), new Promise(r => setTimeout(() => r('blocked'), 300))])).toMatchObject({ role: 'recon' });
++  expect(await pending).toMatchObject({ job: handle, state: 'exited', exitCode: 0 });
++  const late = await execute(c, 'a', 'job.read', { job: handle, stream: 'stdout', cursor: early.nextCursor }) as { data: string; done: boolean };
++  expect(Buffer.from(late.data, 'base64').toString()).toBe('late\n'); expect(late.done).toBe(true);
++  expect(c.audit.filter(r => r.op === 'tool.settled' && (r.detail as { callID?: string } | undefined)?.callID === 'terminal-one')).toHaveLength(1);
++  await expect(execute(c, 'a', 'job.run', { argv: ['true'], completion: 'terminal' }, 'terminal-one')).rejects.toThrow('duplicate tool call');
++});
++
++it('terminal candidate cancellation is idempotent and returns to the same call without a completion notifier', async () => {
++  const { c } = await fixture();
++  const pending = execute(c, 'a', 'job.run', { argv: ['sleep', '30'], wait_ms: 0, timeout_ms: 60000, completion: 'terminal' }, 'terminal-cancel');
++  await vi.waitFor(() => expect(c.resourceSnapshot().find(r => r.callID === 'terminal-cancel')?.job).toBeTruthy());
++  const handle = c.resourceSnapshot().find(r => r.callID === 'terminal-cancel')!.job!;
++  expect(await execute(c, 'a', 'job.cancel', { job: handle })).toMatchObject({ state: 'cancelled' });
++  expect(await pending).toMatchObject({ job: handle, state: 'cancelled' });
++  expect(await execute(c, 'a', 'job.cancel', { job: handle })).toMatchObject({ state: 'cancelled' });
++  expect(c.audit.filter(r => r.op === 'tool.settled' && (r.detail as { callID?: string } | undefined)?.callID === 'terminal-cancel')).toHaveLength(1);
++});
++
++it('terminal candidate timeout and binding expiry do not return an early running handle', async () => {
++  const { c } = await fixture();
++  expect(await execute(c, 'a', 'job.run', { argv: ['sleep', '30'], wait_ms: 0, timeout_ms: 150, completion: 'terminal' }, 'terminal-timeout')).toMatchObject({ state: 'timed_out' });
++  const expiring = await fixture(undefined, Date.now() + 500);
++  expect(await execute(expiring.c, 'a', 'job.run', { argv: ['sleep', '30'], wait_ms: 0, timeout_ms: 60000, completion: 'terminal' }, 'terminal-expiry')).toMatchObject({ state: 'timed_out' });
++  await expect(execute(expiring.c, 'a', 'job.read', { job: 'unused', stream: 'stdout' })).rejects.toThrow('binding lapsed');
++});
++
++it('terminal candidate RPC disconnect cancels the still waiting job and never starts a duplicate', async () => {
++  const { c } = await fixture(); const rpc = await startControlRpc((id, op, input, signal) => c.handle(id, op, input, signal)); clean.push(rpc.close);
++  const abort = new AbortController(); const request = fetch(rpc.url, { method: 'POST', signal: abort.signal, headers: { authorization: `Bearer ${rpc.token}` },
++    body: JSON.stringify({ sessionID: 'a', operation: 'tool.execute', input: { tool: 'job.run', callID: 'terminal-disconnect', args: { argv: ['sleep', '30'], wait_ms: 0, completion: 'terminal' } } }) }).catch(e => e);
++  await vi.waitFor(() => expect(c.resourceSnapshot().find(r => r.callID === 'terminal-disconnect')?.job).toBeTruthy());
++  abort.abort(); await request;
++  await vi.waitFor(() => expect(c.resourceSnapshot().find(r => r.callID === 'terminal-disconnect')).toMatchObject({ state: 'settled', result: 'cancelled' }));
++  expect(c.audit.filter(r => r.op === 'tool.registered' && (r.detail as { callID?: string } | undefined)?.callID === 'terminal-disconnect')).toHaveLength(1);
++  expect(c.audit.some(r => r.op === 'rpc.abandoned' && (r.detail as { callID?: string } | undefined)?.callID === 'terminal-disconnect')).toBe(true);
++});
++
++it('terminal candidate RPC limit follows timeout and cleanup rather than wait_ms, and plugin accepts the bounded approval', async () => {
++  const { c } = await fixture(undefined, Date.now() + 700000);
++  const args = { argv: ['true'], wait_ms: 1, timeout_ms: 600000, completion: 'terminal' };
++  const approval = await c.handle('a', 'tool.before', { tool: 'ctf_job_run', callID: 'long-approval', args }) as { rpcTimeoutMs: number };
++  expect(approval.rpcTimeoutMs).toBe(609000);
++  const rpc = await startControlRpc(async (_id, op) => op === 'tool.before' ? approval : { state: 'exited' }); clean.push(rpc.close);
++  const hooks = createCtfAgentHooks({ controlUrl: rpc.url, controlToken: rpc.token, tools: ['job.run'] });
++  await hooks['tool.execute.before']!({ sessionID: 'a', tool: 'ctf_job_run', callID: 'long-approval' }, { args });
++  await expect(hooks.tool!.ctf_job_run!.execute(args as never, { sessionID: 'a', abort: new AbortController().signal } as never)).resolves.toMatchObject({ output: '{"state":"exited"}' });
++  await expect(execute(c, 'a', 'job.run', { ...args, completion: 'garbage' }, 'bad-completion')).rejects.toThrow();
++});
++
++it('terminal candidate reports incomplete reaping as unknown and keeps its slot reserved', async () => {
++  const { c } = await fixture();
++  const pending = execute(c, 'a', 'job.run', { argv: ['sleep', '30'], wait_ms: 0, completion: 'terminal' }, 'terminal-unknown');
++  await vi.waitFor(() => expect(c.resourceSnapshot().find(r => r.callID === 'terminal-unknown')?.job).toBeTruthy());
++  const handle = c.resourceSnapshot().find(r => r.callID === 'terminal-unknown')!.job!;
++  const realKill = process.kill.bind(process);
++  const spy = vi.spyOn(process, 'kill').mockImplementation((pid, signal) => pid < 0 && signal === 0 ? true : realKill(pid, signal));
++  try {
++    await execute(c, 'a', 'job.cancel', { job: handle });
++    expect(await pending).toMatchObject({ job: handle, state: 'cancelled', reapIncomplete: true });
++    expect(c.resourceSnapshot().find(r => r.callID === 'terminal-unknown')).toMatchObject({ state: 'unknown', result: 'cleanup_unknown' });
++    await execute(c, 'a', 'job.run', { argv: ['sleep', '30'], wait_ms: 0 }, 'remaining-slot');
++    await expect(execute(c, 'a', 'job.run', { argv: ['true'], completion: 'terminal' }, 'blocked-slot')).rejects.toThrow('session job limit');
++  } finally { spy.mockRestore(); }
++});
+--- a/tests/manual/g-long-job-decision.ts
++++ b/tests/manual/g-long-job-decision.ts
+@@ -0,0 +1,113 @@
++// No model calls. Product launcher/plugin/C/OpenCode use a loopback scripted provider.
++// Wrappers below only observe the host job lifecycle; they do not send completion notifications.
++import assert from 'node:assert/strict';
++import { createServer } from 'node:http';
++import { mkdtemp, mkdir, readFile, writeFile, readdir } from 'node:fs/promises';
++import { tmpdir } from 'node:os';
++import { join, resolve } from 'node:path';
++import type { OpencodeClient } from '@opencode-ai/sdk/v2';
++import { launch } from '../../apps/launcher/src/launch.js';
++import { JobManager } from '../../apps/launcher/src/job-tools.js';
++
++const evidence = resolve('docs/gates/g-solver-verification-20261023/decision-long-job/runtime', process.argv[2] ?? 'first');
++await mkdir(evidence, { recursive: true });
++const scenarios = (process.argv[3] ? [process.argv[3]] : ['success', 'timeout', 'abort']) as Array<'success' | 'timeout' | 'abort'>;
++const originalRun = JobManager.prototype.run;
++for (const scenario of scenarios) {
++  const out = join(evidence, scenario); await mkdir(out, { recursive: true });
++  const root = await mkdtemp(join(tmpdir(), 'gdec-long-job-'));
++  const events: Array<Record<string, unknown>> = []; const provider: Array<Record<string, unknown>> = [];
++  let client: OpencodeClient; let rootID = ''; let childID = ''; let jobID = '';
++  let parentStep = 0; let childStep = 0; let seq = 0; let observedError: string | undefined;
++  let endedAt = 0; let initialAt = 0; let initialState = ''; let taskDuring: unknown;
++  const abortEvents = new AbortController();
++  let observer: Promise<void> = Promise.resolve();
++  let result: Awaited<ReturnType<typeof launch>> | undefined; let failure: string | undefined;
++  const wait = (ms: number) => new Promise<void>(r => setTimeout(r, ms));
++  const messages = async (id: string) => (await client.session.messages({ sessionID: id }, { throwOnError: true })).data ?? [];
++  const parentTask = async () => (await messages(rootID)).flatMap(m => m.parts).find(p => p.type === 'tool' && p.tool === 'task');
++  JobManager.prototype.run = async function(binding, args, operation) {
++    events.push({ at: Date.now(), event: 'job.start', sessionID: binding.sessionId, args });
++    const initial = await originalRun.call(this, binding, args, operation);
++    childID = binding.sessionId; jobID = initial.job; initialAt = Date.now(); initialState = initial.state;
++    events.push({ at: initialAt, event: 'job.initial_wait.returned_to_C', sessionID: childID, ...initial });
++    observer = (async () => {
++      await wait(50);
++      taskDuring = await parentTask(); events.push({ at: Date.now(), event: 'parent.task.during', task: taskDuring });
++      const incremental = this.read(binding, { job: jobID, stream: 'stdout' });
++      events.push({ at: Date.now(), event: 'host.incremental.read', ...incremental });
++      if (scenario === 'abort') { events.push({ at: Date.now(), event: 'public.session.abort', sessionID: childID }); await client.session.abort({ sessionID: childID }, { throwOnError: true }); }
++      const final = await this.waitSettled(binding, jobID); endedAt = Date.now();
++      events.push({ at: endedAt, event: 'job.settled.observed', sessionID: childID, ...final });
++    })().catch(e => { observedError = String(e); });
++    return initial;
++  };
++  const stub = createServer((req, res) => { void (async () => {
++    const chunks: Buffer[] = []; for await (const chunk of req) chunks.push(Buffer.from(chunk));
++    if (req.method !== 'POST' || !req.url?.endsWith('/chat/completions')) { res.writeHead(404).end('{}'); return; }
++    const body = JSON.parse(Buffer.concat(chunks).toString()) as { messages: Array<{ role: string; content?: unknown }> };
++    const child = JSON.stringify(body.messages.find(m => m.role === 'user')?.content ?? '').includes('LONG_JOB_CHILD');
++    const step = child ? childStep++ : parentStep++;
++    const results = body.messages.filter(m => m.role === 'tool').map(m => String(m.content));
++    const calls: Array<{ name: string; args: object }> = [];
++    if (!child && step === 0) calls.push({ name: 'ctf_challenge_assign', args: { role: 'recon', challenge: 'X' } });
++    if (!child && step === 1) calls.push({ name: 'task', args: { description: 'long job candidate', subagent_type: 'recon', prompt: 'LONG_JOB_CHILD execute one terminal job' } });
++    if (child && step === 0) calls.push({ name: 'ctf_job_run', args: { argv: [process.execPath, '-e', `console.log('early');setTimeout(()=>console.log('late'),${scenario === 'success' ? 16000 : 30000})`], wait_ms: 20, timeout_ms: scenario === 'timeout' ? 250 : 20000, completion: 'terminal' } });
++    if (child && step === 1 && scenario !== 'abort') calls.push({ name: 'ctf_job_read', args: { job: jobID, stream: 'stdout' } });
++    const state = results.some(t => t.includes('"state":"timed_out"')) ? 'timed_out' : results.some(t => t.includes('"state":"exited"')) ? 'exited' : 'unavailable';
++    const content = child ? `FINAL_STATE=${state}; JOB=${jobID}; OUTPUT=${results.join(' ')}` : 'fixture complete';
++    const requestSeq = ++seq; provider.push({ at: Date.now(), seq: requestSeq, child, step, calls, toolResults: results });
++    const base = { id: `chatcmpl-${requestSeq}`, object: 'chat.completion.chunk', created: Math.floor(Date.now() / 1000), model: 'scripted' };
++    res.writeHead(200, { 'content-type': 'text/event-stream' });
++    const delta = calls.length ? { role: 'assistant', tool_calls: calls.map((c, i) => ({ index: i, id: `call_${requestSeq}_${i}`, type: 'function', function: { name: c.name, arguments: JSON.stringify(c.args) } })) } : { role: 'assistant', content };
++    for (const chunk of [{ ...base, choices: [{ index: 0, delta, finish_reason: null }] }, { ...base, choices: [{ index: 0, delta: {}, finish_reason: calls.length ? 'tool_calls' : 'stop' }] }, { ...base, choices: [], usage: { prompt_tokens: 0, completion_tokens: 0, total_tokens: 0 } }]) res.write(`data: ${JSON.stringify(chunk)}\n\n`);
++    res.end('data: [DONE]\n\n');
++  })().catch(e => { observedError = String(e); res.end('{}'); }); });
++  await new Promise<void>(r => stub.listen(0, '127.0.0.1', r));
++  const baseURL = `http://127.0.0.1:${(stub.address() as { port: number }).port}/v1`;
++  process.env.GDEC_LONG_JOB_STUB_KEY = 'local-scripted-only';
++  process.env.HTTP_PROXY = process.env.HTTPS_PROXY = process.env.ALL_PROXY = 'http://127.0.0.1:9'; process.env.NO_PROXY = '127.0.0.1,localhost';
++  await writeFile(join(root, 'opencode.json'), JSON.stringify({ model: 'stub/scripted', enabled_providers: ['stub'], provider: { stub: { npm: '@ai-sdk/openai-compatible', options: { baseURL, apiKey: '{env:GDEC_LONG_JOB_STUB_KEY}' }, models: { scripted: { limit: { context: 32768, output: 2048 } } } } } }));
++  await writeFile(join(root, 'challenges.json'), JSON.stringify({ challenges: [{ id: 'X', statement: 'No-model long-job completion probe' }] }));
++  await writeFile(join(root, 'profile.json'), JSON.stringify({ profileId: 'gdec-long-job', opencode: { configPath: 'opencode.json', binaryPath: '/Users/caihaoming/.opencode/bin/opencode' }, challenges: 'challenges.json', reference: { enabled: false }, budget: { wallClockMs: 45000, maxSteps: 15, maxToolJobs: 2, maxObservableTokens: 100000 }, os: { platform: 'macos' } }));
++  try {
++    result = await launch({ profile: join(root, 'profile.json'), runsRoot: join(root, 'runs'), runId: scenario, onStarted: async context => {
++      client = context.client; rootID = context.rootId;
++      const stream = await client.event.subscribe({}, { throwOnError: true, signal: abortEvents.signal });
++      void (async () => { try { for await (const event of stream.stream) {
++        if (event.type === 'message.part.updated') { const part = event.properties.part; if (part.type === 'tool') events.push({ at: Date.now(), event: 'opencode.tool.part', sessionID: part.sessionID, callID: part.callID, tool: part.tool, state: part.state.status, part }); }
++        else if (event.type === 'session.idle') events.push({ at: Date.now(), event: event.type, sessionID: event.properties.sessionID });
++      } } catch { /* stream closed by test cleanup */ } })();
++    } });
++    await observer;
++    assert.equal(observedError, undefined); assert.equal(result.status, 'completed'); assert.equal(initialState, 'running');
++    assert.equal((taskDuring as { state: { status: string } })?.state.status, 'running');
++    const resource = JSON.parse(await readFile(join(result.runDir!, 'evidence/tool-resources.json'), 'utf8')).find((r: { tool: string }) => r.tool === 'job.run');
++    assert.equal(resource.job, jobID); assert.equal(resource.sessionID, childID); assert.equal(resource.state, 'settled');
++    assert.equal(provider.flatMap(r => r.calls as Array<{ name: string }>).filter(c => c.name === 'ctf_job_run').length, 1);
++    const childAfterInitial = provider.filter(r => r.child && Number(r.at) > initialAt);
++    assert(childAfterInitial.every(r => Number(r.at) >= endedAt - 10), 'no child provider request until terminal settlement');
++    const parentMessages = JSON.parse(await readFile(join(result.runDir!, `evidence/messages-${rootID}.json`), 'utf8'));
++    const finalTasks = parentMessages.flatMap((m: { parts: unknown[] }) => m.parts).filter((p: { tool?: string }) => p.tool === 'task');
++    assert.equal(finalTasks.length, 1);
++    const finalTask = finalTasks[0];
++    assert.equal(finalTask.id, (taskDuring as { id: string }).id);
++    assert.equal(finalTask.callID, (taskDuring as { callID: string }).callID);
++    if (scenario !== 'abort') {
++      assert.equal(finalTask.state.status, 'completed'); assert(finalTask.state.output.includes(`FINAL_STATE=${scenario === 'success' ? 'exited' : 'timed_out'}`));
++      assert(finalTask.state.output.includes(jobID));
++      if (scenario === 'success') { assert(endedAt - initialAt > 15000); assert(finalTask.state.output.includes(Buffer.from('early\nlate\n').toString('base64'))); }
++    } else { assert.equal(finalTask.state.status, 'error'); assert.equal(resource.result, 'cancelled'); assert.equal(childAfterInitial.length, 0); }
++  } catch (e) { failure = String(e); process.exitCode = 1; }
++  finally {
++    abortEvents.abort(); JobManager.prototype.run = originalRun;
++    await writeFile(join(out, 'events.json'), JSON.stringify(events, null, 2));
++    await writeFile(join(out, 'provider.json'), JSON.stringify(provider, null, 2));
++    await writeFile(join(out, 'result.json'), JSON.stringify({ result, failure, observedError, root, rootID, childID, jobID, initialAt, endedAt, initialState, realModelCalls: 0, realModelUsage: 'not applicable: loopback deterministic replacement', notifier: 'none; wrappers only observe' }, null, 2));
++    if (result?.runDir) for (const name of await readdir(join(result.runDir, 'evidence'))) {
++      if (/^(control-audit|tool-resources|bindings|admissions|sessions|messages-.*)\.json$/.test(name)) await writeFile(join(out, name), await readFile(join(result.runDir, 'evidence', name)));
++    }
++    await new Promise<void>(r => { stub.close(() => r()); stub.closeAllConnections(); });
++  }
++  console.log(JSON.stringify({ scenario, result, failure, observedError, jobID, initialAt, endedAt }));
++}

@@ -1,0 +1,149 @@
+[
+  {
+    "info": {
+      "id": "msg_1695c3cb7001aIt3xLrp7Q6Y7x",
+      "sessionID": "ses_e96a3c34affe95aN5OQNtsOa81",
+      "role": "user",
+      "time": {
+        "created": 1792769014967
+      },
+      "agent": "recon",
+      "model": {
+        "providerID": "stub",
+        "modelID": "scripted"
+      }
+    },
+    "parts": [
+      {
+        "id": "prt_1695c3cb80013pyGbV8QZJLQd4",
+        "sessionID": "ses_e96a3c34affe95aN5OQNtsOa81",
+        "messageID": "msg_1695c3cb7001aIt3xLrp7Q6Y7x",
+        "type": "text",
+        "text": "JOINT_A execute your job"
+      }
+    ]
+  },
+  {
+    "info": {
+      "id": "msg_1695c3cc7001GYmz2Hmf2AjB7j",
+      "sessionID": "ses_e96a3c34affe95aN5OQNtsOa81",
+      "role": "assistant",
+      "time": {
+        "created": 1792769014983,
+        "completed": 1792769026261
+      },
+      "parentID": "msg_1695c3cb7001aIt3xLrp7Q6Y7x",
+      "modelID": "scripted",
+      "providerID": "stub",
+      "mode": "recon",
+      "agent": "recon",
+      "path": {
+        "cwd": "/private/var/folders/tn/x1hbkfy17sx0w1lb8kjzzr340000gn/T/g-joint-6Wcxmi/runs/stop-job/opencode",
+        "root": "/"
+      },
+      "cost": 0,
+      "tokens": {
+        "total": 0,
+        "input": 0,
+        "output": 0,
+        "reasoning": 0,
+        "cache": {
+          "read": 0,
+          "write": 0
+        }
+      },
+      "finish": "tool-calls"
+    },
+    "parts": [
+      {
+        "id": "prt_1695c3cdc001WqkTRjBygh0tgB",
+        "sessionID": "ses_e96a3c34affe95aN5OQNtsOa81",
+        "messageID": "msg_1695c3cc7001GYmz2Hmf2AjB7j",
+        "type": "step-start"
+      },
+      {
+        "id": "prt_1695c3cdc002tL5velCFXco6Sa",
+        "sessionID": "ses_e96a3c34affe95aN5OQNtsOa81",
+        "messageID": "msg_1695c3cc7001GYmz2Hmf2AjB7j",
+        "type": "tool",
+        "callID": "call_4_0",
+        "tool": "ctf_job_run",
+        "state": {
+          "status": "completed",
+          "input": {
+            "argv": [
+              "/opt/homebrew/Cellar/node/26.3.0/bin/node",
+              "-e",
+              "const ch=require('child_process').spawn(process.execPath,['-e','setInterval(()=>{},1000)'],{stdio:'inherit'});require('fs').writeFileSync('grandchild.pid',String(ch.pid));console.log('early');setInterval(()=>{},1000)"
+            ],
+            "timeout_ms": 30000
+          },
+          "output": "{\"job\":\"1a86d111-8a02-4463-9288-2864e0324338\",\"state\":\"timed_out\",\"exitCode\":null,\"signal\":\"SIGTERM\",\"reapIncomplete\":false}",
+          "title": "job.run",
+          "metadata": {
+            "truncated": false
+          },
+          "time": {
+            "start": 1792769015005,
+            "end": 1792769026249
+          }
+        }
+      },
+      {
+        "id": "prt_1695c68d0001y4L0dWyXEKda3S",
+        "sessionID": "ses_e96a3c34affe95aN5OQNtsOa81",
+        "messageID": "msg_1695c3cc7001GYmz2Hmf2AjB7j",
+        "type": "step-finish",
+        "reason": "tool-calls",
+        "cost": 0,
+        "tokens": {
+          "total": 0,
+          "input": 0,
+          "output": 0,
+          "reasoning": 0,
+          "cache": {
+            "read": 0,
+            "write": 0
+          }
+        }
+      }
+    ]
+  },
+  {
+    "info": {
+      "id": "msg_1695c68d9001EkM7ER7CR05duu",
+      "sessionID": "ses_e96a3c34affe95aN5OQNtsOa81",
+      "role": "assistant",
+      "time": {
+        "created": 1792769026265,
+        "completed": 1792769026288
+      },
+      "error": {
+        "name": "UnknownError",
+        "data": {
+          "message": "denied: binding lapsed"
+        }
+      },
+      "parentID": "msg_1695c3cb7001aIt3xLrp7Q6Y7x",
+      "modelID": "scripted",
+      "providerID": "stub",
+      "mode": "recon",
+      "agent": "recon",
+      "path": {
+        "cwd": "/private/var/folders/tn/x1hbkfy17sx0w1lb8kjzzr340000gn/T/g-joint-6Wcxmi/runs/stop-job/opencode",
+        "root": "/"
+      },
+      "cost": 0,
+      "tokens": {
+        "input": 0,
+        "output": 0,
+        "reasoning": 0,
+        "cache": {
+          "read": 0,
+          "write": 0
+        }
+      }
+    },
+    "parts": []
+  }
+]

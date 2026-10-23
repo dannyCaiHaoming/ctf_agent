@@ -1,0 +1,68 @@
+[
+  {
+    "command": "npm ci",
+    "log": "dependencies.log",
+    "exit_code": 0,
+    "result": "82 packages installed"
+  },
+  {
+    "command": "npm test -- tests/contract/http-tools.test.ts tests/contract/platform.test.ts tests/contract/state.test.ts",
+    "log": "baseline.log",
+    "exit_code": 0,
+    "result": "16/16"
+  },
+  {
+    "command": "G_PROTECTED_EVIDENCE=<gate> npm test -- tests/contract/g-protected-operations.test.ts",
+    "log": "red.log",
+    "exit_code": 1,
+    "result": "8 failed / 1 passed; 7 missing host implementation and one fixture output path collision"
+  },
+  {
+    "command": "G_PROTECTED_EVIDENCE=<gate> npm test -- tests/contract/g-protected-operations.test.ts",
+    "log": "red-corrected-fixture.log",
+    "exit_code": 1,
+    "result": "7 missing implementation failures / 2 passed"
+  },
+  {
+    "command": "G_PROTECTED_EVIDENCE=<gate> npm test -- tests/contract/g-protected-operations.test.ts",
+    "log": "green-initial.log",
+    "exit_code": 0,
+    "result": "9/9"
+  },
+  {
+    "command": "G_PROTECTED_EVIDENCE=<gate> npm test -- tests/contract/g-protected-operations.test.ts",
+    "log": "targeted.log",
+    "exit_code": 0,
+    "result": "11/11 before transport/business distinction strengthened"
+  },
+  {
+    "command": "npm test -- tests/contract/g-protected-operations.test.ts",
+    "log": "red-transport-business.log",
+    "exit_code": 1,
+    "result": "HTTP 200 business unknown was conflated with transport unknown: 1 failed / 10 passed"
+  },
+  {
+    "command": "npm run typecheck",
+    "log": "typecheck.log",
+    "exit_code": 0,
+    "result": "passed"
+  },
+  {
+    "command": "npm run build",
+    "log": "build.log",
+    "exit_code": 0,
+    "result": "passed"
+  },
+  {
+    "command": "G_PROTECTED_EVIDENCE=<gate> npm test",
+    "log": "full-suite.log",
+    "exit_code": 0,
+    "result": "40 files / 302 tests passed"
+  },
+  {
+    "command": "G_PROTECTED_EVIDENCE=<gate> npm test -- tests/contract/g-protected-operations.test.ts",
+    "log": "targeted-final.log",
+    "exit_code": 0,
+    "result": "11/11 final"
+  }
+]

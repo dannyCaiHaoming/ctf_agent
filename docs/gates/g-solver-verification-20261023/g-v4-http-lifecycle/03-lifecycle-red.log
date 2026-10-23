@@ -1,0 +1,223 @@
+
+ RUN  v2.1.8 /Users/caihaoming/.codex/worktrees/g-v4-http-lifecycle/pentest-agent
+
+ ❯ tests/contract/http-lifecycle.test.ts (8 tests | 7 failed) 50064ms
+   × G-V4 trusted HTTP lifecycle boundary > DNS cancellation settles before release; both authorized and outside servers receive zero connections 15ms
+     → expected { result: 'ok', …(4) } to deeply equal { result: 'cancelled', …(4) }
+   × G-V4 trusted HTTP lifecycle boundary > host deadline expires while DNS waits; released DNS cannot open a socket 2ms
+     → expected { Object (result, beforeRelease, ...) } to deeply equal { result: 'timeout', …(2) }
+   × G-V4 trusted HTTP lifecycle boundary > cancels during TLS connection handshake and closes the real socket 15007ms
+     → expected { result: 'timeout', active: +0 } to deeply equal { result: 'cancelled', active: +0 }
+   × G-V4 trusted HTTP lifecycle boundary > cancels body reading, destroys the socket, records once and frees capacity 15009ms
+     → expected { result: 'timeout', active: +0, …(1) } to deeply equal { result: 'cancelled', …(2) }
+   × G-V4 trusted HTTP lifecycle boundary > cancels while resolving a redirect and never starts the next hop 9ms
+     → expected { result: 'ok', …(2) } to deeply equal { result: 'cancelled', …(2) }
+   × G-V4 trusted HTTP lifecycle boundary > pins a real socket to verified A and never connects to B after DNS changes 20001ms
+     → Test timed out in 20000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+   × G-V4 trusted HTTP lifecycle boundary > isolates session and run stop; refuses stopped sessions before DNS and releases 8 slots 16ms
+     → expected { first: 'ok', second: 'ok', …(7) } to deeply equal { first: 'cancelled', …(8) }
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 7 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/contract/http-lifecycle.test.ts > G-V4 trusted HTTP lifecycle boundary > DNS cancellation settles before release; both authorized and outside servers receive zero connections
+AssertionError: expected { result: 'ok', …(4) } to deeply equal { result: 'cancelled', …(4) }
+
+- Expected
++ Received
+
+  Object {
+-   "allowed": 0,
++   "allowed": 1,
+    "beforeRelease": Object {
+-     "active": 0,
+-     "settled": true,
++     "active": 1,
++     "settled": false,
+    },
+    "outside": 0,
+-   "result": "cancelled",
++   "result": "ok",
+    "results": 1,
+  }
+
+ ❯ tests/contract/http-lifecycle.test.ts:87:8
+     85|     const result = await pending;
+     86|     expect({ result, beforeRelease, allowed, outside, results: host.re…
+     87|       .toEqual({ result: 'cancelled', beforeRelease: { settled: true, …
+       |        ^
+     88|   });
+     89| 
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/7]⎯
+
+ FAIL  tests/contract/http-lifecycle.test.ts > G-V4 trusted HTTP lifecycle boundary > host deadline expires while DNS waits; released DNS cannot open a socket
+AssertionError: expected { Object (result, beforeRelease, ...) } to deeply equal { result: 'timeout', …(2) }
+
+- Expected
++ Received
+
+  Object {
+-   "beforeRelease": 0,
+-   "connections": 0,
+-   "result": "timeout",
++   "beforeRelease": 1,
++   "connections": 1,
++   "result": "ok",
+  }
+
+ ❯ tests/contract/http-lifecycle.test.ts:102:67
+    100|     gate.resolve(['127.0.0.1']);
+    101|     vi.useRealTimers();
+    102|     expect({ result: await pending, beforeRelease, connections }).toEq…
+       |                                                                   ^
+    103|   });
+    104| 
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/7]⎯
+
+ FAIL  tests/contract/http-lifecycle.test.ts > G-V4 trusted HTTP lifecycle boundary > cancels during TLS connection handshake and closes the real socket
+AssertionError: expected { result: 'timeout', active: +0 } to deeply equal { result: 'cancelled', active: +0 }
+
+- Expected
++ Received
+
+  Object {
+    "active": 0,
+-   "result": "cancelled",
++   "result": "timeout",
+  }
+
+ ❯ tests/contract/http-lifecycle.test.ts:118:50
+    116|     const result = await pending;
+    117|     await closed.promise;
+    118|     expect({ result, active: host.active.size }).toEqual({ result: 'ca…
+       |                                                  ^
+    119|   });
+    120| 
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/7]⎯
+
+ FAIL  tests/contract/http-lifecycle.test.ts > G-V4 trusted HTTP lifecycle boundary > cancels body reading, destroys the socket, records once and frees capacity
+AssertionError: expected { result: 'timeout', active: +0, …(1) } to deeply equal { result: 'cancelled', …(2) }
+
+- Expected
++ Received
+
+  Object {
+    "active": 0,
+    "records": 1,
+-   "result": "cancelled",
++   "result": "timeout",
+  }
+
+ ❯ tests/contract/http-lifecycle.test.ts:130:80
+    128|     await reading.promise; host.stopRun('r1');
+    129|     const result = await pending; await closed.promise;
+    130|     expect({ result, active: host.active.size, records: host.results.l…
+       |                                                                                ^
+    131|   });
+    132| 
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[4/7]⎯
+
+ FAIL  tests/contract/http-lifecycle.test.ts > G-V4 trusted HTTP lifecycle boundary > cancels while resolving a redirect and never starts the next hop
+AssertionError: expected { result: 'ok', …(2) } to deeply equal { result: 'cancelled', …(2) }
+
+- Expected
++ Received
+
+  Object {
+-   "activeBeforeRelease": 0,
+-   "requests": 1,
+-   "result": "cancelled",
++   "activeBeforeRelease": 1,
++   "requests": 6,
++   "result": "ok",
+  }
+
+ ❯ tests/contract/http-lifecycle.test.ts:145:70
+    143|     await new Promise<void>(r => setImmediate(r));
+    144|     const activeBeforeRelease = host.active.size; gate.resolve(['127.0…
+    145|     expect({ result: await pending, activeBeforeRelease, requests }).t…
+       |                                                                      ^
+    146|   });
+    147| 
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[5/7]⎯
+
+ FAIL  tests/contract/http-lifecycle.test.ts > G-V4 trusted HTTP lifecycle boundary > pins a real socket to verified A and never connects to B after DNS changes
+Error: Test timed out in 20000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[6/7]⎯
+
+ FAIL  tests/contract/http-lifecycle.test.ts > G-V4 trusted HTTP lifecycle boundary > isolates session and run stop; refuses stopped sessions before DNS and releases 8 slots
+AssertionError: expected { first: 'ok', second: 'ok', …(7) } to deeply equal { first: 'cancelled', …(8) }
+
+- Expected
++ Received
+
+  Object {
+    "active": 0,
+-   "afterRun": 1,
+-   "afterSession": 2,
+-   "connections": 1,
+-   "first": "cancelled",
++   "afterRun": 8,
++   "afterSession": 8,
++   "connections": 8,
++   "first": "ok",
+    "records": 8,
+    "rest": Array [
+-     "cancelled",
+-     "cancelled",
+-     "cancelled",
+-     "cancelled",
+-     "cancelled",
++     "ok",
++     "ok",
++     "ok",
++     "ok",
++     "ok",
+    ],
+-   "second": "cancelled",
++   "second": "ok",
+    "third": "ok",
+  }
+
+ ❯ tests/contract/http-lifecycle.test.ts:192:8
+    190|     gate.resolve(['127.0.0.1']);
+    191|     expect({ first: await first, second: await second, third: await th…
+    192|       .toEqual({ first: 'cancelled', second: 'cancelled', third: 'ok',…
+       |        ^
+    193|     // A different active run can register and complete again after qu…
+    194|     expect(await host.request(adapter, { url: `http://fixture.test:${p…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[7/7]⎯
+
+⎯⎯⎯⎯⎯⎯ Unhandled Errors ⎯⎯⎯⎯⎯⎯
+
+Vitest caught 1 unhandled error during the test run.
+This might cause false positive tests. Resolve unhandled errors to make sure your tests are not affected.
+
+⎯⎯⎯⎯⎯ Uncaught Exception ⎯⎯⎯⎯⎯
+Error: listen EADDRNOTAVAIL: address not available 127.0.0.2:60573
+ ❯ Server.setupListenHandle [as _listen2] node:net:1986:21
+ ❯ listenInCluster node:net:2065:12
+ ❯ node:net:2274:7
+ ❯ processTicksAndRejections node:internal/process/task_queues:90:21
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯
+Serialized Error: { code: 'EADDRNOTAVAIL', errno: -49, syscall: 'listen', address: '127.0.0.2', port: 60573 }
+This error originated in "tests/contract/http-lifecycle.test.ts" test file. It doesn't mean the error was thrown inside the file itself, but while it was running.
+The latest test that might've caused the error is "pins a real socket to verified A and never connects to B after DNS changes". It might mean one of the following:
+- The error was thrown, while Vitest was running this test.
+- If the error occurred after the test had been completed, this was the last documented test before it was thrown.
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯
+
+ Test Files  1 failed (1)
+      Tests  7 failed | 1 passed (8)
+     Errors  1 error
+   Start at  20:24:24
+   Duration  50.27s (transform 23ms, setup 0ms, collect 22ms, tests 50.06s, environment 0ms, prepare 34ms)
+

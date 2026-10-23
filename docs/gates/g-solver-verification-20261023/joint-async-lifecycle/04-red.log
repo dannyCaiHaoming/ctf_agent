@@ -1,0 +1,61 @@
+
+ RUN  v2.1.8 /Users/caihaoming/.codex/worktrees/g-joint-async-lifecycle/pentest-agent
+
+ ❯ tests/contract/g-async-lifecycle.test.ts (4 tests | 3 failed) 585ms
+   × parent next admission preserves starting async dispatch and delayed child binding 5ms
+     → promise rejected "Error: denied: unbound session { …(1) }" instead of resolving
+   × early task after with trusted child metadata keeps exact child pending across admission 1ms
+     → promise rejected "Error: denied: unbound session { …(1) }" instead of resolving
+   × unknown dispatch outcome cannot free pending and rematch a late child 2ms
+     → promise resolved "{ challenge: 'X' }" instead of rejecting
+   ✓ default job.run returns terminal without wait/completion modes 576ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 3 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/contract/g-async-lifecycle.test.ts > parent next admission preserves starting async dispatch and delayed child binding
+AssertionError: promise rejected "Error: denied: unbound session { …(1) }" instead of resolving
+ ❯ tests/contract/g-async-lifecycle.test.ts:6:218
+
+
+Caused by: Error: denied: unbound session
+ ❯ fail apps/launcher/src/control-service.ts:368:38
+ ❯ apps/launcher/src/control-service.ts:376:25
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯
+Serialized Error: { detail: '{"detail":"no pending dispatch","sdkParentID":"root","sdkAgent":"recon"}' }
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/3]⎯
+
+ FAIL  tests/contract/g-async-lifecycle.test.ts > early task after with trusted child metadata keeps exact child pending across admission
+AssertionError: promise rejected "Error: denied: unbound session { …(1) }" instead of resolving
+ ❯ tests/contract/g-async-lifecycle.test.ts:7:432
+
+
+Caused by: Error: denied: unbound session
+ ❯ fail apps/launcher/src/control-service.ts:368:38
+ ❯ apps/launcher/src/control-service.ts:376:25
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯
+Serialized Error: { detail: '{"detail":"no pending dispatch","sdkParentID":"root","sdkAgent":"recon"}' }
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/3]⎯
+
+ FAIL  tests/contract/g-async-lifecycle.test.ts > unknown dispatch outcome cannot free pending and rematch a late child
+AssertionError: promise resolved "{ challenge: 'X' }" instead of rejecting
+
+- Expected
++ Received
+
+- [Error: rejected promise]
++ Object {
++   "challenge": "X",
++ }
+
+ ❯ tests/contract/g-async-lifecycle.test.ts:8:335
+
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/3]⎯
+
+ Test Files  1 failed (1)
+      Tests  3 failed | 1 passed (4)
+   Start at  23:02:38
+   Duration  871ms (transform 45ms, setup 0ms, collect 53ms, tests 585ms, environment 0ms, prepare 51ms)
+

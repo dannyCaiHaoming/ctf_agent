@@ -1,0 +1,91 @@
+{
+  "seen": [
+    {
+      "path": "/login"
+    },
+    {
+      "path": "/proof",
+      "cookie": "session=fresh-verifier"
+    }
+  ],
+  "intent": {
+    "session": "verify",
+    "challenge": "X",
+    "candidateHash": "73475cb40a568e8da8a045ced110137e159f890ac4da883b6b17dc651b3a8049",
+    "dependenciesHash": "74d9cf8340ad66d33558f475262249c862f987cccfb7201dc7cb189ceee95b08"
+  },
+  "evidence": [
+    {
+      "session": "verify",
+      "challenge": "X",
+      "candidateHash": "73475cb40a568e8da8a045ced110137e159f890ac4da883b6b17dc651b3a8049",
+      "dependenciesHash": "74d9cf8340ad66d33558f475262249c862f987cccfb7201dc7cb189ceee95b08",
+      "requestHash": "7557dc8ee248e471e68610222da1eb9e29dca7b8840efd5378c8eec8de729959",
+      "responseHash": "c4191f777e598eb7bf4112e77168fe82ed6901305a4579a37b6be1f90ccd8b04",
+      "response": {
+        "status": 200,
+        "headers": {
+          "set-cookie": [
+            "session=fresh-verifier; Path=/"
+          ],
+          "date": "Fri, 23 Oct 2026 13:00:24 GMT",
+          "connection": "close",
+          "content-length": "5"
+        },
+        "headersTruncated": false,
+        "redirectChain": [
+          {
+            "origin": "http://127.0.0.1:52860",
+            "path": "/login",
+            "status": 200
+          }
+        ],
+        "bodyPath": "work/http/1.bin",
+        "bodyBytes": 5,
+        "bodyTruncated": false,
+        "preview": "ready"
+      }
+    },
+    {
+      "session": "verify",
+      "challenge": "X",
+      "candidateHash": "73475cb40a568e8da8a045ced110137e159f890ac4da883b6b17dc651b3a8049",
+      "dependenciesHash": "74d9cf8340ad66d33558f475262249c862f987cccfb7201dc7cb189ceee95b08",
+      "requestHash": "477c1d27456c41b3b368a9a01123235012e780f4f60f1c4b2ceea9745675941f",
+      "responseHash": "ab5731c31862fb30c0ea5af40614a36a66a7bc22e488c1126eb1d89fa338603e",
+      "response": {
+        "status": 200,
+        "headers": {
+          "date": "Fri, 23 Oct 2026 13:00:24 GMT",
+          "connection": "close",
+          "content-length": "2"
+        },
+        "headersTruncated": false,
+        "redirectChain": [
+          {
+            "origin": "http://127.0.0.1:52860",
+            "path": "/proof",
+            "status": 200
+          }
+        ],
+        "bodyPath": "work/http/2.bin",
+        "bodyBytes": 2,
+        "bodyTruncated": false,
+        "preview": "42"
+      }
+    }
+  ],
+  "attempted": [
+    0,
+    1
+  ],
+  "exactBodyHash": "73475cb40a568e8da8a045ced110137e159f890ac4da883b6b17dc651b3a8049",
+  "trustedSafetySource": "fixture author only; D issuer not implemented",
+  "deniedWithoutNetwork": [
+    "changed candidate/dependencies/session/challenge",
+    "out of order",
+    "duplicate",
+    "one-shot GET",
+    "unknown GET"
+  ]
+}

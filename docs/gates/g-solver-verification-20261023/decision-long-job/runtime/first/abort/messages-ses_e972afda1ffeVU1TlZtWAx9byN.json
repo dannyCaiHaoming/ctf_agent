@@ -1,0 +1,99 @@
+[
+  {
+    "info": {
+      "id": "msg_168d50260001wiSz1GsYwmxGBv",
+      "sessionID": "ses_e972afda1ffeVU1TlZtWAx9byN",
+      "role": "user",
+      "time": {
+        "created": 1792760152673
+      },
+      "agent": "recon",
+      "model": {
+        "providerID": "stub",
+        "modelID": "scripted"
+      }
+    },
+    "parts": [
+      {
+        "id": "prt_168d50262001USSHgw8560nMyW",
+        "sessionID": "ses_e972afda1ffeVU1TlZtWAx9byN",
+        "messageID": "msg_168d50260001wiSz1GsYwmxGBv",
+        "type": "text",
+        "text": "LONG_JOB_CHILD execute one terminal job"
+      }
+    ]
+  },
+  {
+    "info": {
+      "id": "msg_168d5026c001DigcMDhRrwfnyi",
+      "sessionID": "ses_e972afda1ffeVU1TlZtWAx9byN",
+      "role": "assistant",
+      "time": {
+        "created": 1792760152684,
+        "completed": 1792760153036
+      },
+      "error": {
+        "name": "MessageAbortedError",
+        "data": {
+          "message": "Aborted"
+        }
+      },
+      "parentID": "msg_168d50260001wiSz1GsYwmxGBv",
+      "modelID": "scripted",
+      "providerID": "stub",
+      "mode": "recon",
+      "agent": "recon",
+      "path": {
+        "cwd": "/private/var/folders/tn/x1hbkfy17sx0w1lb8kjzzr340000gn/T/gdec-long-job-4Qg210/runs/abort/opencode",
+        "root": "/"
+      },
+      "cost": 0,
+      "tokens": {
+        "input": 0,
+        "output": 0,
+        "reasoning": 0,
+        "cache": {
+          "read": 0,
+          "write": 0
+        }
+      }
+    },
+    "parts": [
+      {
+        "id": "prt_168d50275001EMUQG6dFQlL7Nh",
+        "sessionID": "ses_e972afda1ffeVU1TlZtWAx9byN",
+        "messageID": "msg_168d5026c001DigcMDhRrwfnyi",
+        "type": "step-start"
+      },
+      {
+        "id": "prt_168d50276001yazx1pjpK5b30L",
+        "sessionID": "ses_e972afda1ffeVU1TlZtWAx9byN",
+        "messageID": "msg_168d5026c001DigcMDhRrwfnyi",
+        "type": "tool",
+        "callID": "call_3_0",
+        "tool": "ctf_job_run",
+        "state": {
+          "status": "error",
+          "input": {
+            "argv": [
+              "/opt/homebrew/Cellar/node/26.3.0/bin/node",
+              "-e",
+              "console.log('early');setTimeout(()=>console.log('late'),30000)"
+            ],
+            "wait_ms": 20,
+            "timeout_ms": 20000,
+            "completion": "terminal"
+          },
+          "error": "Tool execution aborted",
+          "metadata": {
+            "interrupted": true
+          },
+          "time": {
+            "start": 1792760152695,
+            "end": 1792760153035
+          }
+        }
+      }
+    ]
+  }
+]

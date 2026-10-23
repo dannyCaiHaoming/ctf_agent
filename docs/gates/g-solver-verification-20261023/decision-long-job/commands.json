@@ -1,0 +1,77 @@
+[
+  {
+    "command": "npm ci",
+    "log": "install.log",
+    "exitCode": 0
+  },
+  {
+    "command": "npx vitest run tests/contract/slow-tools.test.ts -t \"terminal candidate\"",
+    "log": "01-red.log",
+    "exitCode": 1
+  },
+  {
+    "command": "npx vitest run tests/contract/slow-tools.test.ts -t \"terminal candidate\"",
+    "log": "02-green.log",
+    "exitCode": 0
+  },
+  {
+    "command": "npx tsx tests/manual/g-long-job-decision.ts first",
+    "log": "03-runtime-first.log",
+    "exitCode": 0
+  },
+  {
+    "command": "npm run typecheck",
+    "log": "04-typecheck.log",
+    "exitCode": 2
+  },
+  {
+    "command": "npx vitest run tests/contract/slow-tools.test.ts tests/contract/job-tools.test.ts",
+    "log": "05-directed.log",
+    "exitCode": 0
+  },
+  {
+    "command": "npm run typecheck",
+    "log": "06-typecheck-final.log",
+    "exitCode": 0
+  },
+  {
+    "command": "npm run build",
+    "log": "07-build.log",
+    "exitCode": 0
+  },
+  {
+    "command": "npm test",
+    "log": "08-suite.log",
+    "exitCode": 0
+  },
+  {
+    "command": "npx tsx tests/manual/g-long-job-decision.ts final",
+    "log": "09-runtime-final.log",
+    "exitCode": 0
+  },
+  {
+    "command": "offline assertion: all parent tasks completed (incorrect abort expectation)",
+    "log": "10-artifact-assertion-initial.log",
+    "exitCode": 1
+  },
+  {
+    "command": "npx tsx tests/manual/g-long-job-decision.ts checked",
+    "log": "11-runtime-checked.log",
+    "exitCode": 0
+  },
+  {
+    "command": "npm run typecheck",
+    "log": "12-typecheck-checked.log",
+    "exitCode": 0
+  },
+  {
+    "command": "python3 docs/gates/g-solver-verification-20261023/decision-long-job/verify-evidence.py",
+    "log": "13-evidence-check.log",
+    "exitCode": 0
+  },
+  {
+    "command": "git diff --check",
+    "log": "no whitespace errors",
+    "exitCode": 0
+  }
+]

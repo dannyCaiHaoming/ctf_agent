@@ -1,0 +1,206 @@
+[
+  {
+    "seq": 1,
+    "t": 911,
+    "at": 1792743167419,
+    "sessionID": "ses_e982e2a4affef06ov53l66j9zB",
+    "op": "bind",
+    "allow": true,
+    "detail": {
+      "role": "coordinator",
+      "via": "root"
+    }
+  },
+  {
+    "seq": 2,
+    "t": 943,
+    "at": 1792743167451,
+    "sessionID": "ses_e982e2a4affef06ov53l66j9zB",
+    "op": "chat.message",
+    "allow": true
+  },
+  {
+    "seq": 3,
+    "t": 1550,
+    "at": 1792743168058,
+    "sessionID": "ses_e982e2a4affef06ov53l66j9zB",
+    "op": "model.call",
+    "allow": true,
+    "detail": {
+      "maxOutputTokens": 100000,
+      "admitNo": 1,
+      "role": "coordinator"
+    }
+  },
+  {
+    "seq": 4,
+    "t": 1637,
+    "at": 1792743168145,
+    "sessionID": "ses_e982e2a4affef06ov53l66j9zB",
+    "op": "assign",
+    "allow": true,
+    "detail": {
+      "role": "recon",
+      "challenge": "X"
+    }
+  },
+  {
+    "seq": 5,
+    "t": 1637,
+    "at": 1792743168145,
+    "sessionID": "ses_e982e2a4affef06ov53l66j9zB",
+    "op": "tool.before",
+    "allow": true,
+    "detail": {
+      "tool": "ctf_challenge_assign"
+    }
+  },
+  {
+    "seq": 6,
+    "t": 1641,
+    "at": 1792743168149,
+    "sessionID": "ses_e982e2a4affef06ov53l66j9zB",
+    "op": "tool.before",
+    "allow": true,
+    "detail": {
+      "tool": "task"
+    }
+  },
+  {
+    "seq": 7,
+    "t": 1642,
+    "at": 1792743168150,
+    "sessionID": "ses_e982e2a4affef06ov53l66j9zB",
+    "op": "tool.execute",
+    "allow": true
+  },
+  {
+    "seq": 8,
+    "t": 1649,
+    "at": 1792743168157,
+    "sessionID": "ses_e982e2768ffeUKFjtUPIIKnQN7",
+    "op": "bind",
+    "allow": true,
+    "detail": {
+      "role": "recon",
+      "via": "dispatch",
+      "sdkParentID": "ses_e982e2a4affef06ov53l66j9zB",
+      "sdkAgent": "recon",
+      "callID": "call_1_1",
+      "sdkMs": 1,
+      "challengeId": "X"
+    }
+  },
+  {
+    "seq": 9,
+    "t": 1649,
+    "at": 1792743168157,
+    "sessionID": "ses_e982e2768ffeUKFjtUPIIKnQN7",
+    "op": "chat.message",
+    "allow": true
+  },
+  {
+    "seq": 10,
+    "t": 1649,
+    "at": 1792743168157,
+    "sessionID": "ses_e982e2a4affef06ov53l66j9zB",
+    "op": "tool.after",
+    "allow": true,
+    "detail": {
+      "tool": "ctf_challenge_assign"
+    }
+  },
+  {
+    "seq": 11,
+    "t": 1672,
+    "at": 1792743168180,
+    "sessionID": "ses_e982e2768ffeUKFjtUPIIKnQN7",
+    "op": "model.call",
+    "allow": true,
+    "detail": {
+      "maxOutputTokens": 100000,
+      "admitNo": 2,
+      "role": "recon"
+    }
+  },
+  {
+    "seq": 12,
+    "t": 1681,
+    "at": 1792743168189,
+    "sessionID": "ses_e982e2a4affef06ov53l66j9zB",
+    "op": "task.correlate",
+    "allow": true,
+    "detail": {
+      "callID": "call_1_1",
+      "childSessionID": "ses_e982e2768ffeUKFjtUPIIKnQN7",
+      "childBoundToCaller": true
+    }
+  },
+  {
+    "seq": 13,
+    "t": 1681,
+    "at": 1792743168189,
+    "sessionID": "ses_e982e2a4affef06ov53l66j9zB",
+    "op": "tool.after",
+    "allow": true,
+    "detail": {
+      "tool": "task"
+    }
+  },
+  {
+    "seq": 14,
+    "t": 1697,
+    "at": 1792743168205,
+    "sessionID": "ses_e982e2a4affef06ov53l66j9zB",
+    "op": "model.call",
+    "allow": true,
+    "detail": {
+      "maxOutputTokens": 100000,
+      "admitNo": 3,
+      "role": "coordinator"
+    }
+  },
+  {
+    "seq": 15,
+    "t": 2991,
+    "at": 1792743169499,
+    "sessionID": "ses_e982e2a4affef06ov53l66j9zB",
+    "op": "stop_marked",
+    "allow": true,
+    "detail": {
+      "reason": "probe_done",
+      "sessions": [
+        "ses_e982e2a4affef06ov53l66j9zB",
+        "ses_e982e2768ffeUKFjtUPIIKnQN7"
+      ]
+    }
+  },
+  {
+    "seq": 16,
+    "t": 3002,
+    "at": 1792743169510,
+    "sessionID": "ses_e982e2a4affef06ov53l66j9zB",
+    "op": "stop_enumerated",
+    "allow": true,
+    "detail": {
+      "sessions": [
+        "ses_e982e2a4affef06ov53l66j9zB",
+        "ses_e982e2768ffeUKFjtUPIIKnQN7"
+      ]
+    }
+  },
+  {
+    "seq": 17,
+    "t": 3013,
+    "at": 1792743169521,
+    "sessionID": "ses_e982e2a4affef06ov53l66j9zB",
+    "op": "aborted",
+    "allow": true,
+    "detail": {
+      "sessions": [
+        "ses_e982e2a4affef06ov53l66j9zB",
+        "ses_e982e2768ffeUKFjtUPIIKnQN7"
+      ]
+    }
+  }
+]

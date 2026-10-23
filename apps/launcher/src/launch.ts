@@ -18,8 +18,7 @@ import { loadOpenCodeConfig, startManagedOpenCode } from '@ctf/opencode-bridge';
 import type { OpencodeClient } from '@opencode-ai/sdk/v2';
 import { Blocked } from './blocked.js';
 import { prepareRun, type PreparedChallenge } from './run-prep.js';
-import { INTAKE_TOOLS } from './intake-tools.js';
-import { ControlService, summarizeUsage, type Message, type SessionUsage } from './control-service.js';
+import { ControlService, MANAGED_TOOLS, summarizeUsage, type Message, type SessionUsage } from './control-service.js';
 import { startControlRpc } from './control-rpc.js';
 import { loadLocalEnv } from '../../cli/src/composition/localEnv.js';
 import { loadReleaseProfile } from '../../cli/src/composition/releaseProfile.js';
@@ -110,9 +109,9 @@ function assertNoAsk(value: unknown): void {
 export async function launch(options: LaunchOptions): Promise<{ code: number; status: string; runDir?: string }> {
   // Control service RPC: the handler is attached once the SDK client exists; until then every request is denied.
   let control: ControlService | undefined;
-  const rpc = await startControlRpc(async (sessionID, operation, input) => {
+  const rpc = await startControlRpc(async (sessionID, operation, input, signal) => {
     if (!control) throw new Error('control service not ready');
-    return control.handle(sessionID, operation, input);
+    return control.handle(sessionID, operation, input, signal);
   });
   let closed = false;
   const closeRpc = async () => { if (!closed) { closed = true; await rpc.close(); } };
@@ -194,7 +193,7 @@ async function runLaunch(options: LaunchOptions, rpc: { url: string; token: stri
   // 4. Merge runtime fields and start OpenCode through the managed launcher.
   const pluginEntry = join(repoRoot, 'apps', 'opencode-plugin', 'src', 'entry.ts');
   const config = {
-    ...baseConfig, default_agent: COORDINATOR, plugin: [[pluginEntry, { controlUrl: rpc.url, controlToken: rpc.token, tools: INTAKE_TOOLS }]], model: loaded.config.model, small_model: loaded.config.model,
+    ...baseConfig, default_agent: COORDINATOR, plugin: [[pluginEntry, { controlUrl: rpc.url, controlToken: rpc.token, tools: MANAGED_TOOLS }]], model: loaded.config.model, small_model: loaded.config.model,
     provider: loaded.config.provider, ...(loaded.config.enabled_providers ? { enabled_providers: loaded.config.enabled_providers } : {})
   };
   const deadlineMs = options.deadlineMs ?? profile.budget.wallClockMs;
@@ -212,7 +211,7 @@ async function runLaunch(options: LaunchOptions, rpc: { url: string; token: stri
   let status = 'completed';
   const sessionIds = new Set<string>();
   const deadlineAt = Date.now() + deadlineMs; // one deadline for the launcher loop and for every binding's expiry
-  const control = new ControlService({ client, budget: { maxModelCalls: profile.budget.maxSteps, maxObservableTokens: profile.budget.maxObservableTokens },
+  const control = new ControlService({ client, runId, budget: { maxModelCalls: profile.budget.maxSteps, maxObservableTokens: profile.budget.maxObservableTokens },
     expiresAt: deadlineAt, workdir: real.opencode, skillRoot: join(configDirectory, 'skills'), challenges: prepared });
   attach(control);
   const fail = (event: string, cause: unknown) => { status = 'failed'; mark(event, scrub(String(cause))); };
@@ -254,11 +253,13 @@ async function runLaunch(options: LaunchOptions, rpc: { url: string; token: stri
         await delay(500);
         break;
       }
-      const current = (await client.session.status({}, { throwOnError: true })).data?.[rootId];
+      const statuses = (await client.session.status({}, { throwOnError: true })).data;
+      if (!statuses) throw new Error('session status unavailable');
+      const current = statuses[rootId];
       if (!current || current.type === 'idle') {
         const messages = (await client.session.messages({ sessionID: rootId }, { throwOnError: true })).data ?? [];
         const done = messages.some(m => m.info.role === 'assistant' && m.info.time.completed !== undefined);
-        idleSeen = done ? idleSeen + 1 : 0;
+        idleSeen = done && !control.hasOutstandingWork(statuses) ? idleSeen + 1 : 0;
         if (idleSeen >= 2) { mark('root_idle'); await control.stopAll('completed'); break; }
       } else idleSeen = 0;
       await delay(500);
@@ -267,6 +268,7 @@ async function runLaunch(options: LaunchOptions, rpc: { url: string; token: stri
     fail('error', cause);
     await control.stopAll('error');
   }
+  await save(join(real.evidence, 'task-executions.json'), control.executionSnapshot());
   // 5. Common best-effort finalization while the SDK remains available. Each query/write is independent.
   for (const id of control.bindings.keys()) sessionIds.add(id);
   if (rootId) await descendants(rootId);
@@ -327,6 +329,7 @@ async function runLaunch(options: LaunchOptions, rpc: { url: string; token: stri
   await save(join(real.evidence, 'bindings.json'), [...control.bindings.values()]);
   await save(join(real.evidence, 'admissions.json'), control.audit.filter(r => r.op === 'model.call'));
   await save(join(real.evidence, 'control-audit.json'), control.audit);
+  await save(join(real.evidence, 'tool-resources.json'), control.resourceSnapshot());
   await save(join(real.evidence, 'assets.json'), { productRevision, copies });
   await save(join(real.state, 'run.json'), { runId, status, rootSessionId: rootId || null, sessions: [...sessionIds],
     deadlineMs, opencodeVersion: engine.version, model: loaded.config.model, configSha256: sha256(JSON.stringify({ ...config, plugin: undefined })), productRevision,

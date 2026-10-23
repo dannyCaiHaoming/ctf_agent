@@ -69,3 +69,7 @@ npm run test:deterministic
 npm run typecheck
 npm run build
 ```
+
+<!-- handoff:learnings:begin -->
+G 的設計選擇、驗證狀態與限制統一見 [G 詳細 design](docs/superpowers/specs/2026-10-23-design-v1-g-solver-minimal.md)。原 handoff 的 G-V6「已驗證」沒有可核對證據，不作為完成依據；臨時決策不在本檔維護副本。
+<!-- handoff:learnings:end -->

@@ -1,0 +1,146 @@
+// Scripted dialogue exists only in this acceptance fixture; production launch/C never chooses the team sequence.
+import assert from 'node:assert/strict';
+import { createHash } from 'node:crypto';
+import { createServer } from 'node:http';
+import { mkdir, mkdtemp, readFile, readdir, writeFile } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join, resolve } from 'node:path';
+import { launch } from '../../apps/launcher/src/launch.js';
+
+const out = resolve('docs/gates/g-solver-verification-20261023/integration-20261024/main-team-runtime');
+await mkdir(out); // Refuse to overwrite a previous batch.
+const root = await mkdtemp(join(tmpdir(), 'g-team-runtime-'));
+const provider: any[] = [], events: any[] = [], targetRequests: string[] = [];
+const steps = new Map<string, number>();
+let seq = 0, phase = 0, solverID = '', currentRole = '', failure: string | undefined;
+let result: Awaited<ReturnType<typeof launch>> | undefined;
+const abort = new AbortController();
+const target = createServer((q, r) => { targetRequests.push(q.url!); r.writeHead(200, { 'content-type': 'text/plain' }); r.end('authorized-local-observation'); });
+await new Promise<void>(r => target.listen(0, '127.0.0.1', r));
+const targetURL = `http://127.0.0.1:${(target.address() as { port: number }).port}`;
+const stub = createServer((q, r) => { void (async () => {
+  assert(q.url?.endsWith('/chat/completions'));
+  const chunks: Buffer[] = []; for await (const c of q) chunks.push(Buffer.from(c));
+  const body = JSON.parse(Buffer.concat(chunks).toString());
+  const first = JSON.stringify(body.messages.find((m: any) => m.role === 'user')?.content ?? '');
+  const who = /TEAM_ROLE_(intake|recon|domain-solver|engineer|verifier|reference|strategy)/.exec(first)?.[1] ?? 'coordinator';
+  const step = steps.get(who) ?? 0; steps.set(who, step + 1);
+  const all = JSON.stringify(body.messages);
+  const toolResults = body.messages.filter((m: any) => m.role === 'tool').map((m: any) => String(m.content));
+  const calls: Array<{ name: string; args: object }> = [];
+  const call = (name: string, args: object = {}) => calls.push({ name, args });
+  const task = (role: string, background = false, taskID?: string) => call('task', {
+    subagent_type: role, description: `TEAM ${role}`, prompt: `TEAM_ROLE_${role}${taskID ? ' TEAM_REPAIR correct the failed script in the same task' : ''}`,
+    ...(background ? { background: true } : {}), ...(taskID ? { task_id: taskID } : {})
+  });
+  let content = '';
+  if (who === 'coordinator') {
+    // Parent may idle after an early ref; only a native completion advances the fixture.
+    switch (phase) {
+      case 0: task('intake'); phase++; break;
+      case 1: assert(all.includes('INTAKE_DONE')); task('reference'); phase++; break;
+      case 2: task('strategy'); phase++; break;
+      case 3: call('ctf_challenge_assign', { challenge: 'X', role: 'recon' }); phase++; break;
+      case 4: task('recon', true); currentRole = 'recon'; phase++; break;
+      case 5: if (all.includes('RECON_DONE')) { call('ctf_challenge_assign', { challenge: 'X', role: 'domain-solver' }); phase++; } break;
+      case 6: task('domain-solver', true); currentRole = 'domain-solver'; phase++; break;
+      case 7:
+        if (all.includes('SOLVER_NEEDS_FIX')) {
+          const initial = toolResults.filter((s: string) => s.includes('Background task started')).at(-1);
+          solverID = /<task id="(ses_[\w]+)"/.exec(initial ?? '')?.[1] ?? '';
+          assert(solverID); task('domain-solver', true, solverID); phase++;
+        } break;
+      case 8: if (all.includes('SOLVER_FIXED')) { call('ctf_challenge_assign', { challenge: 'X', role: 'engineer' }); phase++; } break;
+      case 9: task('engineer', true); currentRole = 'engineer'; phase++; break;
+      case 10: if (all.includes('ENGINEER_LOCAL_ONLY')) { call('ctf_challenge_assign', { challenge: 'X', role: 'verifier' }); phase++; } break;
+      case 11: task('verifier', true); currentRole = 'verifier'; phase++; break;
+      case 12: if (all.includes('VERIFIER_LOCAL_ONLY')) { content = 'G_WIRING_COMPLETE; D publication/candidate/verification unavailable; no solved claim'; phase++; } break;
+      default: content = 'G_WIRING_COMPLETE';
+    }
+    content ||= `WAIT_FOR_${currentRole || 'TEAM'}`;
+  } else if (who === 'intake') {
+    if (step === 0) call('ctf_challenge_list');
+    else if (step === 1) call('ctf_challenge_read', { id: 'X', path: 'numbers.json' });
+    else content = 'INTAKE_DONE X numbers.json public materials; authorized loopback target; oracle unavailable';
+  } else if (who === 'reference' || who === 'strategy') {
+    content = `${who.toUpperCase()}_DONE: use supplied materials; preserve evidence, counterexamples and unknowns`;
+  } else if (who === 'recon') {
+    if (step === 0) call('ctf_workspace_list');
+    else if (step === 1) call('ctf_http_request', { url: targetURL, timeout_ms: 3000 });
+    else if (step === 2) call('ctf_workspace_write', { path: 'work/observation.txt', content: 'local HTTP observation; private until D publishes' });
+    else content = 'RECON_DONE authorized-local-observation; work is private; no completion oracle';
+  } else if (who === 'domain-solver') {
+    if (step === 0) call('ctf_job_run', { argv: [process.execPath, '-e', "console.error('fixture-script-error');process.exit(1)"], timeout_ms: 5000 });
+    else if (step === 1) content = 'SOLVER_NEEDS_FIX script exit 1; repair locally in the same task';
+    else if (step === 2) { assert(all.includes('TEAM_REPAIR')); call('ctf_workspace_write', { path: 'work/solve.cjs', content: "console.log(6*7)" }); }
+    else if (step === 3) call('ctf_job_run', { argv: [process.execPath, 'solve.cjs'], timeout_ms: 5000 });
+    else content = 'SOLVER_FIXED local output 42; script stays private; D publication missing';
+  } else {
+    if (step === 0) call('ctf_workspace_read', { path: 'materials/numbers.json' });
+    else if (step === 1) call('ctf_workspace_write', { path: 'work/recompute.cjs', content: "const fs=require('fs'); const n=JSON.parse(fs.readFileSync('../../materials/numbers.json','utf8')); console.log(n.a*n.b)" });
+    else if (step === 2) call('ctf_job_run', { argv: [process.execPath, 'recompute.cjs'], timeout_ms: 5000 });
+    else content = `${who.toUpperCase()}_LOCAL_ONLY 42 from supplied materials; no published Solver artifact or D verified result`;
+  }
+  provider.push({ at: Date.now(), seq: ++seq, who, step, phase, calls, toolResults, messages: body.messages, tools: body.tools });
+  const base = { id: `chatcmpl-${seq}`, object: 'chat.completion.chunk', created: Math.floor(Date.now() / 1000), model: 'scripted' };
+  const delta = calls.length ? { role: 'assistant', tool_calls: calls.map((c, i) => ({ index: i, id: `call_${seq}_${i}`, type: 'function', function: { name: c.name, arguments: JSON.stringify(c.args) } })) } : { role: 'assistant', content };
+  r.writeHead(200, { 'content-type': 'text/event-stream' });
+  for (const v of [{ ...base, choices: [{ index: 0, delta, finish_reason: null }] }, { ...base, choices: [{ index: 0, delta: {}, finish_reason: calls.length ? 'tool_calls' : 'stop' }] }, { ...base, choices: [], usage: { prompt_tokens: 0, completion_tokens: 0, total_tokens: 0 } }]) r.write(`data: ${JSON.stringify(v)}\n\n`);
+  r.end('data: [DONE]\n\n');
+})().catch(e => { failure = String(e); r.writeHead(500).end('{}'); }); });
+await new Promise<void>(r => stub.listen(0, '127.0.0.1', r));
+process.env.TEAM_STUB_KEY = 'local-only';
+process.env.HTTP_PROXY = process.env.HTTPS_PROXY = process.env.ALL_PROXY = 'http://127.0.0.1:9';
+process.env.NO_PROXY = '127.0.0.1,localhost';
+await writeFile(join(root, 'numbers.json'), JSON.stringify({ a: 6, b: 7 }));
+await writeFile(join(root, 'opencode.json'), JSON.stringify({ model: 'stub/scripted', enabled_providers: ['stub'], provider: { stub: { npm: '@ai-sdk/openai-compatible', options: { baseURL: `http://127.0.0.1:${(stub.address() as { port: number }).port}/v1`, apiKey: '{env:TEAM_STUB_KEY}' }, models: { scripted: { limit: { context: 65536, output: 2048 } } } } } }));
+await writeFile(join(root, 'challenges.json'), JSON.stringify({ challenges: [{ id: 'X', statement: 'Local deterministic G wiring fixture; no oracle', materials: ['numbers.json'], target: { protocol: 'http', url: targetURL } }] }));
+await writeFile(join(root, 'profile.json'), JSON.stringify({ profileId: 'g-team-local', challenges: 'challenges.json', opencode: { configPath: 'opencode.json', binaryPath: '/Users/caihaoming/.opencode/bin/opencode' }, reference: { enabled: false }, budget: { wallClockMs: 60000, maxSteps: 80, maxObservableTokens: 100000, maxToolJobs: 3 }, os: { platform: 'macos' } }));
+try {
+  result = await launch({ profile: join(root, 'profile.json'), runsRoot: join(root, 'runs'), runId: 'team', onStarted: async ({ client }) => {
+    const stream = await client.event.subscribe({}, { signal: abort.signal, throwOnError: true });
+    void (async () => { try { for await (const e of stream.stream) events.push({ at: Date.now(), ...e }); } catch { /* closed */ } })();
+  } });
+  assert.equal(failure, undefined); assert.equal(result.status, 'completed'); assert.equal(phase, 13);
+  const evidence = join(result.runDir!, 'evidence');
+  const load = async (name: string) => JSON.parse(await readFile(join(evidence, name), 'utf8'));
+  const bindings = await load('bindings.json'), executions = await load('task-executions.json'), resources = await load('tool-resources.json'), audit = await load('control-audit.json');
+  assert.equal(provider.length, audit.filter((r: any) => r.op === 'model.call' && r.allow).length);
+  assert.equal(targetRequests.length, 1);
+  assert(resources.every((r: any) => r.state === 'settled')); assert(resources.some((r: any) => r.result === 'exited'));
+  const solverExecutions = executions.filter((e: any) => e.role === 'domain-solver');
+  assert.equal(solverExecutions.length, 2); assert.equal(solverExecutions[0].childID, solverID); assert.equal(solverExecutions[1].childID, solverID); assert.notEqual(solverExecutions[0].ref, solverExecutions[1].ref);
+  assert(executions.every((e: any) => e.delivery === 'consumed' && e.state === 'completed'));
+  for (const role of ['engineer', 'verifier']) {
+    const binding = bindings.find((b: any) => b.role === role); assert(binding); assert.equal(binding.challengeId, 'X');
+    assert.equal(await readFile(join(result.runDir!, 'workspace/X/work', binding.sessionID, 'recompute.cjs'), 'utf8'), "const fs=require('fs'); const n=JSON.parse(fs.readFileSync('../../materials/numbers.json','utf8')); console.log(n.a*n.b)");
+    assert(resources.some((r: any) => r.sessionID === binding.sessionID && r.tool === 'job.run' && r.result === 'exited'));
+    assert(provider.filter(p => p.who === role).every(p => !p.tools.some((t: any) => t.function.name === 'ctf_http_request')));
+  }
+  assert.deepEqual(await readdir(join(result.runDir!, 'workspace/X/published')), []);
+  assert(provider.some(p => p.who === 'domain-solver' && p.toolResults.some((s: string) => s.includes('"exitCode":1'))));
+  assert(provider.some(p => p.who === 'domain-solver' && p.step > 1 && p.toolResults.some((s: string) => s.includes('"exitCode":0'))));
+  for (const p of provider.filter(p => ['domain-solver', 'engineer', 'verifier'].includes(p.who))) {
+    const schema = p.tools.find((t: any) => t.function.name === 'ctf_job_run').function.parameters.properties;
+    assert(!('wait_ms' in schema)); assert(!('completion' in schema));
+  }
+  const summary = { status: result.status, phase, requests: provider.length, executions: executions.length, resources: resources.length, targetRequests, realModelCalls: 0,
+    gWiring: 'passed', completeTeamSolve: 'blocked by D publication/candidate/verification interfaces', realModelAbility: 'unverified', solved: false,
+    recoveryCritic: 'not triggered: one ordinary script failure, no persistent stagnation', isolation: 'not verified; known same-uid/direct-network limitations retained' };
+  await writeFile(join(out, 'summary.json'), JSON.stringify(summary, null, 2)); console.log(JSON.stringify(summary));
+} catch (e) { failure = failure ?? String(e); process.exitCode = 1; console.error(e); }
+finally {
+  abort.abort();
+  if (result?.runDir) {
+    for (const name of await readdir(join(result.runDir, 'evidence'))) if (/^(control-audit|tool-resources|bindings|admissions|sessions|messages-|task-executions|challenges)/.test(name)) await writeFile(join(out, name), await readFile(join(result.runDir, 'evidence', name)));
+    await writeFile(join(out, 'run.json'), await readFile(join(result.runDir, 'state/run.json')));
+    const jobs = join(result.runDir, 'state/jobs');
+    for (const sid of await readdir(jobs)) for (const jid of await readdir(join(jobs, sid))) for (const stream of ['stdout.bin', 'stderr.bin']) {
+      await mkdir(join(out, 'job-output', sid, jid), { recursive: true }); await writeFile(join(out, 'job-output', sid, jid, stream), await readFile(join(jobs, sid, jid, stream)));
+    }
+  }
+  await writeFile(join(out, 'provider.json'), JSON.stringify(provider, null, 2));
+  await writeFile(join(out, 'events.json'), JSON.stringify(events, null, 2));
+  await writeFile(join(out, 'result.json'), JSON.stringify({ result, failure, root, usage: 'scripted provider reports zero; real model usage unavailable' }, null, 2));
+  await new Promise<void>(r => { stub.close(() => r()); stub.closeAllConnections(); }); await new Promise<void>(r => { target.close(() => r()); target.closeAllConnections(); });
+}

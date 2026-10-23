@@ -1,0 +1,111 @@
+
+ RUN  v2.1.8 /Users/caihaoming/.codex/worktrees/g-joint-async-lifecycle/pentest-agent
+
+ ✓ tests/contract/control-service.test.ts (31 tests) 470ms
+   ✓ plugin denies when the control service cannot answer > rejects when the service never replies, is unreachable, or replies with something unusable 411ms
+ ✓ tests/contract/g-coordinator-stop.test.ts (9 tests) 3401ms
+   ✓ completed jobs remain exited when stopped; abort failure and unknown reap never claim stopped 3062ms
+ ✓ tests/contract/g-async-lifecycle.test.ts (11 tests) 5587ms
+   ✓ default job.run returns terminal without wait/completion modes 5568ms
+ ✓ tests/contract/slow-tools.test.ts (21 tests) 14271ms
+   ✓ stop during registered workspace preparation returns bounded unknown and prevents a late job spawn 4006ms
+   ✓ C retains HTTP cleanup_unknown reservation when response persistence is blocked 1009ms
+   ✓ expiry cancels an already delivered job and refuses its handle after expiry 1027ms
+   ✓ unknown process-group cleanup keeps its session quota reserved 3036ms
+   ✓ terminal candidate keeps one execute pending beyond wait_ms, permits admission and incremental reads, then returns final result once 784ms
+   ✓ terminal candidate timeout and binding expiry do not return an early running handle 699ms
+   ✓ terminal candidate reports incomplete reaping as unknown and keeps its slot reserved 3100ms
+ ❯ tests/contract/launch-evidence.test.ts (12 tests | 3 failed) 85134ms
+   × launch failure evidence with SDK stand-in only > keeps normal success and complete reported usage 10622ms
+     → expected { code: 1, …(2) } to match object { code: +0, status: 'completed' }
+(1 matching property omitted from actual)
+   ✓ launch failure evidence with SDK stand-in only > continues other bound sessions after children failure 10584ms
+   ✓ launch failure evidence with SDK stand-in only > continues other bound sessions after export failure 10623ms
+   ✓ launch failure evidence with SDK stand-in only > records real per-session abort results and continues remaining aborts 10587ms
+   × launch failure evidence with SDK stand-in only > keeps retained message consumption in the actual run file after abort zeroes it 10579ms
+     → expected { code: 1, …(2) } to match object { code: 1, status: 'failed' }
+(1 matching property omitted from actual)
+   × launch failure evidence with SDK stand-in only > includes known SDK descendant usage even if the descendant never bound 10580ms
+     → expected { code: 1, …(2) } to match object { code: +0, status: 'completed' }
+(1 matching property omitted from actual)
+   ✓ launch failure evidence with SDK stand-in only > marks total as a lower bound if an unbound descendant export fails 10591ms
+   ✓ launch failure evidence with SDK stand-in only > continues evidence writes and records a single-file write failure 10601ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 3 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/contract/launch-evidence.test.ts > launch failure evidence with SDK stand-in only > keeps normal success and complete reported usage
+AssertionError: expected { code: 1, …(2) } to match object { code: +0, status: 'completed' }
+(1 matching property omitted from actual)
+
+- Expected
++ Received
+
+  Object {
+-   "code": 0,
+-   "status": "completed",
++   "code": 1,
++   "status": "deadline_exceeded",
+  }
+
+ ❯ tests/contract/launch-evidence.test.ts:92:25
+     90| describe('launch failure evidence with SDK stand-in only', () => {
+     91|   it('keeps normal success and complete reported usage', async () => {
+     92|     expect(await run()).toMatchObject({ code: 0, status: 'completed' }…
+       |                         ^
+     93|     const record = await checkEvidence();
+     94|     expect(record.usageTotal).toMatchObject({ availability: 'reported'…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/3]⎯
+
+ FAIL  tests/contract/launch-evidence.test.ts > launch failure evidence with SDK stand-in only > keeps retained message consumption in the actual run file after abort zeroes it
+AssertionError: expected { code: 1, …(2) } to match object { code: 1, status: 'failed' }
+(1 matching property omitted from actual)
+
+- Expected
++ Received
+
+  Object {
+    "code": 1,
+-   "status": "failed",
++   "status": "deadline_exceeded",
+  }
+
+ ❯ tests/contract/launch-evidence.test.ts:149:25
+    147|   it('keeps retained message consumption in the actual run file after …
+    148|     mode = 'zeroed';
+    149|     expect(await run()).toMatchObject({ code: 1, status: 'failed' });
+       |                         ^
+    150|     const record = await checkEvidence();
+    151|     expect(record.usageTotal).toMatchObject({ input_tokens: 800, outpu…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/3]⎯
+
+ FAIL  tests/contract/launch-evidence.test.ts > launch failure evidence with SDK stand-in only > includes known SDK descendant usage even if the descendant never bound
+AssertionError: expected { code: 1, …(2) } to match object { code: +0, status: 'completed' }
+(1 matching property omitted from actual)
+
+- Expected
++ Received
+
+  Object {
+-   "code": 0,
+-   "status": "completed",
++   "code": 1,
++   "status": "deadline_exceeded",
+  }
+
+ ❯ tests/contract/launch-evidence.test.ts:161:25
+    159|   it('includes known SDK descendant usage even if the descendant never…
+    160|     mode = 'unbound';
+    161|     expect(await run()).toMatchObject({ code: 0, status: 'completed' }…
+       |                         ^
+    162|     const record = await checkEvidence();
+    163|     expect(record.usageTotal).toMatchObject({ input_tokens: 1200, outp…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/3]⎯
+
+ Test Files  1 failed | 4 passed (5)
+      Tests  3 failed | 81 passed (84)
+   Start at  23:11:15
+   Duration  85.59s (transform 271ms, setup 0ms, collect 611ms, tests 108.86s, environment 0ms, prepare 180ms)
+

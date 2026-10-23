@@ -1,0 +1,235 @@
+
+> ctf-agent@0.1.0 test
+> vitest run
+
+
+ RUN  v2.1.8 /Users/caihaoming/.codex/worktrees/g-c-rpc-slow-tools/pentest-agent
+
+ ✓ tests/contract/http-lifecycle.test.ts (10 tests) 59ms
+ ✓ tests/contract/http-tools.test.ts (10 tests) 171ms
+ ✓ tests/contract/hypothesis-lifecycle.test.ts (18 tests) 28ms
+ ✓ tests/integration/candidate-verification.test.ts (7 tests) 213ms
+ ❯ tests/contract/intake-tools.test.ts (8 tests | 2 failed) 23ms
+   × intake tools: role and challenge limits (criteria 1, 2) > denies non-intake roles at tool.before and, when visibility is wrong, at tool.execute 2ms
+     → denied: dispatch
+   × intake tools: role and challenge limits (criteria 1, 2) > does not execute unknown managed tools 2ms
+     → expected [Function] to throw error including 'denied: no managed tools' but got 'denied: tool not permitted'
+ ✓ tests/contract/control-service.test.ts (31 tests) 445ms
+   ✓ plugin denies when the control service cannot answer > rejects when the service never replies, is unreachable, or replies with something unusable 410ms
+ ✓ tests/contract/responsibility-sessions.test.ts (10 tests) 14ms
+ ✓ tests/contract/hypothesis-progress.test.ts (8 tests) 309ms
+ ✓ tests/contract/runtime-interactive-sessions.test.ts (10 tests) 1046ms
+   ✓ real interactive runtime > drains complete PTY output while a large input write is backpressured 359ms
+ ✓ tests/contract/workspace-tools.test.ts (9 tests) 65ms
+ ❯ tests/contract/opencode.test.ts (7 tests | 1 failed) 39ms
+   × OpenCode public adapter > forwards the OpenCode ToolContext session ID over RPC without adding identity arguments 29ms
+     → denied: missing trusted call
+ ✓ tests/contract/hypothesis-routes.test.ts (7 tests) 9ms
+ ✓ tests/contract/run-prep.test.ts (13 tests) 1418ms
+ ✓ tests/integration/compaction-evidence.test.ts (7 tests) 1284ms
+   ✓ fresh compaction evidence/context > names every missing required snapshot field, including budgets, next action, raw ranges and manager ledgers 521ms
+ ✓ tests/integration/runtime-tar-gzip.test.ts (4 tests) 161ms
+ ✓ tests/integration/runtime-http-session.test.ts (2 tests) 82ms
+ ✓ tests/integration/verified-multiflag-candidate.test.ts (3 tests) 1391ms
+   ✓ frozen verified multi-flag host components > persists each verified accepted slot before a subsequent candidate is processed 688ms
+   ✓ frozen verified multi-flag host components > returns verified oracle rejection with diagnostics and permits later candidates without losing accepted slots 470ms
+ ✓ tests/contract/responsibility-handoff.test.ts (37 tests) 8ms
+ ❯ tests/contract/launch-evidence.test.ts (12 tests | 6 failed) 1890ms
+   × launch failure evidence with SDK stand-in only > keeps normal success and complete reported usage 140ms
+     → expected { code: 1, status: 'failed', …(1) } to match object { code: +0, status: 'completed' }
+(1 matching property omitted from actual)
+   × launch failure evidence with SDK stand-in only > retains admitted calls and known usage after SDK read failure 114ms
+     → expected '[{"t":0,"event":"start","detail":{"ru…' to contain 'usage failed'
+   × launch failure evidence with SDK stand-in only > continues other bound sessions after children failure 105ms
+     → Cannot read properties of undefined (reading 'status')
+   × launch failure evidence with SDK stand-in only > continues other bound sessions after export failure 115ms
+     → expected '[{"t":0,"event":"start","detail":{"ru…' to contain 'child export failed'
+   × launch failure evidence with SDK stand-in only > keeps original and close errors plus memory evidence 334ms
+     → expected '[{"t":0,"event":"start","detail":{"ru…' to contain 'original run failed'
+   × launch failure evidence with SDK stand-in only > includes known SDK descendant usage even if the descendant never bound 124ms
+     → expected { code: 1, status: 'failed', …(1) } to match object { code: +0, status: 'completed' }
+(1 matching property omitted from actual)
+ ✓ tests/contract/job-tools.test.ts (9 tests) 2102ms
+   ✓ G-V5 managed jobs > kills the grandchild with the process group on timeout 1540ms
+ ✓ tests/integration/multiflag-continuation.test.ts (4 tests) 39ms
+ ✓ tests/integration/compaction-local-guards.test.ts (5 tests) 782ms
+ ✓ tests/contract/contracts.test.ts (5 tests) 4ms
+ ✓ tests/contract/policy.test.ts (4 tests) 3ms
+ ✓ tests/contract/state.test.ts (4 tests) 28ms
+ ✓ tests/integration/compaction-hypotheses.test.ts (3 tests) 19ms
+ ✓ tests/bootstrap/test-harness.test.ts (4 tests) 46ms
+ ✓ tests/integration/long-job-continuation.test.ts (3 tests) 412ms
+   ✓ durable long-job continuation > releases the Worker, wakes from a terminal event, and claims one saved continuation 335ms
+ ✓ tests/contract/responsibility-artifacts.test.ts (1 test) 23ms
+ ✓ tests/contract/platform.test.ts (2 tests) 10ms
+ ✓ tests/contract/model.test.ts (4 tests) 37ms
+ ✓ tests/contract/artifacts.test.ts (2 tests) 11ms
+ ✓ tests/contract/opencode-config.test.ts (1 test) 8ms
+ ✓ tests/contract/runtime.test.ts (5 tests) 389ms
+ ✓ tests/integration/compaction-snapshot.test.ts (2 tests) 6ms
+ ✓ tests/contract/runtime-batch-output.test.ts (2 tests) 213ms
+ ✓ tests/integration/compaction-process-restart.test.ts (2 tests) 1482ms
+   ✓ ctf-agent canonical local process restart > kills the original process, ignores misleading JSON export, resumes original raw range and exact next action once 1104ms
+   ✓ ctf-agent canonical local process restart > two fresh CLI processes race for one canonical dispatch and execute once 378ms
+ ✓ tests/contract/slow-tools.test.ts (10 tests) 5327ms
+   ✓ stop during registered workspace preparation returns bounded unknown and prevents a late job spawn 4008ms
+   ✓ C retains HTTP cleanup_unknown reservation when response persistence is blocked 1007ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 9 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/contract/intake-tools.test.ts > intake tools: role and challenge limits (criteria 1, 2) > denies non-intake roles at tool.before and, when visibility is wrong, at tool.execute
+Error: denied: dispatch
+ ❯ ControlService.registerDispatch apps/launcher/src/control-service.ts:572:76
+    570|     if (byRole.has(role)) throw new ControlDenied('dispatch', 'pending…
+    571|     const challengeId = this.declarations.get(binding.sessionID)?.get(…
+    572|     if (CHALLENGE_ROLES.includes(role) && challengeId === undefined) t…
+       |                                                                            ^
+    573|     byRole.set(role, { callID, challengeId });
+    574|     this.declarations.get(binding.sessionID)?.delete(role);
+ ❯ ControlService.toolBefore apps/launcher/src/control-service.ts:384:31
+ ❯ apps/launcher/src/control-service.ts:172:43
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/9]⎯
+
+ FAIL  tests/contract/intake-tools.test.ts > intake tools: role and challenge limits (criteria 1, 2) > does not execute unknown managed tools
+AssertionError: expected [Function] to throw error including 'denied: no managed tools' but got 'denied: tool not permitted'
+
+Expected: "denied: no managed tools"
+Received: "denied: tool not permitted"
+
+ ❯ tests/contract/intake-tools.test.ts:76:5
+     74|     const s = service();
+     75|     await bind(s, 'kid', 'intake');
+     76|     await expect(s.handle('kid', 'tool.execute', { tool: 'workspace.re…
+       |     ^
+     77|   });
+     78| });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/9]⎯
+
+ FAIL  tests/contract/launch-evidence.test.ts > launch failure evidence with SDK stand-in only > keeps normal success and complete reported usage
+AssertionError: expected { code: 1, status: 'failed', …(1) } to match object { code: +0, status: 'completed' }
+(1 matching property omitted from actual)
+
+- Expected
++ Received
+
+  Object {
+-   "code": 0,
+-   "status": "completed",
++   "code": 1,
++   "status": "failed",
+  }
+
+ ❯ tests/contract/launch-evidence.test.ts:90:25
+     88| describe('launch failure evidence with SDK stand-in only', () => {
+     89|   it('keeps normal success and complete reported usage', async () => {
+     90|     expect(await run()).toMatchObject({ code: 0, status: 'completed' }…
+       |                         ^
+     91|     const record = await checkEvidence();
+     92|     expect(record.usageTotal).toMatchObject({ availability: 'reported'…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/9]⎯
+
+ FAIL  tests/contract/launch-evidence.test.ts > launch failure evidence with SDK stand-in only > retains admitted calls and known usage after SDK read failure
+AssertionError: expected '[{"t":0,"event":"start","detail":{"ru…' to contain 'usage failed'
+
+Expected: "usage failed"
+Received: "[{"t":0,"event":"start","detail":{"runId":"run","deadlineMs":10000}},{"t":0,"event":"opencode_started","detail":{"version":"fake-sdk-1"}},{"t":0,"event":"inventory","detail":{"agents":[],"skills":[]}},{"t":0,"event":"root_bound","detail":{"rootId":"root"}},{"t":0,"event":"start_message_sent","detail":{"rootId":"root"}},{"t":3,"event":"error","detail":"Error: denied: dispatch"},{"t":3,"event":"opencode_closed"}]"
+
+ ❯ tests/contract/launch-evidence.test.ts:101:45
+     99|     expect(record.usageTotal.input_tokens).toBeGreaterThanOrEqual(400);
+    100|     expect(record.usageTotal.lowerBound).toBe(true);
+    101|     expect(JSON.stringify(record.timeline)).toContain('usage failed');
+       |                                             ^
+    102|   });
+    103|   it.each(['children', 'export'])('continues other bound sessions afte…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[4/9]⎯
+
+ FAIL  tests/contract/launch-evidence.test.ts > launch failure evidence with SDK stand-in only > continues other bound sessions after children failure
+TypeError: Cannot read properties of undefined (reading 'status')
+ ❯ tests/contract/launch-evidence.test.ts:111:65
+    109|     if (fault === 'export') expect(await json('evidence/messages-other…
+    110|     const sessions = await json('evidence/sessions.json');
+    111|     expect(sessions.find((s: { id: string }) => s.id === 'child').stat…
+       |                                                                 ^
+    112|   });
+    113|   it('keeps original and close errors plus memory evidence', async () …
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[5/9]⎯
+
+ FAIL  tests/contract/launch-evidence.test.ts > launch failure evidence with SDK stand-in only > continues other bound sessions after export failure
+AssertionError: expected '[{"t":0,"event":"start","detail":{"ru…' to contain 'child export failed'
+
+Expected: "child export failed"
+Received: "[{"t":0,"event":"start","detail":{"runId":"run","deadlineMs":10000}},{"t":0,"event":"opencode_started","detail":{"version":"fake-sdk-1"}},{"t":0,"event":"inventory","detail":{"agents":[],"skills":[]}},{"t":0,"event":"root_bound","detail":{"rootId":"root"}},{"t":0,"event":"start_message_sent","detail":{"rootId":"root"}},{"t":3,"event":"error","detail":"Error: denied: dispatch"},{"t":4,"event":"opencode_closed"}]"
+
+ ❯ tests/contract/launch-evidence.test.ts:107:45
+    105|     expect(await run()).toMatchObject({ code: 1, status: 'failed' });
+    106|     const record = await checkEvidence();
+    107|     expect(JSON.stringify(record.timeline)).toContain(fault === 'child…
+       |                                             ^
+    108|     expect(await json('evidence/messages-root.json')).toHaveLength(1);
+    109|     if (fault === 'export') expect(await json('evidence/messages-other…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[6/9]⎯
+
+ FAIL  tests/contract/launch-evidence.test.ts > launch failure evidence with SDK stand-in only > keeps original and close errors plus memory evidence
+AssertionError: expected '[{"t":0,"event":"start","detail":{"ru…' to contain 'original run failed'
+
+Expected: "original run failed"
+Received: "[{"t":0,"event":"start","detail":{"runId":"run","deadlineMs":10000}},{"t":0,"event":"opencode_started","detail":{"version":"fake-sdk-1"}},{"t":0,"event":"inventory","detail":{"agents":[],"skills":[]}},{"t":1,"event":"root_bound","detail":{"rootId":"root"}},{"t":1,"event":"start_message_sent","detail":{"rootId":"root"}},{"t":7,"event":"error","detail":"Error: denied: dispatch"},{"t":9,"event":"opencode_close_error","detail":"Error: close failed: <redacted>"}]"
+
+ ❯ tests/contract/launch-evidence.test.ts:117:45
+    115|     expect(await run(true)).toMatchObject({ code: 1, status: 'failed' …
+    116|     const record = await checkEvidence();
+    117|     expect(JSON.stringify(record.timeline)).toContain('original run fa…
+       |                                             ^
+    118|     expect(JSON.stringify(record.timeline)).toContain('close failed');
+    119|     expect(record.model).toBe('fake/model');
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[7/9]⎯
+
+ FAIL  tests/contract/launch-evidence.test.ts > launch failure evidence with SDK stand-in only > includes known SDK descendant usage even if the descendant never bound
+AssertionError: expected { code: 1, status: 'failed', …(1) } to match object { code: +0, status: 'completed' }
+(1 matching property omitted from actual)
+
+- Expected
++ Received
+
+  Object {
+-   "code": 0,
+-   "status": "completed",
++   "code": 1,
++   "status": "failed",
+  }
+
+ ❯ tests/contract/launch-evidence.test.ts:159:25
+    157|   it('includes known SDK descendant usage even if the descendant never…
+    158|     mode = 'unbound';
+    159|     expect(await run()).toMatchObject({ code: 0, status: 'completed' }…
+       |                         ^
+    160|     const record = await checkEvidence();
+    161|     expect(record.usageTotal).toMatchObject({ input_tokens: 1200, outp…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[8/9]⎯
+
+ FAIL  tests/contract/opencode.test.ts > OpenCode public adapter > forwards the OpenCode ToolContext session ID over RPC without adding identity arguments
+Error: denied: missing trusted call
+ ❯ Object.execute apps/opencode-plugin/src/index.ts:65:103
+     63|       async execute(args, context) {
+     64|         const mark = (args as Marked)[callMarker];
+     65|         if (!mark || mark.sessionID !== context.sessionID || mark.tool…
+       |                                                                                                       ^
+     66|         delete (args as Marked)[callMarker]; // single consumption; an…
+     67|         const result = await control(context.sessionID, 'tool.execute'…
+ ❯ tests/contract/opencode.test.ts:106:47
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[9/9]⎯
+
+ Test Files  3 failed | 35 passed (38)
+      Tests  9 failed | 276 passed (285)
+   Start at  21:11:38
+   Duration  5.71s (transform 673ms, setup 0ms, collect 2.34s, tests 19.60s, environment 3ms, prepare 1.64s)
+

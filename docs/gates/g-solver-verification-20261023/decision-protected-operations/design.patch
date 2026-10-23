@@ -1,0 +1,50 @@
+--- a/docs/superpowers/specs/2026-10-23-design-v1-e-intake-minimal.md
++++ b/docs/superpowers/specs/2026-10-23-design-v1-e-intake-minimal.md
+@@ -92,7 +92,7 @@
+ | 解包歸檔 | G 的文件／腳本工具 | 歸檔照普通文件固定；首題可選不需歸檔的題目 |
+ | 交付工具、版本化做題輸入記錄、Coordinator 的任務狀態讀取 | D 或其他需要可信記錄的下游 | Intake 經原生 `task` 返回 |
+ | local oracle 的配置、文件格式與邊界 | D | 無；沒有可信完成判定，任何題目都不得記為 solved（design v1 1.3） |
+-| 跳過可達性檢查的開關 | 出現連線即計時的題目時 | 一律檢查 |
++| 可信操作描述與連線即計時的接入 | 平台／目標 adapter 與 D 的受保護操作契約設計時 | 現行清單不帶操作描述、仍一律做 TCP 探測；本地反例確認準備階段確實會連線，因此不能宣稱對連線即計時的來源無副作用。需可信來源策略決定探測／啟動方式，不能由模型宣告安全或由 G 事後補救；責任與限制見 [G 第 4.5 節](2026-10-23-design-v1-g-solver-minimal.md#45-受保護操作的責任界面) |
+ | 解題子會話與題目的綁定 | G（design v1 第 3 節待決項） | Intake 以整個 run 為範圍，不需要 |
+ 
+ ## 7. 實作與驗證記錄
+--- a/docs/superpowers/specs/2026-10-23-design-v1-g-solver-minimal.md
++++ b/docs/superpowers/specs/2026-10-23-design-v1-g-solver-minimal.md
+@@ -176,6 +176,19 @@
+ 
+ 每題同時進行中的 HTTP 請求上限暫取 8，由 C 按 challengeId 登記，同題會話共用、跨題容量獨立。完成或確認取消後釋放；unknown 不歸還名額。run／session 停止按第 7 節取消歸屬請求。配額機制已驗證，數值仍是預設提案。
+ 
++### 4.5 受保護操作的責任界面
++
++**不新增 G 端點語義分類器。** GET 啟動計時、POST 純觀察的本地反例證明，HTTP 方法及模型自述不能作為安全分類的可信來源。D／E 的平台或目標 adapter／宿主準備應提供已知操作的描述；G 只負責受控傳輸及調用同一宿主准入，不從題面、路徑名稱或模型宣告擴大權限。對全部未知端點加人工審批也不採作預設方案：它既不能補足語義來源，又會阻塞普通求解。
++
++可信描述至少需要回答：來源及版本、操作與實際請求的對應、副作用所影響的資源範圍、限次與計數點、業務確認及權威對帳方式。這是責任需求，**不是已定的通用 schema**。別名、參數、Host 與重定向可能改變實際操作；不能只在模型最初給出的 URL 做檢查，或把同一操作換名後當作新的配額。控制憑據由宿主持有，角色權限沿用 D／C；本次沒有新增受保護工具或擴權。
++
++宿主在任何受保護操作發送前，先持久化操作引用、描述來源版本及請求意圖，再登記發送。傳輸回應和業務結果分開：HTTP 200 但缺 adapter 認可的業務回執仍是業務 unknown。發送後斷線、崩潰遺留 dispatching 等不能自動重發；相同副作用範圍（含別名）先隔離，普通觀察和不受影響操作保持可用。只有權威對帳或明確恢復決策才能解除，不能由模型改 generation 或宣告成功解鎖。
++
++**本地原型支持上述責任界面，完整接線仍未完成。** 測試側宿主使用固定來源 hash、明確操作模板及副作用分組，重用現有 SQLite 意圖記錄和 G HTTP 傳輸。fixture 的封閉清單能證明直接調用／重定向無法繞過已知操作保護；它不會辨識任意靶場端點。原型只存在於測試支援，沒有接產品 C／RPC 或 OpenCode 新工具，也沒有驗證腳本／直接 TCP 的完整出口約束。
++
++缺可信描述的直接靶場仍屬「操作語義保護不可用」，不猜成安全；原 G 通用工具不因此被宣稱具備完整保護。**待 D／E 與主 session 核定：** 哪些操作域由可信 adapter 覆蓋、未描述請求如何處理、共享平台／實例資源的隔離鍵、權威對帳及解鎖契約。fixture 對未描述 query、body、header 一律拒絕只是縮小原型的可證明範圍，不直接變成所有 CTF HTTP 請求的新外部契約。E 現行啟動前 TCP 探測也可能觸發連線即計時，需其接入設計處理，G 不能事後補救。條件、失敗與限制見第 9 節。
++
++
+ ---
+ 
+ ## 5. 作業（腳本執行）
+@@ -344,6 +357,7 @@
+ | G-V5 作業 | 舊九項證明環境白名單、空 stdin、輸出分頁／截斷、啟動失敗、句柄與併發規則；只殺 leader 的變異使孫程序回收測試失敗。原型不證明 OS 隔離；會話／run／到期及 unknown 補驗由下一行支持 | 舊完整報告缺失，舊結論與來源保留於[整理前記錄](../../gates/g-solver-verification-20261023/g-c-rpc-slow-tools/design-before-editorial-rewrite.md)；補驗見下一行 |
+ | C／RPC 真實產品接線 | 同一次 runtime/accepted 完成綁定→材料讀→同輪雙寫→HTTP 16004ms→job 增量讀／16054ms 等待→停止；12 次替身請求對應 12 次准入，9 個資源結算。確定性邊界另驗短隊列、每題配額、放棄／交付競態、session/run/expiry、孫進程與 unknown。全套 291/291、typecheck/build，主會話獨立 46/46；不稱每個競態都有 runtime 覆蓋 | [C／RPC 報告](../../gates/g-solver-verification-20261023/g-c-rpc-slow-tools/REPORT.md) |
+ | 長作業公開完成／恢復候選 | 測試側觀察真實 job 結算後調公開接口；同 child 恢復、去重與取消對照成立，但父 task 已結束、輸出不變。候選不足，未通過完成交回。這是測試通知器，不是產品已具備自動通知 | [恢復結果](../../gates/g-solver-verification-20261023/g-c-rpc-slow-tools/completion-probe/first/resume-and-duplicate/result.json)、[取消對照](../../gates/g-solver-verification-20261023/g-c-rpc-slow-tools/completion-probe/first/cancel/result.json) |
++| 受保護操作責任驗證 | 本地 11/11：GET 計時與 POST 觀察反例、發送前持久化、限次／並發別名、斷線 unknown 及重開 SQLite、普通觀察保留、直接／重定向／selector 拒絕、200 無業務回執。舊 PlatformService 換 generation 可重發、E 啟動 TCP 探測會連線的缺口均保留。全套 302/302、typecheck/build 通過；只為測試側 adapter 原型，不是產品完整保護或真實平台驗收 | [受保護操作報告](../../gates/g-solver-verification-20261023/decision-protected-operations/REPORT.md) |
+ | G-V6／G-V7 | OS 隔離未驗；真實模型工具使用未運行 | 不能由確定性工具測試推定成立 |
+ 
+ C／RPC 代碼基線為 d83a0c3024271dbf212db319e900fcf527e68b0f 加獨立工作區未提交修改，Node v26.3.0、Vitest 2.1.8；來源、配置及最終 hash 見該報告目錄。公開恢復探針與 runtime/accepted 是不同運行。
+@@ -358,7 +372,7 @@
+ | 宿主、跨題及同題會話 OS 隔離 | 第 5.4 節的每會話 uid 或獨立執行環境；兼容非 root 產品運行 | 驗證候選的文件、進程、憑據隔離與 CPU／記憶體限制；都不成立則記產品阻塞 |
+ | 作業網路 scope | 腳本繞過 http.request；不能靠角色 prompt 限制 | 比較按題／會話的網路命名空間與預設拒絕出口、受管代理出口兩種候選；腳本直接 TCP／UDP／IPv6 與 DNS 不能繞過。候選未選定，不能宣稱現有作業已受限 |
+ | 配額與數值預設 | 128MiB 寫入總量未實作；HTTP／job 併發及收尾數值僅按所列值驗證 | 比較宿主統一帳本與 OS 資源配額的責任分工，驗證並發記帳及直接作業寫入邊界；數值可行性與產品適用性分開，鏡像固定 PATH 依 F 定稿 |
+-| 受保護的目標操作 | G 不辨識端點的重置、計時、限次語義 | 比較沿用 D／E 可信操作描述與 G 新增端點分類的必要性；不得用 HTTP 方法或模型自述推定副作用，未知結果不自動重試 |
++| 受保護的目標操作完整接線 | 第 4.5 節已排除 G 語義分類器，責任歸可信 adapter 描述與宿主意圖／unknown 管理；本地 11 項支持局部可行性 | D／E 尚未提供操作域覆蓋、共享資源範圍、權威對帳／解鎖及連線即計時接入契約；主 session 核定後才做產品接線。不能把 fixture 封閉清單泛化成所有 G 端點已受保護 |
+ | Intake 寫入及 Verifier HTTP | 本文不給 Intake 寫入；Verifier 只做本地重算，HTTP 重放依 D | 比較維持 Intake 唯讀／Verifier 本地重算與按 D 驗證模式增加最小權限；只因具體能力缺口才改 H，不默認擴權 |
+ | Coordinator 的停止入口 | 宿主 revoke 已驗，產品停止工具未定 | 比較 Coordinator 受管停止工具與公開原生任務控制；宿主核實直接分派關係，不讓模型指定任意會話，不用宿主測試冒稱完成 |
+ 

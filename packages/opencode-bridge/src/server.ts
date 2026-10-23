@@ -67,7 +67,8 @@ export async function startManagedOpenCode(input: {
     OPENCODE_DISABLE_CLAUDE_CODE: 'true', OPENCODE_DISABLE_EXTERNAL_SKILLS: 'true',
     OPENCODE_DISABLE_LSP_DOWNLOAD: 'true', OPENCODE_DISABLE_MODELS_FETCH: 'true',
     OPENCODE_DISABLE_AUTOUPDATE: 'true', OPENCODE_DISABLE_AUTOCOMPACT: 'true',
-    OPENCODE_EXPERIMENTAL_DISABLE_FILEWATCHER: 'true'
+    OPENCODE_EXPERIMENTAL_DISABLE_FILEWATCHER: 'true',
+    OPENCODE_EXPERIMENTAL_BACKGROUND_SUBAGENTS: input.environment.OPENCODE_EXPERIMENTAL_BACKGROUND_SUBAGENTS ?? 'true'
   };
   for (const name of ['HTTP_PROXY', 'HTTPS_PROXY', 'ALL_PROXY', 'NO_PROXY']) if (process.env[name]) env[name] = process.env[name]!;
   const version = (await promisify(execFile)(binary, ['--version'], { env, timeout: 10000 })).stdout.trim();

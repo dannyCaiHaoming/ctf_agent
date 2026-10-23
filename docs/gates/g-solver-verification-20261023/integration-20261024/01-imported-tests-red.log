@@ -1,0 +1,364 @@
+
+ RUN  v2.1.8 /Users/caihaoming/.codex/worktrees/c323/pentest-agent
+
+ ❯ tests/contract/g-async-lifecycle.test.ts (13 tests | 13 failed) 14ms
+   × parent next admission preserves starting async dispatch and delayed child binding 4ms
+     → denied: no managed tools
+   × early task after with trusted child metadata keeps exact child pending across admission 1ms
+     → denied: no managed tools
+   × unknown dispatch outcome cannot free pending and rematch a late child 1ms
+     → denied: no managed tools
+   × default job.run returns terminal without wait/completion modes 1ms
+     → denied: no managed tools
+   × host execution tags distinguish generations; duplicate/late notifications never wake twice 1ms
+     → denied: no managed tools
+   × outstanding unbound dispatch prevents idle completion; stopped notifications cannot restart the run 1ms
+     → denied: no managed tools
+   × trusted startup error releases only its call; late child cannot consume a later same-role dispatch 1ms
+     → denied: no managed tools
+   × parent can stop a trusted early child reference before its first hook; delayed hook stays denied 1ms
+     → denied: no managed tools
+   × global stop reuses confirmed/unknown child stop instead of issuing another SDK abort 1ms
+     → denied: no managed tools
+   × completion wake is queued then re-admitted; budget rejection keeps result and usage incomplete 1ms
+     → denied: no managed tools
+   × stop after natural completion reports original terminal without revoking or rewriting first reply 1ms
+     → denied: no managed tools
+   × initial task reply is immutable and another child cannot overwrite its execution mapping 1ms
+     → denied: no managed tools
+   × host revoke still revokes a naturally completed child session 1ms
+     → denied: no managed tools
+ ❯ tests/contract/g-coordinator-stop.test.ts (9 tests | 9 failed) 18ms
+   × Coordinator product plugin stops only owned child, idempotently through real RPC 4ms
+     → denied: no managed tools
+   × rejects every other role in before and execute, forged/other parent/run/expired handles 1ms
+     → denied: no managed tools
+   × execute rechecks ownership and expiry after before approval 1ms
+     → denied: no managed tools
+   × cancels blocked HTTP and delivered process group, retains output, sibling continues 5ms
+     → denied: no managed tools
+   × completed jobs remain exited when stopped; abort failure and unknown reap never claim stopped 1ms
+     → denied: no managed tools
+   × stop waits outside global queue, rechecks parent expiry and retains unknown abort without retry 1ms
+     → denied: no managed tools
+   × actual completion and stop race settles resource exactly once and repeated stop does not abort twice 1ms
+     → denied: no managed tools
+   × tool visibility grants stop exclusively to Coordinator 2ms
+     → expected false to be true // Object.is equality
+   × an unreturned SDK abort is bounded and cached as unknown, with no blind retry 1ms
+     → denied: no managed tools
+ ❯ tests/contract/slow-tools.test.ts (21 tests | 21 failed) 52ms
+   × real C lets another session admit and revoke before a blocked HTTP body is released 9ms
+     → denied: no managed tools
+   × real C enforces eight HTTP slots per challenge, with independent capacity for another challenge 2ms
+     → denied: no managed tools
+   × RPC disconnect cancels the real registered operation and preserves its session/call trace 1ms
+     → denied: no managed tools
+   × jobs remain registered after handle delivery; revoke cancels only that session including grandchildren 1ms
+     → denied: no managed tools
+   × fake-clock host wait approval caps at binding lifetime and expires an already registered HTTP operation 1ms
+     → denied: no managed tools
+   × product plugin correlates trusted before/execute args without a non-public ToolContext.callID 15ms
+     → expected undefined to be 'trusted-call' // Object.is equality
+   × stop during registered workspace preparation returns bounded unknown and prevents a late job spawn 3ms
+     → denied: no managed tools
+   × handle produced before an abandoned RPC response is cancelled and remains traceable 1ms
+     → denied: no managed tools
+   × C retains HTTP cleanup_unknown reservation when response persistence is blocked 2ms
+     → denied: no managed tools
+   × normal RPC finish delivers a running handle without cancelling it; session stop still owns it 1ms
+     → denied: no managed tools
+   × expiry cancels an already delivered job and refuses its handle after expiry 1ms
+     → denied: no managed tools
+   × concurrent same-session same-tool calls retain distinct trusted markers and cannot replay one 5ms
+     → expected [ [ undefined, 'work/B' ], …(1) ] to deeply equal [ Array(2) ]
+   × real C applies session and challenge job limits with independent capacity in another challenge 1ms
+     → denied: no managed tools
+   × unknown process-group cleanup keeps its session quota reserved 2ms
+     → denied: no managed tools
+   × creates the design-mapped private work directory before a child can request its first model admission 1ms
+     → denied: no managed tools
+   × terminal candidate keeps one execute pending beyond wait_ms, permits admission and incremental reads, then returns final result once 1ms
+     → denied: no managed tools
+   × terminal candidate cancellation is idempotent and returns to the same call without a completion notifier 1ms
+     → denied: no managed tools
+   × terminal candidate timeout and binding expiry do not return an early running handle 1ms
+     → denied: no managed tools
+   × terminal candidate RPC disconnect cancels the still waiting job and never starts a duplicate 1ms
+     → denied: no managed tools
+   × terminal candidate RPC limit follows timeout and cleanup rather than wait_ms, and plugin accepts the bounded approval 1ms
+     → denied: no managed tools
+   × terminal candidate reports incomplete reaping as unknown and keeps its slot reserved 1ms
+     → denied: no managed tools
+ ❯ tests/contract/control-service.test.ts (31 tests | 24 failed) 468ms
+   × model admission after an in-flight usage query > 'stop': rechecks validity before spending a call 3ms
+     → denied: no managed tools
+   × model admission after an in-flight usage query > 'revoke': rechecks validity before spending a call 0ms
+     → denied: no managed tools
+   × model admission after an in-flight usage query > 'expire': rechecks validity before spending a call 0ms
+     → denied: no managed tools
+   × model admission after an in-flight usage query > 'active': rechecks validity before spending a call 0ms
+     → denied: no managed tools
+   × control service permission layer > refuses task from a non-coordinator even when visibility would allow it 0ms
+     → denied: no managed tools
+   × control service permission layer > allows one pending dispatch per parent and role until it is consumed 0ms
+     → denied: no managed tools
+   × control service permission layer > preserves unconsumed pending dispatches across parent admission 0ms
+     → denied: no managed tools
+   × control service permission layer > budget refusal stops the run and clears pending without granting another dispatch 0ms
+     → denied: no managed tools
+   ✓ plugin denies when the control service cannot answer > rejects when the service never replies, is unreachable, or replies with something unusable 412ms
+   × retained usage evidence > retains an earlier session observation when a later SDK read fails and denies the threshold 1ms
+     → denied: no managed tools
+   × abort evidence > records enumeration and revoke failures without claiming successful abort 0ms
+     → denied: no managed tools
+   × G-V1 cross-round challenge binding > T1 assign execute succeeds, parent readmission preserves it, binding precedes child admission 4ms
+     → promise rejected "Error: denied: no managed tools { …(1) }" instead of resolving
+   × G-V1 cross-round challenge binding > T2 precheck and free text do not declare or authorize task 1ms
+     → denied: tool not permitted
+   × G-V1 cross-round challenge binding > T3 duplicate declarations preserve original, unassign is idempotent, pending cannot be cancelled 1ms
+     → denied: no managed tools
+   × G-V1 cross-round challenge binding > T4 declaration survives rounds but is cleared on stop 1ms
+     → denied: no managed tools
+   × G-V1 cross-round challenge binding > T4 declaration survives rounds but is cleared on revoke 0ms
+     → denied: no managed tools
+   × G-V1 cross-round challenge binding > T4 declaration survives rounds but is cleared on expire 1ms
+     → denied: no managed tools
+   × G-V1 cross-round challenge binding > T5 resume keeps topic; no/same declaration creates no pending, foreign/conflict preserves declaration 1ms
+     → denied: no managed tools
+   × G-V1 cross-round challenge binding > T6 only coordinator, solver roles and in-run topics may declare 0ms
+     → denied: no managed tools
+   × G-V1 cross-round challenge binding > T7 task before delayed assign execute rejects; later declaration survives and next round succeeds 3ms
+     → promise resolved "{ allowed: true }" instead of rejecting
+   × G-V1 cross-round challenge binding > T8 pre-registration refusal preserves declaration; unknown registered task stays pending across admission 1ms
+     → denied: no managed tools
+   × G-V1 cross-round challenge binding > T9 stop during SDK binding wait cannot create valid binding 1ms
+     → denied: no managed tools
+   × G-V1 cross-round challenge binding > T9 revoke during SDK binding wait cannot create valid binding 0ms
+     → denied: no managed tools
+   × G-V1 cross-round challenge binding > T9 expire during SDK binding wait cannot create valid binding 2ms
+     → denied: no managed tools
+   × G-V1 cross-round challenge binding > T9 stop while assign/task are queued behind an SDK wait rejects both without new state 1ms
+     → Cannot read properties of undefined (reading 'size')
+
+⎯⎯⎯⎯⎯⎯ Failed Tests 67 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/contract/control-service.test.ts > model admission after an in-flight usage query > 'stop': rechecks validity before spending a call
+ FAIL  tests/contract/control-service.test.ts > model admission after an in-flight usage query > 'revoke': rechecks validity before spending a call
+ FAIL  tests/contract/control-service.test.ts > model admission after an in-flight usage query > 'expire': rechecks validity before spending a call
+ FAIL  tests/contract/control-service.test.ts > model admission after an in-flight usage query > 'active': rechecks validity before spending a call
+ FAIL  tests/contract/control-service.test.ts > control service permission layer > refuses task from a non-coordinator even when visibility would allow it
+ FAIL  tests/contract/control-service.test.ts > control service permission layer > allows one pending dispatch per parent and role until it is consumed
+ FAIL  tests/contract/control-service.test.ts > control service permission layer > preserves unconsumed pending dispatches across parent admission
+ FAIL  tests/contract/control-service.test.ts > control service permission layer > budget refusal stops the run and clears pending without granting another dispatch
+ FAIL  tests/contract/control-service.test.ts > retained usage evidence > retains an earlier session observation when a later SDK read fails and denies the threshold
+ FAIL  tests/contract/control-service.test.ts > abort evidence > records enumeration and revoke failures without claiming successful abort
+ FAIL  tests/contract/control-service.test.ts > G-V1 cross-round challenge binding > T3 duplicate declarations preserve original, unassign is idempotent, pending cannot be cancelled
+ FAIL  tests/contract/control-service.test.ts > G-V1 cross-round challenge binding > T4 declaration survives rounds but is cleared on stop
+ FAIL  tests/contract/control-service.test.ts > G-V1 cross-round challenge binding > T4 declaration survives rounds but is cleared on revoke
+ FAIL  tests/contract/control-service.test.ts > G-V1 cross-round challenge binding > T4 declaration survives rounds but is cleared on expire
+ FAIL  tests/contract/control-service.test.ts > G-V1 cross-round challenge binding > T5 resume keeps topic; no/same declaration creates no pending, foreign/conflict preserves declaration
+ FAIL  tests/contract/control-service.test.ts > G-V1 cross-round challenge binding > T6 only coordinator, solver roles and in-run topics may declare
+ FAIL  tests/contract/control-service.test.ts > G-V1 cross-round challenge binding > T8 pre-registration refusal preserves declaration; unknown registered task stays pending across admission
+ FAIL  tests/contract/control-service.test.ts > G-V1 cross-round challenge binding > T9 stop during SDK binding wait cannot create valid binding
+ FAIL  tests/contract/control-service.test.ts > G-V1 cross-round challenge binding > T9 revoke during SDK binding wait cannot create valid binding
+ FAIL  tests/contract/control-service.test.ts > G-V1 cross-round challenge binding > T9 expire during SDK binding wait cannot create valid binding
+Error: denied: no managed tools
+ ❯ ControlService.executeManaged apps/launcher/src/control-service.ts:356:45
+    354|   private async executeManaged(binding: Binding, body: Record<string, …
+    355|     const name = typeof body.tool === 'string' ? body.tool : '';
+    356|     if (!INTAKE_TOOLS.includes(name)) throw new ControlDenied('no mana…
+       |                                             ^
+    357|     const args = this.checkIntake(binding, name, body.args);
+    358|     const challenges = this.options.challenges ?? [];
+ ❯ ControlService.decide apps/launcher/src/control-service.ts:286:28
+ ❯ apps/launcher/src/control-service.ts:129:35
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/67]⎯
+
+ FAIL  tests/contract/control-service.test.ts > G-V1 cross-round challenge binding > T1 assign execute succeeds, parent readmission preserves it, binding precedes child admission
+AssertionError: promise rejected "Error: denied: no managed tools { …(1) }" instead of resolving
+ ❯ tests/contract/control-service.test.ts:295:27
+    293|   it('T1 assign execute succeeds, parent readmission preserves it, bin…
+    294|     const s = fixture();
+    295|     await expect(assign(s)).resolves.toEqual({ challenge: 'X' });
+       |                           ^
+    296|     await s.handle('root', 'model.call', {});
+    297|     await dispatch(s); await bind(s); await s.handle('child', 'model.c…
+
+Caused by: Error: denied: no managed tools
+ ❯ ControlService.executeManaged apps/launcher/src/control-service.ts:356:45
+ ❯ ControlService.decide apps/launcher/src/control-service.ts:286:28
+ ❯ apps/launcher/src/control-service.ts:129:35
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯
+Serialized Error: { detail: undefined }
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/67]⎯
+
+ FAIL  tests/contract/control-service.test.ts > G-V1 cross-round challenge binding > T2 precheck and free text do not declare or authorize task
+Error: denied: tool not permitted
+ ❯ ControlService.toolBefore apps/launcher/src/control-service.ts:335:25
+    333|     if (intake) { this.checkIntake(binding, intake, body.args); return…
+    334|     const allowed = Object.hasOwn(NATIVE_TOOL_ROLES, tool) && NATIVE_T…
+    335|     if (!allowed) throw new ControlDenied('tool not permitted', tool);
+       |                         ^
+    336|     const args = (body.args && typeof body.args === 'object' ? body.ar…
+    337|     if (tool === 'read') await this.checkReadPath(args);
+ ❯ ControlService.decide apps/launcher/src/control-service.ts:285:39
+ ❯ apps/launcher/src/control-service.ts:129:35
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/67]⎯
+
+ FAIL  tests/contract/control-service.test.ts > G-V1 cross-round challenge binding > T7 task before delayed assign execute rejects; later declaration survives and next round succeeds
+AssertionError: promise resolved "{ allowed: true }" instead of rejecting
+
+- Expected
++ Received
+
+- [Error: rejected promise]
++ Object {
++   "allowed": true,
++ }
+
+ ❯ tests/contract/control-service.test.ts:356:50
+    354|     const s = fixture(); const start = deferred(); const release = def…
+    355|     const laterAssign = (async () => { start.resolve(); await release.…
+    356|     await start.promise; await expect(dispatch(s)).rejects.toThrow('de…
+       |                                                  ^
+    357|     release.resolve(); await laterAssign; await s.handle('root', 'mode…
+    358|     await dispatch(s); await bind(s); expect(topic(s)).toBe('X');
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[4/67]⎯
+
+ FAIL  tests/contract/control-service.test.ts > G-V1 cross-round challenge binding > T9 stop while assign/task are queued behind an SDK wait rejects both without new state
+TypeError: Cannot read properties of undefined (reading 'size')
+ ❯ tests/contract/control-service.test.ts:389:82
+    387|     await expect(binding).rejects.toThrow('denied:'); await expect(a).…
+    388|     expect(s.bindings.size).toBe(1);
+    389|     expect((s as unknown as { declarations: Map<string, unknown> }).de…
+       |                                                                                  ^
+    390|   });
+    391| });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[5/67]⎯
+
+ FAIL  tests/contract/g-async-lifecycle.test.ts > parent next admission preserves starting async dispatch and delayed child binding
+ FAIL  tests/contract/g-async-lifecycle.test.ts > early task after with trusted child metadata keeps exact child pending across admission
+ FAIL  tests/contract/g-async-lifecycle.test.ts > unknown dispatch outcome cannot free pending and rematch a late child
+ FAIL  tests/contract/g-async-lifecycle.test.ts > default job.run returns terminal without wait/completion modes
+ FAIL  tests/contract/g-async-lifecycle.test.ts > host execution tags distinguish generations; duplicate/late notifications never wake twice
+ FAIL  tests/contract/g-async-lifecycle.test.ts > outstanding unbound dispatch prevents idle completion; stopped notifications cannot restart the run
+ FAIL  tests/contract/g-async-lifecycle.test.ts > trusted startup error releases only its call; late child cannot consume a later same-role dispatch
+ FAIL  tests/contract/g-async-lifecycle.test.ts > parent can stop a trusted early child reference before its first hook; delayed hook stays denied
+ FAIL  tests/contract/g-async-lifecycle.test.ts > global stop reuses confirmed/unknown child stop instead of issuing another SDK abort
+ FAIL  tests/contract/g-async-lifecycle.test.ts > completion wake is queued then re-admitted; budget rejection keeps result and usage incomplete
+ FAIL  tests/contract/g-async-lifecycle.test.ts > stop after natural completion reports original terminal without revoking or rewriting first reply
+ FAIL  tests/contract/g-async-lifecycle.test.ts > initial task reply is immutable and another child cannot overwrite its execution mapping
+ FAIL  tests/contract/g-async-lifecycle.test.ts > host revoke still revokes a naturally completed child session
+ FAIL  tests/contract/g-coordinator-stop.test.ts > Coordinator product plugin stops only owned child, idempotently through real RPC
+ FAIL  tests/contract/g-coordinator-stop.test.ts > rejects every other role in before and execute, forged/other parent/run/expired handles
+ FAIL  tests/contract/g-coordinator-stop.test.ts > execute rechecks ownership and expiry after before approval
+ FAIL  tests/contract/g-coordinator-stop.test.ts > cancels blocked HTTP and delivered process group, retains output, sibling continues
+ FAIL  tests/contract/g-coordinator-stop.test.ts > completed jobs remain exited when stopped; abort failure and unknown reap never claim stopped
+ FAIL  tests/contract/g-coordinator-stop.test.ts > stop waits outside global queue, rechecks parent expiry and retains unknown abort without retry
+ FAIL  tests/contract/g-coordinator-stop.test.ts > actual completion and stop race settles resource exactly once and repeated stop does not abort twice
+ FAIL  tests/contract/g-coordinator-stop.test.ts > an unreturned SDK abort is bounded and cached as unknown, with no blind retry
+ FAIL  tests/contract/slow-tools.test.ts > real C lets another session admit and revoke before a blocked HTTP body is released
+ FAIL  tests/contract/slow-tools.test.ts > real C enforces eight HTTP slots per challenge, with independent capacity for another challenge
+ FAIL  tests/contract/slow-tools.test.ts > RPC disconnect cancels the real registered operation and preserves its session/call trace
+ FAIL  tests/contract/slow-tools.test.ts > jobs remain registered after handle delivery; revoke cancels only that session including grandchildren
+ FAIL  tests/contract/slow-tools.test.ts > fake-clock host wait approval caps at binding lifetime and expires an already registered HTTP operation
+ FAIL  tests/contract/slow-tools.test.ts > stop during registered workspace preparation returns bounded unknown and prevents a late job spawn
+ FAIL  tests/contract/slow-tools.test.ts > handle produced before an abandoned RPC response is cancelled and remains traceable
+ FAIL  tests/contract/slow-tools.test.ts > C retains HTTP cleanup_unknown reservation when response persistence is blocked
+ FAIL  tests/contract/slow-tools.test.ts > normal RPC finish delivers a running handle without cancelling it; session stop still owns it
+ FAIL  tests/contract/slow-tools.test.ts > expiry cancels an already delivered job and refuses its handle after expiry
+ FAIL  tests/contract/slow-tools.test.ts > real C applies session and challenge job limits with independent capacity in another challenge
+ FAIL  tests/contract/slow-tools.test.ts > unknown process-group cleanup keeps its session quota reserved
+ FAIL  tests/contract/slow-tools.test.ts > creates the design-mapped private work directory before a child can request its first model admission
+ FAIL  tests/contract/slow-tools.test.ts > terminal candidate keeps one execute pending beyond wait_ms, permits admission and incremental reads, then returns final result once
+ FAIL  tests/contract/slow-tools.test.ts > terminal candidate cancellation is idempotent and returns to the same call without a completion notifier
+ FAIL  tests/contract/slow-tools.test.ts > terminal candidate timeout and binding expiry do not return an early running handle
+ FAIL  tests/contract/slow-tools.test.ts > terminal candidate RPC disconnect cancels the still waiting job and never starts a duplicate
+ FAIL  tests/contract/slow-tools.test.ts > terminal candidate RPC limit follows timeout and cleanup rather than wait_ms, and plugin accepts the bounded approval
+ FAIL  tests/contract/slow-tools.test.ts > terminal candidate reports incomplete reaping as unknown and keeps its slot reserved
+Error: denied: no managed tools
+ ❯ ControlService.executeManaged apps/launcher/src/control-service.ts:356:45
+    354|   private async executeManaged(binding: Binding, body: Record<string, …
+    355|     const name = typeof body.tool === 'string' ? body.tool : '';
+    356|     if (!INTAKE_TOOLS.includes(name)) throw new ControlDenied('no mana…
+       |                                             ^
+    357|     const args = this.checkIntake(binding, name, body.args);
+    358|     const challenges = this.options.challenges ?? [];
+ ❯ ControlService.decide apps/launcher/src/control-service.ts:286:28
+ ❯ apps/launcher/src/control-service.ts:129:35
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[6/67]⎯
+
+ FAIL  tests/contract/g-coordinator-stop.test.ts > tool visibility grants stop exclusively to Coordinator
+AssertionError: expected false to be true // Object.is equality
+
+- Expected
++ Received
+
+- true
++ false
+
+ ❯ tests/contract/g-coordinator-stop.test.ts:89:263
+
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[7/67]⎯
+
+ FAIL  tests/contract/slow-tools.test.ts > product plugin correlates trusted before/execute args without a non-public ToolContext.callID
+AssertionError: expected undefined to be 'trusted-call' // Object.is equality
+
+- Expected: 
+"trusted-call"
+
++ Received: 
+undefined
+
+ ❯ tests/contract/slow-tools.test.ts:122:72
+    120|   await hooks['tool.execute.before']!({ sessionID: 'a', tool: 'ctf_htt…
+    121|   await hooks.tool!.ctf_http_request!.execute(args as never, { session…
+    122|   expect(seen.find(r => r.operation === 'tool.execute')?.input.callID)…
+       |                                                                        ^
+    123| });
+    124| 
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[8/67]⎯
+
+ FAIL  tests/contract/slow-tools.test.ts > concurrent same-session same-tool calls retain distinct trusted markers and cannot replay one
+AssertionError: expected [ [ undefined, 'work/B' ], …(1) ] to deeply equal [ Array(2) ]
+
+- Expected
++ Received
+
+  Array [
+    Array [
+-     "B",
++     undefined,
+      "work/B",
+    ],
+    Array [
+-     "A",
++     undefined,
+      "work/A",
+    ],
+  ]
+
+ ❯ tests/contract/slow-tools.test.ts:191:128
+    189|   const context = { sessionID: 'a', abort: new AbortController().signa…
+    190|   await Promise.all([hooks.tool!.ctf_workspace_read!.execute(argsB as …
+    191|   expect(seen.filter(r => r.operation === 'tool.execute').map(r => [r.…
+       |                                                                                                                                ^
+    192|   await expect(hooks.tool!.ctf_workspace_read!.execute(argsA as never,…
+    193| });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[9/67]⎯
+
+ Test Files  4 failed (4)
+      Tests  67 failed | 7 passed (74)
+   Start at  00:18:59
+   Duration  745ms (transform 125ms, setup 0ms, collect 249ms, tests 552ms, environment 0ms, prepare 155ms)
+

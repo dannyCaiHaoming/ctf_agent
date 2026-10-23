@@ -1,0 +1,355 @@
+[
+  {
+    "case": "G protected operations: local host/adapter decision probe > raw G permits GET with an effect and POST without one; method is not a classifier",
+    "origin": "http://127.0.0.1:52497",
+    "requests": [
+      {
+        "sequence": 1,
+        "method": "GET",
+        "path": "/timer",
+        "at": "2026-10-23T12:58:28.897Z"
+      },
+      {
+        "sequence": 2,
+        "method": "POST",
+        "path": "/observe",
+        "at": "2026-10-23T12:58:28.903Z"
+      }
+    ]
+  },
+  {
+    "case": "method-counterexample",
+    "counts": {
+      "timerStarts": 1,
+      "hints": 0,
+      "observations": 1,
+      "connections": 2
+    }
+  },
+  {
+    "case": "G protected operations: local host/adapter decision probe > persists host-bound intent before the server sees a protected request, and distinguishes business rejection",
+    "origin": "http://127.0.0.1:52500",
+    "requests": [
+      {
+        "sequence": 1,
+        "method": "POST",
+        "path": "/hint",
+        "at": "2026-10-23T12:58:28.916Z"
+      }
+    ]
+  },
+  {
+    "case": "intent-before-send",
+    "durable": [
+      {
+        "state": "dispatching",
+        "payload": {
+          "sourceHash": "116864599a0a24d7b2a281fd2294279f95ed6c7fd3a8e61f171426bdee072131",
+          "operation": "hint.use",
+          "request": {
+            "method": "POST",
+            "url": "http://127.0.0.1:52500/hint"
+          }
+        }
+      }
+    ],
+    "result": {
+      "effect": "a5940a38-4ea2-4a10-8cfc-05bd76dbb2d9",
+      "transport": "response",
+      "business": "rejected"
+    },
+    "counts": {
+      "timerStarts": 0,
+      "hints": 1,
+      "observations": 0,
+      "connections": 1
+    }
+  },
+  {
+    "case": "G protected operations: local host/adapter decision probe > after effect then disconnect, blocks same effect aliases across restart but ordinary observation and other scopes remain usable",
+    "origin": "http://127.0.0.1:52502",
+    "requests": [
+      {
+        "sequence": 1,
+        "method": "POST",
+        "path": "/hint",
+        "at": "2026-10-23T12:58:28.926Z"
+      },
+      {
+        "sequence": 2,
+        "method": "POST",
+        "path": "/observe",
+        "at": "2026-10-23T12:58:28.929Z"
+      },
+      {
+        "sequence": 3,
+        "method": "GET",
+        "path": "/timer",
+        "at": "2026-10-23T12:58:28.931Z"
+      }
+    ]
+  },
+  {
+    "case": "disconnect-unknown",
+    "result": {
+      "effect": "dd4209ef-8a11-48ae-a6e7-c6a626346f46",
+      "transport": "unknown",
+      "business": "unknown"
+    },
+    "effects": [
+      {
+        "id": "dd4209ef-8a11-48ae-a6e7-c6a626346f46",
+        "runId": "run-protected",
+        "operation": "hint",
+        "kind": "protected_effect",
+        "payload": {
+          "sourceHash": "116864599a0a24d7b2a281fd2294279f95ed6c7fd3a8e61f171426bdee072131",
+          "operation": "hint.use",
+          "request": {
+            "method": "POST",
+            "url": "http://127.0.0.1:52502/hint"
+          }
+        },
+        "challengeId": "c1",
+        "generation": 1,
+        "budget": {
+          "wallClockMs": 3000,
+          "maxSteps": 1,
+          "maxToolJobs": 1,
+          "maxObservableTokens": 1
+        },
+        "deadline": "2026-10-23T12:58:31.926Z",
+        "expectedPostcondition": "adapter business response",
+        "preparedAt": "2026-10-23T12:58:28.926Z",
+        "dispatchedAt": "2026-10-23T12:58:28.926Z",
+        "state": "unknown"
+      },
+      {
+        "id": "e01f8018-2b87-49ae-848f-3fc15be4f4a8",
+        "runId": "run-protected",
+        "operation": "timer",
+        "kind": "protected_effect",
+        "payload": {
+          "sourceHash": "116864599a0a24d7b2a281fd2294279f95ed6c7fd3a8e61f171426bdee072131",
+          "operation": "timer.start",
+          "request": {
+            "method": "GET",
+            "url": "http://127.0.0.1:52502/timer"
+          }
+        },
+        "challengeId": "c1",
+        "generation": 1,
+        "budget": {
+          "wallClockMs": 3000,
+          "maxSteps": 1,
+          "maxToolJobs": 1,
+          "maxObservableTokens": 1
+        },
+        "deadline": "2026-10-23T12:58:31.930Z",
+        "expectedPostcondition": "adapter business response",
+        "preparedAt": "2026-10-23T12:58:28.930Z",
+        "dispatchedAt": "2026-10-23T12:58:28.931Z",
+        "state": "confirmed",
+        "authoritativeResponse": {
+          "status": 200,
+          "outcome": "accepted"
+        },
+        "businessOutcome": "accepted"
+      }
+    ],
+    "counts": {
+      "timerStarts": 1,
+      "hints": 1,
+      "observations": 1,
+      "connections": 3
+    }
+  },
+  {
+    "case": "G protected operations: local host/adapter decision probe > rejects concurrent protected aliases before a second network send",
+    "origin": "http://127.0.0.1:52506",
+    "requests": [
+      {
+        "sequence": 1,
+        "method": "POST",
+        "path": "/hint",
+        "at": "2026-10-23T12:58:28.939Z"
+      }
+    ]
+  },
+  {
+    "case": "G protected operations: local host/adapter decision probe > does not treat an HTTP 200 without an adapter business receipt as confirmation",
+    "origin": "http://127.0.0.1:52508",
+    "requests": [
+      {
+        "sequence": 1,
+        "method": "POST",
+        "path": "/hint",
+        "at": "2026-10-23T12:58:28.947Z"
+      }
+    ]
+  },
+  {
+    "case": "200-not-business-receipt",
+    "result": {
+      "effect": "7450096b-8473-460d-a88c-e455b24fff0f",
+      "transport": "response",
+      "httpStatus": 200,
+      "business": "unknown"
+    },
+    "counts": {
+      "timerStarts": 0,
+      "hints": 1,
+      "observations": 0,
+      "connections": 1
+    }
+  },
+  {
+    "case": "G protected operations: local host/adapter decision probe > refuses model safety claims, direct protected routes, alternate selectors and redirect bypass before protected send",
+    "origin": "http://127.0.0.1:52510",
+    "requests": [
+      {
+        "sequence": 1,
+        "method": "GET",
+        "path": "/redirect",
+        "at": "2026-10-23T12:58:28.964Z"
+      },
+      {
+        "sequence": 2,
+        "method": "POST",
+        "path": "/observe",
+        "at": "2026-10-23T12:58:28.966Z"
+      }
+    ]
+  },
+  {
+    "case": "generic-no-bypass",
+    "counts": {
+      "timerStarts": 0,
+      "hints": 0,
+      "observations": 1,
+      "connections": 2
+    }
+  },
+  {
+    "case": "G protected operations: local host/adapter decision probe > rejects adapter source hash mismatch without sending, rather than trusting a material/model descriptor",
+    "origin": "http://127.0.0.1:52513",
+    "requests": []
+  },
+  {
+    "case": "G protected operations: local host/adapter decision probe > cannot send if intent persistence fails",
+    "origin": "http://127.0.0.1:52515",
+    "requests": []
+  },
+  {
+    "case": "G protected operations: local host/adapter decision probe > treats crash-left dispatching as unresolved, without blindly replaying",
+    "origin": "http://127.0.0.1:52516",
+    "requests": [
+      {
+        "sequence": 1,
+        "method": "POST",
+        "path": "/observe",
+        "at": "2026-10-23T12:58:29.001Z"
+      }
+    ]
+  },
+  {
+    "case": "G protected operations: local host/adapter decision probe > E TCP reachability connects even without HTTP: connect-triggered timers need upstream policy",
+    "origin": "http://127.0.0.1:52519",
+    "requests": []
+  },
+  {
+    "case": "E-connect",
+    "counts": {
+      "timerStarts": 0,
+      "hints": 0,
+      "observations": 0,
+      "connections": 1
+    },
+    "result": {
+      "checkedAt": "2026-10-23T12:58:29.009Z",
+      "reachable": true,
+      "timeoutMs": 3000
+    }
+  },
+  {
+    "case": "G protected operations: local host/adapter decision probe > legacy PlatformService can resend with a fresh generation after unknown: it is not the new D contract",
+    "origin": "http://127.0.0.1:52521",
+    "requests": [
+      {
+        "sequence": 1,
+        "method": "POST",
+        "path": "/hint",
+        "at": "2026-10-23T12:58:29.019Z"
+      },
+      {
+        "sequence": 2,
+        "method": "POST",
+        "path": "/hint",
+        "at": "2026-10-23T12:58:29.020Z"
+      }
+    ]
+  },
+  {
+    "case": "legacy-does-not-enforce-unknown",
+    "effects": [
+      {
+        "id": "effect_l1_1",
+        "runId": "run-protected",
+        "operation": "candidate.submit",
+        "kind": "protected_effect",
+        "payload": {
+          "intent": "candidate.submit",
+          "candidate": "fixture-candidate",
+          "challengeId": "c1",
+          "task": "t1",
+          "lease": "l1"
+        },
+        "challengeId": "c1",
+        "generation": 1,
+        "budget": {
+          "wallClockMs": 1,
+          "maxSteps": 1,
+          "maxToolJobs": 1,
+          "maxObservableTokens": 1
+        },
+        "deadline": "2026-10-23T12:58:59.018Z",
+        "expectedPostcondition": "authoritative oracle response recorded",
+        "preparedAt": "2026-10-23T12:58:29.018Z",
+        "dispatchedAt": "2026-10-23T12:58:29.018Z",
+        "state": "unknown"
+      },
+      {
+        "id": "effect_l1_2",
+        "runId": "run-protected",
+        "operation": "candidate.submit",
+        "kind": "protected_effect",
+        "payload": {
+          "intent": "candidate.submit",
+          "candidate": "fixture-candidate",
+          "challengeId": "c1",
+          "task": "t1",
+          "lease": "l1"
+        },
+        "challengeId": "c1",
+        "generation": 2,
+        "budget": {
+          "wallClockMs": 1,
+          "maxSteps": 1,
+          "maxToolJobs": 1,
+          "maxObservableTokens": 1
+        },
+        "deadline": "2026-10-23T12:58:59.019Z",
+        "expectedPostcondition": "authoritative oracle response recorded",
+        "preparedAt": "2026-10-23T12:58:29.019Z",
+        "dispatchedAt": "2026-10-23T12:58:29.019Z",
+        "state": "unknown"
+      }
+    ],
+    "counts": {
+      "timerStarts": 0,
+      "hints": 2,
+      "observations": 0,
+      "connections": 2
+    }
+  }
+]

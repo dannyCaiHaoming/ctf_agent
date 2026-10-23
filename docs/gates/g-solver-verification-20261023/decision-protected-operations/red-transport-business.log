@@ -1,0 +1,43 @@
+
+> ctf-agent@0.1.0 test
+> vitest run tests/contract/g-protected-operations.test.ts
+
+
+ RUN  v2.1.8 /Users/caihaoming/.codex/worktrees/1b6f/pentest-agent
+
+ ❯ tests/contract/g-protected-operations.test.ts (11 tests | 1 failed) 110ms
+   × G protected operations: local host/adapter decision probe > does not treat an HTTP 200 without an adapter business receipt as confirmation 19ms
+     → expected { …(3) } to match object { transport: 'response', …(2) }
+(1 matching property omitted from actual)
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/contract/g-protected-operations.test.ts > G protected operations: local host/adapter decision probe > does not treat an HTTP 200 without an adapter business receipt as confirmation
+AssertionError: expected { …(3) } to match object { transport: 'response', …(2) }
+(1 matching property omitted from actual)
+
+- Expected
++ Received
+
+  Object {
+    "business": "unknown",
+-   "httpStatus": 200,
+-   "transport": "response",
++   "transport": "unknown",
+  }
+
+ ❯ tests/contract/g-protected-operations.test.ts:126:20
+    124|     const f = await setup(); const host = await f.makeHost(); f.malfor…
+    125|     const result = await host.execute('hint.use', {});
+    126|     expect(result).toMatchObject({ transport: 'response', httpStatus: …
+       |                    ^
+    127|     expect(f.state.effectsFor()[0]?.state).toBe('unknown');
+    128|     await expect(host.execute('hint.alias', {})).rejects.toThrow(/unkn…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 10 passed (11)
+   Start at  21:56:25
+   Duration  386ms (transform 51ms, setup 0ms, collect 66ms, tests 110ms, environment 0ms, prepare 29ms)
+

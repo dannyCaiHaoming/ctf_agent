@@ -1,0 +1,264 @@
+[
+  {
+    "info": {
+      "id": "msg_168d77285001CLVwi4xtePwJbs",
+      "sessionID": "ses_e97288d81ffeB4k1NCIy96YRGY",
+      "role": "user",
+      "time": {
+        "created": 1792760312453
+      },
+      "agent": "coordinator",
+      "model": {
+        "providerID": "stub",
+        "modelID": "scripted"
+      }
+    },
+    "parts": [
+      {
+        "id": "prt_168d77287001NOCknZSbOFgKid",
+        "sessionID": "ses_e97288d81ffeB4k1NCIy96YRGY",
+        "messageID": "msg_168d77285001CLVwi4xtePwJbs",
+        "type": "text",
+        "text": "開始運行。按產品運行約定，由 Coordinator 組織各角色並經 Intake 取得題目。"
+      }
+    ]
+  },
+  {
+    "info": {
+      "id": "msg_168d7735c0013OCpfIFJJJZLnr",
+      "sessionID": "ses_e97288d81ffeB4k1NCIy96YRGY",
+      "role": "assistant",
+      "time": {
+        "created": 1792760312668,
+        "completed": 1792760313032
+      },
+      "parentID": "msg_168d77285001CLVwi4xtePwJbs",
+      "modelID": "scripted",
+      "providerID": "stub",
+      "mode": "coordinator",
+      "agent": "coordinator",
+      "path": {
+        "cwd": "/private/var/folders/tn/x1hbkfy17sx0w1lb8kjzzr340000gn/T/gdec-long-job-XfOOUs/runs/abort/opencode",
+        "root": "/"
+      },
+      "cost": 0,
+      "tokens": {
+        "total": 0,
+        "input": 0,
+        "output": 0,
+        "reasoning": 0,
+        "cache": {
+          "read": 0,
+          "write": 0
+        }
+      },
+      "finish": "tool-calls"
+    },
+    "parts": [
+      {
+        "id": "prt_168d774bc0012Umn36ORC30I23",
+        "sessionID": "ses_e97288d81ffeB4k1NCIy96YRGY",
+        "messageID": "msg_168d7735c0013OCpfIFJJJZLnr",
+        "type": "step-start"
+      },
+      {
+        "id": "prt_168d774bd001BzIk4VLf9YBl4K",
+        "sessionID": "ses_e97288d81ffeB4k1NCIy96YRGY",
+        "messageID": "msg_168d7735c0013OCpfIFJJJZLnr",
+        "type": "tool",
+        "callID": "call_1_0",
+        "tool": "ctf_challenge_assign",
+        "state": {
+          "status": "completed",
+          "input": {
+            "role": "recon",
+            "challenge": "X"
+          },
+          "output": "{\"challenge\":\"X\"}",
+          "title": "challenge.assign",
+          "metadata": {
+            "truncated": false
+          },
+          "time": {
+            "start": 1792760313024,
+            "end": 1792760313028
+          }
+        }
+      },
+      {
+        "id": "prt_168d774c5001FpJ6dSThaJ1zv5",
+        "sessionID": "ses_e97288d81ffeB4k1NCIy96YRGY",
+        "messageID": "msg_168d7735c0013OCpfIFJJJZLnr",
+        "type": "step-finish",
+        "reason": "tool-calls",
+        "cost": 0,
+        "tokens": {
+          "total": 0,
+          "input": 0,
+          "output": 0,
+          "reasoning": 0,
+          "cache": {
+            "read": 0,
+            "write": 0
+          }
+        }
+      }
+    ]
+  },
+  {
+    "info": {
+      "id": "msg_168d774c9001hVDTIAcdKkjPJj",
+      "sessionID": "ses_e97288d81ffeB4k1NCIy96YRGY",
+      "role": "assistant",
+      "time": {
+        "created": 1792760313033,
+        "completed": 1792760313202
+      },
+      "parentID": "msg_168d77285001CLVwi4xtePwJbs",
+      "modelID": "scripted",
+      "providerID": "stub",
+      "mode": "coordinator",
+      "agent": "coordinator",
+      "path": {
+        "cwd": "/private/var/folders/tn/x1hbkfy17sx0w1lb8kjzzr340000gn/T/gdec-long-job-XfOOUs/runs/abort/opencode",
+        "root": "/"
+      },
+      "cost": 0,
+      "tokens": {
+        "total": 0,
+        "input": 0,
+        "output": 0,
+        "reasoning": 0,
+        "cache": {
+          "read": 0,
+          "write": 0
+        }
+      },
+      "finish": "tool-calls"
+    },
+    "parts": [
+      {
+        "id": "prt_168d775060018xh4CKIDtogAQ2",
+        "sessionID": "ses_e97288d81ffeB4k1NCIy96YRGY",
+        "messageID": "msg_168d774c9001hVDTIAcdKkjPJj",
+        "type": "step-start"
+      },
+      {
+        "id": "prt_168d77507001vOUgpcRt3YnuaQ",
+        "sessionID": "ses_e97288d81ffeB4k1NCIy96YRGY",
+        "messageID": "msg_168d774c9001hVDTIAcdKkjPJj",
+        "type": "tool",
+        "callID": "call_2_0",
+        "tool": "task",
+        "state": {
+          "status": "error",
+          "input": {
+            "description": "long job candidate",
+            "subagent_type": "recon",
+            "prompt": "LONG_JOB_CHILD execute one terminal job"
+          },
+          "error": "Task cancelled",
+          "metadata": {
+            "parentSessionId": "ses_e97288d81ffeB4k1NCIy96YRGY",
+            "sessionId": "ses_e97288af5ffecfiLAsoxK7Afvc",
+            "model": {
+              "modelID": "scripted",
+              "providerID": "stub"
+            }
+          },
+          "time": {
+            "start": 1792760313096,
+            "end": 1792760313200
+          }
+        }
+      },
+      {
+        "id": "prt_168d775710012Qq5yllDAKpMOh",
+        "sessionID": "ses_e97288d81ffeB4k1NCIy96YRGY",
+        "messageID": "msg_168d774c9001hVDTIAcdKkjPJj",
+        "type": "step-finish",
+        "reason": "tool-calls",
+        "cost": 0,
+        "tokens": {
+          "total": 0,
+          "input": 0,
+          "output": 0,
+          "reasoning": 0,
+          "cache": {
+            "read": 0,
+            "write": 0
+          }
+        }
+      }
+    ]
+  },
+  {
+    "info": {
+      "id": "msg_168d77573001cwe5TdbZpc6CFq",
+      "sessionID": "ses_e97288d81ffeB4k1NCIy96YRGY",
+      "role": "assistant",
+      "time": {
+        "created": 1792760313203,
+        "completed": 1792760313214
+      },
+      "parentID": "msg_168d77285001CLVwi4xtePwJbs",
+      "modelID": "scripted",
+      "providerID": "stub",
+      "mode": "coordinator",
+      "agent": "coordinator",
+      "path": {
+        "cwd": "/private/var/folders/tn/x1hbkfy17sx0w1lb8kjzzr340000gn/T/gdec-long-job-XfOOUs/runs/abort/opencode",
+        "root": "/"
+      },
+      "cost": 0,
+      "tokens": {
+        "total": 0,
+        "input": 0,
+        "output": 0,
+        "reasoning": 0,
+        "cache": {
+          "read": 0,
+          "write": 0
+        }
+      },
+      "finish": "stop"
+    },
+    "parts": [
+      {
+        "id": "prt_168d7757b001DUDJQdSrDm75g9",
+        "sessionID": "ses_e97288d81ffeB4k1NCIy96YRGY",
+        "messageID": "msg_168d77573001cwe5TdbZpc6CFq",
+        "type": "step-start"
+      },
+      {
+        "id": "prt_168d7757c001Egw7LHzcI1AnSc",
+        "sessionID": "ses_e97288d81ffeB4k1NCIy96YRGY",
+        "messageID": "msg_168d77573001cwe5TdbZpc6CFq",
+        "type": "text",
+        "text": "fixture complete",
+        "time": {
+          "start": 1792760313212,
+          "end": 1792760313212
+        }
+      },
+      {
+        "id": "prt_168d7757d001jrzHIX4zJgg8EQ",
+        "sessionID": "ses_e97288d81ffeB4k1NCIy96YRGY",
+        "messageID": "msg_168d77573001cwe5TdbZpc6CFq",
+        "type": "step-finish",
+        "reason": "stop",
+        "cost": 0,
+        "tokens": {
+          "total": 0,
+          "input": 0,
+          "output": 0,
+          "reasoning": 0,
+          "cache": {
+            "read": 0,
+            "write": 0
+          }
+        }
+      }
+    ]
+  }
+]

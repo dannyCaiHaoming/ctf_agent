@@ -1,0 +1,40 @@
+
+ RUN  v2.1.8 /Users/caihaoming/.codex/worktrees/g-c-rpc-slow-tools/pentest-agent
+
+ ❯ tests/contract/job-start-cleanup.test.ts (1 test | 1 failed) 266ms
+   × failed output setup cannot start an unregistered process 266ms
+     → promise resolved "Buffer[ 98, 97, 100 ]" instead of rejecting
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/contract/job-start-cleanup.test.ts > failed output setup cannot start an unregistered process
+AssertionError: promise resolved "Buffer[ 98, 97, 100 ]" instead of rejecting
+
+- Expected
++ Received
+
+- [Error: rejected promise]
++ Object {
++   "data": Array [
++     98,
++     97,
++     100,
++   ],
++   "type": "Buffer",
++ }
+
+ ❯ tests/contract/job-start-cleanup.test.ts:24:58
+     22|     { argv: [process.execPath, '-e', "setTimeout(()=>require('fs').wri…
+     23|   await new Promise(r => setTimeout(r, 250));
+     24|   await expect(readFile(join(root, 'work/orphan-marker'))).rejects.toT…
+       |                                                          ^
+     25| });
+     26| 
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+ Test Files  1 failed (1)
+      Tests  1 failed (1)
+   Start at  21:11:52
+   Duration  494ms (transform 21ms, setup 0ms, collect 20ms, tests 266ms, environment 0ms, prepare 30ms)
+

@@ -1,0 +1,99 @@
+[
+  {
+    "at": 1792760149726,
+    "seq": 1,
+    "child": false,
+    "step": 0,
+    "calls": [
+      {
+        "name": "ctf_challenge_assign",
+        "args": {
+          "role": "recon",
+          "challenge": "X"
+        }
+      }
+    ],
+    "toolResults": []
+  },
+  {
+    "at": 1792760149812,
+    "seq": 2,
+    "child": false,
+    "step": 1,
+    "calls": [
+      {
+        "name": "task",
+        "args": {
+          "description": "long job candidate",
+          "subagent_type": "recon",
+          "prompt": "LONG_JOB_CHILD execute one terminal job"
+        }
+      }
+    ],
+    "toolResults": [
+      "{\"challenge\":\"X\"}"
+    ]
+  },
+  {
+    "at": 1792760149837,
+    "seq": 3,
+    "child": true,
+    "step": 0,
+    "calls": [
+      {
+        "name": "ctf_job_run",
+        "args": {
+          "argv": [
+            "/opt/homebrew/Cellar/node/26.3.0/bin/node",
+            "-e",
+            "console.log('early');setTimeout(()=>console.log('late'),30000)"
+          ],
+          "wait_ms": 20,
+          "timeout_ms": 250,
+          "completion": "terminal"
+        }
+      }
+    ],
+    "toolResults": []
+  },
+  {
+    "at": 1792760150138,
+    "seq": 4,
+    "child": true,
+    "step": 1,
+    "calls": [
+      {
+        "name": "ctf_job_read",
+        "args": {
+          "job": "e17f432c-1886-4eb1-b73e-74fcf44a1ac9",
+          "stream": "stdout"
+        }
+      }
+    ],
+    "toolResults": [
+      "{\"job\":\"e17f432c-1886-4eb1-b73e-74fcf44a1ac9\",\"state\":\"timed_out\",\"exitCode\":null,\"signal\":\"SIGTERM\",\"reapIncomplete\":false}"
+    ]
+  },
+  {
+    "at": 1792760150173,
+    "seq": 5,
+    "child": true,
+    "step": 2,
+    "calls": [],
+    "toolResults": [
+      "{\"job\":\"e17f432c-1886-4eb1-b73e-74fcf44a1ac9\",\"state\":\"timed_out\",\"exitCode\":null,\"signal\":\"SIGTERM\",\"reapIncomplete\":false}",
+      "{\"job\":\"e17f432c-1886-4eb1-b73e-74fcf44a1ac9\",\"state\":\"timed_out\",\"exitCode\":null,\"signal\":\"SIGTERM\",\"reapIncomplete\":false,\"stream\":\"stdout\",\"encoding\":\"base64\",\"data\":\"ZWFybHkK\",\"offset\":0,\"truncated\":false,\"nextCursor\":null,\"done\":true}"
+    ]
+  },
+  {
+    "at": 1792760150200,
+    "seq": 6,
+    "child": false,
+    "step": 2,
+    "calls": [],
+    "toolResults": [
+      "{\"challenge\":\"X\"}",
+      "<task id=\"ses_e972b08c5ffehArjwrqzYcm95y\" state=\"completed\">\n<task_result>\nFINAL_STATE=timed_out; JOB=e17f432c-1886-4eb1-b73e-74fcf44a1ac9; OUTPUT={\"job\":\"e17f432c-1886-4eb1-b73e-74fcf44a1ac9\",\"state\":\"timed_out\",\"exitCode\":null,\"signal\":\"SIGTERM\",\"reapIncomplete\":false} {\"job\":\"e17f432c-1886-4eb1-b73e-74fcf44a1ac9\",\"state\":\"timed_out\",\"exitCode\":null,\"signal\":\"SIGTERM\",\"reapIncomplete\":false,\"stream\":\"stdout\",\"encoding\":\"base64\",\"data\":\"ZWFybHkK\",\"offset\":0,\"truncated\":false,\"nextCursor\":null,\"done\":true}\n</task_result>\n</task>"
+    ]
+  }
+]

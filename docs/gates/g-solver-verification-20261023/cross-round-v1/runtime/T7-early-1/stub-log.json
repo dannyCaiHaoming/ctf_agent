@@ -1,0 +1,108 @@
+[
+  {
+    "seq": 1,
+    "at": 1792751329854,
+    "kind": "coordinator",
+    "step": 0,
+    "calls": [
+      "ctf_challenge_assign",
+      "task"
+    ],
+    "childIdSeen": null,
+    "firstUser": "\"PROBE_START\""
+  },
+  {
+    "seq": 2,
+    "at": 1792751329895,
+    "kind": "coordinator",
+    "step": 1,
+    "calls": [
+      "task"
+    ],
+    "childIdSeen": null,
+    "firstUser": "\"PROBE_START\""
+  },
+  {
+    "seq": 3,
+    "at": 1792751329926,
+    "kind": "child",
+    "snapshot": {
+      "auditSeq": 14,
+      "bindings": [
+        {
+          "sessionID": "ses_e97b1a1c9ffeJwdtwO1qvHjB7e",
+          "role": "coordinator",
+          "parentID": null,
+          "via": "root",
+          "scope": "run",
+          "expiresAt": 1792751447854,
+          "state": "stopped",
+          "boundAt": 1792751328829
+        },
+        {
+          "sessionID": "ses_e97b19d8fffe6QYfbGlZ0BvxYR",
+          "role": "recon",
+          "parentID": "ses_e97b1a1c9ffeJwdtwO1qvHjB7e",
+          "via": "dispatch",
+          "dispatchCallID": "call_2_0",
+          "challengeId": "X",
+          "scope": "run",
+          "expiresAt": 1792751447854,
+          "state": "stopped",
+          "boundAt": 1792751329911
+        }
+      ],
+      "admissions": [
+        {
+          "seq": 3,
+          "t": 1949,
+          "at": 1792751329803,
+          "sessionID": "ses_e97b1a1c9ffeJwdtwO1qvHjB7e",
+          "op": "model.call",
+          "allow": true,
+          "detail": {
+            "maxOutputTokens": 100000,
+            "admitNo": 1,
+            "role": "coordinator"
+          }
+        },
+        {
+          "seq": 9,
+          "t": 2039,
+          "at": 1792751329893,
+          "sessionID": "ses_e97b1a1c9ffeJwdtwO1qvHjB7e",
+          "op": "model.call",
+          "allow": true,
+          "detail": {
+            "maxOutputTokens": 100000,
+            "admitNo": 2,
+            "role": "coordinator"
+          }
+        },
+        {
+          "seq": 14,
+          "t": 2071,
+          "at": 1792751329925,
+          "sessionID": "ses_e97b19d8fffe6QYfbGlZ0BvxYR",
+          "op": "model.call",
+          "allow": true,
+          "detail": {
+            "maxOutputTokens": 100000,
+            "admitNo": 3,
+            "role": "recon"
+          }
+        }
+      ]
+    },
+    "firstUser": "\"PROBE_CHILD next-round\""
+  },
+  {
+    "seq": 4,
+    "at": 1792751329951,
+    "kind": "coordinator",
+    "step": 2,
+    "calls": [],
+    "childIdSeen": "ses_e97b19d8fffe6QYfbGlZ0BvxYR",
+    "firstUser": "\"PROBE_START\""
+  }
+]

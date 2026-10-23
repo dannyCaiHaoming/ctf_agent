@@ -1,0 +1,34 @@
+
+ RUN  v2.1.8 /Users/caihaoming/.codex/worktrees/g-joint-async-lifecycle/pentest-agent
+
+ ❯ tests/contract/g-async-lifecycle.test.ts (11 tests | 1 failed | 10 skipped) 7ms
+   × stop after natural completion reports original terminal without revoking or rewriting first reply 7ms
+     → expected { state: 'stopped', …(5) } to match object { state: 'completed', …(1) }
+(4 matching properties omitted from actual)
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/contract/g-async-lifecycle.test.ts > stop after natural completion reports original terminal without revoking or rewriting first reply
+AssertionError: expected { state: 'stopped', …(5) } to match object { state: 'completed', …(1) }
+(4 matching properties omitted from actual)
+
+- Expected
++ Received
+
+  Object {
+-   "sessionAbort": "not_required",
+-   "state": "completed",
++   "sessionAbort": "confirmed",
++   "state": "stopped",
+  }
+
+ ❯ tests/contract/g-async-lifecycle.test.ts:43:460
+
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 10 skipped (11)
+   Start at  23:11:03
+   Duration  254ms (transform 46ms, setup 0ms, collect 54ms, tests 7ms, environment 0ms, prepare 39ms)
+

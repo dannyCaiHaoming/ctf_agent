@@ -1,0 +1,76 @@
+
+ RUN  v2.1.8 /Users/caihaoming/.codex/worktrees/g-v4-http-lifecycle/pentest-agent
+
+ ❯ tests/contract/http-lifecycle.test.ts (10 tests | 2 failed | 8 skipped) 16ms
+   × G-V4 trusted HTTP lifecycle boundary > bounds blocked persistence cleanup on cancel and retains unknown reservation 13ms
+     → expected { result: 'cancelled', …(4) } to deeply equal { result: 'cleanup_unknown', …(4) }
+   × G-V4 trusted HTTP lifecycle boundary > bounds blocked persistence cleanup on timeout and retains unknown reservation 3ms
+     → expected { result: 'timeout', …(4) } to deeply equal { result: 'cleanup_unknown', …(4) }
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 2 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/contract/http-lifecycle.test.ts > G-V4 trusted HTTP lifecycle boundary > bounds blocked persistence cleanup on cancel and retains unknown reservation
+AssertionError: expected { result: 'cancelled', …(4) } to deeply equal { result: 'cleanup_unknown', …(4) }
+
+- Expected
++ Received
+
+  Object {
+-   "files": Array [],
++   "files": Array [
++     "1.bin",
++   ],
+    "records": 1,
+-   "reserved": 1,
+-   "result": "cleanup_unknown",
+-   "settledBeforeRelease": true,
++   "reserved": 0,
++   "result": "cancelled",
++   "settledBeforeRelease": false,
+  }
+
+ ❯ tests/contract/http-lifecycle.test.ts:226:8
+    224|     const files = await readdir(join(dir, 'http'));
+    225|     expect({ result, settledBeforeRelease, reserved: host.active.size,…
+    226|       .toEqual({ result: 'cleanup_unknown', settledBeforeRelease: true…
+       |        ^
+    227|   });
+    228| 
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/2]⎯
+
+ FAIL  tests/contract/http-lifecycle.test.ts > G-V4 trusted HTTP lifecycle boundary > bounds blocked persistence cleanup on timeout and retains unknown reservation
+AssertionError: expected { result: 'timeout', …(4) } to deeply equal { result: 'cleanup_unknown', …(4) }
+
+- Expected
++ Received
+
+  Object {
+-   "files": Array [],
++   "files": Array [
++     "1.bin",
++   ],
+    "records": 1,
+-   "reserved": 1,
+-   "result": "cleanup_unknown",
+-   "settledBeforeRelease": true,
++   "reserved": 0,
++   "result": "timeout",
++   "settledBeforeRelease": false,
+  }
+
+ ❯ tests/contract/http-lifecycle.test.ts:226:8
+    224|     const files = await readdir(join(dir, 'http'));
+    225|     expect({ result, settledBeforeRelease, reserved: host.active.size,…
+    226|       .toEqual({ result: 'cleanup_unknown', settledBeforeRelease: true…
+       |        ^
+    227|   });
+    228| 
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/2]⎯
+
+ Test Files  1 failed (1)
+      Tests  2 failed | 8 skipped (10)
+   Start at  20:27:51
+   Duration  233ms (transform 32ms, setup 0ms, collect 34ms, tests 16ms, environment 0ms, prepare 35ms)
+

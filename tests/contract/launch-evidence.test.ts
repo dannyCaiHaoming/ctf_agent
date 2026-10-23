@@ -71,6 +71,8 @@ async function run(failInStart = false) {
     const opts = config.plugin[0]![1];
     const hooks = createCtfAgentHooks({ ...opts, tools: [] });
     await hooks['chat.params']!({ sessionID: rootId, agent: 'coordinator', model: { providerID: 'fake', id: 'model' } } as never, { maxOutputTokens: 1000 } as never);
+    await fetch(opts.controlUrl, { method: 'POST', headers: { authorization: `Bearer ${opts.controlToken}` },
+      body: JSON.stringify({ sessionID: rootId, operation: 'tool.execute', input: { tool: 'challenge.assign', args: { role: 'recon', challenge: 'offline' } } }) });
     await hooks['tool.execute.before']!({ sessionID: rootId, tool: 'task', callID: 'dispatch' }, { args: { subagent_type: 'recon' } });
     await hooks['chat.message']!({ sessionID: 'child', agent: 'recon' } as never, {} as never);
     if (failInStart) throw error('original run failed');

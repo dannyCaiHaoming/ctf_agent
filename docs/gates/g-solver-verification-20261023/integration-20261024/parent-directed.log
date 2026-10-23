@@ -1,0 +1,32 @@
+
+ RUN  v2.1.8 /Users/caihaoming/.codex/worktrees/c323/pentest-agent
+
+ ✓ tests/contract/opencode-config.test.ts (2 tests) 7ms
+ ✓ tests/contract/g-team-integration.test.ts (3 tests) 282ms
+ ✓ tests/contract/g-coordinator-stop.test.ts (9 tests) 3401ms
+   ✓ completed jobs remain exited when stopped; abort failure and unknown reap never claim stopped 3062ms
+ ✓ tests/contract/launch-evidence.test.ts (12 tests) 4915ms
+   ✓ launch failure evidence with SDK stand-in only > keeps normal success and complete reported usage 610ms
+   ✓ launch failure evidence with SDK stand-in only > continues other bound sessions after children failure 556ms
+   ✓ launch failure evidence with SDK stand-in only > continues other bound sessions after export failure 559ms
+   ✓ launch failure evidence with SDK stand-in only > records real per-session abort results and continues remaining aborts 561ms
+   ✓ launch failure evidence with SDK stand-in only > keeps retained message consumption in the actual run file after abort zeroes it 570ms
+   ✓ launch failure evidence with SDK stand-in only > includes known SDK descendant usage even if the descendant never bound 574ms
+   ✓ launch failure evidence with SDK stand-in only > marks total as a lower bound if an unbound descendant export fails 568ms
+   ✓ launch failure evidence with SDK stand-in only > continues evidence writes and records a single-file write failure 562ms
+ ✓ tests/contract/g-async-lifecycle.test.ts (13 tests) 5598ms
+   ✓ default job.run returns terminal without wait/completion modes 5570ms
+ ✓ tests/contract/slow-tools.test.ts (21 tests) 14271ms
+   ✓ stop during registered workspace preparation returns bounded unknown and prevents a late job spawn 4004ms
+   ✓ C retains HTTP cleanup_unknown reservation when response persistence is blocked 1006ms
+   ✓ expiry cancels an already delivered job and refuses its handle after expiry 1025ms
+   ✓ unknown process-group cleanup keeps its session quota reserved 3045ms
+   ✓ terminal candidate keeps one execute pending beyond wait_ms, permits admission and incremental reads, then returns final result once 768ms
+   ✓ terminal candidate timeout and binding expiry do not return an early running handle 697ms
+   ✓ terminal candidate reports incomplete reaping as unknown and keeps its slot reserved 3079ms
+
+ Test Files  6 passed (6)
+      Tests  60 passed (60)
+   Start at  00:30:35
+   Duration  14.65s (transform 415ms, setup 0ms, collect 873ms, tests 28.47s, environment 0ms, prepare 291ms)
+

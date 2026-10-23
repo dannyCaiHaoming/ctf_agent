@@ -1,0 +1,44 @@
+
+ RUN  v2.1.8 /Users/caihaoming/.codex/worktrees/g-joint-async-lifecycle/pentest-agent
+
+ ❯ tests/contract/g-async-lifecycle.test.ts (8 tests | 2 failed) 5583ms
+   ✓ default job.run returns terminal without wait/completion modes 5565ms
+   × trusted startup error releases only its call; late child cannot consume a later same-role dispatch 6ms
+     → denied: unknown operation
+   × parent can stop a trusted early child reference before its first hook; delayed hook stays denied 1ms
+     → denied: task handle
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 2 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/contract/g-async-lifecycle.test.ts > trusted startup error releases only its call; late child cannot consume a later same-role dispatch
+Error: denied: unknown operation
+ ❯ ControlService.handle apps/launcher/src/control-service.ts:166:115
+    164|     try {
+    165|       if (!sessionID || !/^[\w.-]{1,128}$/.test(sessionID)) throw new …
+    166|       if (!['chat.message', 'model.call', 'tool.before', 'tool.execute…
+       |                                                                                                                   ^
+    167|       // Runtime-synthetic native completion is consumed once before a…
+    168|       if (operation === 'chat.message') await this.serial(() => this.r…
+ ❯ tests/contract/g-async-lifecycle.test.ts:25:34
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/2]⎯
+
+ FAIL  tests/contract/g-async-lifecycle.test.ts > parent can stop a trusted early child reference before its first hook; delayed hook stays denied
+Error: denied: task handle
+ ❯ ControlService.checkTaskStop apps/launcher/src/control-service.ts:249:96
+    247|     const dispatch = child && this.dispatched.get(child.sessionID);
+    248|     if (!child || child.via !== 'dispatch' || child.parentID !== paren…
+    249|       !dispatch || dispatch.parent !== parent.sessionID || dispatch.ro…
+       |                                                                                                ^
+    250|     if (Date.now() >= child.expiresAt) throw new ControlDenied('task e…
+    251|     if (child.state !== 'active' && !this.childStops.has(child.session…
+ ❯ ControlService.toolBefore apps/launcher/src/control-service.ts:439:42
+ ❯ apps/launcher/src/control-service.ts:189:43
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/2]⎯
+
+ Test Files  1 failed (1)
+      Tests  2 failed | 6 passed (8)
+   Start at  23:09:17
+   Duration  5.83s (transform 47ms, setup 0ms, collect 52ms, tests 5.58s, environment 0ms, prepare 37ms)
+

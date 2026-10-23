@@ -1,0 +1,64 @@
+[
+  {
+    "command": [
+      "docker",
+      "run",
+      "--name",
+      "gdec-resource-limits-aed4c54e64",
+      "--user",
+      "10001:10001",
+      "--network",
+      "none",
+      "--read-only",
+      "--cap-drop",
+      "ALL",
+      "--security-opt",
+      "no-new-privileges",
+      "--memory",
+      "96m",
+      "--cpus",
+      "0.5",
+      "--pids-limit",
+      "32",
+      "--tmpfs",
+      "/quota:rw,size=1048576,uid=10001,gid=10001,mode=0700",
+      "--mount",
+      "type=bind,src=/Users/caihaoming/.codex/worktrees/5b1d/pentest-agent/docs/gates/g-solver-verification-20261023/decision-resource-limits,dst=/probe,readonly",
+      "--entrypoint",
+      "node",
+      "sha256:7e5c5a015288ad55115573b5b25f4bcd668489f1b88b4137ea8563980706672f",
+      "/probe/container-quota.cjs"
+    ],
+    "exitCode": 0,
+    "log": "logs/container-quota.log"
+  },
+  {
+    "command": [
+      "docker",
+      "inspect",
+      "gdec-resource-limits-aed4c54e64"
+    ],
+    "exitCode": 0,
+    "log": "container-inspect.json"
+  },
+  {
+    "command": [
+      "docker",
+      "start",
+      "-a",
+      "gdec-resource-limits-aed4c54e64"
+    ],
+    "exitCode": 0,
+    "log": "logs/container-restart.log"
+  },
+  {
+    "command": [
+      "docker",
+      "rm",
+      "-f",
+      "gdec-resource-limits-aed4c54e64"
+    ],
+    "exitCode": 0,
+    "log": "logs/container-cleanup.log"
+  }
+]

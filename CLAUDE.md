@@ -62,3 +62,7 @@ design 怎麼拆成 plan 見 `AGENTS.md`「开发方式」。Claude Code 這一�
 - 驗收按 design v1 1.6 分層陳述；stub／fixture 全綠不算完成，解題能力只認真實 run 證據。
 - 只在授權題目 scope 內操作；控制憑據與 oracle 私有答案不進模型上下文。
 - 未經明確授權不 commit／push；跑完就停。
+
+<!-- handoff:learnings:begin -->
+G 的設計選擇、驗證狀態與限制統一見 [G 詳細 design](docs/superpowers/specs/2026-10-23-design-v1-g-solver-minimal.md)。原 handoff 的 G-V6「已驗證」沒有可核對證據，不作為完成依據；臨時決策不在本檔維護副本。
+<!-- handoff:learnings:end -->

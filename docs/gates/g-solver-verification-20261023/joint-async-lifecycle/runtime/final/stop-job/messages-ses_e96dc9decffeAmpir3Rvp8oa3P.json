@@ -1,0 +1,97 @@
+[
+  {
+    "info": {
+      "id": "msg_1692362150012YpvG5zFvA3Fgj",
+      "sessionID": "ses_e96dc9decffeAmpir3Rvp8oa3P",
+      "role": "user",
+      "time": {
+        "created": 1792765288981
+      },
+      "agent": "recon",
+      "model": {
+        "providerID": "stub",
+        "modelID": "scripted"
+      }
+    },
+    "parts": [
+      {
+        "id": "prt_169236216001V9foc75VOADRuR",
+        "sessionID": "ses_e96dc9decffeAmpir3Rvp8oa3P",
+        "messageID": "msg_1692362150012YpvG5zFvA3Fgj",
+        "type": "text",
+        "text": "JOINT_A execute your job"
+      }
+    ]
+  },
+  {
+    "info": {
+      "id": "msg_169236225001Qv3RjpY0Tzt8v9",
+      "sessionID": "ses_e96dc9decffeAmpir3Rvp8oa3P",
+      "role": "assistant",
+      "time": {
+        "created": 1792765288997,
+        "completed": 1792765290273
+      },
+      "error": {
+        "name": "MessageAbortedError",
+        "data": {
+          "message": "Aborted"
+        }
+      },
+      "parentID": "msg_1692362150012YpvG5zFvA3Fgj",
+      "modelID": "scripted",
+      "providerID": "stub",
+      "mode": "recon",
+      "agent": "recon",
+      "path": {
+        "cwd": "/private/var/folders/tn/x1hbkfy17sx0w1lb8kjzzr340000gn/T/g-joint-9rMNyv/runs/stop-job/opencode",
+        "root": "/"
+      },
+      "cost": 0,
+      "tokens": {
+        "input": 0,
+        "output": 0,
+        "reasoning": 0,
+        "cache": {
+          "read": 0,
+          "write": 0
+        }
+      }
+    },
+    "parts": [
+      {
+        "id": "prt_169236238001pKcb7P6aCNA5Zt",
+        "sessionID": "ses_e96dc9decffeAmpir3Rvp8oa3P",
+        "messageID": "msg_169236225001Qv3RjpY0Tzt8v9",
+        "type": "step-start"
+      },
+      {
+        "id": "prt_169236238002y8BYUxBPNRwk0D",
+        "sessionID": "ses_e96dc9decffeAmpir3Rvp8oa3P",
+        "messageID": "msg_169236225001Qv3RjpY0Tzt8v9",
+        "type": "tool",
+        "callID": "call_4_0",
+        "tool": "ctf_job_run",
+        "state": {
+          "status": "error",
+          "input": {
+            "argv": [
+              "/opt/homebrew/Cellar/node/26.3.0/bin/node",
+              "-e",
+              "const ch=require('child_process').spawn(process.execPath,['-e','setInterval(()=>{},1000)'],{stdio:'inherit'});require('fs').writeFileSync('grandchild.pid',String(ch.pid));console.log('early');setInterval(()=>{},1000)"
+            ],
+            "timeout_ms": 30000
+          },
+          "error": "Tool execution aborted",
+          "metadata": {
+            "interrupted": true
+          },
+          "time": {
+            "start": 1792765289017,
+            "end": 1792765290270
+          }
+        }
+      }
+    ]
+  }
+]

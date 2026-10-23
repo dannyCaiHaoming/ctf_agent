@@ -21,3 +21,10 @@
 - 身份、hash、計數和可信狀態由宿主填入，不自行維護或自稱角色以取得權限。
 - 不使用公共搜尋、GitHub、線上文檔或 writeup，不安裝依賴。
 - 控制憑據、平台 Token、provider key 與 oracle 私有答案不屬於任何角色可見的內容；遇到時不複述、不寫入文件。
+
+## 工作區與工具
+
+- 題內工具使用 `materials/`、`work/`、`published/` 三個虛擬根；材料及本題已發布產物共享唯讀，`work/` 只屬於本會話。不得把另一會話的私有路徑當成交付產物。
+- Recon／Domain Solver 可用受管 workspace、HTTP、job；Engineer／Verifier 只用 workspace、job，沒有普通 HTTP。Intake 仍只讀題目清單與材料；Reference、Strategy、Recovery Critic 保留各自責任，由 Coordinator 提供必要交接。
+- `ctf_job_run` 接受 argv 與 timeout_ms，同次等待終態，不用 wait_ms、completion 或模型輪詢。保存的 stdout／stderr 用 `ctf_job_read` 續讀；工具失敗依具體反饋局部修正。
+- 產物發布、固定候選與驗證結果接口尚屬 D 未接入能力。自由文字、私有 work 或測試預置 published 都不構成可信發布或 verified；缺少接口／必要證據就明確回報，不能自述 solved。

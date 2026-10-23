@@ -1,0 +1,93 @@
+[
+  {
+    "info": {
+      "id": "msg_1695d801a001F6bbnN7CMNWhoi",
+      "sessionID": "ses_e96a27fe8ffe1aKea2ZSRMS33H",
+      "role": "user",
+      "time": {
+        "created": 1792769097755
+      },
+      "agent": "recon",
+      "model": {
+        "providerID": "stub",
+        "modelID": "scripted"
+      }
+    },
+    "parts": [
+      {
+        "id": "prt_1695d801c001hl4gxfe3RyTbH6",
+        "sessionID": "ses_e96a27fe8ffe1aKea2ZSRMS33H",
+        "messageID": "msg_1695d801a001F6bbnN7CMNWhoi",
+        "type": "text",
+        "text": "JOINT_A execute your job"
+      }
+    ]
+  },
+  {
+    "info": {
+      "id": "msg_1695d8030001E5483atF9P5lsN",
+      "sessionID": "ses_e96a27fe8ffe1aKea2ZSRMS33H",
+      "role": "assistant",
+      "time": {
+        "created": 1792769097776,
+        "completed": 1792769099036
+      },
+      "error": {
+        "name": "MessageAbortedError",
+        "data": {
+          "message": "Aborted"
+        }
+      },
+      "parentID": "msg_1695d801a001F6bbnN7CMNWhoi",
+      "modelID": "scripted",
+      "providerID": "stub",
+      "mode": "recon",
+      "agent": "recon",
+      "path": {
+        "cwd": "/private/var/folders/tn/x1hbkfy17sx0w1lb8kjzzr340000gn/T/g-joint-5I4T6c/runs/stop-http/opencode",
+        "root": "/"
+      },
+      "cost": 0,
+      "tokens": {
+        "input": 0,
+        "output": 0,
+        "reasoning": 0,
+        "cache": {
+          "read": 0,
+          "write": 0
+        }
+      }
+    },
+    "parts": [
+      {
+        "id": "prt_1695d80480018oMZHxqYHVBxTl",
+        "sessionID": "ses_e96a27fe8ffe1aKea2ZSRMS33H",
+        "messageID": "msg_1695d8030001E5483atF9P5lsN",
+        "type": "step-start"
+      },
+      {
+        "id": "prt_1695d80490014zyZ2eSxnu2alr",
+        "sessionID": "ses_e96a27fe8ffe1aKea2ZSRMS33H",
+        "messageID": "msg_1695d8030001E5483atF9P5lsN",
+        "type": "tool",
+        "callID": "call_4_0",
+        "tool": "ctf_http_request",
+        "state": {
+          "status": "error",
+          "input": {
+            "url": "http://127.0.0.1:62009",
+            "timeout_ms": 30000
+          },
+          "error": "Tool execution aborted",
+          "metadata": {
+            "interrupted": true
+          },
+          "time": {
+            "start": 1792769097802,
+            "end": 1792769099035
+          }
+        }
+      }
+    ]
+  }
+]

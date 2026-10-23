@@ -46,6 +46,7 @@ function service(roles: Record<string, string> = { kid: 'intake' }) {
   return s;
 }
 async function bind(s: ControlService, id: string, role: string) {
+  if (['recon', 'domain-solver', 'engineer', 'verifier'].includes(role)) await s.handle('root', 'tool.execute', { tool: 'challenge.assign', args: { role, challenge: 'web' } });
   await s.handle('root', 'tool.before', { tool: 'task', callID: `c-${id}`, args: { subagent_type: role } });
   await s.handle(id, 'chat.message', { agent: role });
 }
@@ -70,10 +71,11 @@ describe('intake tools: role and challenge limits (criteria 1, 2)', () => {
       await expect(read(s, { id, path: 'statement.md' })).rejects.toThrow('denied: challenge id');
     }
   });
-  it('does not execute unknown managed tools', async () => {
+  it('denies solver managed tools to Intake and refuses unknown tools', async () => {
     const s = service();
     await bind(s, 'kid', 'intake');
-    await expect(s.handle('kid', 'tool.execute', { tool: 'workspace.read', args: {} })).rejects.toThrow('denied: no managed tools');
+    await expect(s.handle('kid', 'tool.execute', { tool: 'workspace.read', args: {} })).rejects.toThrow('denied: tool not permitted');
+    await expect(s.handle('kid', 'tool.execute', { tool: 'unknown.managed', args: {} })).rejects.toThrow('denied: no managed tools');
   });
 });
 

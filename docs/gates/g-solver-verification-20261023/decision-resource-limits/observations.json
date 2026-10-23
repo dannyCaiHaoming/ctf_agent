@@ -1,0 +1,3200 @@
+{
+  "workspaceAggregate": {
+    "criterion": "total <= 134217728; deny overflow before write",
+    "acceptedTotals": [
+      134217727,
+      134217728,
+      134217729
+    ],
+    "afterConcurrentLogicalBytes": 134217731,
+    "allocatedSeedBytes": 0,
+    "criterionMet": false
+  },
+  "overwrite": {
+    "before": 4096,
+    "after": 1,
+    "failedWriteRetainedBytes": 1,
+    "temporaryFilesRemaining": 0,
+    "aggregateReservation": "not implemented"
+  },
+  "aggregateWriters": {
+    "initialLogicalBytes": 134217728,
+    "httpBodyBytes": 1,
+    "directJobBytes": 1,
+    "finalLogicalBytes": 134217730,
+    "criterionMet": false
+  },
+  "httpTrace": {
+    "audit": [
+      {
+        "seq": 1,
+        "t": 0,
+        "at": 1792760197573,
+        "sessionID": "root",
+        "op": "bind",
+        "allow": true,
+        "detail": {
+          "role": "coordinator",
+          "via": "root"
+        }
+      },
+      {
+        "seq": 2,
+        "t": 0,
+        "at": 1792760197573,
+        "sessionID": "root",
+        "op": "assign",
+        "allow": true,
+        "detail": {
+          "role": "recon",
+          "challenge": "X"
+        }
+      },
+      {
+        "seq": 3,
+        "t": 0,
+        "at": 1792760197573,
+        "sessionID": "root",
+        "op": "tool.execute",
+        "allow": true,
+        "detail": {
+          "tool": "challenge.assign",
+          "result": "returned"
+        }
+      },
+      {
+        "seq": 4,
+        "t": 0,
+        "at": 1792760197573,
+        "sessionID": "root",
+        "op": "dispatch.register",
+        "allow": true,
+        "detail": {
+          "role": "recon",
+          "callID": "dispatch-a",
+          "challengeId": "X"
+        }
+      },
+      {
+        "seq": 5,
+        "t": 0,
+        "at": 1792760197573,
+        "sessionID": "root",
+        "op": "tool.before",
+        "allow": true,
+        "detail": {
+          "tool": "task",
+          "callID": "dispatch-a",
+          "result": "returned"
+        }
+      },
+      {
+        "seq": 6,
+        "t": 0,
+        "at": 1792760197573,
+        "sessionID": "a",
+        "op": "bind",
+        "allow": true,
+        "detail": {
+          "role": "recon",
+          "via": "dispatch",
+          "sdkParentID": "root",
+          "sdkAgent": "recon",
+          "callID": "dispatch-a",
+          "challengeId": "X",
+          "sdkMs": 0
+        }
+      },
+      {
+        "seq": 7,
+        "t": 0,
+        "at": 1792760197573,
+        "sessionID": "a",
+        "op": "chat.message",
+        "allow": true,
+        "detail": {
+          "result": "returned"
+        }
+      },
+      {
+        "seq": 8,
+        "t": 0,
+        "at": 1792760197573,
+        "sessionID": "root",
+        "op": "assign",
+        "allow": true,
+        "detail": {
+          "role": "recon",
+          "challenge": "X"
+        }
+      },
+      {
+        "seq": 9,
+        "t": 0,
+        "at": 1792760197573,
+        "sessionID": "root",
+        "op": "tool.execute",
+        "allow": true,
+        "detail": {
+          "tool": "challenge.assign",
+          "result": "returned"
+        }
+      },
+      {
+        "seq": 10,
+        "t": 0,
+        "at": 1792760197573,
+        "sessionID": "root",
+        "op": "dispatch.register",
+        "allow": true,
+        "detail": {
+          "role": "recon",
+          "callID": "dispatch-b",
+          "challengeId": "X"
+        }
+      },
+      {
+        "seq": 11,
+        "t": 0,
+        "at": 1792760197573,
+        "sessionID": "root",
+        "op": "tool.before",
+        "allow": true,
+        "detail": {
+          "tool": "task",
+          "callID": "dispatch-b",
+          "result": "returned"
+        }
+      },
+      {
+        "seq": 12,
+        "t": 0,
+        "at": 1792760197573,
+        "sessionID": "b",
+        "op": "bind",
+        "allow": true,
+        "detail": {
+          "role": "recon",
+          "via": "dispatch",
+          "sdkParentID": "root",
+          "sdkAgent": "recon",
+          "callID": "dispatch-b",
+          "challengeId": "X",
+          "sdkMs": 0
+        }
+      },
+      {
+        "seq": 13,
+        "t": 1,
+        "at": 1792760197574,
+        "sessionID": "b",
+        "op": "chat.message",
+        "allow": true,
+        "detail": {
+          "result": "returned"
+        }
+      },
+      {
+        "seq": 14,
+        "t": 1,
+        "at": 1792760197574,
+        "sessionID": "root",
+        "op": "assign",
+        "allow": true,
+        "detail": {
+          "role": "recon",
+          "challenge": "Y"
+        }
+      },
+      {
+        "seq": 15,
+        "t": 1,
+        "at": 1792760197574,
+        "sessionID": "root",
+        "op": "tool.execute",
+        "allow": true,
+        "detail": {
+          "tool": "challenge.assign",
+          "result": "returned"
+        }
+      },
+      {
+        "seq": 16,
+        "t": 1,
+        "at": 1792760197574,
+        "sessionID": "root",
+        "op": "dispatch.register",
+        "allow": true,
+        "detail": {
+          "role": "recon",
+          "callID": "dispatch-other",
+          "challengeId": "Y"
+        }
+      },
+      {
+        "seq": 17,
+        "t": 1,
+        "at": 1792760197574,
+        "sessionID": "root",
+        "op": "tool.before",
+        "allow": true,
+        "detail": {
+          "tool": "task",
+          "callID": "dispatch-other",
+          "result": "returned"
+        }
+      },
+      {
+        "seq": 18,
+        "t": 1,
+        "at": 1792760197574,
+        "sessionID": "other",
+        "op": "bind",
+        "allow": true,
+        "detail": {
+          "role": "recon",
+          "via": "dispatch",
+          "sdkParentID": "root",
+          "sdkAgent": "recon",
+          "callID": "dispatch-other",
+          "challengeId": "Y",
+          "sdkMs": 0
+        }
+      },
+      {
+        "seq": 19,
+        "t": 1,
+        "at": 1792760197574,
+        "sessionID": "other",
+        "op": "chat.message",
+        "allow": true,
+        "detail": {
+          "result": "returned"
+        }
+      },
+      {
+        "seq": 20,
+        "t": 1,
+        "at": 1792760197574,
+        "sessionID": "a",
+        "op": "tool.before",
+        "allow": true,
+        "detail": {
+          "tool": "ctf_http_request",
+          "callID": "flood-0",
+          "result": "returned"
+        }
+      },
+      {
+        "seq": 21,
+        "t": 1,
+        "at": 1792760197574,
+        "sessionID": "b",
+        "op": "tool.before",
+        "allow": true,
+        "detail": {
+          "tool": "ctf_http_request",
+          "callID": "flood-1",
+          "result": "returned"
+        }
+      },
+      {
+        "seq": 22,
+        "t": 1,
+        "at": 1792760197574,
+        "sessionID": "a",
+        "op": "tool.before",
+        "allow": true,
+        "detail": {
+          "tool": "ctf_http_request",
+          "callID": "flood-2",
+          "result": "returned"
+        }
+      },
+      {
+        "seq": 23,
+        "t": 1,
+        "at": 1792760197574,
+        "sessionID": "b",
+        "op": "tool.before",
+        "allow": true,
+        "detail": {
+          "tool": "ctf_http_request",
+          "callID": "flood-3",
+          "result": "returned"
+        }
+      },
+      {
+        "seq": 24,
+        "t": 1,
+        "at": 1792760197574,
+        "sessionID": "a",
+        "op": "tool.before",
+        "allow": true,
+        "detail": {
+          "tool": "ctf_http_request",
+          "callID": "flood-4",
+          "result": "returned"
+        }
+      },
+      {
+        "seq": 25,
+        "t": 1,
+        "at": 1792760197574,
+        "sessionID": "b",
+        "op": "tool.before",
+        "allow": true,
+        "detail": {
+          "tool": "ctf_http_request",
+          "callID": "flood-5",
+          "result": "returned"
+        }
+      },
+      {
+        "seq": 26,
+        "t": 1,
+        "at": 1792760197574,
+        "sessionID": "a",
+        "op": "tool.before",
+        "allow": true,
+        "detail": {
+          "tool": "ctf_http_request",
+          "callID": "flood-6",
+          "result": "returned"
+        }
+      },
+      {
+        "seq": 27,
+        "t": 1,
+        "at": 1792760197574,
+        "sessionID": "b",
+        "op": "tool.before",
+        "allow": true,
+        "detail": {
+          "tool": "ctf_http_request",
+          "callID": "flood-7",
+          "result": "returned"
+        }
+      },
+      {
+        "seq": 28,
+        "t": 1,
+        "at": 1792760197574,
+        "sessionID": "a",
+        "op": "tool.before",
+        "allow": true,
+        "detail": {
+          "tool": "ctf_http_request",
+          "callID": "flood-8",
+          "result": "returned"
+        }
+      },
+      {
+        "seq": 29,
+        "t": 2,
+        "at": 1792760197575,
+        "sessionID": "a",
+        "op": "tool.registered",
+        "allow": true,
+        "detail": {
+          "callID": "flood-0",
+          "tool": "http.request",
+          "challengeId": "X",
+          "deadline": 1792760212575
+        }
+      },
+      {
+        "seq": 30,
+        "t": 2,
+        "at": 1792760197575,
+        "sessionID": "b",
+        "op": "tool.registered",
+        "allow": true,
+        "detail": {
+          "callID": "flood-1",
+          "tool": "http.request",
+          "challengeId": "X",
+          "deadline": 1792760212575
+        }
+      },
+      {
+        "seq": 31,
+        "t": 2,
+        "at": 1792760197575,
+        "sessionID": "a",
+        "op": "tool.registered",
+        "allow": true,
+        "detail": {
+          "callID": "flood-2",
+          "tool": "http.request",
+          "challengeId": "X",
+          "deadline": 1792760212575
+        }
+      },
+      {
+        "seq": 32,
+        "t": 2,
+        "at": 1792760197575,
+        "sessionID": "b",
+        "op": "tool.registered",
+        "allow": true,
+        "detail": {
+          "callID": "flood-3",
+          "tool": "http.request",
+          "challengeId": "X",
+          "deadline": 1792760212575
+        }
+      },
+      {
+        "seq": 33,
+        "t": 2,
+        "at": 1792760197575,
+        "sessionID": "a",
+        "op": "tool.registered",
+        "allow": true,
+        "detail": {
+          "callID": "flood-4",
+          "tool": "http.request",
+          "challengeId": "X",
+          "deadline": 1792760212575
+        }
+      },
+      {
+        "seq": 34,
+        "t": 2,
+        "at": 1792760197575,
+        "sessionID": "b",
+        "op": "tool.registered",
+        "allow": true,
+        "detail": {
+          "callID": "flood-5",
+          "tool": "http.request",
+          "challengeId": "X",
+          "deadline": 1792760212575
+        }
+      },
+      {
+        "seq": 35,
+        "t": 2,
+        "at": 1792760197575,
+        "sessionID": "a",
+        "op": "tool.registered",
+        "allow": true,
+        "detail": {
+          "callID": "flood-6",
+          "tool": "http.request",
+          "challengeId": "X",
+          "deadline": 1792760212575
+        }
+      },
+      {
+        "seq": 36,
+        "t": 2,
+        "at": 1792760197575,
+        "sessionID": "b",
+        "op": "tool.registered",
+        "allow": true,
+        "detail": {
+          "callID": "flood-7",
+          "tool": "http.request",
+          "challengeId": "X",
+          "deadline": 1792760212575
+        }
+      },
+      {
+        "seq": 37,
+        "t": 2,
+        "at": 1792760197575,
+        "sessionID": "a",
+        "op": "tool.execute",
+        "allow": false,
+        "reason": "denied: http limit",
+        "detail": {
+          "tool": "http.request",
+          "callID": "flood-8"
+        }
+      },
+      {
+        "seq": 38,
+        "t": 53,
+        "at": 1792760197626,
+        "sessionID": "other",
+        "op": "tool.before",
+        "allow": true,
+        "detail": {
+          "tool": "ctf_http_request",
+          "callID": "other",
+          "result": "returned"
+        }
+      },
+      {
+        "seq": 39,
+        "t": 53,
+        "at": 1792760197626,
+        "sessionID": "other",
+        "op": "tool.registered",
+        "allow": true,
+        "detail": {
+          "callID": "other",
+          "tool": "http.request",
+          "challengeId": "Y",
+          "deadline": 1792760212626
+        }
+      },
+      {
+        "seq": 40,
+        "t": 104,
+        "at": 1792760197677,
+        "sessionID": "a",
+        "op": "revoke",
+        "allow": true
+      },
+      {
+        "seq": 41,
+        "t": 109,
+        "at": 1792760197682,
+        "sessionID": "a",
+        "op": "tool.settled",
+        "allow": true,
+        "detail": {
+          "callID": "flood-6",
+          "tool": "http.request",
+          "result": "cancelled"
+        }
+      },
+      {
+        "seq": 42,
+        "t": 109,
+        "at": 1792760197682,
+        "sessionID": "a",
+        "op": "tool.execute",
+        "allow": false,
+        "reason": "denied: cancelled",
+        "detail": {
+          "tool": "http.request",
+          "callID": "flood-6"
+        }
+      },
+      {
+        "seq": 43,
+        "t": 109,
+        "at": 1792760197682,
+        "sessionID": "a",
+        "op": "tool.settled",
+        "allow": true,
+        "detail": {
+          "callID": "flood-4",
+          "tool": "http.request",
+          "result": "cancelled"
+        }
+      },
+      {
+        "seq": 44,
+        "t": 109,
+        "at": 1792760197682,
+        "sessionID": "a",
+        "op": "tool.execute",
+        "allow": false,
+        "reason": "denied: cancelled",
+        "detail": {
+          "tool": "http.request",
+          "callID": "flood-4"
+        }
+      },
+      {
+        "seq": 45,
+        "t": 110,
+        "at": 1792760197683,
+        "sessionID": "a",
+        "op": "tool.settled",
+        "allow": true,
+        "detail": {
+          "callID": "flood-2",
+          "tool": "http.request",
+          "result": "cancelled"
+        }
+      },
+      {
+        "seq": 46,
+        "t": 110,
+        "at": 1792760197683,
+        "sessionID": "a",
+        "op": "tool.execute",
+        "allow": false,
+        "reason": "denied: cancelled",
+        "detail": {
+          "tool": "http.request",
+          "callID": "flood-2"
+        }
+      },
+      {
+        "seq": 47,
+        "t": 110,
+        "at": 1792760197683,
+        "sessionID": "a",
+        "op": "tool.settled",
+        "allow": true,
+        "detail": {
+          "callID": "flood-0",
+          "tool": "http.request",
+          "result": "cancelled"
+        }
+      },
+      {
+        "seq": 48,
+        "t": 110,
+        "at": 1792760197683,
+        "sessionID": "a",
+        "op": "tool.execute",
+        "allow": false,
+        "reason": "denied: cancelled",
+        "detail": {
+          "tool": "http.request",
+          "callID": "flood-0"
+        }
+      },
+      {
+        "seq": 49,
+        "t": 110,
+        "at": 1792760197683,
+        "sessionID": "a",
+        "op": "aborted",
+        "allow": true
+      },
+      {
+        "seq": 50,
+        "t": 110,
+        "at": 1792760197683,
+        "sessionID": "b",
+        "op": "tool.before",
+        "allow": true,
+        "detail": {
+          "tool": "ctf_http_request",
+          "callID": "replacement",
+          "result": "returned"
+        }
+      },
+      {
+        "seq": 51,
+        "t": 110,
+        "at": 1792760197683,
+        "sessionID": "b",
+        "op": "tool.registered",
+        "allow": true,
+        "detail": {
+          "callID": "replacement",
+          "tool": "http.request",
+          "challengeId": "X",
+          "deadline": 1792760212683
+        }
+      },
+      {
+        "seq": 52,
+        "t": 160,
+        "at": 1792760197733,
+        "sessionID": "root",
+        "op": "stop_marked",
+        "allow": true,
+        "detail": {
+          "reason": "test",
+          "sessions": [
+            "root",
+            "a",
+            "b",
+            "other"
+          ]
+        }
+      },
+      {
+        "seq": 53,
+        "t": 162,
+        "at": 1792760197735,
+        "sessionID": "b",
+        "op": "tool.settled",
+        "allow": true,
+        "detail": {
+          "callID": "replacement",
+          "tool": "http.request",
+          "result": "cancelled"
+        }
+      },
+      {
+        "seq": 54,
+        "t": 162,
+        "at": 1792760197735,
+        "sessionID": "b",
+        "op": "tool.execute",
+        "allow": false,
+        "reason": "denied: cancelled",
+        "detail": {
+          "tool": "http.request",
+          "callID": "replacement"
+        }
+      },
+      {
+        "seq": 55,
+        "t": 162,
+        "at": 1792760197735,
+        "sessionID": "other",
+        "op": "tool.settled",
+        "allow": true,
+        "detail": {
+          "callID": "other",
+          "tool": "http.request",
+          "result": "cancelled"
+        }
+      },
+      {
+        "seq": 56,
+        "t": 163,
+        "at": 1792760197736,
+        "sessionID": "other",
+        "op": "tool.execute",
+        "allow": false,
+        "reason": "denied: cancelled",
+        "detail": {
+          "tool": "http.request",
+          "callID": "other"
+        }
+      },
+      {
+        "seq": 57,
+        "t": 163,
+        "at": 1792760197736,
+        "sessionID": "b",
+        "op": "tool.settled",
+        "allow": true,
+        "detail": {
+          "callID": "flood-7",
+          "tool": "http.request",
+          "result": "cancelled"
+        }
+      },
+      {
+        "seq": 58,
+        "t": 163,
+        "at": 1792760197736,
+        "sessionID": "b",
+        "op": "tool.execute",
+        "allow": false,
+        "reason": "denied: cancelled",
+        "detail": {
+          "tool": "http.request",
+          "callID": "flood-7"
+        }
+      },
+      {
+        "seq": 59,
+        "t": 163,
+        "at": 1792760197736,
+        "sessionID": "b",
+        "op": "tool.settled",
+        "allow": true,
+        "detail": {
+          "callID": "flood-5",
+          "tool": "http.request",
+          "result": "cancelled"
+        }
+      },
+      {
+        "seq": 60,
+        "t": 163,
+        "at": 1792760197736,
+        "sessionID": "b",
+        "op": "tool.execute",
+        "allow": false,
+        "reason": "denied: cancelled",
+        "detail": {
+          "tool": "http.request",
+          "callID": "flood-5"
+        }
+      },
+      {
+        "seq": 61,
+        "t": 163,
+        "at": 1792760197736,
+        "sessionID": "b",
+        "op": "tool.settled",
+        "allow": true,
+        "detail": {
+          "callID": "flood-3",
+          "tool": "http.request",
+          "result": "cancelled"
+        }
+      },
+      {
+        "seq": 62,
+        "t": 163,
+        "at": 1792760197736,
+        "sessionID": "b",
+        "op": "tool.execute",
+        "allow": false,
+        "reason": "denied: cancelled",
+        "detail": {
+          "tool": "http.request",
+          "callID": "flood-3"
+        }
+      },
+      {
+        "seq": 63,
+        "t": 163,
+        "at": 1792760197736,
+        "sessionID": "b",
+        "op": "tool.settled",
+        "allow": true,
+        "detail": {
+          "callID": "flood-1",
+          "tool": "http.request",
+          "result": "cancelled"
+        }
+      },
+      {
+        "seq": 64,
+        "t": 163,
+        "at": 1792760197736,
+        "sessionID": "b",
+        "op": "tool.execute",
+        "allow": false,
+        "reason": "denied: cancelled",
+        "detail": {
+          "tool": "http.request",
+          "callID": "flood-1"
+        }
+      },
+      {
+        "seq": 65,
+        "t": 163,
+        "at": 1792760197736,
+        "sessionID": "root",
+        "op": "stop_enumerated",
+        "allow": true,
+        "detail": {
+          "sessions": [
+            "root",
+            "a",
+            "b",
+            "other"
+          ]
+        }
+      },
+      {
+        "seq": 66,
+        "t": 163,
+        "at": 1792760197736,
+        "sessionID": "root",
+        "op": "aborted",
+        "allow": true
+      },
+      {
+        "seq": 67,
+        "t": 163,
+        "at": 1792760197736,
+        "sessionID": "a",
+        "op": "aborted",
+        "allow": true
+      },
+      {
+        "seq": 68,
+        "t": 163,
+        "at": 1792760197736,
+        "sessionID": "b",
+        "op": "aborted",
+        "allow": true
+      },
+      {
+        "seq": 69,
+        "t": 163,
+        "at": 1792760197736,
+        "sessionID": "other",
+        "op": "aborted",
+        "allow": true
+      }
+    ],
+    "resources": [
+      {
+        "run": "resource-run",
+        "sessionID": "a",
+        "challengeId": "X",
+        "callID": "flood-0",
+        "tool": "http.request",
+        "state": "settled",
+        "deadline": 1792760212575,
+        "result": "cancelled"
+      },
+      {
+        "run": "resource-run",
+        "sessionID": "b",
+        "challengeId": "X",
+        "callID": "flood-1",
+        "tool": "http.request",
+        "state": "settled",
+        "deadline": 1792760212575,
+        "result": "cancelled"
+      },
+      {
+        "run": "resource-run",
+        "sessionID": "a",
+        "challengeId": "X",
+        "callID": "flood-2",
+        "tool": "http.request",
+        "state": "settled",
+        "deadline": 1792760212575,
+        "result": "cancelled"
+      },
+      {
+        "run": "resource-run",
+        "sessionID": "b",
+        "challengeId": "X",
+        "callID": "flood-3",
+        "tool": "http.request",
+        "state": "settled",
+        "deadline": 1792760212575,
+        "result": "cancelled"
+      },
+      {
+        "run": "resource-run",
+        "sessionID": "a",
+        "challengeId": "X",
+        "callID": "flood-4",
+        "tool": "http.request",
+        "state": "settled",
+        "deadline": 1792760212575,
+        "result": "cancelled"
+      },
+      {
+        "run": "resource-run",
+        "sessionID": "b",
+        "challengeId": "X",
+        "callID": "flood-5",
+        "tool": "http.request",
+        "state": "settled",
+        "deadline": 1792760212575,
+        "result": "cancelled"
+      },
+      {
+        "run": "resource-run",
+        "sessionID": "a",
+        "challengeId": "X",
+        "callID": "flood-6",
+        "tool": "http.request",
+        "state": "settled",
+        "deadline": 1792760212575,
+        "result": "cancelled"
+      },
+      {
+        "run": "resource-run",
+        "sessionID": "b",
+        "challengeId": "X",
+        "callID": "flood-7",
+        "tool": "http.request",
+        "state": "settled",
+        "deadline": 1792760212575,
+        "result": "cancelled"
+      },
+      {
+        "run": "resource-run",
+        "sessionID": "other",
+        "challengeId": "Y",
+        "callID": "other",
+        "tool": "http.request",
+        "state": "settled",
+        "deadline": 1792760212626,
+        "result": "cancelled"
+      },
+      {
+        "run": "resource-run",
+        "sessionID": "b",
+        "challengeId": "X",
+        "callID": "replacement",
+        "tool": "http.request",
+        "state": "settled",
+        "deadline": 1792760212683,
+        "result": "cancelled"
+      }
+    ]
+  },
+  "httpConcurrency": {
+    "sameChallengeAccepted": 8,
+    "excessRefused": 1,
+    "otherChallengeAccepted": true,
+    "knownCancellationReleased": true
+  },
+  "httpUnknownTrace": {
+    "audit": [
+      {
+        "seq": 1,
+        "t": 0,
+        "at": 1792760197738,
+        "sessionID": "root",
+        "op": "bind",
+        "allow": true,
+        "detail": {
+          "role": "coordinator",
+          "via": "root"
+        }
+      },
+      {
+        "seq": 2,
+        "t": 0,
+        "at": 1792760197738,
+        "sessionID": "root",
+        "op": "assign",
+        "allow": true,
+        "detail": {
+          "role": "recon",
+          "challenge": "X"
+        }
+      },
+      {
+        "seq": 3,
+        "t": 0,
+        "at": 1792760197738,
+        "sessionID": "root",
+        "op": "tool.execute",
+        "allow": true,
+        "detail": {
+          "tool": "challenge.assign",
+          "result": "returned"
+        }
+      },
+      {
+        "seq": 4,
+        "t": 0,
+        "at": 1792760197738,
+        "sessionID": "root",
+        "op": "dispatch.register",
+        "allow": true,
+        "detail": {
+          "role": "recon",
+          "callID": "dispatch-a",
+          "challengeId": "X"
+        }
+      },
+      {
+        "seq": 5,
+        "t": 0,
+        "at": 1792760197738,
+        "sessionID": "root",
+        "op": "tool.before",
+        "allow": true,
+        "detail": {
+          "tool": "task",
+          "callID": "dispatch-a",
+          "result": "returned"
+        }
+      },
+      {
+        "seq": 6,
+        "t": 0,
+        "at": 1792760197738,
+        "sessionID": "a",
+        "op": "bind",
+        "allow": true,
+        "detail": {
+          "role": "recon",
+          "via": "dispatch",
+          "sdkParentID": "root",
+          "sdkAgent": "recon",
+          "callID": "dispatch-a",
+          "challengeId": "X",
+          "sdkMs": 0
+        }
+      },
+      {
+        "seq": 7,
+        "t": 1,
+        "at": 1792760197739,
+        "sessionID": "a",
+        "op": "chat.message",
+        "allow": true,
+        "detail": {
+          "result": "returned"
+        }
+      },
+      {
+        "seq": 8,
+        "t": 1,
+        "at": 1792760197739,
+        "sessionID": "a",
+        "op": "tool.before",
+        "allow": true,
+        "detail": {
+          "tool": "ctf_http_request",
+          "callID": "unknown-0",
+          "result": "returned"
+        }
+      },
+      {
+        "seq": 9,
+        "t": 1,
+        "at": 1792760197739,
+        "sessionID": "a",
+        "op": "tool.before",
+        "allow": true,
+        "detail": {
+          "tool": "ctf_http_request",
+          "callID": "unknown-1",
+          "result": "returned"
+        }
+      },
+      {
+        "seq": 10,
+        "t": 1,
+        "at": 1792760197739,
+        "sessionID": "a",
+        "op": "tool.before",
+        "allow": true,
+        "detail": {
+          "tool": "ctf_http_request",
+          "callID": "unknown-2",
+          "result": "returned"
+        }
+      },
+      {
+        "seq": 11,
+        "t": 1,
+        "at": 1792760197739,
+        "sessionID": "a",
+        "op": "tool.before",
+        "allow": true,
+        "detail": {
+          "tool": "ctf_http_request",
+          "callID": "unknown-3",
+          "result": "returned"
+        }
+      },
+      {
+        "seq": 12,
+        "t": 1,
+        "at": 1792760197739,
+        "sessionID": "a",
+        "op": "tool.before",
+        "allow": true,
+        "detail": {
+          "tool": "ctf_http_request",
+          "callID": "unknown-4",
+          "result": "returned"
+        }
+      },
+      {
+        "seq": 13,
+        "t": 1,
+        "at": 1792760197739,
+        "sessionID": "a",
+        "op": "tool.before",
+        "allow": true,
+        "detail": {
+          "tool": "ctf_http_request",
+          "callID": "unknown-5",
+          "result": "returned"
+        }
+      },
+      {
+        "seq": 14,
+        "t": 1,
+        "at": 1792760197739,
+        "sessionID": "a",
+        "op": "tool.before",
+        "allow": true,
+        "detail": {
+          "tool": "ctf_http_request",
+          "callID": "unknown-6",
+          "result": "returned"
+        }
+      },
+      {
+        "seq": 15,
+        "t": 1,
+        "at": 1792760197739,
+        "sessionID": "a",
+        "op": "tool.before",
+        "allow": true,
+        "detail": {
+          "tool": "ctf_http_request",
+          "callID": "unknown-7",
+          "result": "returned"
+        }
+      },
+      {
+        "seq": 16,
+        "t": 1,
+        "at": 1792760197739,
+        "sessionID": "a",
+        "op": "tool.registered",
+        "allow": true,
+        "detail": {
+          "callID": "unknown-0",
+          "tool": "http.request",
+          "challengeId": "X",
+          "deadline": 1792760197839
+        }
+      },
+      {
+        "seq": 17,
+        "t": 1,
+        "at": 1792760197739,
+        "sessionID": "a",
+        "op": "tool.registered",
+        "allow": true,
+        "detail": {
+          "callID": "unknown-1",
+          "tool": "http.request",
+          "challengeId": "X",
+          "deadline": 1792760197839
+        }
+      },
+      {
+        "seq": 18,
+        "t": 1,
+        "at": 1792760197739,
+        "sessionID": "a",
+        "op": "tool.registered",
+        "allow": true,
+        "detail": {
+          "callID": "unknown-2",
+          "tool": "http.request",
+          "challengeId": "X",
+          "deadline": 1792760197839
+        }
+      },
+      {
+        "seq": 19,
+        "t": 1,
+        "at": 1792760197739,
+        "sessionID": "a",
+        "op": "tool.registered",
+        "allow": true,
+        "detail": {
+          "callID": "unknown-3",
+          "tool": "http.request",
+          "challengeId": "X",
+          "deadline": 1792760197839
+        }
+      },
+      {
+        "seq": 20,
+        "t": 1,
+        "at": 1792760197739,
+        "sessionID": "a",
+        "op": "tool.registered",
+        "allow": true,
+        "detail": {
+          "callID": "unknown-4",
+          "tool": "http.request",
+          "challengeId": "X",
+          "deadline": 1792760197839
+        }
+      },
+      {
+        "seq": 21,
+        "t": 1,
+        "at": 1792760197739,
+        "sessionID": "a",
+        "op": "tool.registered",
+        "allow": true,
+        "detail": {
+          "callID": "unknown-5",
+          "tool": "http.request",
+          "challengeId": "X",
+          "deadline": 1792760197839
+        }
+      },
+      {
+        "seq": 22,
+        "t": 1,
+        "at": 1792760197739,
+        "sessionID": "a",
+        "op": "tool.registered",
+        "allow": true,
+        "detail": {
+          "callID": "unknown-6",
+          "tool": "http.request",
+          "challengeId": "X",
+          "deadline": 1792760197839
+        }
+      },
+      {
+        "seq": 23,
+        "t": 1,
+        "at": 1792760197739,
+        "sessionID": "a",
+        "op": "tool.registered",
+        "allow": true,
+        "detail": {
+          "callID": "unknown-7",
+          "tool": "http.request",
+          "challengeId": "X",
+          "deadline": 1792760197839
+        }
+      },
+      {
+        "seq": 24,
+        "t": 1103,
+        "at": 1792760198841,
+        "sessionID": "a",
+        "op": "tool.settled",
+        "allow": false,
+        "detail": {
+          "callID": "unknown-0",
+          "tool": "http.request",
+          "result": "cleanup_unknown"
+        }
+      },
+      {
+        "seq": 25,
+        "t": 1103,
+        "at": 1792760198841,
+        "sessionID": "a",
+        "op": "tool.execute",
+        "allow": false,
+        "reason": "denied: cleanup_unknown",
+        "detail": {
+          "tool": "http.request",
+          "callID": "unknown-0"
+        }
+      },
+      {
+        "seq": 26,
+        "t": 1103,
+        "at": 1792760198841,
+        "sessionID": "a",
+        "op": "tool.settled",
+        "allow": false,
+        "detail": {
+          "callID": "unknown-1",
+          "tool": "http.request",
+          "result": "cleanup_unknown"
+        }
+      },
+      {
+        "seq": 27,
+        "t": 1103,
+        "at": 1792760198841,
+        "sessionID": "a",
+        "op": "tool.execute",
+        "allow": false,
+        "reason": "denied: cleanup_unknown",
+        "detail": {
+          "tool": "http.request",
+          "callID": "unknown-1"
+        }
+      },
+      {
+        "seq": 28,
+        "t": 1103,
+        "at": 1792760198841,
+        "sessionID": "a",
+        "op": "tool.settled",
+        "allow": false,
+        "detail": {
+          "callID": "unknown-2",
+          "tool": "http.request",
+          "result": "cleanup_unknown"
+        }
+      },
+      {
+        "seq": 29,
+        "t": 1103,
+        "at": 1792760198841,
+        "sessionID": "a",
+        "op": "tool.execute",
+        "allow": false,
+        "reason": "denied: cleanup_unknown",
+        "detail": {
+          "tool": "http.request",
+          "callID": "unknown-2"
+        }
+      },
+      {
+        "seq": 30,
+        "t": 1103,
+        "at": 1792760198841,
+        "sessionID": "a",
+        "op": "tool.settled",
+        "allow": false,
+        "detail": {
+          "callID": "unknown-3",
+          "tool": "http.request",
+          "result": "cleanup_unknown"
+        }
+      },
+      {
+        "seq": 31,
+        "t": 1103,
+        "at": 1792760198841,
+        "sessionID": "a",
+        "op": "tool.execute",
+        "allow": false,
+        "reason": "denied: cleanup_unknown",
+        "detail": {
+          "tool": "http.request",
+          "callID": "unknown-3"
+        }
+      },
+      {
+        "seq": 32,
+        "t": 1103,
+        "at": 1792760198841,
+        "sessionID": "a",
+        "op": "tool.settled",
+        "allow": false,
+        "detail": {
+          "callID": "unknown-4",
+          "tool": "http.request",
+          "result": "cleanup_unknown"
+        }
+      },
+      {
+        "seq": 33,
+        "t": 1103,
+        "at": 1792760198841,
+        "sessionID": "a",
+        "op": "tool.execute",
+        "allow": false,
+        "reason": "denied: cleanup_unknown",
+        "detail": {
+          "tool": "http.request",
+          "callID": "unknown-4"
+        }
+      },
+      {
+        "seq": 34,
+        "t": 1103,
+        "at": 1792760198841,
+        "sessionID": "a",
+        "op": "tool.settled",
+        "allow": false,
+        "detail": {
+          "callID": "unknown-5",
+          "tool": "http.request",
+          "result": "cleanup_unknown"
+        }
+      },
+      {
+        "seq": 35,
+        "t": 1103,
+        "at": 1792760198841,
+        "sessionID": "a",
+        "op": "tool.execute",
+        "allow": false,
+        "reason": "denied: cleanup_unknown",
+        "detail": {
+          "tool": "http.request",
+          "callID": "unknown-5"
+        }
+      },
+      {
+        "seq": 36,
+        "t": 1103,
+        "at": 1792760198841,
+        "sessionID": "a",
+        "op": "tool.settled",
+        "allow": false,
+        "detail": {
+          "callID": "unknown-6",
+          "tool": "http.request",
+          "result": "cleanup_unknown"
+        }
+      },
+      {
+        "seq": 37,
+        "t": 1103,
+        "at": 1792760198841,
+        "sessionID": "a",
+        "op": "tool.execute",
+        "allow": false,
+        "reason": "denied: cleanup_unknown",
+        "detail": {
+          "tool": "http.request",
+          "callID": "unknown-6"
+        }
+      },
+      {
+        "seq": 38,
+        "t": 1103,
+        "at": 1792760198841,
+        "sessionID": "a",
+        "op": "tool.settled",
+        "allow": false,
+        "detail": {
+          "callID": "unknown-7",
+          "tool": "http.request",
+          "result": "cleanup_unknown"
+        }
+      },
+      {
+        "seq": 39,
+        "t": 1103,
+        "at": 1792760198841,
+        "sessionID": "a",
+        "op": "tool.execute",
+        "allow": false,
+        "reason": "denied: cleanup_unknown",
+        "detail": {
+          "tool": "http.request",
+          "callID": "unknown-7"
+        }
+      },
+      {
+        "seq": 40,
+        "t": 1135,
+        "at": 1792760198873,
+        "sessionID": "a",
+        "op": "tool.before",
+        "allow": true,
+        "detail": {
+          "tool": "ctf_http_request",
+          "callID": "unknown-overflow",
+          "result": "returned"
+        }
+      },
+      {
+        "seq": 41,
+        "t": 1135,
+        "at": 1792760198873,
+        "sessionID": "a",
+        "op": "tool.execute",
+        "allow": false,
+        "reason": "denied: http limit",
+        "detail": {
+          "tool": "http.request",
+          "callID": "unknown-overflow"
+        }
+      },
+      {
+        "seq": 42,
+        "t": 1135,
+        "at": 1792760198873,
+        "sessionID": "root",
+        "op": "stop_marked",
+        "allow": true,
+        "detail": {
+          "reason": "cleanup",
+          "sessions": [
+            "root",
+            "a"
+          ]
+        }
+      },
+      {
+        "seq": 43,
+        "t": 1135,
+        "at": 1792760198873,
+        "sessionID": "root",
+        "op": "stop_enumerated",
+        "allow": true,
+        "detail": {
+          "sessions": [
+            "root",
+            "a"
+          ]
+        }
+      },
+      {
+        "seq": 44,
+        "t": 1135,
+        "at": 1792760198873,
+        "sessionID": "root",
+        "op": "aborted",
+        "allow": true
+      },
+      {
+        "seq": 45,
+        "t": 1135,
+        "at": 1792760198873,
+        "sessionID": "a",
+        "op": "aborted",
+        "allow": true
+      }
+    ],
+    "resources": [
+      {
+        "run": "resource-run",
+        "sessionID": "a",
+        "challengeId": "X",
+        "callID": "unknown-0",
+        "tool": "http.request",
+        "state": "unknown",
+        "deadline": 1792760197839,
+        "result": "cleanup_unknown"
+      },
+      {
+        "run": "resource-run",
+        "sessionID": "a",
+        "challengeId": "X",
+        "callID": "unknown-1",
+        "tool": "http.request",
+        "state": "unknown",
+        "deadline": 1792760197839,
+        "result": "cleanup_unknown"
+      },
+      {
+        "run": "resource-run",
+        "sessionID": "a",
+        "challengeId": "X",
+        "callID": "unknown-2",
+        "tool": "http.request",
+        "state": "unknown",
+        "deadline": 1792760197839,
+        "result": "cleanup_unknown"
+      },
+      {
+        "run": "resource-run",
+        "sessionID": "a",
+        "challengeId": "X",
+        "callID": "unknown-3",
+        "tool": "http.request",
+        "state": "unknown",
+        "deadline": 1792760197839,
+        "result": "cleanup_unknown"
+      },
+      {
+        "run": "resource-run",
+        "sessionID": "a",
+        "challengeId": "X",
+        "callID": "unknown-4",
+        "tool": "http.request",
+        "state": "unknown",
+        "deadline": 1792760197839,
+        "result": "cleanup_unknown"
+      },
+      {
+        "run": "resource-run",
+        "sessionID": "a",
+        "challengeId": "X",
+        "callID": "unknown-5",
+        "tool": "http.request",
+        "state": "unknown",
+        "deadline": 1792760197839,
+        "result": "cleanup_unknown"
+      },
+      {
+        "run": "resource-run",
+        "sessionID": "a",
+        "challengeId": "X",
+        "callID": "unknown-6",
+        "tool": "http.request",
+        "state": "unknown",
+        "deadline": 1792760197839,
+        "result": "cleanup_unknown"
+      },
+      {
+        "run": "resource-run",
+        "sessionID": "a",
+        "challengeId": "X",
+        "callID": "unknown-7",
+        "tool": "http.request",
+        "state": "unknown",
+        "deadline": 1792760197839,
+        "result": "cleanup_unknown"
+      }
+    ]
+  },
+  "httpUnknown": {
+    "retainedSlots": 8,
+    "ninthRefused": true,
+    "latePersistenceReconciles": false
+  },
+  "jobTrace": {
+    "audit": [
+      {
+        "seq": 1,
+        "t": 0,
+        "at": 1792760198882,
+        "sessionID": "root",
+        "op": "bind",
+        "allow": true,
+        "detail": {
+          "role": "coordinator",
+          "via": "root"
+        }
+      },
+      {
+        "seq": 2,
+        "t": 0,
+        "at": 1792760198882,
+        "sessionID": "root",
+        "op": "assign",
+        "allow": true,
+        "detail": {
+          "role": "recon",
+          "challenge": "X"
+        }
+      },
+      {
+        "seq": 3,
+        "t": 0,
+        "at": 1792760198882,
+        "sessionID": "root",
+        "op": "tool.execute",
+        "allow": true,
+        "detail": {
+          "tool": "challenge.assign",
+          "result": "returned"
+        }
+      },
+      {
+        "seq": 4,
+        "t": 1,
+        "at": 1792760198883,
+        "sessionID": "root",
+        "op": "dispatch.register",
+        "allow": true,
+        "detail": {
+          "role": "recon",
+          "callID": "dispatch-a",
+          "challengeId": "X"
+        }
+      },
+      {
+        "seq": 5,
+        "t": 1,
+        "at": 1792760198883,
+        "sessionID": "root",
+        "op": "tool.before",
+        "allow": true,
+        "detail": {
+          "tool": "task",
+          "callID": "dispatch-a",
+          "result": "returned"
+        }
+      },
+      {
+        "seq": 6,
+        "t": 1,
+        "at": 1792760198883,
+        "sessionID": "a",
+        "op": "bind",
+        "allow": true,
+        "detail": {
+          "role": "recon",
+          "via": "dispatch",
+          "sdkParentID": "root",
+          "sdkAgent": "recon",
+          "callID": "dispatch-a",
+          "challengeId": "X",
+          "sdkMs": 0
+        }
+      },
+      {
+        "seq": 7,
+        "t": 1,
+        "at": 1792760198883,
+        "sessionID": "a",
+        "op": "chat.message",
+        "allow": true,
+        "detail": {
+          "result": "returned"
+        }
+      },
+      {
+        "seq": 8,
+        "t": 1,
+        "at": 1792760198883,
+        "sessionID": "root",
+        "op": "assign",
+        "allow": true,
+        "detail": {
+          "role": "recon",
+          "challenge": "X"
+        }
+      },
+      {
+        "seq": 9,
+        "t": 1,
+        "at": 1792760198883,
+        "sessionID": "root",
+        "op": "tool.execute",
+        "allow": true,
+        "detail": {
+          "tool": "challenge.assign",
+          "result": "returned"
+        }
+      },
+      {
+        "seq": 10,
+        "t": 1,
+        "at": 1792760198883,
+        "sessionID": "root",
+        "op": "dispatch.register",
+        "allow": true,
+        "detail": {
+          "role": "recon",
+          "callID": "dispatch-b",
+          "challengeId": "X"
+        }
+      },
+      {
+        "seq": 11,
+        "t": 1,
+        "at": 1792760198883,
+        "sessionID": "root",
+        "op": "tool.before",
+        "allow": true,
+        "detail": {
+          "tool": "task",
+          "callID": "dispatch-b",
+          "result": "returned"
+        }
+      },
+      {
+        "seq": 12,
+        "t": 1,
+        "at": 1792760198883,
+        "sessionID": "b",
+        "op": "bind",
+        "allow": true,
+        "detail": {
+          "role": "recon",
+          "via": "dispatch",
+          "sdkParentID": "root",
+          "sdkAgent": "recon",
+          "callID": "dispatch-b",
+          "challengeId": "X",
+          "sdkMs": 0
+        }
+      },
+      {
+        "seq": 13,
+        "t": 1,
+        "at": 1792760198883,
+        "sessionID": "b",
+        "op": "chat.message",
+        "allow": true,
+        "detail": {
+          "result": "returned"
+        }
+      },
+      {
+        "seq": 14,
+        "t": 1,
+        "at": 1792760198883,
+        "sessionID": "root",
+        "op": "assign",
+        "allow": true,
+        "detail": {
+          "role": "recon",
+          "challenge": "X"
+        }
+      },
+      {
+        "seq": 15,
+        "t": 1,
+        "at": 1792760198883,
+        "sessionID": "root",
+        "op": "tool.execute",
+        "allow": true,
+        "detail": {
+          "tool": "challenge.assign",
+          "result": "returned"
+        }
+      },
+      {
+        "seq": 16,
+        "t": 1,
+        "at": 1792760198883,
+        "sessionID": "root",
+        "op": "dispatch.register",
+        "allow": true,
+        "detail": {
+          "role": "recon",
+          "callID": "dispatch-c",
+          "challengeId": "X"
+        }
+      },
+      {
+        "seq": 17,
+        "t": 1,
+        "at": 1792760198883,
+        "sessionID": "root",
+        "op": "tool.before",
+        "allow": true,
+        "detail": {
+          "tool": "task",
+          "callID": "dispatch-c",
+          "result": "returned"
+        }
+      },
+      {
+        "seq": 18,
+        "t": 1,
+        "at": 1792760198883,
+        "sessionID": "c",
+        "op": "bind",
+        "allow": true,
+        "detail": {
+          "role": "recon",
+          "via": "dispatch",
+          "sdkParentID": "root",
+          "sdkAgent": "recon",
+          "callID": "dispatch-c",
+          "challengeId": "X",
+          "sdkMs": 0
+        }
+      },
+      {
+        "seq": 19,
+        "t": 1,
+        "at": 1792760198883,
+        "sessionID": "c",
+        "op": "chat.message",
+        "allow": true,
+        "detail": {
+          "result": "returned"
+        }
+      },
+      {
+        "seq": 20,
+        "t": 1,
+        "at": 1792760198883,
+        "sessionID": "root",
+        "op": "assign",
+        "allow": true,
+        "detail": {
+          "role": "recon",
+          "challenge": "X"
+        }
+      },
+      {
+        "seq": 21,
+        "t": 1,
+        "at": 1792760198883,
+        "sessionID": "root",
+        "op": "tool.execute",
+        "allow": true,
+        "detail": {
+          "tool": "challenge.assign",
+          "result": "returned"
+        }
+      },
+      {
+        "seq": 22,
+        "t": 1,
+        "at": 1792760198883,
+        "sessionID": "root",
+        "op": "dispatch.register",
+        "allow": true,
+        "detail": {
+          "role": "recon",
+          "callID": "dispatch-d",
+          "challengeId": "X"
+        }
+      },
+      {
+        "seq": 23,
+        "t": 1,
+        "at": 1792760198883,
+        "sessionID": "root",
+        "op": "tool.before",
+        "allow": true,
+        "detail": {
+          "tool": "task",
+          "callID": "dispatch-d",
+          "result": "returned"
+        }
+      },
+      {
+        "seq": 24,
+        "t": 1,
+        "at": 1792760198883,
+        "sessionID": "d",
+        "op": "bind",
+        "allow": true,
+        "detail": {
+          "role": "recon",
+          "via": "dispatch",
+          "sdkParentID": "root",
+          "sdkAgent": "recon",
+          "callID": "dispatch-d",
+          "challengeId": "X",
+          "sdkMs": 0
+        }
+      },
+      {
+        "seq": 25,
+        "t": 1,
+        "at": 1792760198883,
+        "sessionID": "d",
+        "op": "chat.message",
+        "allow": true,
+        "detail": {
+          "result": "returned"
+        }
+      },
+      {
+        "seq": 26,
+        "t": 1,
+        "at": 1792760198883,
+        "sessionID": "root",
+        "op": "assign",
+        "allow": true,
+        "detail": {
+          "role": "recon",
+          "challenge": "X"
+        }
+      },
+      {
+        "seq": 27,
+        "t": 1,
+        "at": 1792760198883,
+        "sessionID": "root",
+        "op": "tool.execute",
+        "allow": true,
+        "detail": {
+          "tool": "challenge.assign",
+          "result": "returned"
+        }
+      },
+      {
+        "seq": 28,
+        "t": 1,
+        "at": 1792760198883,
+        "sessionID": "root",
+        "op": "dispatch.register",
+        "allow": true,
+        "detail": {
+          "role": "recon",
+          "callID": "dispatch-overflow",
+          "challengeId": "X"
+        }
+      },
+      {
+        "seq": 29,
+        "t": 1,
+        "at": 1792760198883,
+        "sessionID": "root",
+        "op": "tool.before",
+        "allow": true,
+        "detail": {
+          "tool": "task",
+          "callID": "dispatch-overflow",
+          "result": "returned"
+        }
+      },
+      {
+        "seq": 30,
+        "t": 1,
+        "at": 1792760198883,
+        "sessionID": "overflow",
+        "op": "bind",
+        "allow": true,
+        "detail": {
+          "role": "recon",
+          "via": "dispatch",
+          "sdkParentID": "root",
+          "sdkAgent": "recon",
+          "callID": "dispatch-overflow",
+          "challengeId": "X",
+          "sdkMs": 0
+        }
+      },
+      {
+        "seq": 31,
+        "t": 1,
+        "at": 1792760198883,
+        "sessionID": "overflow",
+        "op": "chat.message",
+        "allow": true,
+        "detail": {
+          "result": "returned"
+        }
+      },
+      {
+        "seq": 32,
+        "t": 1,
+        "at": 1792760198883,
+        "sessionID": "root",
+        "op": "assign",
+        "allow": true,
+        "detail": {
+          "role": "recon",
+          "challenge": "Y"
+        }
+      },
+      {
+        "seq": 33,
+        "t": 1,
+        "at": 1792760198883,
+        "sessionID": "root",
+        "op": "tool.execute",
+        "allow": true,
+        "detail": {
+          "tool": "challenge.assign",
+          "result": "returned"
+        }
+      },
+      {
+        "seq": 34,
+        "t": 1,
+        "at": 1792760198883,
+        "sessionID": "root",
+        "op": "dispatch.register",
+        "allow": true,
+        "detail": {
+          "role": "recon",
+          "callID": "dispatch-other",
+          "challengeId": "Y"
+        }
+      },
+      {
+        "seq": 35,
+        "t": 1,
+        "at": 1792760198883,
+        "sessionID": "root",
+        "op": "tool.before",
+        "allow": true,
+        "detail": {
+          "tool": "task",
+          "callID": "dispatch-other",
+          "result": "returned"
+        }
+      },
+      {
+        "seq": 36,
+        "t": 1,
+        "at": 1792760198883,
+        "sessionID": "other",
+        "op": "bind",
+        "allow": true,
+        "detail": {
+          "role": "recon",
+          "via": "dispatch",
+          "sdkParentID": "root",
+          "sdkAgent": "recon",
+          "callID": "dispatch-other",
+          "challengeId": "Y",
+          "sdkMs": 0
+        }
+      },
+      {
+        "seq": 37,
+        "t": 2,
+        "at": 1792760198884,
+        "sessionID": "other",
+        "op": "chat.message",
+        "allow": true,
+        "detail": {
+          "result": "returned"
+        }
+      },
+      {
+        "seq": 38,
+        "t": 2,
+        "at": 1792760198884,
+        "sessionID": "a",
+        "op": "tool.before",
+        "allow": true,
+        "detail": {
+          "tool": "ctf_job_run",
+          "callID": "resource-9",
+          "result": "returned"
+        }
+      },
+      {
+        "seq": 39,
+        "t": 2,
+        "at": 1792760198884,
+        "sessionID": "a",
+        "op": "tool.before",
+        "allow": true,
+        "detail": {
+          "tool": "ctf_job_run",
+          "callID": "resource-10",
+          "result": "returned"
+        }
+      },
+      {
+        "seq": 40,
+        "t": 2,
+        "at": 1792760198884,
+        "sessionID": "b",
+        "op": "tool.before",
+        "allow": true,
+        "detail": {
+          "tool": "ctf_job_run",
+          "callID": "resource-11",
+          "result": "returned"
+        }
+      },
+      {
+        "seq": 41,
+        "t": 2,
+        "at": 1792760198884,
+        "sessionID": "b",
+        "op": "tool.before",
+        "allow": true,
+        "detail": {
+          "tool": "ctf_job_run",
+          "callID": "resource-12",
+          "result": "returned"
+        }
+      },
+      {
+        "seq": 42,
+        "t": 2,
+        "at": 1792760198884,
+        "sessionID": "c",
+        "op": "tool.before",
+        "allow": true,
+        "detail": {
+          "tool": "ctf_job_run",
+          "callID": "resource-13",
+          "result": "returned"
+        }
+      },
+      {
+        "seq": 43,
+        "t": 2,
+        "at": 1792760198884,
+        "sessionID": "c",
+        "op": "tool.before",
+        "allow": true,
+        "detail": {
+          "tool": "ctf_job_run",
+          "callID": "resource-14",
+          "result": "returned"
+        }
+      },
+      {
+        "seq": 44,
+        "t": 2,
+        "at": 1792760198884,
+        "sessionID": "d",
+        "op": "tool.before",
+        "allow": true,
+        "detail": {
+          "tool": "ctf_job_run",
+          "callID": "resource-15",
+          "result": "returned"
+        }
+      },
+      {
+        "seq": 45,
+        "t": 2,
+        "at": 1792760198884,
+        "sessionID": "d",
+        "op": "tool.before",
+        "allow": true,
+        "detail": {
+          "tool": "ctf_job_run",
+          "callID": "resource-16",
+          "result": "returned"
+        }
+      },
+      {
+        "seq": 46,
+        "t": 2,
+        "at": 1792760198884,
+        "sessionID": "a",
+        "op": "tool.registered",
+        "allow": true,
+        "detail": {
+          "callID": "resource-9",
+          "tool": "job.run",
+          "challengeId": "X",
+          "deadline": 1792760258884
+        }
+      },
+      {
+        "seq": 47,
+        "t": 2,
+        "at": 1792760198884,
+        "sessionID": "a",
+        "op": "tool.registered",
+        "allow": true,
+        "detail": {
+          "callID": "resource-10",
+          "tool": "job.run",
+          "challengeId": "X",
+          "deadline": 1792760258884
+        }
+      },
+      {
+        "seq": 48,
+        "t": 2,
+        "at": 1792760198884,
+        "sessionID": "b",
+        "op": "tool.registered",
+        "allow": true,
+        "detail": {
+          "callID": "resource-11",
+          "tool": "job.run",
+          "challengeId": "X",
+          "deadline": 1792760258884
+        }
+      },
+      {
+        "seq": 49,
+        "t": 2,
+        "at": 1792760198884,
+        "sessionID": "b",
+        "op": "tool.registered",
+        "allow": true,
+        "detail": {
+          "callID": "resource-12",
+          "tool": "job.run",
+          "challengeId": "X",
+          "deadline": 1792760258884
+        }
+      },
+      {
+        "seq": 50,
+        "t": 2,
+        "at": 1792760198884,
+        "sessionID": "c",
+        "op": "tool.registered",
+        "allow": true,
+        "detail": {
+          "callID": "resource-13",
+          "tool": "job.run",
+          "challengeId": "X",
+          "deadline": 1792760258884
+        }
+      },
+      {
+        "seq": 51,
+        "t": 2,
+        "at": 1792760198884,
+        "sessionID": "c",
+        "op": "tool.registered",
+        "allow": true,
+        "detail": {
+          "callID": "resource-14",
+          "tool": "job.run",
+          "challengeId": "X",
+          "deadline": 1792760258884
+        }
+      },
+      {
+        "seq": 52,
+        "t": 2,
+        "at": 1792760198884,
+        "sessionID": "d",
+        "op": "tool.registered",
+        "allow": true,
+        "detail": {
+          "callID": "resource-15",
+          "tool": "job.run",
+          "challengeId": "X",
+          "deadline": 1792760258884
+        }
+      },
+      {
+        "seq": 53,
+        "t": 2,
+        "at": 1792760198884,
+        "sessionID": "d",
+        "op": "tool.registered",
+        "allow": true,
+        "detail": {
+          "callID": "resource-16",
+          "tool": "job.run",
+          "challengeId": "X",
+          "deadline": 1792760258884
+        }
+      },
+      {
+        "seq": 54,
+        "t": 11,
+        "at": 1792760198893,
+        "sessionID": "a",
+        "op": "tool.execute",
+        "allow": true,
+        "detail": {
+          "tool": "job.run",
+          "callID": "resource-9",
+          "result": "returned"
+        }
+      },
+      {
+        "seq": 55,
+        "t": 11,
+        "at": 1792760198893,
+        "sessionID": "a",
+        "op": "tool.execute",
+        "allow": true,
+        "detail": {
+          "tool": "job.run",
+          "callID": "resource-10",
+          "result": "returned"
+        }
+      },
+      {
+        "seq": 56,
+        "t": 11,
+        "at": 1792760198893,
+        "sessionID": "b",
+        "op": "tool.execute",
+        "allow": true,
+        "detail": {
+          "tool": "job.run",
+          "callID": "resource-11",
+          "result": "returned"
+        }
+      },
+      {
+        "seq": 57,
+        "t": 11,
+        "at": 1792760198893,
+        "sessionID": "b",
+        "op": "tool.execute",
+        "allow": true,
+        "detail": {
+          "tool": "job.run",
+          "callID": "resource-12",
+          "result": "returned"
+        }
+      },
+      {
+        "seq": 58,
+        "t": 11,
+        "at": 1792760198893,
+        "sessionID": "c",
+        "op": "tool.execute",
+        "allow": true,
+        "detail": {
+          "tool": "job.run",
+          "callID": "resource-13",
+          "result": "returned"
+        }
+      },
+      {
+        "seq": 59,
+        "t": 11,
+        "at": 1792760198893,
+        "sessionID": "d",
+        "op": "tool.execute",
+        "allow": true,
+        "detail": {
+          "tool": "job.run",
+          "callID": "resource-15",
+          "result": "returned"
+        }
+      },
+      {
+        "seq": 60,
+        "t": 11,
+        "at": 1792760198893,
+        "sessionID": "d",
+        "op": "tool.execute",
+        "allow": true,
+        "detail": {
+          "tool": "job.run",
+          "callID": "resource-16",
+          "result": "returned"
+        }
+      },
+      {
+        "seq": 61,
+        "t": 12,
+        "at": 1792760198894,
+        "sessionID": "c",
+        "op": "tool.execute",
+        "allow": true,
+        "detail": {
+          "tool": "job.run",
+          "callID": "resource-14",
+          "result": "returned"
+        }
+      },
+      {
+        "seq": 62,
+        "t": 12,
+        "at": 1792760198894,
+        "sessionID": "a",
+        "op": "tool.before",
+        "allow": true,
+        "detail": {
+          "tool": "ctf_job_run",
+          "callID": "resource-17",
+          "result": "returned"
+        }
+      },
+      {
+        "seq": 63,
+        "t": 12,
+        "at": 1792760198894,
+        "sessionID": "a",
+        "op": "tool.registered",
+        "allow": true,
+        "detail": {
+          "callID": "resource-17",
+          "tool": "job.run",
+          "challengeId": "X",
+          "deadline": 1792760258894
+        }
+      },
+      {
+        "seq": 64,
+        "t": 14,
+        "at": 1792760198896,
+        "sessionID": "a",
+        "op": "tool.settled",
+        "allow": true,
+        "detail": {
+          "callID": "resource-17",
+          "tool": "job.run",
+          "result": "session job limit"
+        }
+      },
+      {
+        "seq": 65,
+        "t": 14,
+        "at": 1792760198896,
+        "sessionID": "a",
+        "op": "tool.execute",
+        "allow": false,
+        "reason": "denied: session job limit",
+        "detail": {
+          "tool": "job.run",
+          "callID": "resource-17"
+        }
+      },
+      {
+        "seq": 66,
+        "t": 14,
+        "at": 1792760198896,
+        "sessionID": "overflow",
+        "op": "tool.before",
+        "allow": true,
+        "detail": {
+          "tool": "ctf_job_run",
+          "callID": "resource-18",
+          "result": "returned"
+        }
+      },
+      {
+        "seq": 67,
+        "t": 14,
+        "at": 1792760198896,
+        "sessionID": "overflow",
+        "op": "tool.registered",
+        "allow": true,
+        "detail": {
+          "callID": "resource-18",
+          "tool": "job.run",
+          "challengeId": "X",
+          "deadline": 1792760258896
+        }
+      },
+      {
+        "seq": 68,
+        "t": 16,
+        "at": 1792760198898,
+        "sessionID": "overflow",
+        "op": "tool.settled",
+        "allow": true,
+        "detail": {
+          "callID": "resource-18",
+          "tool": "job.run",
+          "result": "challenge job limit"
+        }
+      },
+      {
+        "seq": 69,
+        "t": 16,
+        "at": 1792760198898,
+        "sessionID": "overflow",
+        "op": "tool.execute",
+        "allow": false,
+        "reason": "denied: challenge job limit",
+        "detail": {
+          "tool": "job.run",
+          "callID": "resource-18"
+        }
+      },
+      {
+        "seq": 70,
+        "t": 16,
+        "at": 1792760198898,
+        "sessionID": "other",
+        "op": "tool.before",
+        "allow": true,
+        "detail": {
+          "tool": "ctf_job_run",
+          "callID": "resource-19",
+          "result": "returned"
+        }
+      },
+      {
+        "seq": 71,
+        "t": 16,
+        "at": 1792760198898,
+        "sessionID": "other",
+        "op": "tool.registered",
+        "allow": true,
+        "detail": {
+          "callID": "resource-19",
+          "tool": "job.run",
+          "challengeId": "Y",
+          "deadline": 1792760258898
+        }
+      },
+      {
+        "seq": 72,
+        "t": 21,
+        "at": 1792760198903,
+        "sessionID": "other",
+        "op": "tool.execute",
+        "allow": true,
+        "detail": {
+          "tool": "job.run",
+          "callID": "resource-19",
+          "result": "returned"
+        }
+      },
+      {
+        "seq": 73,
+        "t": 21,
+        "at": 1792760198903,
+        "sessionID": "a",
+        "op": "tool.before",
+        "allow": true,
+        "detail": {
+          "tool": "ctf_job_cancel",
+          "callID": "resource-20",
+          "result": "returned"
+        }
+      },
+      {
+        "seq": 74,
+        "t": 21,
+        "at": 1792760198903,
+        "sessionID": "a",
+        "op": "tool.registered",
+        "allow": true,
+        "detail": {
+          "callID": "resource-20",
+          "tool": "job.cancel",
+          "challengeId": "X",
+          "deadline": 1792760213903
+        }
+      },
+      {
+        "seq": 75,
+        "t": 42,
+        "at": 1792760198924,
+        "sessionID": "a",
+        "op": "tool.settled",
+        "allow": true,
+        "detail": {
+          "callID": "resource-9",
+          "tool": "job.run",
+          "job": "e022df51-7734-4688-835d-c1329f066da2",
+          "result": "cancelled"
+        }
+      },
+      {
+        "seq": 76,
+        "t": 42,
+        "at": 1792760198924,
+        "sessionID": "a",
+        "op": "tool.settled",
+        "allow": true,
+        "detail": {
+          "callID": "resource-20",
+          "tool": "job.cancel",
+          "result": "completed"
+        }
+      },
+      {
+        "seq": 77,
+        "t": 42,
+        "at": 1792760198924,
+        "sessionID": "a",
+        "op": "tool.execute",
+        "allow": true,
+        "detail": {
+          "tool": "job.cancel",
+          "callID": "resource-20",
+          "result": "returned"
+        }
+      },
+      {
+        "seq": 78,
+        "t": 42,
+        "at": 1792760198924,
+        "sessionID": "a",
+        "op": "tool.before",
+        "allow": true,
+        "detail": {
+          "tool": "ctf_job_run",
+          "callID": "missing",
+          "result": "returned"
+        }
+      },
+      {
+        "seq": 79,
+        "t": 42,
+        "at": 1792760198924,
+        "sessionID": "a",
+        "op": "tool.registered",
+        "allow": true,
+        "detail": {
+          "callID": "missing",
+          "tool": "job.run",
+          "challengeId": "X",
+          "deadline": 1792760258924
+        }
+      },
+      {
+        "seq": 80,
+        "t": 46,
+        "at": 1792760198928,
+        "sessionID": "a",
+        "op": "tool.execute",
+        "allow": true,
+        "detail": {
+          "tool": "job.run",
+          "callID": "missing",
+          "result": "returned"
+        }
+      },
+      {
+        "seq": 81,
+        "t": 50,
+        "at": 1792760198932,
+        "sessionID": "a",
+        "op": "tool.settled",
+        "allow": true,
+        "detail": {
+          "callID": "missing",
+          "tool": "job.run",
+          "job": "c557c72b-6e3c-4ccb-9486-4db3426887e2",
+          "result": "failed_to_start"
+        }
+      },
+      {
+        "seq": 82,
+        "t": 97,
+        "at": 1792760198979,
+        "sessionID": "a",
+        "op": "tool.before",
+        "allow": true,
+        "detail": {
+          "tool": "ctf_job_run",
+          "callID": "resource-21",
+          "result": "returned"
+        }
+      },
+      {
+        "seq": 83,
+        "t": 97,
+        "at": 1792760198979,
+        "sessionID": "a",
+        "op": "tool.registered",
+        "allow": true,
+        "detail": {
+          "callID": "resource-21",
+          "tool": "job.run",
+          "challengeId": "X",
+          "deadline": 1792760258979
+        }
+      },
+      {
+        "seq": 84,
+        "t": 101,
+        "at": 1792760198983,
+        "sessionID": "a",
+        "op": "tool.execute",
+        "allow": true,
+        "detail": {
+          "tool": "job.run",
+          "callID": "resource-21",
+          "result": "returned"
+        }
+      },
+      {
+        "seq": 85,
+        "t": 101,
+        "at": 1792760198983,
+        "sessionID": "root",
+        "op": "stop_marked",
+        "allow": true,
+        "detail": {
+          "reason": "cleanup",
+          "sessions": [
+            "root",
+            "a",
+            "b",
+            "c",
+            "d",
+            "overflow",
+            "other"
+          ]
+        }
+      },
+      {
+        "seq": 86,
+        "t": 121,
+        "at": 1792760199003,
+        "sessionID": "a",
+        "op": "tool.settled",
+        "allow": true,
+        "detail": {
+          "callID": "resource-10",
+          "tool": "job.run",
+          "job": "41bcd0eb-e6bb-4d9e-9e8e-246d5371ea10",
+          "result": "cancelled"
+        }
+      },
+      {
+        "seq": 87,
+        "t": 121,
+        "at": 1792760199003,
+        "sessionID": "b",
+        "op": "tool.settled",
+        "allow": true,
+        "detail": {
+          "callID": "resource-11",
+          "tool": "job.run",
+          "job": "abcf55bc-3b8b-414c-aa03-657bb4764446",
+          "result": "cancelled"
+        }
+      },
+      {
+        "seq": 88,
+        "t": 121,
+        "at": 1792760199003,
+        "sessionID": "b",
+        "op": "tool.settled",
+        "allow": true,
+        "detail": {
+          "callID": "resource-12",
+          "tool": "job.run",
+          "job": "154659d3-c196-4f9b-acde-3845924c877b",
+          "result": "cancelled"
+        }
+      },
+      {
+        "seq": 89,
+        "t": 121,
+        "at": 1792760199003,
+        "sessionID": "c",
+        "op": "tool.settled",
+        "allow": true,
+        "detail": {
+          "callID": "resource-13",
+          "tool": "job.run",
+          "job": "6919c6fc-c843-4ec3-89a0-3a101ccf2655",
+          "result": "cancelled"
+        }
+      },
+      {
+        "seq": 90,
+        "t": 121,
+        "at": 1792760199003,
+        "sessionID": "c",
+        "op": "tool.settled",
+        "allow": true,
+        "detail": {
+          "callID": "resource-14",
+          "tool": "job.run",
+          "job": "a4dfa758-f1f0-4590-8c88-e4b6e0cc9eaa",
+          "result": "cancelled"
+        }
+      },
+      {
+        "seq": 91,
+        "t": 121,
+        "at": 1792760199003,
+        "sessionID": "d",
+        "op": "tool.settled",
+        "allow": true,
+        "detail": {
+          "callID": "resource-15",
+          "tool": "job.run",
+          "job": "4e3d8f99-cb0b-4de5-927a-af45b1683896",
+          "result": "cancelled"
+        }
+      },
+      {
+        "seq": 92,
+        "t": 121,
+        "at": 1792760199003,
+        "sessionID": "d",
+        "op": "tool.settled",
+        "allow": true,
+        "detail": {
+          "callID": "resource-16",
+          "tool": "job.run",
+          "job": "d71613da-eab0-434c-af69-539383d6d401",
+          "result": "cancelled"
+        }
+      },
+      {
+        "seq": 93,
+        "t": 121,
+        "at": 1792760199003,
+        "sessionID": "other",
+        "op": "tool.settled",
+        "allow": true,
+        "detail": {
+          "callID": "resource-19",
+          "tool": "job.run",
+          "job": "1adf3afc-0827-4ba2-baaa-ca335a77e8d9",
+          "result": "cancelled"
+        }
+      },
+      {
+        "seq": 94,
+        "t": 121,
+        "at": 1792760199003,
+        "sessionID": "a",
+        "op": "tool.settled",
+        "allow": true,
+        "detail": {
+          "callID": "resource-21",
+          "tool": "job.run",
+          "job": "eeeb1f0a-3da3-4778-96f8-8e13da770292",
+          "result": "cancelled"
+        }
+      },
+      {
+        "seq": 95,
+        "t": 121,
+        "at": 1792760199003,
+        "sessionID": "root",
+        "op": "stop_enumerated",
+        "allow": true,
+        "detail": {
+          "sessions": [
+            "root",
+            "a",
+            "b",
+            "c",
+            "d",
+            "overflow",
+            "other"
+          ]
+        }
+      },
+      {
+        "seq": 96,
+        "t": 121,
+        "at": 1792760199003,
+        "sessionID": "root",
+        "op": "aborted",
+        "allow": true
+      },
+      {
+        "seq": 97,
+        "t": 121,
+        "at": 1792760199003,
+        "sessionID": "a",
+        "op": "aborted",
+        "allow": true
+      },
+      {
+        "seq": 98,
+        "t": 121,
+        "at": 1792760199003,
+        "sessionID": "b",
+        "op": "aborted",
+        "allow": true
+      },
+      {
+        "seq": 99,
+        "t": 121,
+        "at": 1792760199003,
+        "sessionID": "c",
+        "op": "aborted",
+        "allow": true
+      },
+      {
+        "seq": 100,
+        "t": 121,
+        "at": 1792760199003,
+        "sessionID": "d",
+        "op": "aborted",
+        "allow": true
+      },
+      {
+        "seq": 101,
+        "t": 121,
+        "at": 1792760199003,
+        "sessionID": "overflow",
+        "op": "aborted",
+        "allow": true
+      },
+      {
+        "seq": 102,
+        "t": 121,
+        "at": 1792760199003,
+        "sessionID": "other",
+        "op": "aborted",
+        "allow": true
+      }
+    ],
+    "resources": [
+      {
+        "run": "resource-run",
+        "sessionID": "a",
+        "challengeId": "X",
+        "callID": "resource-9",
+        "tool": "job.run",
+        "state": "settled",
+        "deadline": 1792760258884,
+        "job": "e022df51-7734-4688-835d-c1329f066da2",
+        "result": "cancelled"
+      },
+      {
+        "run": "resource-run",
+        "sessionID": "a",
+        "challengeId": "X",
+        "callID": "resource-10",
+        "tool": "job.run",
+        "state": "active",
+        "deadline": 1792760258884,
+        "job": "41bcd0eb-e6bb-4d9e-9e8e-246d5371ea10"
+      },
+      {
+        "run": "resource-run",
+        "sessionID": "b",
+        "challengeId": "X",
+        "callID": "resource-11",
+        "tool": "job.run",
+        "state": "active",
+        "deadline": 1792760258884,
+        "job": "abcf55bc-3b8b-414c-aa03-657bb4764446"
+      },
+      {
+        "run": "resource-run",
+        "sessionID": "b",
+        "challengeId": "X",
+        "callID": "resource-12",
+        "tool": "job.run",
+        "state": "active",
+        "deadline": 1792760258884,
+        "job": "154659d3-c196-4f9b-acde-3845924c877b"
+      },
+      {
+        "run": "resource-run",
+        "sessionID": "c",
+        "challengeId": "X",
+        "callID": "resource-13",
+        "tool": "job.run",
+        "state": "active",
+        "deadline": 1792760258884,
+        "job": "6919c6fc-c843-4ec3-89a0-3a101ccf2655"
+      },
+      {
+        "run": "resource-run",
+        "sessionID": "c",
+        "challengeId": "X",
+        "callID": "resource-14",
+        "tool": "job.run",
+        "state": "active",
+        "deadline": 1792760258884,
+        "job": "a4dfa758-f1f0-4590-8c88-e4b6e0cc9eaa"
+      },
+      {
+        "run": "resource-run",
+        "sessionID": "d",
+        "challengeId": "X",
+        "callID": "resource-15",
+        "tool": "job.run",
+        "state": "active",
+        "deadline": 1792760258884,
+        "job": "4e3d8f99-cb0b-4de5-927a-af45b1683896"
+      },
+      {
+        "run": "resource-run",
+        "sessionID": "d",
+        "challengeId": "X",
+        "callID": "resource-16",
+        "tool": "job.run",
+        "state": "active",
+        "deadline": 1792760258884,
+        "job": "d71613da-eab0-434c-af69-539383d6d401"
+      },
+      {
+        "run": "resource-run",
+        "sessionID": "a",
+        "challengeId": "X",
+        "callID": "resource-17",
+        "tool": "job.run",
+        "state": "settled",
+        "deadline": 1792760258894,
+        "result": "session job limit"
+      },
+      {
+        "run": "resource-run",
+        "sessionID": "overflow",
+        "challengeId": "X",
+        "callID": "resource-18",
+        "tool": "job.run",
+        "state": "settled",
+        "deadline": 1792760258896,
+        "result": "challenge job limit"
+      },
+      {
+        "run": "resource-run",
+        "sessionID": "other",
+        "challengeId": "Y",
+        "callID": "resource-19",
+        "tool": "job.run",
+        "state": "active",
+        "deadline": 1792760258898,
+        "job": "1adf3afc-0827-4ba2-baaa-ca335a77e8d9"
+      },
+      {
+        "run": "resource-run",
+        "sessionID": "a",
+        "challengeId": "X",
+        "callID": "resource-20",
+        "tool": "job.cancel",
+        "state": "settled",
+        "deadline": 1792760213903,
+        "result": "completed"
+      },
+      {
+        "run": "resource-run",
+        "sessionID": "a",
+        "challengeId": "X",
+        "callID": "missing",
+        "tool": "job.run",
+        "state": "settled",
+        "deadline": 1792760258924,
+        "job": "c557c72b-6e3c-4ccb-9486-4db3426887e2",
+        "result": "failed_to_start"
+      },
+      {
+        "run": "resource-run",
+        "sessionID": "a",
+        "challengeId": "X",
+        "callID": "resource-21",
+        "tool": "job.run",
+        "state": "active",
+        "deadline": 1792760258979,
+        "job": "eeeb1f0a-3da3-4778-96f8-8e13da770292"
+      }
+    ]
+  },
+  "jobConcurrency": {
+    "acceptedPerChallenge": 8,
+    "perSessionOverflowRefused": true,
+    "perChallengeOverflowRefused": true,
+    "cancelledAndFailedToStartReleased": true
+  },
+  "path": {
+    "fixedByProduct": false,
+    "inheritsHostSentinel": true
+  },
+  "runAccounting": {
+    "registeredToolCalls": 12,
+    "modelAdmissions": 0,
+    "persistentToolAdmissionLedger": false,
+    "reconstructedResources": 0,
+    "toolAggregateCap": "not implemented"
+  },
+  "waits": {
+    "httpDefault": 15000,
+    "httpMax": 60000,
+    "jobInitialDefault": 5000,
+    "jobInitialMax": 30000,
+    "rpcGrace": 5000,
+    "upperBoundAdmissionVerified": true,
+    "actual60000msWaitExercised": false
+  }
+}

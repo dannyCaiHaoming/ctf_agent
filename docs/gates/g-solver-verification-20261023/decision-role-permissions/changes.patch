@@ -1,0 +1,488 @@
+--- a/docs/superpowers/specs/2026-10-22-ctf-agent-design-v1.md
++++ b/docs/superpowers/specs/2026-10-22-ctf-agent-design-v1.md
+@@ -202,7 +202,7 @@
+ | 角色 | 允許的能力 | 不授予的關鍵能力 |
+ | --- | --- | --- |
+ | Coordinator | 全局授權範圍內的狀態、分派／交接、結果與知識讀取、平台操作請求、子任務停止 | 默認不直接做目標實驗、不簽署驗證結果、不直接讀控制秘密 |
+-| Intake/Triage | 題目接入、材料整理與必要工作區寫入、來源狀態和受限可達性檢查、知識讀取、交接 | 不自由執行解題腳本、不提交候選或管理實例；接入 API 若有啟動計時等副作用，須經宿主既有授權檢查 |
++| Intake/Triage | 題目接入、唯讀材料整理（E 最小版由宿主固定材料）、來源狀態和受限可達性檢查、知識讀取、交接 | 不自由執行解題腳本、不提交候選或管理實例；接入 API 若有啟動計時等副作用，須經宿主既有授權檢查 |
+ | Target Recon | 題內材料／知識讀取、工作區寫入、G 中任務允許的觀察與實驗、證據發布、交接 | 無平台管理／提交、無驗證簽署 |
+ | Reference | 已發布知識查閱及任務提供的必要材料讀取、帶來源的交接 | 無目標網路、腳本執行、材料修改或平台操作 |
+ | Strategy | 狀態、材料／觀察／知識讀取，提出假設與實驗任務交接 | 默認不直接執行實驗或新增子 Agent；分派交 Coordinator |
+--- a/docs/superpowers/specs/2026-10-23-design-v1-c-control-service.md
++++ b/docs/superpowers/specs/2026-10-23-design-v1-c-control-service.md
+@@ -101,7 +101,7 @@
+ | 知識讀取 | 原生 `skill`；原生 `read`（限本次 run 的 Skill 副本與共用知識目錄） | 全部角色 | `read` 路徑解析 realpath 後必須位於允許根目錄內 |
+ | 任務分派／交接 | 原生 `task` | `coordinator` | 第 3 節分派登記 |
+ | 任務狀態讀取 | 受管工具（待定） | 全部角色 | 只返回本 run、本角色可見的狀態 |
+-| 工作區讀寫 | 受管 `workspace.*`（待 G） | Intake、Recon、Domain Solver、Engineer、Verifier（獨立工作區） | 路徑限於該會話綁定的工作區；原始材料唯讀 |
++| 工作區讀寫 | 受管 `workspace.*`（待 G） | Recon、Domain Solver、Engineer、Verifier（獨立工作區）；Intake 最小版只用 E 唯讀接入 | 路徑限於該會話綁定的工作區；原始材料唯讀 |
+ | 實驗與作業控制 | 受管 `http.request`、`job.run` 等（待 G） | Recon、Domain Solver；Engineer 僅本地；Verifier 僅按驗證模式授予 | scope、句柄綁定題目與會話、資源上限 |
+ | 題目接入 | 受管 `challenge.list`、`challenge.read`（[E 最小版詳細 design](2026-10-23-design-v1-e-intake-minimal.md) 第 4 節） | Intake | 角色為 `intake`、題目屬本 run；讀取限於該題 `materials/` |
+ | 產物發布／候選登記 | 受管工具（待 D） | Domain Solver、Engineer | 只產生未驗證候選 |
+--- a/docs/superpowers/specs/2026-10-23-design-v1-g-solver-minimal.md
++++ b/docs/superpowers/specs/2026-10-23-design-v1-g-solver-minimal.md
+@@ -170,7 +170,7 @@
+ 
+ ### 4.3 cookie 與會話
+ 
+-每題一個 cookie jar，由控制服務持有（不寫入工作區）。`Set-Cookie` 寫入 jar，之後同 origin 的請求自動帶上（路徑以前綴匹配，不實作完整的 domain 規則）。同題的所有解題會話共用一個 jar，使 Recon 登入後的狀態可被 Solver 使用；Verifier 的獨立性不靠 jar 隔離，而是由 D 的驗證模式決定是否重放（D 的範圍）。jar 不跨題、不回傳模型。
++每題一個 cookie jar，由控制服務持有（不寫入工作區）。`Set-Cookie` 寫入 jar，之後同 origin 的請求自動帶上（路徑以前綴匹配，不實作完整的 domain 規則）。目前允許 HTTP 的 Recon／Domain Solver 共用同題 jar，使 Recon 登入後的狀態可被 Solver 使用。Verifier 不獲普通 HTTP 權限，不接入此共享 jar；未來重放所用的獨立狀態或必要原會話狀態須由 D 的可信模式明確決定，不能只憑同題就沿用 Solver jar。jar 不跨題、不回傳模型。
+ 
+ ### 4.4 併發與取消
+ 
+@@ -186,7 +186,7 @@
+ 
+ ### 5.2 工具
+ 
+-`job.run`、`job.read`、`job.cancel`（`ctf_job_run` 等），授予 `recon`、`domain-solver`、`engineer`、`verifier`（`verifier` 僅限本地重算，見第 6 節）。
++`job.run`、`job.read`、`job.cancel`（`ctf_job_run` 等），授予 `recon`、`domain-solver`、`engineer`、`verifier`（`verifier` 的用途為本地重算，實際隔離尚未成立，見第 6 節）。
+ 
+ | 工具 | 參數 | 回傳 |
+ | --- | --- | --- |
+@@ -224,7 +224,7 @@
+ 
+ **成立條件：** 在 ARM64 產品執行環境，同時證明本題材料可讀、本會話 work 可寫、宿主能發布與回收，以及跨題／跨會話文件、進程和控制資料不可訪問；唯讀文件在拒寫後內容不變，CPU／記憶體限制實際觸發。使用非秘密哨兵並記錄 uid／gid、掛載與權限，不能以所有操作都不可用、環境白名單或特權運行代替隔離成立。
+ 
+-舊「單一作業用戶＋每題群組」只能回答部分宿主／跨題隔離，不能證明同題會話隔離。未找到可核對的 G-V6 報告，本節仍未驗證；handoff 的「已在 ARM64 驗證」不作依據。CPU／記憶體限制仍以 `prlimit` 或等效方式在同一環境驗證；網路隔離另見第 5.5 節。
++舊「單一作業用戶＋每題群組」只能回答部分宿主／跨題隔離，不能證明同題會話隔離。未找到可核對的 G-V6 報告，隔離候選仍未驗證；目前同 uid 原型的角色邊界探針已失敗（證據見第 9 節），handoff 的「已在 ARM64 驗證」不作依據。CPU／記憶體限制仍以 `prlimit` 或等效方式在同一環境驗證；網路隔離另見第 5.5 節。
+ 
+ ### 5.5 網路限制（明確不宣稱）
+ 
+@@ -260,11 +260,27 @@
+ | `recon` | `workspace.*`（讀三根，寫 `work/`）、`http.request`、`job.*` | 寫 `materials/`、`published/` |
+ | `domain-solver` | 同 `recon` | 同 `recon` |
+ | `engineer` | `workspace.*`、`job.*`（作業的網路未受限，見第 5.5 節） | `http.request`（H：默認無目標網路） |
+-| `verifier` | `workspace.list`、`workspace.read`、`workspace.search`、`workspace.write`（僅 `work/`）、`job.*`（本地重算） | `http.request`；`published/` 之外的他會話工作區。安全重放的 HTTP 能力待 D 的驗證模式決定 |
+-| `intake` | 無新增 | 工作區寫入：H 表原列「必要工作區寫入」，本文不授予，因 E design 的 Intake 只需唯讀接入。若 D 或實測證明需要寫入，再修訂 H 表 |
++| `verifier` | `workspace.list`、`workspace.read`、`workspace.search`、`workspace.write`（僅 `work/`）、`job.*`（用途為本地重算；隔離尚未成立） | `http.request`；`published/` 之外的他會話工作區。安全重放的 HTTP 能力待 D 的驗證模式決定 |
++| `intake` | 無新增 | 工作區寫入、作業與 HTTP。E 最小流程由宿主固定材料，Intake 讀取後經 task 返回，無新增寫入的具體需要；其他來源出現缺口時再設計 |
+ | 其餘 | 無 | 無 |
+ 
+ `verifier` 的 `workspace.write` 僅為本地重算的中間文件；不得改寫他會話的產物（D 的範圍）。
++
++### 6.1 Intake 與 Verifier 的最小權限決定
++
++維持現有工具權限：Intake 只用 E 的 `challenge.list/read`，不增加一般工作區寫入。E 的宿主先固定題面、附件與來源 hash，Intake 完成閱讀、分類與交接即可；寫入不是本最小取題流程的必要步驟。H／C 的廣義表格對齊這個已驗範圍，其他來源若確有整理文件需求再設計，不能因此預授任意寫入。
++
++Verifier 可讀三根並只經受管接口寫自己的 `work/`，用保存輸入執行重算。普通 `http.request` 維持拒絕，不因總 design 定義 replay 就立即授予；D 尚未定義可信模式發放與候選／依賴版本綁定。增加 Intake 的一般 `workspace.write` 或 Verifier 的一般 `http.request`，目前都沒有必要性證據。
++
++**實際強制邊界尚未成立：** 受管接口能拒絕材料／published／他會話路徑及 Verifier HTTP；但目前 `job.run` 可讓同 uid 腳本繞過上述邊界，包括讀寫其他會話、讀其他題材料、改寫本題材料／published 及直接網路。`本地重算` 是用途，不能當作現原型已強制的能力。保留 job 是待隔離原型的做法，不是發布安全驗收；§5.4／5.5 的依賴未滿足，不能宣稱完整角色權限通過。本項不增加權限，也不代替相鄰隔離實作。
++
++### 6.2 HTTP 安全重放候選（待 D 定稿）
++
++測試側候選為：D 的可信主體按驗證模式綁定 run／題目／Verifier 會話、候選與依賴版本、固定請求序列及可信安全性描述，再按次執行；模型只選擇已授權操作，不能提供 role、任意端點或「安全」自述取得權限。這是未定接口，不是產品已註冊的工具或已選定 schema。
++
++對可重新取得的登入狀態，候選使用新的 jar，按固定安全序列重建；重用或克隆 Solver jar 會引入原連線／狀態依賴，不能作預設。依賴舊連線、一次性／限次／未知副作用時，改用 `evidence_audit` 或 `inconclusive`，不為重放而重置實例、消耗限次資源。HTTP 動詞不足以證明安全，GET 也可能被拒絕。
++
++每次請求仍須通過 G 的 scope 與重新導向檢查，保留精確輸入、回應 body／hash、截斷和狀態。意圖在送出前記為已嘗試；結果未知不自動重送。fixture 已證明這個候選可表達新 jar 登入、版本／會話拒絕、限次與未知 GET 拒絕、scope 和一次嘗試約束；可信分類從 fixture 作者給定，沒有證明一般端點可分類、完整 D 證據鏈、平台操作授權或真實解題可用。D 發放接口、序列／狀態綁定與完整證據／候選有效性仍未定稿，產品繼續拒絕 Verifier HTTP。
+ 
+ ---
+ 
+@@ -344,7 +360,8 @@
+ | G-V5 作業 | 舊九項證明環境白名單、空 stdin、輸出分頁／截斷、啟動失敗、句柄與併發規則；只殺 leader 的變異使孫程序回收測試失敗。原型不證明 OS 隔離；會話／run／到期及 unknown 補驗由下一行支持 | 舊完整報告缺失，舊結論與來源保留於[整理前記錄](../../gates/g-solver-verification-20261023/g-c-rpc-slow-tools/design-before-editorial-rewrite.md)；補驗見下一行 |
+ | C／RPC 真實產品接線 | 同一次 runtime/accepted 完成綁定→材料讀→同輪雙寫→HTTP 16004ms→job 增量讀／16054ms 等待→停止；12 次替身請求對應 12 次准入，9 個資源結算。確定性邊界另驗短隊列、每題配額、放棄／交付競態、session/run/expiry、孫進程與 unknown。全套 291/291、typecheck/build，主會話獨立 46/46；不稱每個競態都有 runtime 覆蓋 | [C／RPC 報告](../../gates/g-solver-verification-20261023/g-c-rpc-slow-tools/REPORT.md) |
+ | 長作業公開完成／恢復候選 | 測試側觀察真實 job 結算後調公開接口；同 child 恢復、去重與取消對照成立，但父 task 已結束、輸出不變。候選不足，未通過完成交回。這是測試通知器，不是產品已具備自動通知 | [恢復結果](../../gates/g-solver-verification-20261023/g-c-rpc-slow-tools/completion-probe/first/resume-and-duplicate/result.json)、[取消對照](../../gates/g-solver-verification-20261023/g-c-rpc-slow-tools/completion-probe/first/cancel/result.json) |
+-| G-V6／G-V7 | OS 隔離未驗；真實模型工具使用未運行 | 不能由確定性工具測試推定成立 |
++| Intake／Verifier 最小權限 | 真實 E prepareRun＋C 定向 8/8：Intake 無寫入可列題讀材料；Verifier 私有 work 重算、受管路徑與雙 hook 拒絕成立。獨立產品 runtime 一次完成 Intake task 交接及 Verifier 重算；14 次替身請求對應 14 次准入、受管 HTTP 零目標請求。測試側重放候選驗新 jar、綁定、scope、限次拒絕和未知不重試，並非 D 已實作。另一次實際 job 邊界探針退出 1：同 uid 檔案與直接 HTTP 均可繞過，完整角色隔離不通過 | [角色權限報告](../../gates/g-solver-verification-20261023/decision-role-permissions/REPORT.md) |
++| G-V6／G-V7 | OS 隔離候選未驗；現原型角色邊界探針已失敗；真實模型工具使用未運行 | 不能由確定性工具測試推定成立 |
+ 
+ C／RPC 代碼基線為 d83a0c3024271dbf212db319e900fcf527e68b0f 加獨立工作區未提交修改，Node v26.3.0、Vitest 2.1.8；來源、配置及最終 hash 見該報告目錄。公開恢復探針與 runtime/accepted 是不同運行。
+ 
+@@ -359,7 +376,7 @@
+ | 作業網路 scope | 腳本繞過 http.request；不能靠角色 prompt 限制 | 比較按題／會話的網路命名空間與預設拒絕出口、受管代理出口兩種候選；腳本直接 TCP／UDP／IPv6 與 DNS 不能繞過。候選未選定，不能宣稱現有作業已受限 |
+ | 配額與數值預設 | 128MiB 寫入總量未實作；HTTP／job 併發及收尾數值僅按所列值驗證 | 比較宿主統一帳本與 OS 資源配額的責任分工，驗證並發記帳及直接作業寫入邊界；數值可行性與產品適用性分開，鏡像固定 PATH 依 F 定稿 |
+ | 受保護的目標操作 | G 不辨識端點的重置、計時、限次語義 | 比較沿用 D／E 可信操作描述與 G 新增端點分類的必要性；不得用 HTTP 方法或模型自述推定副作用，未知結果不自動重試 |
+-| Intake 寫入及 Verifier HTTP | 本文不給 Intake 寫入；Verifier 只做本地重算，HTTP 重放依 D | 比較維持 Intake 唯讀／Verifier 本地重算與按 D 驗證模式增加最小權限；只因具體能力缺口才改 H，不默認擴權 |
++| Verifier 按模式的安全 HTTP 重放 | Intake 唯讀已可維持；Verifier 普通 HTTP 持續拒絕。§6.2 可信按次候選只驗 fixture 可表達；job 尚可繞過檔案與網路邊界 | D 定稿可信模式發放、候選／依賴與序列狀態綁定及不可重放去向，再決定最小能力；OS／網路限制仍由相鄰隔離項承接，不以工具可見性冒充隔離 |
+ | Coordinator 的停止入口 | 宿主 revoke 已驗，產品停止工具未定 | 比較 Coordinator 受管停止工具與公開原生任務控制；宿主核實直接分派關係，不讓模型指定任意會話，不用宿主測試冒稱完成 |
+ 
+ G 的下一個待解設計問題是長作業完成交回；不是缺一次全套測試。OS／網路隔離另有各自的能力前提。這些事項未解決前，只能使用已驗證部分的有限結論，不能宣布 G 定稿或具備完整自主解題能力。
+--- /dev/null
++++ b/tests/contract/g-role-permissions.test.ts
+@@ -0,0 +1,199 @@
++import { afterEach, describe, expect, it } from 'vitest';
++import { createHash } from 'node:crypto';
++import { createServer, type RequestListener } from 'node:http';
++import { mkdir, mkdtemp, readFile, readdir, rm, symlink, writeFile } from 'node:fs/promises';
++import { realpathSync } from 'node:fs';
++import { tmpdir } from 'node:os';
++import { join } from 'node:path';
++import { ControlService, type Role } from '../../apps/launcher/src/control-service.js';
++import { prepareRun } from '../../apps/launcher/src/run-prep.js';
++import { CookieJar, createHttpTools } from '../../apps/launcher/src/http-tools.js';
++
++const clean: Array<() => Promise<unknown>> = [];
++afterEach(async () => { for (const f of clean.splice(0).reverse()) await f(); });
++const sha = (value: string | Buffer) => createHash('sha256').update(value).digest('hex');
++async function record(name: string, value: unknown) {
++  if (!process.env.G_ROLE_EVIDENCE) return;
++  await mkdir(process.env.G_ROLE_EVIDENCE, { recursive: true });
++  await writeFile(join(process.env.G_ROLE_EVIDENCE, `${name}.json`), JSON.stringify(value, null, 2));
++}
++
++async function server(handler: RequestListener) {
++  const s = createServer(handler); await new Promise<void>(r => s.listen(0, '127.0.0.1', r));
++  clean.push(() => new Promise<void>(r => { s.close(() => r()); s.closeAllConnections(); }));
++  return `http://127.0.0.1:${(s.address() as { port: number }).port}`;
++}
++
++async function fixture(target?: string) {
++  const dir = realpathSync(await mkdtemp(join(tmpdir(), 'gdec-role-permissions-')));
++  clean.push(() => rm(dir, { recursive: true, force: true }));
++  await mkdir(join(dir, 'evidence')); await mkdir(join(dir, 'opencode'));
++  await writeFile(join(dir, 'input.txt'), '21\n');
++  const list = join(dir, 'challenges.json');
++  await writeFile(list, JSON.stringify({ challenges: ['X', 'Y'].map(id => ({ id, statement: `Recompute ${id}`, materials: ['input.txt'],
++    ...(target ? { target: { protocol: 'http', url: target } } : {}) })) }));
++  const challenges = await prepareRun({ challengesPath: list, workspace: join(dir, 'workspace'), evidence: join(dir, 'evidence'), secrets: [] });
++  const roles = new Map<string, Role>();
++  const c = new ControlService({ client: { session: {
++    get: async ({ sessionID }: { sessionID: string }) => ({ data: { parentID: 'root', agent: roles.get(sessionID) } }),
++    messages: async () => ({ data: [] }), children: async () => ({ data: [] }), abort: async () => ({ data: true })
++  } } as never, runId: 'roles-fixture', budget: { maxModelCalls: 50, maxObservableTokens: 10000 }, expiresAt: Date.now() + 60000,
++    workdir: join(dir, 'opencode'), skillRoot: join(dir, 'skills'), challenges });
++  c.bindRoot('root'); clean.push(() => c.stopAll('test cleanup'));
++  async function bind(id: string, role: Role, challenge = 'X') {
++    roles.set(id, role);
++    if (role !== 'intake') await c.handle('root', 'tool.execute', { tool: 'challenge.assign', args: { role, challenge } });
++    await c.handle('root', 'tool.before', { tool: 'task', callID: `dispatch-${id}`, args: { subagent_type: role } });
++    await c.handle(id, 'chat.message', { agent: role });
++  }
++  return { c, dir, bind, challenges };
++}
++
++let call = 0;
++async function execute(c: ControlService, session: string, tool: string, args: object = {}) {
++  const callID = `role-${++call}`;
++  await c.handle(session, 'tool.before', { tool: `ctf_${tool.replaceAll('.', '_')}`, args, callID });
++  return c.handle(session, 'tool.execute', { tool, args, callID });
++}
++
++describe('G role permissions: managed interface boundaries, not OS isolation', () => {
++  it('product visibility exposes read-only Intake and local Verifier tools', async () => {
++    const config = JSON.parse(await readFile('product/opencode/opencode.json', 'utf8'));
++    const intake = config.agent.intake.permission; const verifier = config.agent.verifier.permission;
++    expect(intake['*']).toBe('deny'); expect(verifier['*']).toBe('deny');
++    expect(intake.ctf_challenge_list).toBe('allow'); expect(intake.ctf_challenge_read).toBe('allow');
++    for (const tool of ['ctf_workspace_write', 'ctf_job_run', 'ctf_http_request', 'bash', 'task']) expect(intake[tool] ?? intake['*']).toBe('deny');
++    for (const tool of ['ctf_workspace_read', 'ctf_workspace_write', 'ctf_job_run']) expect(verifier[tool]).toBe('allow');
++    for (const tool of ['ctf_http_request', 'ctf_challenge_read', 'bash', 'task']) expect(verifier[tool] ?? verifier['*']).toBe('deny');
++  });
++
++  it('E host preparation gives Intake complete pinned facts without any workspace write', async () => {
++    const { c, dir, bind, challenges } = await fixture(); await bind('intake', 'intake');
++    const result = await execute(c, 'intake', 'challenge.list') as { challenges: Array<{ id: string; materials: Array<{ name: string; sha256: string }> }> };
++    expect(result.challenges.map(x => x.id)).toEqual(['X', 'Y']);
++    for (const challenge of result.challenges) {
++      expect(challenge.materials.find(x => x.name === 'input.txt')?.sha256).toBe(sha('21\n'));
++      await expect(execute(c, 'intake', 'challenge.read', { id: challenge.id, path: 'input.txt' })).resolves.toMatchObject({ text: '21\n' });
++      expect(await readdir(join(dir, 'workspace', challenge.id))).toEqual(['materials']);
++    }
++    expect(JSON.stringify(result)).not.toContain(dir);
++    expect(await readFile(join(challenges[0]!.materialsDir, 'statement.md'), 'utf8')).toBe('Recompute X');
++  });
++
++  it('C denies forbidden Intake/Verifier tools in both hooks even if visibility is misconfigured or args claim another role', async () => {
++    let requests = 0; const url = await server((_req, res) => { requests++; res.end('unexpected'); });
++    const { c, bind } = await fixture(url); await bind('intake', 'intake'); await bind('verifier', 'verifier');
++    for (const [session, tool] of [['intake', 'workspace.write'], ['intake', 'job.run'], ['intake', 'http.request'], ['verifier', 'http.request'], ['verifier', 'challenge.read']]) {
++      const args = { role: 'recon', sessionID: 'recon', challenge: 'X', id: 'X', path: 'work/no.txt', content: 'x', url, argv: [process.execPath, '-e', 'process.exit(77)'] };
++      await expect(c.handle(session!, 'tool.before', { tool: `ctf_${tool!.replaceAll('.', '_')}`, callID: `before-${++call}`, args })).rejects.toThrow('tool not permitted');
++      await expect(c.handle(session!, 'tool.execute', { tool, callID: `execute-${++call}`, args })).rejects.toThrow('tool not permitted');
++    }
++    for (const session of ['intake', 'verifier']) for (const tool of ['bash', 'task']) {
++      await expect(c.handle(session, 'tool.before', { tool, args: { subagent_type: 'recon' } })).rejects.toThrow();
++    }
++    expect(requests).toBe(0); expect(c.resourceSnapshot()).toHaveLength(0);
++  });
++
++  it('Verifier managed paths map private work and reject materials, published, sibling sessions, other challenges and symlinks', async () => {
++    const { c, dir, bind, challenges } = await fixture();
++    await bind('solver', 'domain-solver'); await bind('verify-a', 'verifier'); await bind('verify-b', 'verifier');
++    await execute(c, 'solver', 'workspace.write', { path: 'work/private.txt', content: 'solver private' });
++    const pub = join(dir, 'workspace/X/published/result.txt'); await writeFile(pub, '42\n');
++    await expect(execute(c, 'verify-a', 'workspace.read', { path: 'published/result.txt' })).resolves.toMatchObject({ text: '42\n' });
++    await execute(c, 'verify-a', 'workspace.write', { path: 'work/check.txt', content: 'independent', workDir: join(dir, 'workspace/X/work/solver'), sessionID: 'solver' });
++    await expect(execute(c, 'verify-b', 'workspace.read', { path: 'work/check.txt' })).rejects.toThrow();
++    for (const path of ['materials/input.txt', 'published/result.txt', 'work/../solver/private.txt', 'work/../../Y/materials/input.txt', join(dir, 'workspace/X/work/solver/private.txt')]) {
++      await expect(execute(c, 'verify-a', 'workspace.write', { path, content: 'tampered' })).rejects.toThrow();
++    }
++    await symlink(join(dir, 'workspace/X/work/solver'), join(dir, 'workspace/X/work/verify-a/link'));
++    await expect(execute(c, 'verify-a', 'workspace.read', { path: 'work/link/private.txt' })).rejects.toThrow();
++    await expect(execute(c, 'verify-a', 'workspace.write', { path: 'work/link/private.txt', content: 'tampered' })).rejects.toThrow();
++    expect(await readFile(join(dir, 'workspace/X/work/solver/private.txt'), 'utf8')).toBe('solver private');
++    expect(await readFile(pub, 'utf8')).toBe('42\n');
++    expect(await readFile(join(challenges[0]!.materialsDir, 'input.txt'), 'utf8')).toBe('21\n');
++  });
++
++  it('Verifier can recompute a saved input in its private work without a managed HTTP permission', async () => {
++    const { c, dir, bind } = await fixture(); await bind('verify', 'verifier');
++    const script = "const f=require('fs');const n=Number(f.readFileSync(process.env.CTF_MATERIALS+'/input.txt','utf8'));f.writeFileSync('result.txt',String(n*2)+'\\n');console.log(n*2)";
++    const job = await execute(c, 'verify', 'job.run', { argv: [process.execPath, '-e', script], wait_ms: 5000 }) as { job: string; exitCode: number };
++    expect(job.exitCode).toBe(0);
++    await expect(execute(c, 'verify', 'workspace.read', { path: 'work/result.txt' })).resolves.toMatchObject({ text: '42\n' });
++    expect(await readFile(join(dir, 'workspace/X/materials/input.txt'), 'utf8')).toBe('21\n');
++  });
++});
++
++// Test-side candidate only. D has no trusted mode/ticket issuer yet. This does not grant product HTTP permission.
++describe('D HTTP replay candidate: fixture-trusted operations, never verb-based classification', () => {
++  it('fresh replay jar rebuilds safe state, binds evidence and consumes an intent before sending', async () => {
++    const seen: Array<{ path: string; cookie?: string }> = [];
++    const url = await server((req, res) => {
++      seen.push({ path: req.url!, cookie: req.headers.cookie });
++      if (req.url === '/login') { res.setHeader('set-cookie', 'session=fresh-verifier; Path=/'); res.end('ready'); }
++      else if (req.url === '/proof') res.end(req.headers.cookie === 'session=fresh-verifier' ? '42' : 'unauthenticated');
++      else res.end('must never be requested');
++    });
++    const { dir } = await fixture();
++    const jar = new CookieJar(); const adapter = createHttpTools({ target: url, jar, workDir: dir });
++    // These exact operations and safety facts come from the fixture author, not the model or HTTP method.
++    const trusted = [{ path: '/login', safety: 'repeatable' }, { path: '/proof', safety: 'repeatable' }, { path: '/limited-get', safety: 'one-shot' }, { path: '/unknown-get', safety: 'unknown' }];
++    const intent = { session: 'verify', challenge: 'X', candidateHash: sha('42'), dependenciesHash: sha('fixed-input-v1') };
++    const used = new Set<number>(); const evidence: object[] = [];
++    async function replay(index: number, context = intent) {
++      if (context.session !== intent.session || context.challenge !== intent.challenge || context.candidateHash !== intent.candidateHash || context.dependenciesHash !== intent.dependenciesHash) throw new Error('binding');
++      const operation = trusted[index]; if (!operation || operation.safety !== 'repeatable' || used.has(index)) throw new Error('not safe or already attempted');
++      if (index !== used.size) throw new Error('sequence');
++      used.add(index); // Unknown transport/business result may not cause an automatic resend.
++      const request = { url: url + operation.path, method: 'GET' };
++      const response = await adapter.request(request, { run: 'fixture', sessionID: context.session, callID: `replay-${index}`, signal: new AbortController().signal, deadline: Date.now() + 5000 });
++      evidence.push({ ...context, requestHash: sha(JSON.stringify(request)), responseHash: sha(JSON.stringify(response)), response });
++      return response;
++    }
++    expect(jar.header(new URL(url))).toBe('');
++    await expect(replay(0, { ...intent, candidateHash: sha('changed') })).rejects.toThrow('binding');
++    await expect(replay(0, { ...intent, dependenciesHash: sha('changed') })).rejects.toThrow('binding');
++    await expect(replay(0, { ...intent, session: 'solver' })).rejects.toThrow('binding');
++    await expect(replay(0, { ...intent, challenge: 'Y' })).rejects.toThrow('binding');
++    await expect(replay(1)).rejects.toThrow('sequence');
++    await replay(0); await replay(1); await expect(replay(1)).rejects.toThrow('already attempted');
++    await expect(replay(2)).rejects.toThrow('not safe'); await expect(replay(3)).rejects.toThrow('not safe');
++    expect(seen).toEqual([{ path: '/login', cookie: undefined }, { path: '/proof', cookie: 'session=fresh-verifier' }]);
++    expect(evidence).toHaveLength(2);
++    const proof = evidence[1] as { response: { bodyPath: string; bodyTruncated: boolean } };
++    // The exact response body file remains the authoritative byte source, not a second model assertion.
++    expect(proof.response.bodyTruncated).toBe(false);
++    expect(sha(await readFile(join(dir, proof.response.bodyPath.replace(/^work\//, ''))))).toBe(intent.candidateHash);
++    await record('replay-candidate', { seen, intent, evidence, attempted: [...used], exactBodyHash: sha('42'),
++      trustedSafetySource: 'fixture author only; D issuer not implemented', deniedWithoutNetwork: ['changed candidate/dependencies/session/challenge', 'out of order', 'duplicate', 'one-shot GET', 'unknown GET'] });
++  });
++
++  it('a replay intent stays consumed after an unknown transport result, without an automatic retry', async () => {
++    let hits = 0; const url = await server((req) => { hits++; req.socket.destroy(); });
++    const { dir } = await fixture();
++    const adapter = createHttpTools({ target: url, jar: new CookieJar(), workDir: dir });
++    let attempted = false;
++    async function once() {
++      if (attempted) throw new Error('intent already attempted');
++      attempted = true;
++      return adapter.request({ url }, { run: 'fixture', sessionID: 'verify', callID: 'unknown', signal: new AbortController().signal, deadline: Date.now() + 5000 });
++    }
++    let transport: string | undefined;
++    try { await once(); } catch (e) { transport = String(e); }
++    expect(transport).toBeTruthy(); await expect(once()).rejects.toThrow('already attempted');
++    expect(hits).toBe(1);
++    await record('unknown-result', { attempted, hits, transport, submission: 'none; fixture request only', automaticRetry: false });
++  });
++
++  it('the existing scoped adapter stops a redirect before any out-of-scope request and keeps jars separate', async () => {
++    let outsideHits = 0; const outside = await server((_req, res) => { outsideHits++; res.end('outside'); });
++    const url = await server((_req, res) => { res.writeHead(302, { location: outside, 'set-cookie': 's=verifier; Path=/' }).end(); });
++    const { dir } = await fixture();
++    const solverJar = new CookieJar(); solverJar.store(new URL(url), ['s=solver; Path=/']);
++    const verifierJar = new CookieJar();
++    const adapter = createHttpTools({ target: url, jar: verifierJar, workDir: dir });
++    const response = await adapter.request({ url, follow_redirects: true }, { run: 'fixture', sessionID: 'verify', callID: 'redirect', signal: new AbortController().signal, deadline: Date.now() + 5000 });
++    expect(JSON.stringify(response)).toContain('out_of_scope'); expect(outsideHits).toBe(0);
++    expect(solverJar.header(new URL(url))).toBe('s=solver'); expect(verifierJar.header(new URL(url))).toBe('s=verifier');
++    await record('scope-cookie', { response, outsideHits, solverJarUnchanged: true, verifierJarIndependent: true });
++  });
++});
+--- /dev/null
++++ b/tests/manual/g-role-permissions-runtime.ts
+@@ -0,0 +1,98 @@
++// Real product launch + plugin + C + OpenCode 1.19.3, with loopback deterministic OpenAI-compatible provider only.
++import assert from 'node:assert/strict';
++import { createServer } from 'node:http';
++import { mkdtemp, mkdir, readFile, writeFile, readdir } from 'node:fs/promises';
++import { tmpdir } from 'node:os';
++import { join, resolve } from 'node:path';
++import { launch } from '../../apps/launcher/src/launch.js';
++
++const label = process.argv[2] ?? 'initial';
++const evidence = resolve('docs/gates/g-solver-verification-20261023/decision-role-permissions/runtime', label); await mkdir(evidence, { recursive: true });
++const root = await mkdtemp(join(tmpdir(), 'gdec-role-permissions-runtime-'));
++const requests: Array<Record<string, unknown>> = []; let seq = 0; const steps: Record<string, number> = {}; 
++const targetLog: Array<Record<string, unknown>> = [];
++const target = createServer((req, res) => { targetLog.push({ at: Date.now(), path: req.url }); res.end('unexpected target HTTP'); });
++await new Promise<void>(r => target.listen(0, '127.0.0.1', r));
++const targetUrl = `http://127.0.0.1:${(target.address() as { port: number }).port}`;
++const stub = createServer((req, res) => {
++  void (async () => {
++    const chunks: Buffer[] = []; for await (const chunk of req) chunks.push(Buffer.from(chunk));
++    if (req.method !== 'POST' || !req.url?.endsWith('/chat/completions')) { res.writeHead(404).end('{}'); return; }
++    const body = JSON.parse(Buffer.concat(chunks).toString()) as { messages: Array<{ role: string; content?: unknown }>; tools?: Array<{ function: { name: string } }> };
++    const first = JSON.stringify(body.messages.find(m => m.role === 'user')?.content ?? '');
++    const kind = first.includes('G_ROLE_INTAKE') ? 'intake' : first.includes('G_ROLE_VERIFIER') ? 'verifier' : 'coordinator';
++    const toolResults = body.messages.filter(m => m.role === 'tool').map(m => String(m.content));
++    const calls: Array<{ name: string; args: object }> = [];
++    const step = steps[kind] ?? 0; steps[kind] = step + 1;
++    if (kind === 'coordinator') {
++      if (step === 0) calls.push({ name: 'task', args: { description: 'role intake', subagent_type: 'intake', prompt: 'G_ROLE_INTAKE scripted permission probe' } });
++      if (step === 1) calls.push({ name: 'ctf_challenge_assign', args: { role: 'verifier', challenge: 'X' } });
++      if (step === 2) calls.push({ name: 'task', args: { description: 'role verifier', subagent_type: 'verifier', prompt: 'G_ROLE_VERIFIER scripted permission probe; recompute fixed input' } });
++    } else if (kind === 'intake') {
++      if (step === 0) calls.push({ name: 'ctf_challenge_list', args: {} });
++      if (step === 1) calls.push({ name: 'ctf_challenge_read', args: { id: 'X', path: 'input.txt' } });
++      if (step === 2) calls.push({ name: 'ctf_workspace_write', args: { path: 'work/intake.txt', content: 'forbidden' } });
++    } else {
++      if (step === 0) calls.push({ name: 'ctf_workspace_write', args: { path: 'work/check.cjs', content: "const f=require('fs');const n=Number(f.readFileSync(process.env.CTF_MATERIALS+'/input.txt','utf8'));f.writeFileSync('result.txt',String(n*2)+'\\n');console.log(n*2)" } });
++      if (step === 1) calls.push({ name: 'ctf_job_run', args: { argv: [process.execPath, 'check.cjs'], wait_ms: 5000 } });
++      if (step === 2) calls.push({ name: 'ctf_workspace_read', args: { path: 'work/result.txt' } });
++      if (step === 3) calls.push({ name: 'ctf_http_request', args: { url: targetUrl } });
++      if (step === 4) calls.push({ name: 'ctf_workspace_write', args: { path: 'materials/input.txt', content: 'forbidden' } });
++    }
++    requests.push({ seq: ++seq, at: Date.now(), kind, step, calls, toolResults, visibleTools: body.tools?.map(t => t.function.name) });
++    const base = { id: `chatcmpl-${seq}`, object: 'chat.completion.chunk', created: Math.floor(Date.now() / 1000), model: 'scripted' };
++    res.writeHead(200, { 'content-type': 'text/event-stream' });
++    if (calls.length) {
++      res.write(`data: ${JSON.stringify({ ...base, choices: [{ index: 0, delta: { role: 'assistant', tool_calls: calls.map((c, i) => ({ index: i, id: `call_${seq}_${i}`, type: 'function', function: { name: c.name, arguments: JSON.stringify(c.args) } })) }, finish_reason: null }] })}\n\n`);
++    } else res.write(`data: ${JSON.stringify({ ...base, choices: [{ index: 0, delta: { role: 'assistant', content: kind === 'intake' ? 'Intake handoff: X, fixed input 21; no workspace write needed.' : 'script complete' }, finish_reason: null }] })}\n\n`);
++    res.write(`data: ${JSON.stringify({ ...base, choices: [{ index: 0, delta: {}, finish_reason: calls.length ? 'tool_calls' : 'stop' }] })}\n\n`);
++    res.write(`data: ${JSON.stringify({ ...base, choices: [], usage: { prompt_tokens: 0, completion_tokens: 0, total_tokens: 0 } })}\n\n`); res.end('data: [DONE]\n\n');
++  })().catch(e => { res.writeHead(500).end('{}'); requests.push({ error: String(e) }); });
++});
++await new Promise<void>(r => stub.listen(0, '127.0.0.1', r));
++const stubUrl = `http://127.0.0.1:${(stub.address() as { port: number }).port}`;
++process.env.G_ROLE_LOCAL_STUB_KEY = 'local-deterministic-stub-key';
++process.env.HTTP_PROXY = process.env.HTTPS_PROXY = process.env.ALL_PROXY = 'http://127.0.0.1:9'; process.env.NO_PROXY = '127.0.0.1,localhost';
++await writeFile(join(root, 'opencode.json'), JSON.stringify({ model: 'stub/scripted', enabled_providers: ['stub'], provider: { stub: { npm: '@ai-sdk/openai-compatible', options: { baseURL: `${stubUrl}/v1`, apiKey: '{env:G_ROLE_LOCAL_STUB_KEY}' }, models: { scripted: { name: 'scripted', limit: { context: 65536, output: 4096 } } } } } }));
++await writeFile(join(root, 'input.txt'), '21\n');
++await writeFile(join(root, 'challenges.json'), JSON.stringify({ challenges: [{ id: 'X', statement: 'Role permissions test X', materials: ['input.txt'], target: { protocol: 'http', url: targetUrl } }] }));
++await writeFile(join(root, 'profile.json'), JSON.stringify({ profileId: 'g-role-permissions-no-model', challenges: 'challenges.json', opencode: { configPath: 'opencode.json', binaryPath: '/Users/caihaoming/.opencode/bin/opencode' }, reference: { enabled: false }, budget: { wallClockMs: 60000, maxSteps: 30, maxToolJobs: 2, maxObservableTokens: 100000 }, os: { platform: 'macos' } }));
++let result: Awaited<ReturnType<typeof launch>> | undefined; let failure: string | undefined;
++try {
++  result = await launch({ profile: join(root, 'profile.json'), runsRoot: join(root, 'runs'), runId: 'product' });
++  assert.equal(result.status, 'completed');
++  const run = result.runDir!; const audit = JSON.parse(await readFile(join(run, 'evidence/control-audit.json'), 'utf8'));
++  const resources = JSON.parse(await readFile(join(run, 'evidence/tool-resources.json'), 'utf8'));
++  const bindings = JSON.parse(await readFile(join(run, 'evidence/bindings.json'), 'utf8'));
++  const verifier = bindings.find((b: { role: string }) => b.role === 'verifier');
++  const intake = bindings.find((b: { role: string }) => b.role === 'intake');
++  assert.equal(verifier.challengeId, 'X'); assert.equal(intake.challengeId, undefined);
++  assert.equal(await readFile(join(run, 'workspace/X/work', verifier.sessionID, 'result.txt'), 'utf8'), '42\n');
++  assert.equal(await readFile(join(run, 'workspace/X/materials/input.txt'), 'utf8'), '21\n');
++  assert(!JSON.stringify(await readdir(join(run, 'workspace/X/work'))).includes(intake.sessionID));
++  const intakeRows = requests.filter(r => r.kind === 'intake'); const verifierRows = requests.filter(r => r.kind === 'verifier');
++  assert(intakeRows.length >= 4); assert(verifierRows.length >= 6);
++  for (const row of intakeRows) {
++    const visible = row.visibleTools as string[];
++    assert(visible.includes('ctf_challenge_list')); assert(visible.includes('ctf_challenge_read'));
++    assert(!visible.includes('ctf_workspace_write')); assert(!visible.includes('ctf_job_run')); assert(!visible.includes('ctf_http_request'));
++  }
++  for (const row of verifierRows) {
++    const visible = row.visibleTools as string[];
++    assert(visible.includes('ctf_workspace_write')); assert(visible.includes('ctf_job_run')); assert(!visible.includes('ctf_http_request'));
++  }
++  assert(audit.some((r: { sessionID: string; allow: boolean; reason?: string }) => r.sessionID === verifier.sessionID && !r.allow && r.reason?.includes('write target')));
++  assert(resources.every((r: { state: string }) => r.state === 'settled'));
++  assert.equal(targetLog.length, 0);
++} catch (e) { failure = String(e); process.exitCode = 1; }
++finally {
++  if (result?.runDir) for (const name of await readdir(join(result.runDir, 'evidence'))) {
++    if (/^(control-audit|tool-resources|bindings|admissions|sessions|messages-|assets|inventory|challenges)/.test(name)) await writeFile(join(evidence, name), await readFile(join(result.runDir, 'evidence', name)));
++  }
++  if (result?.runDir) await writeFile(join(evidence, 'run.json'), await readFile(join(result.runDir, 'state/run.json')));
++  await writeFile(join(evidence, 'provider.json'), JSON.stringify(requests, null, 2));
++  await writeFile(join(evidence, 'target.json'), JSON.stringify(targetLog, null, 2));
++  await writeFile(join(evidence, 'result.json'), JSON.stringify({ result, failure, root, provider: 'loopback deterministic replacement', realModelCalled: false, realModelUsage: 'not_applicable', stubUsage: 'reports zero; deterministic replacement', plugin: 'apps/opencode-plugin/src/entry.ts', roleBoundary: 'managed API/visibility only; OS/network not proved by this run' }, null, 2));
++  await new Promise<void>(r => { stub.close(() => r()); stub.closeAllConnections(); }); await new Promise<void>(r => { target.close(() => r()); target.closeAllConnections(); });
++}
++console.log(JSON.stringify({ result, failure, evidence }));
+--- /dev/null
++++ b/tests/manual/g-role-permissions-boundary-probe.ts
+@@ -0,0 +1,82 @@
++// Deliberate acceptance probe: exit 1 means the required OS/network role boundary is absent.
++// Only disposable sentinels and loopback listeners are touched; no product permission is changed.
++import { createServer } from 'node:http';
++import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
++import { realpathSync } from 'node:fs';
++import { tmpdir } from 'node:os';
++import { join, resolve } from 'node:path';
++import { ControlService } from '../../apps/launcher/src/control-service.js';
++import { prepareRun } from '../../apps/launcher/src/run-prep.js';
++
++const evidence = resolve('docs/gates/g-solver-verification-20261023/decision-role-permissions/boundary-probe');
++await mkdir(evidence, { recursive: true });
++const dir = realpathSync(await mkdtemp(join(tmpdir(), 'gdec-role-permissions-boundary-')));
++const hits: string[] = [];
++const outside = createServer((req, res) => { hits.push(req.url!); res.end('outside configured target, loopback only'); });
++await new Promise<void>(r => outside.listen(0, '127.0.0.1', r));
++const outsideUrl = `http://127.0.0.1:${(outside.address() as { port: number }).port}/outside`;
++let c: ControlService | undefined;
++let failure: string | undefined;
++let observations: Record<string, unknown> = {};
++try {
++  await mkdir(join(dir, 'evidence')); await mkdir(join(dir, 'opencode'));
++  await writeFile(join(dir, 'challenges.json'), JSON.stringify({ challenges: [
++    { id: 'X', statement: 'X material sentinel' }, { id: 'Y', statement: 'Y material sentinel' }
++  ] }));
++  const challenges = await prepareRun({ challengesPath: join(dir, 'challenges.json'), workspace: join(dir, 'workspace'), evidence: join(dir, 'evidence'), secrets: [] });
++  const client = { session: { get: async () => ({ data: { parentID: 'root', agent: 'verifier' } }),
++    messages: async () => ({ data: [] }), children: async () => ({ data: [] }), abort: async () => ({ data: true }) } };
++  c = new ControlService({ client: client as never, runId: 'boundary-probe', budget: { maxModelCalls: 1, maxObservableTokens: 1 },
++    expiresAt: Date.now() + 30000, workdir: join(dir, 'opencode'), skillRoot: dir, challenges });
++  c.bindRoot('root');
++  await c.handle('root', 'tool.execute', { tool: 'challenge.assign', args: { role: 'verifier', challenge: 'X' } });
++  await c.handle('root', 'tool.before', { tool: 'task', callID: 'dispatch', args: { subagent_type: 'verifier' } });
++  await c.handle('verifier', 'chat.message', { agent: 'verifier' });
++  await mkdir(join(dir, 'workspace/X/work/solver'));
++  await writeFile(join(dir, 'workspace/X/work/solver/private.txt'), 'solver private sentinel');
++  await writeFile(join(dir, 'workspace/X/published/result.txt'), 'published sentinel');
++  let managedHttpDenied = false;
++  try { await c.handle('verifier', 'tool.execute', { tool: 'http.request', callID: 'forbidden-http', args: { url: outsideUrl } }); }
++  catch { managedHttpDenied = true; }
++  const script = `
++    const f=require('fs'),p=require('path');
++    (async()=>{
++      const sibling=p.join(process.env.CTF_WORK,'../solver/private.txt');
++      const material=p.join(process.env.CTF_MATERIALS,'statement.md');
++      const published=p.join(process.env.CTF_PUBLISHED,'result.txt');
++      const other=p.join(process.env.CTF_MATERIALS,'../../Y/materials/statement.md');
++      const readSibling=f.readFileSync(sibling,'utf8');
++      const readOtherChallenge=f.readFileSync(other,'utf8');
++      f.writeFileSync(sibling,'modified by verifier');
++      f.chmodSync(material,0o644);f.writeFileSync(material,'modified by verifier');
++      f.writeFileSync(published,'modified by verifier');
++      const response=await fetch(${JSON.stringify(outsideUrl)});
++      console.log(JSON.stringify({readSibling,readOtherChallenge,httpStatus:response.status}));
++    })().catch(e=>{console.error(e);process.exitCode=2});`;
++  const args = { argv: [process.execPath, '-e', script], wait_ms: 5000, timeout_ms: 10000 };
++  await c.handle('verifier', 'tool.before', { tool: 'ctf_job_run', callID: 'boundary-job', args });
++  const job = await c.handle('verifier', 'tool.execute', { tool: 'job.run', callID: 'boundary-job', args }) as { job: string; exitCode: number };
++  const stdout = await c.handle('verifier', 'tool.execute', { tool: 'job.read', callID: 'stdout', args: { job: job.job, stream: 'stdout' } }) as { data: string };
++  const text = Buffer.from(stdout.data, 'base64').toString('utf8');
++  await writeFile(join(evidence, 'job-stdout.txt'), text);
++  observations = { managedHttpDenied, jobExitCode: job.exitCode, script: JSON.parse(text), loopbackRequests: hits,
++    materialsIntact: await readFile(join(dir, 'workspace/X/materials/statement.md'), 'utf8') === 'X material sentinel',
++    publishedIntact: await readFile(join(dir, 'workspace/X/published/result.txt'), 'utf8') === 'published sentinel',
++    siblingIntact: await readFile(join(dir, 'workspace/X/work/solver/private.txt'), 'utf8') === 'solver private sentinel',
++    noDirectHttp: hits.length === 0 };
++  const passed = observations.materialsIntact && observations.publishedIntact && observations.siblingIntact && observations.noDirectHttp;
++  observations.securityAcceptance = passed ? 'pass' : 'FAIL';
++  if (!passed) process.exitCode = 1;
++} catch (error) { failure = String(error); process.exitCode = 2; }
++finally {
++  if (c) {
++    await c.stopAll('probe complete');
++    await writeFile(join(evidence, 'control-audit.json'), JSON.stringify(c.audit, null, 2));
++    await writeFile(join(evidence, 'tool-resources.json'), JSON.stringify(c.resourceSnapshot(), null, 2));
++  }
++  await writeFile(join(evidence, 'result.json'), JSON.stringify({ observations, failure, expectedRequiredBoundary: 'private work only, read-only materials/published, no direct network',
++    scope: 'disposable local files and out-of-scope loopback server only', realModelCalled: false, usage: 'not_applicable', exitCode: process.exitCode ?? 0 }, null, 2));
++  await new Promise<void>(r => { outside.close(() => r()); outside.closeAllConnections(); });
++  await rm(dir, { recursive: true, force: true });
++}
++console.log(JSON.stringify({ observations, failure, evidence, exitCode: process.exitCode ?? 0 }));

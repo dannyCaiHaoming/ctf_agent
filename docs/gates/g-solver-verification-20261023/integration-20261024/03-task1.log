@@ -1,0 +1,33 @@
+
+ RUN  v2.1.8 /Users/caihaoming/.codex/worktrees/c323/pentest-agent
+
+ ❯ tests/contract/g-team-integration.test.ts (3 tests | 1 failed) 23ms
+   × enforces all nine roles at both hooks and execution, with independent Verifier work 6ms
+     → expected [Function] to throw error including 'role capability' but got 'denied: tool not permitted'
+ ✓ tests/contract/control-service.test.ts (31 tests) 450ms
+   ✓ plugin denies when the control service cannot answer > rejects when the service never replies, is unreachable, or replies with something unusable 406ms
+ ✓ tests/contract/run-prep.test.ts (13 tests) 631ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/contract/g-team-integration.test.ts > enforces all nine roles at both hooks and execution, with independent Verifier work
+AssertionError: expected [Function] to throw error including 'role capability' but got 'denied: tool not permitted'
+
+Expected: "role capability"
+Received: "denied: tool not permitted"
+
+ ❯ tests/contract/g-team-integration.test.ts:87:7
+     85|     await bind(role, role);
+     86|     for (const tool of ['workspace.write', 'job.run', 'http.request'])…
+     87|       await expect(execute(role, tool, { path: 'work/x', content: 'no'…
+       |       ^
+     88|       await expect(c.handle(role, 'tool.execute', { tool, callID: `byp…
+     89|     }
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+ Test Files  1 failed | 2 passed (3)
+      Tests  1 failed | 46 passed (47)
+   Start at  00:20:15
+   Duration  1.02s (transform 191ms, setup 0ms, collect 372ms, tests 1.10s, environment 0ms, prepare 93ms)
+

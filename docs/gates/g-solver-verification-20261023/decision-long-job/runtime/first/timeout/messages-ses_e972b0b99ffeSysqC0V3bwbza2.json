@@ -1,0 +1,266 @@
+[
+  {
+    "info": {
+      "id": "msg_168d4f46d001EZhFH8bqvRGI4f",
+      "sessionID": "ses_e972b0b99ffeSysqC0V3bwbza2",
+      "role": "user",
+      "time": {
+        "created": 1792760149101
+      },
+      "agent": "coordinator",
+      "model": {
+        "providerID": "stub",
+        "modelID": "scripted"
+      }
+    },
+    "parts": [
+      {
+        "id": "prt_168d4f46f001v6YydRLDA9OD3d",
+        "sessionID": "ses_e972b0b99ffeSysqC0V3bwbza2",
+        "messageID": "msg_168d4f46d001EZhFH8bqvRGI4f",
+        "type": "text",
+        "text": "開始運行。按產品運行約定，由 Coordinator 組織各角色並經 Intake 取得題目。"
+      }
+    ]
+  },
+  {
+    "info": {
+      "id": "msg_168d4f54b001Doe79kDCXdbczO",
+      "sessionID": "ses_e972b0b99ffeSysqC0V3bwbza2",
+      "role": "assistant",
+      "time": {
+        "created": 1792760149323,
+        "completed": 1792760149796
+      },
+      "parentID": "msg_168d4f46d001EZhFH8bqvRGI4f",
+      "modelID": "scripted",
+      "providerID": "stub",
+      "mode": "coordinator",
+      "agent": "coordinator",
+      "path": {
+        "cwd": "/private/var/folders/tn/x1hbkfy17sx0w1lb8kjzzr340000gn/T/gdec-long-job-tigca5/runs/timeout/opencode",
+        "root": "/"
+      },
+      "cost": 0,
+      "tokens": {
+        "total": 0,
+        "input": 0,
+        "output": 0,
+        "reasoning": 0,
+        "cache": {
+          "read": 0,
+          "write": 0
+        }
+      },
+      "finish": "tool-calls"
+    },
+    "parts": [
+      {
+        "id": "prt_168d4f6e70015JqCRPapPmjMf5",
+        "sessionID": "ses_e972b0b99ffeSysqC0V3bwbza2",
+        "messageID": "msg_168d4f54b001Doe79kDCXdbczO",
+        "type": "step-start"
+      },
+      {
+        "id": "prt_168d4f6e8001Rq10p9CG2zYIjU",
+        "sessionID": "ses_e972b0b99ffeSysqC0V3bwbza2",
+        "messageID": "msg_168d4f54b001Doe79kDCXdbczO",
+        "type": "tool",
+        "callID": "call_1_0",
+        "tool": "ctf_challenge_assign",
+        "state": {
+          "status": "completed",
+          "input": {
+            "role": "recon",
+            "challenge": "X"
+          },
+          "output": "{\"challenge\":\"X\"}",
+          "title": "challenge.assign",
+          "metadata": {
+            "truncated": false
+          },
+          "time": {
+            "start": 1792760149739,
+            "end": 1792760149791
+          }
+        }
+      },
+      {
+        "id": "prt_168d4f722001FpGhCk3wNAak5A",
+        "sessionID": "ses_e972b0b99ffeSysqC0V3bwbza2",
+        "messageID": "msg_168d4f54b001Doe79kDCXdbczO",
+        "type": "step-finish",
+        "reason": "tool-calls",
+        "cost": 0,
+        "tokens": {
+          "total": 0,
+          "input": 0,
+          "output": 0,
+          "reasoning": 0,
+          "cache": {
+            "read": 0,
+            "write": 0
+          }
+        }
+      }
+    ]
+  },
+  {
+    "info": {
+      "id": "msg_168d4f7250012iGbO5MJKcbxqB",
+      "sessionID": "ses_e972b0b99ffeSysqC0V3bwbza2",
+      "role": "assistant",
+      "time": {
+        "created": 1792760149797,
+        "completed": 1792760150184
+      },
+      "parentID": "msg_168d4f46d001EZhFH8bqvRGI4f",
+      "modelID": "scripted",
+      "providerID": "stub",
+      "mode": "coordinator",
+      "agent": "coordinator",
+      "path": {
+        "cwd": "/private/var/folders/tn/x1hbkfy17sx0w1lb8kjzzr340000gn/T/gdec-long-job-tigca5/runs/timeout/opencode",
+        "root": "/"
+      },
+      "cost": 0,
+      "tokens": {
+        "total": 0,
+        "input": 0,
+        "output": 0,
+        "reasoning": 0,
+        "cache": {
+          "read": 0,
+          "write": 0
+        }
+      },
+      "finish": "tool-calls"
+    },
+    "parts": [
+      {
+        "id": "prt_168d4f735001AwkM2o2o5kIr25",
+        "sessionID": "ses_e972b0b99ffeSysqC0V3bwbza2",
+        "messageID": "msg_168d4f7250012iGbO5MJKcbxqB",
+        "type": "step-start"
+      },
+      {
+        "id": "prt_168d4f73600135qgY8zOiizitR",
+        "sessionID": "ses_e972b0b99ffeSysqC0V3bwbza2",
+        "messageID": "msg_168d4f7250012iGbO5MJKcbxqB",
+        "type": "tool",
+        "callID": "call_2_0",
+        "tool": "task",
+        "state": {
+          "status": "completed",
+          "input": {
+            "description": "long job candidate",
+            "subagent_type": "recon",
+            "prompt": "LONG_JOB_CHILD execute one terminal job"
+          },
+          "output": "<task id=\"ses_e972b08c5ffehArjwrqzYcm95y\" state=\"completed\">\n<task_result>\nFINAL_STATE=timed_out; JOB=e17f432c-1886-4eb1-b73e-74fcf44a1ac9; OUTPUT={\"job\":\"e17f432c-1886-4eb1-b73e-74fcf44a1ac9\",\"state\":\"timed_out\",\"exitCode\":null,\"signal\":\"SIGTERM\",\"reapIncomplete\":false} {\"job\":\"e17f432c-1886-4eb1-b73e-74fcf44a1ac9\",\"state\":\"timed_out\",\"exitCode\":null,\"signal\":\"SIGTERM\",\"reapIncomplete\":false,\"stream\":\"stdout\",\"encoding\":\"base64\",\"data\":\"ZWFybHkK\",\"offset\":0,\"truncated\":false,\"nextCursor\":null,\"done\":true}\n</task_result>\n</task>",
+          "title": "long job candidate",
+          "metadata": {
+            "parentSessionId": "ses_e972b0b99ffeSysqC0V3bwbza2",
+            "sessionId": "ses_e972b08c5ffehArjwrqzYcm95y",
+            "model": {
+              "modelID": "scripted",
+              "providerID": "stub"
+            },
+            "truncated": false
+          },
+          "time": {
+            "start": 1792760149815,
+            "end": 1792760150182
+          }
+        }
+      },
+      {
+        "id": "prt_168d4f8a700141tS0xJEG7lrcm",
+        "sessionID": "ses_e972b0b99ffeSysqC0V3bwbza2",
+        "messageID": "msg_168d4f7250012iGbO5MJKcbxqB",
+        "type": "step-finish",
+        "reason": "tool-calls",
+        "cost": 0,
+        "tokens": {
+          "total": 0,
+          "input": 0,
+          "output": 0,
+          "reasoning": 0,
+          "cache": {
+            "read": 0,
+            "write": 0
+          }
+        }
+      }
+    ]
+  },
+  {
+    "info": {
+      "id": "msg_168d4f8a9001Fjzz4lN5wbJE4j",
+      "sessionID": "ses_e972b0b99ffeSysqC0V3bwbza2",
+      "role": "assistant",
+      "time": {
+        "created": 1792760150185,
+        "completed": 1792760150204
+      },
+      "parentID": "msg_168d4f46d001EZhFH8bqvRGI4f",
+      "modelID": "scripted",
+      "providerID": "stub",
+      "mode": "coordinator",
+      "agent": "coordinator",
+      "path": {
+        "cwd": "/private/var/folders/tn/x1hbkfy17sx0w1lb8kjzzr340000gn/T/gdec-long-job-tigca5/runs/timeout/opencode",
+        "root": "/"
+      },
+      "cost": 0,
+      "tokens": {
+        "total": 0,
+        "input": 0,
+        "output": 0,
+        "reasoning": 0,
+        "cache": {
+          "read": 0,
+          "write": 0
+        }
+      },
+      "finish": "stop"
+    },
+    "parts": [
+      {
+        "id": "prt_168d4f8b8001E0iOE1Lq7vF0md",
+        "sessionID": "ses_e972b0b99ffeSysqC0V3bwbza2",
+        "messageID": "msg_168d4f8a9001Fjzz4lN5wbJE4j",
+        "type": "step-start"
+      },
+      {
+        "id": "prt_168d4f8ba001BG1uIcEZYclOHu",
+        "sessionID": "ses_e972b0b99ffeSysqC0V3bwbza2",
+        "messageID": "msg_168d4f8a9001Fjzz4lN5wbJE4j",
+        "type": "text",
+        "text": "fixture complete",
+        "time": {
+          "start": 1792760150202,
+          "end": 1792760150203
+        }
+      },
+      {
+        "id": "prt_168d4f8bb001mpC3N7qpXvkL3W",
+        "sessionID": "ses_e972b0b99ffeSysqC0V3bwbza2",
+        "messageID": "msg_168d4f8a9001Fjzz4lN5wbJE4j",
+        "type": "step-finish",
+        "reason": "stop",
+        "cost": 0,
+        "tokens": {
+          "total": 0,
+          "input": 0,
+          "output": 0,
+          "reasoning": 0,
+          "cache": {
+            "read": 0,
+            "write": 0
+          }
+        }
+      }
+    ]
+  }
+]

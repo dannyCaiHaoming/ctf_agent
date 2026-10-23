@@ -1,0 +1,63 @@
+
+ RUN  v2.1.8 /Users/caihaoming/.codex/worktrees/5b1d/pentest-agent
+
+ ✓ tests/contract/http-lifecycle.test.ts > G-V4 trusted HTTP lifecycle boundary > DNS cancellation settles before release; both authorized and outside servers receive zero connections
+ ✓ tests/contract/http-lifecycle.test.ts > G-V4 trusted HTTP lifecycle boundary > host deadline expires while DNS waits; released DNS cannot open a socket
+ ✓ tests/contract/g-resource-limits.test.ts > workspace decoded single-write boundary 1048575
+ ✓ tests/contract/g-resource-limits.test.ts > workspace decoded single-write boundary 1048575
+ ✓ tests/contract/job-tools.test.ts > G-V5 managed jobs > passes only the whitelisted environment, never the sentinel
+ ✓ tests/contract/job-tools.test.ts > G-V5 managed jobs > connects stdin to /dev/null so cat returns at once
+ ✓ tests/contract/http-lifecycle.test.ts > G-V4 trusted HTTP lifecycle boundary > cancels during TLS connection handshake and closes the real socket
+ ✓ tests/contract/http-lifecycle.test.ts > G-V4 trusted HTTP lifecycle boundary > cancels body reading, destroys the socket, records once and frees capacity
+ ✓ tests/contract/http-lifecycle.test.ts > G-V4 trusted HTTP lifecycle boundary > cancels while resolving a redirect and never starts the next hop
+ ✓ tests/contract/http-lifecycle.test.ts > G-V4 trusted HTTP lifecycle boundary > keeps one deadline across redirects instead of restarting timeout on each hop
+ ✓ tests/contract/http-lifecycle.test.ts > G-V4 trusted HTTP lifecycle boundary > pins a real socket to verified A and never connects to B after DNS changes
+ ✓ tests/contract/http-lifecycle.test.ts > G-V4 trusted HTTP lifecycle boundary > isolates session and run stop; refuses stopped sessions before DNS and releases 8 slots
+ ✓ tests/contract/http-lifecycle.test.ts > G-V4 trusted HTTP lifecycle boundary > bounds blocked persistence cleanup on cancel and retains unknown reservation
+ ✓ tests/contract/http-lifecycle.test.ts > G-V4 trusted HTTP lifecycle boundary > bounds blocked persistence cleanup on timeout and retains unknown reservation
+ ✓ tests/contract/slow-tools.test.ts > real C lets another session admit and revoke before a blocked HTTP body is released
+ ✓ tests/contract/g-resource-limits.test.ts > workspace decoded single-write boundary 1048576
+ ✓ tests/contract/g-resource-limits.test.ts > workspace decoded single-write boundary 1048577
+ ✓ tests/contract/g-resource-limits.test.ts > records below/equal/over 128MiB and concurrent cross-session writes without aggregate enforcement
+ ✓ tests/contract/g-resource-limits.test.ts > overwrites replace logical size and release bytes; failed single-write leaves original intact
+ ✓ tests/contract/slow-tools.test.ts > real C enforces eight HTTP slots per challenge, with independent capacity for another challenge
+ ✓ tests/contract/g-resource-limits.test.ts > records HTTP persistence and direct job writes bypassing the proposed workspace total
+ ✓ tests/contract/slow-tools.test.ts > RPC disconnect cancels the real registered operation and preserves its session/call trace
+ ✓ tests/contract/slow-tools.test.ts > jobs remain registered after handle delivery; revoke cancels only that session including grandchildren
+ ✓ tests/contract/slow-tools.test.ts > fake-clock host wait approval caps at binding lifetime and expires an already registered HTTP operation
+ ✓ tests/contract/slow-tools.test.ts > product plugin correlates trusted before/execute args without a non-public ToolContext.callID
+ ✓ tests/contract/g-resource-limits.test.ts > atomically reserves eight HTTP slots and releases a confirmed cancellation for one replacement
+ ✓ tests/contract/g-resource-limits.test.ts > retains all eight unknown HTTP reservations and rejects a ninth even after late persistence returns 1134ms
+ ✓ tests/contract/g-resource-limits.test.ts > failed HTTP validation settles its reservation and permits the next valid request
+ ✓ tests/contract/g-resource-limits.test.ts > parallel job starts reserve per-session two and per-challenge eight, then settle cancellation and spawn failure
+ ✓ tests/contract/job-tools.test.ts > G-V5 managed jobs > kills the grandchild with the process group on timeout 1534ms
+ ✓ tests/contract/g-resource-limits.test.ts > parallel job starts reserve per-session two and per-challenge eight, then settle cancellation and spawn failure
+ ✓ tests/contract/job-tools.test.ts > G-V5 managed jobs > kills the grandchild with the process group on cancel
+ ✓ tests/contract/g-resource-limits.test.ts > records that prototype PATH inherits the launcher environment unless explicitly provided
+ ✓ tests/contract/g-resource-limits.test.ts > rejects job timeout 0 before spawning
+ ✓ tests/contract/g-resource-limits.test.ts > rejects job timeout 600001 before spawning
+ ✓ tests/contract/job-tools.test.ts > G-V5 managed jobs > pages output by 32 KiB and reassembles it byte-exactly
+ ✓ tests/contract/g-resource-limits.test.ts > accepts max job timeout without waiting for it and honours a short real deadline
+ ✓ tests/contract/g-resource-limits.test.ts > tool calls do not spend model admission; audit can derive counts but reconstructed control has no persisted reservations
+ ✓ tests/contract/g-resource-limits.test.ts > validates HTTP timeout below/equal/above bounds and exposes configured waits without long sleeps
+ ✓ tests/contract/job-tools.test.ts > G-V5 managed jobs > caps stored output at 1 MiB and marks it truncated
+ ✓ tests/contract/job-tools.test.ts > G-V5 managed jobs > reports failed_to_start for a program that does not exist
+ ✓ tests/contract/job-tools.test.ts > G-V5 managed jobs > enforces 2 jobs per session and 8 per challenge, without queueing
+ ✓ tests/contract/job-tools.test.ts > G-V5 managed jobs > refuses handles from another session or challenge
+ ✓ tests/contract/slow-tools.test.ts > stop during registered workspace preparation returns bounded unknown and prevents a late job spawn 4005ms
+ ✓ tests/contract/slow-tools.test.ts > handle produced before an abandoned RPC response is cancelled and remains traceable
+ ✓ tests/contract/slow-tools.test.ts > C retains HTTP cleanup_unknown reservation when response persistence is blocked
+ ✓ tests/contract/slow-tools.test.ts > C retains HTTP cleanup_unknown reservation when response persistence is blocked 1042ms
+ ✓ tests/contract/slow-tools.test.ts > normal RPC finish delivers a running handle without cancelling it; session stop still owns it
+ ✓ tests/contract/slow-tools.test.ts > normal RPC finish delivers a running handle without cancelling it; session stop still owns it
+ ✓ tests/contract/slow-tools.test.ts > expiry cancels an already delivered job and refuses its handle after expiry 1030ms
+ ✓ tests/contract/slow-tools.test.ts > concurrent same-session same-tool calls retain distinct trusted markers and cannot replay one
+ ✓ tests/contract/slow-tools.test.ts > real C applies session and challenge job limits with independent capacity in another challenge
+ ✓ tests/contract/slow-tools.test.ts > unknown process-group cleanup keeps its session quota reserved 3048ms
+ ✓ tests/contract/slow-tools.test.ts > creates the design-mapped private work directory before a child can request its first model admission
+
+ Test Files  4 passed (4)
+      Tests  50 passed (50)
+   Start at  21:56:24
+   Duration  9.92s (transform 176ms, setup 0ms, collect 281ms, tests 13.49s, environment 0ms, prepare 170ms)
+

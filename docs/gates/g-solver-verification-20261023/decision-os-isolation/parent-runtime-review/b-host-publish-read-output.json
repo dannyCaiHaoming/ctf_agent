@@ -1,0 +1,15 @@
+{
+  "label": "b-host-publish-read-output",
+  "argv": [
+    "docker",
+    "exec",
+    "gdec-os-isolation-7243f73068-b-host",
+    "python3",
+    "-c",
+    "from pathlib import Path; import json; Path('/fixture/b/challenges/a/published/new.txt').write_text('host-published'); print(json.dumps({p:Path(p).read_text() for p in ['/fixture/b/challenges/a/work/a1/positive.txt','/fixture/b/challenges/a/work/a2/positive.txt','/fixture/b/challenges/b/work/b1/positive.txt']}))"
+  ],
+  "exit_code": 0,
+  "elapsed_seconds": 0.097,
+  "stdout": "{\"/fixture/b/challenges/a/work/a1/positive.txt\": \"own-work-ok\\n\", \"/fixture/b/challenges/a/work/a2/positive.txt\": \"own-work-ok\\n\", \"/fixture/b/challenges/b/work/b1/positive.txt\": \"own-work-ok\\n\"}\n",
+  "stderr": ""
+}

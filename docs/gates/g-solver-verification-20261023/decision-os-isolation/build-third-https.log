@@ -1,0 +1,74 @@
+#0 building with "desktop-linux" instance using docker driver
+
+#1 [1/4] FROM docker.io/library/ubuntu:24.04@sha256:68ee22004a9109b44973313b02ff7b1de250f1de0f5ecb628d73f579aaff33ac
+#1 resolve docker.io/library/ubuntu:24.04@sha256:68ee22004a9109b44973313b02ff7b1de250f1de0f5ecb628d73f579aaff33ac done
+#1 DONE 0.0s
+
+#2 [internal] load build definition from Dockerfile
+#2 transferring dockerfile: 731B done
+#2 DONE 0.0s
+
+#3 [internal] load metadata for docker.io/library/ubuntu:24.04
+#3 DONE 0.0s
+
+#4 [internal] load .dockerignore
+#4 transferring context: 2B done
+#4 DONE 0.0s
+
+#5 [internal] load build context
+#5 transferring context: 40B done
+#5 DONE 0.0s
+
+#6 [2/4] RUN sed -i -e 's/^Components:.*/Components: main/' -e 's,http://,https://,g' /etc/apt/sources.list.d/ubuntu.sources && apt-get -o Acquire::Retries=1 -o Acquire::https::Timeout=20 update && DEBIAN_FRONTEND=noninteractive apt-get -o Acquire::Retries=1 -o Acquire::https::Timeout=20 install -y --no-install-recommends python3 util-linux procps && rm -rf /var/lib/apt/lists/*
+#6 2.694 Ign:1 https://ports.ubuntu.com/ubuntu-ports noble InRelease
+#6 5.081 Ign:2 https://ports.ubuntu.com/ubuntu-ports noble-updates InRelease
+#6 7.570 Ign:3 https://ports.ubuntu.com/ubuntu-ports noble-backports InRelease
+#6 12.26 Ign:4 https://ports.ubuntu.com/ubuntu-ports noble-security InRelease
+#6 17.29 Err:1 https://ports.ubuntu.com/ubuntu-ports noble InRelease
+#6 17.29   Certificate verification failed: The certificate is NOT trusted. The certificate issuer is unknown.  Could not handshake: Error in the certificate verification. [IP: 198.18.0.57 443]
+#6 22.59 Err:2 https://ports.ubuntu.com/ubuntu-ports noble-updates InRelease
+#6 22.59   Certificate verification failed: The certificate is NOT trusted. The certificate issuer is unknown.  Could not handshake: Error in the certificate verification. [IP: 198.18.0.57 443]
+#6 25.56 Err:3 https://ports.ubuntu.com/ubuntu-ports noble-backports InRelease
+#6 25.56   Certificate verification failed: The certificate is NOT trusted. The certificate issuer is unknown.  Could not handshake: Error in the certificate verification. [IP: 198.18.0.57 443]
+#6 28.02 Err:4 https://ports.ubuntu.com/ubuntu-ports noble-security InRelease
+#6 28.02   Certificate verification failed: The certificate is NOT trusted. The certificate issuer is unknown.  Could not handshake: Error in the certificate verification. [IP: 198.18.0.57 443]
+#6 28.03 Reading package lists...
+#6 28.04 W: https://ports.ubuntu.com/ubuntu-ports/dists/noble/InRelease: No system certificates available. Try installing ca-certificates.
+#6 28.04 W: https://ports.ubuntu.com/ubuntu-ports/dists/noble-updates/InRelease: No system certificates available. Try installing ca-certificates.
+#6 28.04 W: https://ports.ubuntu.com/ubuntu-ports/dists/noble-backports/InRelease: No system certificates available. Try installing ca-certificates.
+#6 28.04 W: https://ports.ubuntu.com/ubuntu-ports/dists/noble-security/InRelease: No system certificates available. Try installing ca-certificates.
+#6 28.04 W: https://ports.ubuntu.com/ubuntu-ports/dists/noble/InRelease: No system certificates available. Try installing ca-certificates.
+#6 28.04 W: https://ports.ubuntu.com/ubuntu-ports/dists/noble-updates/InRelease: No system certificates available. Try installing ca-certificates.
+#6 28.04 W: https://ports.ubuntu.com/ubuntu-ports/dists/noble-backports/InRelease: No system certificates available. Try installing ca-certificates.
+#6 28.04 W: https://ports.ubuntu.com/ubuntu-ports/dists/noble-security/InRelease: No system certificates available. Try installing ca-certificates.
+#6 28.04 W: Failed to fetch https://ports.ubuntu.com/ubuntu-ports/dists/noble/InRelease  Certificate verification failed: The certificate is NOT trusted. The certificate issuer is unknown.  Could not handshake: Error in the certificate verification. [IP: 198.18.0.57 443]
+#6 28.04 W: Failed to fetch https://ports.ubuntu.com/ubuntu-ports/dists/noble-updates/InRelease  Certificate verification failed: The certificate is NOT trusted. The certificate issuer is unknown.  Could not handshake: Error in the certificate verification. [IP: 198.18.0.57 443]
+#6 28.04 W: Failed to fetch https://ports.ubuntu.com/ubuntu-ports/dists/noble-backports/InRelease  Certificate verification failed: The certificate is NOT trusted. The certificate issuer is unknown.  Could not handshake: Error in the certificate verification. [IP: 198.18.0.57 443]
+#6 28.04 W: Failed to fetch https://ports.ubuntu.com/ubuntu-ports/dists/noble-security/InRelease  Certificate verification failed: The certificate is NOT trusted. The certificate issuer is unknown.  Could not handshake: Error in the certificate verification. [IP: 198.18.0.57 443]
+#6 28.04 W: Some index files failed to download. They have been ignored, or old ones used instead.
+#6 28.05 Reading package lists...
+#6 28.06 Building dependency tree...
+#6 28.06 Reading state information...
+#6 28.06 E: Unable to locate package python3
+#6 ERROR: process "/bin/sh -c sed -i -e 's/^Components:.*/Components: main/' -e 's,http://,https://,g' /etc/apt/sources.list.d/ubuntu.sources && apt-get -o Acquire::Retries=1 -o Acquire::https::Timeout=20 update && DEBIAN_FRONTEND=noninteractive apt-get -o Acquire::Retries=1 -o Acquire::https::Timeout=20 install -y --no-install-recommends python3 util-linux procps && rm -rf /var/lib/apt/lists/*" did not complete successfully: exit code: 100
+------
+ > [2/4] RUN sed -i -e 's/^Components:.*/Components: main/' -e 's,http://,https://,g' /etc/apt/sources.list.d/ubuntu.sources && apt-get -o Acquire::Retries=1 -o Acquire::https::Timeout=20 update && DEBIAN_FRONTEND=noninteractive apt-get -o Acquire::Retries=1 -o Acquire::https::Timeout=20 install -y --no-install-recommends python3 util-linux procps && rm -rf /var/lib/apt/lists/*:
+28.04 W: https://ports.ubuntu.com/ubuntu-ports/dists/noble-security/InRelease: No system certificates available. Try installing ca-certificates.
+28.04 W: Failed to fetch https://ports.ubuntu.com/ubuntu-ports/dists/noble/InRelease  Certificate verification failed: The certificate is NOT trusted. The certificate issuer is unknown.  Could not handshake: Error in the certificate verification. [IP: 198.18.0.57 443]
+28.04 W: Failed to fetch https://ports.ubuntu.com/ubuntu-ports/dists/noble-updates/InRelease  Certificate verification failed: The certificate is NOT trusted. The certificate issuer is unknown.  Could not handshake: Error in the certificate verification. [IP: 198.18.0.57 443]
+28.04 W: Failed to fetch https://ports.ubuntu.com/ubuntu-ports/dists/noble-backports/InRelease  Certificate verification failed: The certificate is NOT trusted. The certificate issuer is unknown.  Could not handshake: Error in the certificate verification. [IP: 198.18.0.57 443]
+28.04 W: Failed to fetch https://ports.ubuntu.com/ubuntu-ports/dists/noble-security/InRelease  Certificate verification failed: The certificate is NOT trusted. The certificate issuer is unknown.  Could not handshake: Error in the certificate verification. [IP: 198.18.0.57 443]
+28.04 W: Some index files failed to download. They have been ignored, or old ones used instead.
+28.05 Reading package lists...
+28.06 Building dependency tree...
+28.06 Reading state information...
+28.06 E: Unable to locate package python3
+------
+Dockerfile:2
+--------------------
+   1 |     FROM ubuntu:24.04
+   2 | >>> RUN sed -i -e 's/^Components:.*/Components: main/' -e 's,http://,https://,g' /etc/apt/sources.list.d/ubuntu.sources && apt-get -o Acquire::Retries=1 -o Acquire::https::Timeout=20 update && DEBIAN_FRONTEND=noninteractive apt-get -o Acquire::Retries=1 -o Acquire::https::Timeout=20 install -y --no-install-recommends python3 util-linux procps && rm -rf /var/lib/apt/lists/*
+   3 |     RUN groupadd -g 3101 challenge-a && groupadd -g 3201 challenge-b && useradd -u 2101 -g 3101 session-a1 && useradd -u 2102 -g 3101 session-a2 && useradd -u 2201 -g 3201 session-b1
+   4 |     COPY container-probe.py /opt/gdec/container-probe.py
+--------------------
+ERROR: failed to build: failed to solve: process "/bin/sh -c sed -i -e 's/^Components:.*/Components: main/' -e 's,http://,https://,g' /etc/apt/sources.list.d/ubuntu.sources && apt-get -o Acquire::Retries=1 -o Acquire::https::Timeout=20 update && DEBIAN_FRONTEND=noninteractive apt-get -o Acquire::Retries=1 -o Acquire::https::Timeout=20 install -y --no-install-recommends python3 util-linux procps && rm -rf /var/lib/apt/lists/*" did not complete successfully: exit code: 100
