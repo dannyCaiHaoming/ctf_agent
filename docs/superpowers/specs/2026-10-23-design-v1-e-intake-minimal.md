@@ -58,12 +58,12 @@
 
 ## 4. Intake 的接入工具
 
-兩個受管工具，由控制服務執行，**只授予綁定為 `intake` 的會話**。接法沿用 C design 第 5 節的兩層約束：經產品插件的受管工具清單註冊；`product/opencode/opencode.json` 只在 `intake` 角色設 allow、其餘角色 deny；每次調用再由控制服務按綁定的會話與角色核准。Intake 的範圍是整個 run，以題目 `id` 指明對象，宿主核實該 `id` 屬於本 run。工具名稱與參數在實作時定稿。
+兩個受管工具，由控制服務執行，**只授予綁定為 `intake` 的會話**。接法沿用 C design 第 5 節的兩層約束：經產品插件的受管工具清單註冊；`product/opencode/opencode.json` 只在 `intake` 角色設 allow、其餘角色 deny；每次調用再由控制服務按綁定的會話與角色核准。Intake 的範圍是整個 run，以題目 `id` 指明對象，宿主核實該 `id` 屬於本 run。工具名為 `challenge.list` 與 `challenge.read`，在 OpenCode 中的工具 id 為 `ctf_challenge_list` 與 `ctf_challenge_read`（C design 第 5 節的命名規則）。
 
 | 工具 | Agent 提供 | 宿主返回 | 邊界 |
 | --- | --- | --- | --- |
 | 列出題目 | 無 | 每道題的 `id`、`title`、`target`（無則標「無網路目標」）、可達性檢查時間、材料文件清單與 sha256 | 只列本 run 的題目；不返回宿主路徑等其他細節 |
-| 讀取材料 | 題目 `id` 與材料相對路徑 | 文字內容，或二進位的大小與開頭簽名（沿用現行 `readText` 的語義）；大文件分頁讀取並給出續讀游標 | 路徑限於該題 `materials/`；拒絕符號連結與越界路徑；不提供寫入 |
+| 讀取材料 | 題目 `id`、材料相對路徑、可選的續讀游標 | 文字內容，或二進位的大小與開頭簽名（沿用現行 `readText` 的語義）；大文件分頁讀取並給出續讀游標（下一頁的字節偏移，分頁不切斷 UTF-8 字符） | 路徑限於該題 `materials/`；拒絕符號連結與越界路徑；不提供寫入 |
 
 **身份、hash、目標由宿主給出**（design v1 1.2）：列題結果來自宿主，Intake 只做類別判斷、未知項與建議。Intake 經原生 `task` 把這些交給 Coordinator；首版不另設交付工具與可信記錄（第 6 節）。
 
@@ -94,3 +94,16 @@
 | local oracle 的配置、文件格式與邊界 | D | 無；沒有可信完成判定，任何題目都不得記為 solved（design v1 1.3） |
 | 跳過可達性檢查的開關 | 出現連線即計時的題目時 | 一律檢查 |
 | 解題子會話與題目的綁定 | G（design v1 第 3 節待決項） | Intake 以整個 run 為範圍，不需要 |
+
+## 7. 實作與驗證記錄
+
+2026-10-23 已按本文第 2–4 節實作並合併：題目清單與 run 準備在 `apps/launcher/src/challenges.ts`、`run-prep.ts`；兩個接入工具在 `apps/launcher/src/intake-tools.ts`，由控制服務在 `tool.before` 與 `tool.execute` 兩處核對角色與題目後執行。第 5 節的邊界判據均有定向測試（`tests/contract/run-prep.test.ts`、`intake-tools.test.ts`）。
+
+| 結論 | 條件與關鍵觀察 |
+| --- | --- |
+| 題面拆為 `statement` 與 `statementFile` | 原為單一欄位，實作只能按字串內容猜測是文字還是路徑：純網址的題面會被當成路徑而拒絕啟動，含空白的路徑會被當成題面文字 |
+| 插件註冊的工具受 per-agent 權限控制，並觸發 `tool.execute.before` | 零 token 運行，真實 OpenCode 1.19.3、本地確定性替身 provider，經 `launch()` 跑一輪：`intake` 的模型請求含兩個接入工具，`coordinator` 與 `recon` 的請求不含；兩次調用在審計中依序為 `tool.before`、`tool.execute`、`tool.after` 並返回預期內容。結論已記入 C design 第 8 節 |
+
+驗收層級只到確定性工具接線，不代表 Intake 能據此做題。
+
+**已知限制：** 審計中 `tool.execute` 一筆不記工具名，只能經相鄰的 `tool.before` 對應；以同一個 `runId` 重跑被拒的 run 會因拒絕證據文件已存在而失敗（`runId` 預設隨機）。

@@ -88,7 +88,7 @@
 
 **分派表**（原生 `task`）：只有 `coordinator` 可分派，可分派其餘八個角色；其他角色一律不可分派（design v1 H：Strategy 的分派交 Coordinator）。
 
-**首版能力表**：工具名稱以現有或已規劃者為準；尚未存在的受管工具標明所屬章節，不在本文定義其參數。
+**首版能力表**：工具名稱以現有或已規劃者為準；尚未存在的受管工具標明所屬章節，不在本文定義其參數。受管工具經產品插件註冊後，在 OpenCode 中的工具 id 為 `ctf_<名稱>`（`.` 換成 `_`，例如 `challenge.list` → `ctf_challenge_list`）；`opencode.json` 的 allow 鍵與 `tool.execute.before` 收到的工具名都是這個 id，插件轉給控制服務執行時用原名稱。
 
 | H 能力 | 首版工具 | 授予角色 | 執行時檢查 |
 | --- | --- | --- | --- |
@@ -97,7 +97,7 @@
 | 任務狀態讀取 | 受管工具（待定） | 全部角色 | 只返回本 run、本角色可見的狀態 |
 | 工作區讀寫 | 受管 `workspace.*`（待 G） | Intake、Recon、Domain Solver、Engineer、Verifier（獨立工作區） | 路徑限於該會話綁定的工作區；原始材料唯讀 |
 | 實驗與作業控制 | 受管 `http.request`、`job.run` 等（待 G） | Recon、Domain Solver；Engineer 僅本地；Verifier 僅按驗證模式授予 | scope、句柄綁定題目與會話、資源上限 |
-| 題目接入 | 受管接入工具（待 E） | Intake | 來源固定於運行配置 |
+| 題目接入 | 受管 `challenge.list`、`challenge.read`（[E 最小版詳細 design](2026-10-23-design-v1-e-intake-minimal.md) 第 4 節） | Intake | 角色為 `intake`、題目屬本 run；讀取限於該題 `materials/` |
 | 產物發布／候選登記 | 受管工具（待 D） | Domain Solver、Engineer | 只產生未驗證候選 |
 | 驗證結果登記 | 受管工具（待 D） | Verifier | 只接受綁定為 Verifier 的會話 |
 | 平台操作請求 | 受管工具（待 D、E） | Coordinator | 由控制服務檢查驗證有效性後執行 |
@@ -145,9 +145,11 @@ Reference、Strategy、Recovery Critic 只有知識讀取與狀態讀取（desig
 
 **真實模型下的確認（2026-10-23）：** 控制服務首版經 `apps/launcher` 以火山方舟 Coding Plan（OpenAI 兼容端點、`deepseek-v4-1-flash-261017`、適配器 `@ai-sdk/openai-compatible`）跑一輪：根會話與經 `task` 分派的 Intake 子會話都在各自第一次模型請求前綁定；8 次准入對應 8 條 assistant 訊息；provider 回報的 usage 完整（輸入 8,251、輸出 2,677、推理 1,059）；Coordinator 自行結束，無 provider 錯誤；證據中無憑據。單次輸出上限不越界依插件取「模型 `limit.output` 與剩餘額度的較小者」推斷，未記錄請求體中的實際值。報告見 [`docs/gates/real-model-smoke-20261023/REPORT.md`](../../gates/real-model-smoke-20261023/REPORT.md)。此運行沒有題目來源，只確認接線在真實 provider 下成立，不代表角色協作效果或解題能力。
 
+**插件註冊的受管工具（2026-10-23，零 token）：** 真實 OpenCode 1.19.3、本地確定性替身 provider，經 `launch()` 跑一輪並註冊 Intake 的兩個接入工具：`opencode.json` 的 per-agent 權限對插件工具同樣生效（`intake` 的模型請求含 `ctf_challenge_list`、`ctf_challenge_read`，`coordinator` 與 `recon` 的請求不含）；調用觸發 `tool.execute.before`，工具名為 `ctf_<名稱>`，審計中依序為 `tool.before`、`tool.execute`、`tool.after`。因此第 5 節的兩層約束對受管工具成立，與原生工具相同。
+
 探針未覆蓋、實作時以定向測試補上的項目：
 
-- 角色可見性設定出錯時，執行許可層對越權 `task` 與其他工具的攔截；
+- 角色可見性設定出錯時，執行許可層對越權 `task` 與其他工具的攔截（`task` 與 Intake 接入工具已有定向測試）；
 - 載入產品插件後原生 `skill` 的 hook 覆蓋（`skill` 本身已在未載入插件的運行中驗證可用，見 [A／B 詳細 design](2026-10-22-design-v1-ab-product-assets.md) 第 5 節）；
 - 同角色第二筆待綁定分派被拒（第 3 節第 1 點新規則）；
 - 若日後啟用內建 `title`／`summary`／`compaction` agent，其模型請求是否經 `chat.params` 准入。
