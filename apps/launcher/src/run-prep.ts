@@ -46,7 +46,15 @@ async function collect(challenge: Challenge, secrets: string[]): Promise<Pinned[
   return files.map(f => ({ ...f, sha256: sha256(f.content), bytes: f.content.length }));
 }
 
-export async function prepareRun(input: { challengesPath: string | undefined; workspace: string; evidence: string; secrets: string[] }): Promise<void> {
+/** What the control service needs to serve the intake tools: the pinned facts of one challenge, no host paths except `materialsDir`. */
+export interface PreparedChallenge {
+  id: string; title: string | null; target: Challenge['target'] | null; reachability: Reachability | null;
+  materials: Array<{ name: string; sha256: string; bytes: number }>;
+  /** Host-side only; never returned to a model. */
+  materialsDir: string;
+}
+
+export async function prepareRun(input: { challengesPath: string | undefined; workspace: string; evidence: string; secrets: string[] }): Promise<PreparedChallenge[]> {
   if (!input.challengesPath) throw new Blocked('release profile has no challenges field');
   const list = await loadChallengeList(input.challengesPath);
   const pinned = new Map<string, Pinned[]>();
@@ -77,4 +85,6 @@ export async function prepareRun(input: { challengesPath: string | undefined; wo
     }
   }
   await writeFile(join(input.evidence, 'challenges.json'), JSON.stringify({ rejected: false, challengeList: list.path, challenges: list.challenges.map(record) }, null, 2), { flag: 'wx' });
+  return list.challenges.map(c => ({ id: c.id, title: c.title ?? null, target: c.target ?? null, reachability: reachability.get(c.id) ?? null,
+    materials: pinned.get(c.id)!.map(({ name, sha256, bytes }) => ({ name, sha256, bytes })), materialsDir: join(input.workspace, c.id, 'materials') }));
 }
