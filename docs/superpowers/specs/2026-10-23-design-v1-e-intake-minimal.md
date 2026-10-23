@@ -103,7 +103,8 @@
 | --- | --- |
 | 題面拆為 `statement` 與 `statementFile` | 原為單一欄位，實作只能按字串內容猜測是文字還是路徑：純網址的題面會被當成路徑而拒絕啟動，含空白的路徑會被當成題面文字 |
 | 插件註冊的工具受 per-agent 權限控制，並觸發 `tool.execute.before` | 零 token 運行，真實 OpenCode 1.19.3、本地確定性替身 provider，經 `launch()` 跑一輪：`intake` 的模型請求含兩個接入工具，`coordinator` 與 `recon` 的請求不含；兩次調用在審計中依序為 `tool.before`、`tool.execute`、`tool.after` 並返回預期內容。結論已記入 C design 第 8 節 |
+| 帶真實題目的取題鏈端到端成立 | 真實模型冒煙（`deepseek-v4-1-flash-261017`，三道本地 Docker Web 題 mfw／throwback／seizure）：run 準備三題皆可達、材料已固定；Intake 經 `ctf_challenge_list`／`ctf_challenge_read` 讀到三題，Coordinator 分派解題角色；run 自然結束（40 次准入，約 7.65 萬 token，無 provider 錯誤，無憑據洩漏）。最小證據見 [`docs/gates/e-intake-smoke-20261023/REPORT.md`](../../gates/e-intake-smoke-20261023/REPORT.md) |
 
-驗收層級只到確定性工具接線，不代表 Intake 能據此做題。
+驗收層級到此為止：取題鏈成立，但被分派的解題角色尚無工具可用（待 design v1 G），冒煙中它們被分派後無法動手。
 
 **已知限制：** 審計中 `tool.execute` 一筆不記工具名，只能經相鄰的 `tool.before` 對應；以同一個 `runId` 重跑被拒的 run 會因拒絕證據文件已存在而失敗（`runId` 預設隨機）。
