@@ -143,6 +143,8 @@ Reference、Strategy、Recovery Critic 只有知識讀取與狀態讀取（desig
 | 無未准入請求 | 成立：每個模型請求之前都有同會話的准入；前提是內建 `title`、`summary`、`compaction` agent 已停用 |
 | `permission.ask` | 全部運行未觸發；被拒的權限由 OpenCode 直接報錯 |
 
+**真實模型下的確認（2026-10-23）：** 控制服務首版經 `apps/launcher` 以火山方舟 Coding Plan（OpenAI 兼容端點、`deepseek-v4-1-flash-261017`、適配器 `@ai-sdk/openai-compatible`）跑一輪：根會話與經 `task` 分派的 Intake 子會話都在各自第一次模型請求前綁定；8 次准入對應 8 條 assistant 訊息；provider 回報的 usage 完整（輸入 8,251、輸出 2,677、推理 1,059）；Coordinator 自行結束，無 provider 錯誤；證據中無憑據。單次輸出上限不越界依插件取「模型 `limit.output` 與剩餘額度的較小者」推斷，未記錄請求體中的實際值。報告見 [`docs/gates/real-model-smoke-20261023/REPORT.md`](../../gates/real-model-smoke-20261023/REPORT.md)。此運行沒有題目來源，只確認接線在真實 provider 下成立，不代表角色協作效果或解題能力。
+
 探針未覆蓋、實作時以定向測試補上的項目：
 
 - 角色可見性設定出錯時，執行許可層對越權 `task` 與其他工具的攔截；

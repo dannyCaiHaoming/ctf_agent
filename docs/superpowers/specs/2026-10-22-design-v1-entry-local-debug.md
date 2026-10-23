@@ -42,7 +42,7 @@
 | --- | --- | --- | --- |
 | 開發 | 倉庫根目錄與 `apps/`、`packages/`、`tests/`、`docs/` | 開發用 `AGENTS.md`、`CLAUDE.md`、源碼、測試、文檔 | 不被運行中的 OpenCode 讀取 |
 | 產品資產 | `product/`（共用層 + `product/opencode/`） | 產品 `AGENTS.md`、角色、Skills、References、基礎 OpenCode 配置 | 只經啟動腳本白名單複製進入運行；不放運行配置、秘密或運行資料 |
-| 運行配置 | `config/` | 題目來源、模型 profile、預算；`*.example.*` 入庫，開發者本地實際配置不入庫 | 不含秘密值，只含 env 引用名；不放產品指令或角色。模型 provider 暫定為火山引擎 token plan（使用者 2026-10-23 決定），apiKey 以 `{env:ARK_API_KEY}` 引用、值放本地 `.env`；需按 OpenCode 配置格式編寫，清理前的舊直連 provider 配置格式已不被接受，只沿用其端點與 env 名 |
+| 運行配置 | `config/` | 題目來源、模型 profile、預算；`*.example.*` 入庫，開發者本地實際配置不入庫 | 不含秘密值，只含 env 引用名；不放產品指令或角色。模型 provider 暫定為火山引擎 token plan（使用者 2026-10-23 決定），apiKey 以 `{env:ARK_API_KEY}` 引用、值放本地 `.env`；已按 OpenCode 配置格式編寫為 `config/opencode.volcano-coding.example.json` 與 `config/release-profile.volcano-coding.example.json`：OpenAI 兼容端點 `https://ark.cn-beijing.volces.com/api/coding/v3`、適配器 `@ai-sdk/openai-compatible`、模型 `deepseek-v4-1-flash-261017`、`limit.output` 8,000（`limit.context` 128,000 為未經方舟核實的假設值）；2026-10-23 真實模型冒煙經此配置跑通（見 [C 詳細 design](2026-10-23-design-v1-c-control-service.md) 第 8 節） |
 | 秘密 | 運行時環境；本地為 `.env`（git 忽略） | 平台 token、provider key 等 | 不寫入任何文件或證據；平台憑據只進控制服務進程 |
 | 運行資料 | 運行資料根目錄下 `<runId>/`，**位於倉庫之外** | 見下表 | 每次 run 新建；不在倉庫內、不在 `product/` 內 |
 
