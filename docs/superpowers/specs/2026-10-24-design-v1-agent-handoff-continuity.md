@@ -2,7 +2,7 @@
 
 記錄日期：2026-10-24（Asia/Tokyo）。
 
-**狀態：離線交接核對完成；Coordinator／Verifier 的最小指令修改範圍已定，尚未實作，也未驗證效率改善。** 本文是 [核心設計 v1](2026-10-22-ctf-agent-design-v1.md) §1.2、§2 C／D 的子文件。承接已完成的產品指令契約清理，只研究如何利用既有原生 task、artifact、package、verification 與進度接口，保留下一角色實際需要的資訊，減少沒有證據理由的重新探索。
+**狀態：離線交接核對完成；Coordinator／Verifier 最小指令修改已實作並通過無模型定向回歸，效率改善仍未驗證。** 本文是 [核心設計 v1](2026-10-22-ctf-agent-design-v1.md) §1.2、§2 C／D 的子文件。承接已完成的產品指令契約清理，只研究如何利用既有原生 task、artifact、package、verification 與進度接口，保留下一角色實際需要的資訊，減少沒有證據理由的重新探索。
 
 ## 1. 目標與範圍
 
@@ -57,7 +57,7 @@
 
 ## 4. 方案 A 的候選交接約定
 
-以下一般交接內容仍為候選；§5.1 的 Coordinator／Verifier 最小子集已依離線證據定稿，但尚非已發布的產品規則。採自然語言短段即可；不要求每次填滿固定模板，不讓模型手填宿主已知身份、hash、時間、計數或可信狀態。
+以下一般交接內容仍為候選；§5.1 的 Coordinator／Verifier 最小子集已依離線證據定稿，其中最小子集已依 §7 接入產品，其餘仍非產品規則。採自然語言短段即可；不要求每次填滿固定模板，不讓模型手填宿主已知身份、hash、時間、計數或可信狀態。
 
 ### 4.1 接手者所需的最小內容
 
@@ -99,9 +99,9 @@ Verifier 始終獨立於 Solver／Engineer；同一 Verifier 的續用只保留�
 
 無模型檢查只能證明接口相容及指令是否保留邊界。後續真實效果需要另有目標、模型／provider、批次與 token 預算授權，在固定條件下觀察有依據的重做、無依據的重做、候選修訂原因、各角色成本與最終結果。不存在自動啟動或正式成功率門檻。
 
-### 5.1 已定稿的最小待實作範圍與行為判據
+### 5.1 已定稿的最小實作範圍與行為判據
 
-僅需修改 `product/opencode/agents/coordinator.md` 與 `product/opencode/agents/verifier.md` 的相關指令段；本輪不修改這兩檔，不生成實作 plan，不擴展 Engineer／Solver／Recon、Skill、schema、runtime 或測試。
+僅需修改 `product/opencode/agents/coordinator.md` 與 `product/opencode/agents/verifier.md` 的相關指令段；本切片不擴展 Engineer／Solver／Recon、Skill、schema、runtime 或測試。實作與驗收結果見 §7。
 
 - **Coordinator：** 讀回指定 version／result 的完整報告，區分原 judgment、effectiveJudgment 和實際 blocker；轉交具體未解事實與本輪差量，分清包／來源缺口與報告比較接線。不得把推測的原因寫成 host 結論，亦不得指示把 equality 日誌當 candidate bytes。沒有包證據錯誤就不要求重包；未知傳輸按既有停止邊界處理。新 execution 所需準備和獨立驗證不因局部修正而省略。
 - **Verifier：** recompute comparison 指向本 execution 綁定的必要 job evidence 中，**從獨立重算所產生的候選 bytes** 的確切半開區間（座標相對於該已選 evidence bytes），不是含 equality／hash／長度的摘要區間。先核對選區長度及 raw bytes；不得直接 echo prepared candidate 來充當重算，獨立來源與資料流、必要前提仍須支持語義判斷。報告降級而未取得具體 blocker 時，交回結果索引與未知，不猜測清空 premises／issues、不以再次 prepare 重置 execution 或重登記衝突報告。
@@ -113,3 +113,13 @@ Verifier 始終獨立於 Solver／Engineer；同一 Verifier 的續用只保留�
 本次由獨立分析會話在 `/Users/caihaoming/.codex/worktrees/handoff-offline-audit/pentest-agent` 執行，主會話核對同版 comparison 的實際選區長度／相等性與兩次修正 task 的指示，再整合回主區。獨立復核另核對四份報告 metadata、四次發布、關鍵 task 指示、比較實作和 execution 綁定，未發現阻斷問題；未重新逐項審核 Engineer 全部分頁讀取或最後重算的語義充分性，不冒稱完整重放。
 
 長期結論已回寫本文，核心 design v1 同步狀態，已完成的一次性離線驗證 plan 刪除。產品角色／Skill／runtime／tests 未修改；未運行測試、build 或 typecheck，因本輪只有離線分析與文檔變更。沒有真實模型／Docker／題目執行、commit 或 push；本輪模型 run usage 為 unavailable。下一步只需根據 §5.1 另拆聚焦的角色指令實作 plan，本輪不自動實作。
+
+## 7. 2026-10-24 最小角色指令實作
+
+在 `87a94134572430d3def1f22bca799b4e52b511cb` 加當前 dirty 基線上，由 GPT 6.1 Sol 獨立子會話完成，主會話逐檔核對差量並整合。僅修改 Coordinator 與 Verifier：完整讀回實際 blocker 後交付修正差量，區分包缺口與比較接線；comparison 選當前 execution 必需 job evidence 中獨立重算的候選 raw bytes，半開座標相對選中 evidence。降級原因未知時交回 result 與未知，不清空前提、不重登記衝突報告。跨 execution 準備、獨立來源、必要前提、unknown 與可信完成邊界保留。
+
+獨立靜態復核通過，對照 `verification-results.ts`、包準備與 execution 綁定實作，未發現阻斷。無模型驗證：`env -u D_RESULT_EVIDENCE_DIR -u D_VERIFIER_EVIDENCE_DIR npx --no-install vitest run tests/contract/d-verifier-handoff.test.ts tests/contract/d-verification-result.test.ts tests/contract/opencode-config.test.ts tests/contract/opencode.test.ts --cache=false`，4 檔／39 項通過，exit 0；`git diff --check` 通過。未新增測試或 gate。本輪只有角色 Markdown 差量，未重跑全套、typecheck 或 build；未跑真實模型／Docker，未 commit／push。
+
+上述驗證確認指令與接口一致，不證明模型遵循、重算語義充分性、節省 token 或成功率提升。§6 保留為前次離線核對歷史；原始錯誤與未定稿一般交接建議不改寫為已驗證能力。一次性實作交接結論已轉入本節。
+
+收口：實作子會話 `01a16dbe-af95-7b41-83e6-8f313ea9af4f` 已歸檔，專用 `bf13` 工作樹在差量整合與副本核對後已移除；未使用會建立 Git 快照提交的歸檔工作樹操作。其他既有工作樹保留，一次性實作 plan 已刪除。

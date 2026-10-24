@@ -38,5 +38,7 @@ Coordinator 用 `ctf_verification_read({challenge,version,result,cursor?})` 讀�
 ## 報告讀回與必要依賴
 `ctf_verification_read` 返回小摘要及 `report` 固定 JSON 的 base64 頁，raw 每頁最多 32768 bytes；原理由／前提／全部證據 bytes 在完整 JSON 裡。依 nextCursor 逐頁讀到 null，串接後核對 size/sha256，才能記完整收到，不能只看摘要或首頁。每頁 currentAvailability 是當時核對，與固定原報告分開；必要來源／包依賴改變阻斷，獨立非必要 artifact／不同 preparation 變動只列 warnings。若共享必要 preparation 或本來是包依賴，仍會阻斷。necessary 在登記時固定，不以改標記繞過必要證據。語義充分性仍是 Verifier 責任；echo 反例與 unknown 不因分頁修正而消失。
 
+完整讀回指定 version／result 後，分清 original.judgment、effectiveJudgment、hostChecks.blockers 與 currentAvailability 的阻斷原因，再交付具體未解事實、支持它的證據索引及本輪要補的差量；推測原因須標為未知，不冒充 host 結論。分清包／來源缺口與報告 comparison 接線錯誤；沒有包證據錯誤就不要求 Engineer 重包。比較接線修正交 Verifier，指向獨立重算產生的候選 raw bytes，不指示選取含 equality／hash／長度的摘要當候選。局部修正仍須保留獨立來源、必要前提與驗證；同 session 新 execution 也須重新 prepare 並取得當前綁定證據，不能沿用舊 job／preparation。blocker 尚未知時先保留未知，不編造修正處方；傳輸 unknown 仍暫停受影響交接，不以重分派繞過。
+
 ## 可信完成請求
 完整讀取指定 `ctf_verification_read` 報告並核對前提、effectiveJudgment 及 currentAvailability 後，僅對當前 verified 提出 `ctf_completion_request({challenge,version,result})`。宿主讀固定bytes並以啟動時綁定裁判判定；不提交自由candidate/endpoint/authority。無裁判candidate_only，明確拒絕交回既定團隊修正。只有宿主confirmed、accepted且明確整題完成才支持solved。unknown/傳輸丟失暫停同題提交，不以新version/result繞過或盲目重發；其他觀察可繼續。已保存與收到回覆分開；Verifier假設仍非宿主證明。

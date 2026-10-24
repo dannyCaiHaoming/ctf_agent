@@ -1,27 +1,38 @@
 ---
 name: web-session-diagnosis
-description: Diagnose Web CTF tasks that depend on login, account state, CSRF state, or a response that appears to depend on an earlier request.
+description: Use when a Web CTF task involves login or session state, comparing supplied source, routes or version materials with observed behavior, or HTTP response completeness or business postconditions.
 ---
 
 # Web Session Diagnosis
 
-Version: 3
+Version: 4
 
-Use this method when a Web task has login, account state, CSRF state, or a response that appears to depend on an earlier request.
+Use the relevant sections when a Web task involves:
 
-## Minimal checks
+- Login, account state, CSRF state, or a response that appears to depend on an earlier request.
+- Comparing supplied source code, routes, or version materials with observed behavior.
+- HTTP response completeness or the business postcondition of a request.
 
-1. Inspect the supplied challenge statement and original attachments with managed workspace tools under `materials/`, `work/`, and `published/`. If an attachment is an archive, an authorized role can use `ctf_job_run` with available Python or tar to list or unpack it into its own work directory, then read/search individual text members. Do not treat binary bytes as UTF-8, execute attached programs, install dependencies during a run, or replace supplied materials with outside sources. Preserve the material references and extraction paths with findings.
-2. Use `ctf_http_request` within the authorized origin. Record method, `status`, `headers`, `headersTruncated`, and `redirectChain`. `follow_redirects` defaults to false; inspect the Location header when available and decide whether a separate request or explicit in-scope following is justified. A truncated header set is incomplete evidence; keep cross-origin redirects blocked.
-3. After a normal login or state-changing request, request the evidenced protected route. Recon and Domain Solver share the host cookie jar for the same challenge; another Agent is not an anonymous control. There is no independent session selection or reset interface. Use reliable pre-login evidence for comparison when available, otherwise record the missing anonymous baseline.
-4. The host automatically stores and carries applicable jar cookies. This does not establish login success, and the tool exposes no sent-cookie-name summary. Returned headers may include Set-Cookie values; do not copy those values into notes or handoffs. Judge authentication from protected content and observable state, preserving uncertainty about cookie transmission.
-5. If the protected response still looks unauthenticated, check status, available redirect destination, route, method, and the observed state transition before trying another supported login flow. Do not repeatedly guess routes or credentials without new evidence.
+Choose sections according to the observed problem and available materials; do not perform login checks when no session question is involved, or read every Reference by default. This method does not apply to pure offline computation or tasks without a related Web problem.
+
+## Shared prerequisites and supplied materials
+
+Inspect the supplied challenge statement and original attachments with managed workspace tools under `materials/`, `work/`, and `published/`. If an attachment is an archive, an authorized role can use `ctf_job_run` with available Python or tar to list or unpack it into its own work directory, then read/search individual text members. Do not treat binary bytes as UTF-8, execute attached programs, install dependencies during a run, or replace supplied materials with outside sources. Preserve the material references and extraction paths with findings.
+
+## Session diagnosis: minimal checks
+
+Use these checks when login, account state, CSRF state, or dependence on an earlier request needs diagnosis.
+
+1. Use `ctf_http_request` within the authorized origin. Record method, `status`, `headers`, `headersTruncated`, and `redirectChain`. `follow_redirects` defaults to false; inspect the Location header when available and decide whether a separate request or explicit in-scope following is justified. A truncated header set is incomplete evidence; keep cross-origin redirects blocked.
+2. After a normal login or state-changing request, request the evidenced protected route. Recon and Domain Solver share the host cookie jar for the same challenge; another Agent is not an anonymous control. There is no independent session selection or reset interface. Use reliable pre-login evidence for comparison when available, otherwise record the missing anonymous baseline.
+3. The host automatically stores and carries applicable jar cookies. This does not establish login success, and the tool exposes no sent-cookie-name summary. Returned headers may include Set-Cookie values; do not copy those values into notes or handoffs. Judge authentication from protected content and observable state, preserving uncertainty about cookie transmission.
+4. If the protected response still looks unauthenticated, check status, available redirect destination, route, method, and the observed state transition before trying another supported login flow. Do not repeatedly guess routes or credentials without new evidence.
 
 ## Follow challenge clues into available materials
 
 Use this method when the statement mentions source code, history, a fix, or version differences, or when supplied files contain forms, API routes, or script references.
 
-When supplied source code, version information, or history needs comparison with observed behavior, consult [Source Version and Behavior Comparison](references/source-version-and-behavior-comparison.md) if available through the permitted tools. If it is unavailable, report that limitation; do not infer its contents or expand access scope.
+When supplied source code, version information, or history needs comparison with observed behavior, consult [Source Version and Behavior Comparison](references/source-version-and-behavior-comparison.md) using the Reference path returned by the native skill tool, through the permitted tools. If it is unavailable, report that limitation; do not infer its contents or expand access scope. A version label is not supplied history or proof of deployed contents. A single source snapshot can still be inspected; without comparable revisions or history, record changes as unknown.
 
 1. List the supplied materials and identify what each one can establish. Follow concrete references such as a form's method/action or a page's script path into available handlers or files.
 2. For each relevant reference, record its source and what remains unknown. If a referenced handler or history is unavailable, report that material gap; do not invent its behavior or replace supplied material with a writeup.
@@ -31,7 +42,7 @@ When supplied source code, version information, or history needs comparison with
 
 ## Check response continuation and business postconditions
 
-Use this method after a POST or other state-changing request, when a 2xx response is being treated as success, or when a response is truncated and the omitted part could affect the decision.
+Use this method after a POST or other state-changing request, when a 2xx response is being treated as success, or when only a response preview is visible or a response is truncated and the omitted part could affect the decision. These checks do not require a login flow.
 
 1. Before sending a state-changing request, state the expected business postcondition and how it can be observed safely. A 2xx status confirms an HTTP response, not that the intended state change occurred.
 2. Distinguish `preview` from the saved body: use workspace reads of `bodyPath` to inspect the saved `bodyBytes` as needed. If `bodyTruncated` is true, the original response was not fully saved; reading all of bodyPath cannot recover its missing tail. Preserve that limit. A new request is a new observation, not continuation or proof that the original response was complete.
