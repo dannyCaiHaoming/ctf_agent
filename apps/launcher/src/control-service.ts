@@ -92,11 +92,12 @@ export function summarizeUsage(messages: Message[]): SessionUsage {
   return usage;
 }
 
-export const SOLVER_TOOLS = ['workspace.list', 'workspace.read', 'workspace.search', 'workspace.write', 'http.request', 'job.run', 'job.read', 'job.cancel', 'artifact.publish', 'artifact.read', 'package.publish', 'package.read'];
+export const SOLVER_TOOLS = ['workspace.list', 'workspace.read', 'workspace.search', 'workspace.write', 'http.request', 'job.run', 'job.read', 'job.cancel', 'artifact.publish', 'artifact.read', 'package.publish', 'package.read', 'package.prepare'];
 export const MANAGED_TOOLS = [...INTAKE_TOOLS, 'challenge.assign', 'challenge.unassign', 'task.stop', ...SOLVER_TOOLS];
 interface Resource { run: string; sessionID: string; challengeId: string; callID: string; tool: string; state: 'active' | 'settled' | 'unknown'; result?: string; job?: string; controller: AbortController; deadline: number; execution?: string; timer?: ReturnType<typeof setTimeout>; done?: Promise<unknown>; detachRpc?: () => void }
 interface TaskStopResult { state: 'stopped' | 'unknown' | 'completed' | 'failed'; resources: 'settled' | 'unknown'; sessionAbort: 'confirmed' | 'unknown' | 'not_required'; executionRef?: string }
-interface Execution { ref: string; run: string; parent: string; callID: string; role: Role; challengeId?: string; childID?: string; state: 'starting' | 'running' | 'completed' | 'failed' | 'cancelled'; delivered: boolean; noticeMessageID?: string; delivery?: 'queued' | 'consumed' | 'suppressed' | 'stop_reply'; lateResult?: string; initialOutput?: string; result?: string }
+interface Execution { version?: string; ref: string; run: string; parent: string; callID: string; role: Role; challengeId?: string; childID?: string; state: 'starting' | 'running' | 'completed' | 'failed' | 'cancelled'; delivered: boolean; noticeMessageID?: string; delivery?: 'queued' | 'consumed' | 'suppressed' | 'stop_reply'; lateResult?: string; initialOutput?: string; result?: string }
+interface Preparation {sessionID:string;execution:string;version:string;directory:string;metadata:{path:string;sha256:string;size:number}[];files:{path:string;sha256:string;size:number}[]}
 interface Outside { execute: () => Promise<unknown> }
 
 export interface ControlOptions {
@@ -124,7 +125,8 @@ export class ControlService {
   readonly startedAt = Date.now();
   private tail: Promise<unknown> = Promise.resolve();
   private stopping?: Promise<void>;
-  private readonly pending = new Map<string, Map<Role, { callID: string; challengeId?: string; childID?: string; background?: boolean }>>();
+  private readonly pending = new Map<string, Map<Role, { callID: string; challengeId?: string; childID?: string; background?: boolean; version?: string }>>();
+  private readonly versions = new Map<string, string>();
   private readonly declarations = new Map<string, Map<Role, string>>();
   private readonly executions = new Map<string, Execution>();
   private readonly childStops = new Map<string, Promise<TaskStopResult>>();
@@ -138,6 +140,12 @@ export class ControlService {
   private readonly jobs: JobManager;
   private readonly publications = new ArtifactPublisher();
   private readonly packages = new CandidatePackages(this.publications);
+  private readonly preparations = new Map<string, Preparation>();
+  private verifierExecution(binding:Binding) {
+    const e=[...this.executions.values()].find(e=>e.childID===binding.sessionID&&e.state==='running');
+    if(!e?.version) throw new ControlDenied('verification version');
+    return e as Execution & {version:string};
+  }
   private readonly fileSources = new Map<string,{sha256:string;source:ArtifactSource}>();
   private readonly outputSources = new Map<string, {source: ArtifactSource; bytes?: Buffer; complete?: boolean}>();
   publicationSnapshot() { return this.publications.snapshot(); }
@@ -446,6 +454,7 @@ export class ControlService {
       void this.stopAll('budget');
       throw new ControlDenied('budget', JSON.stringify({ admitted: this.admitted, observedTokens: this.observed }));
     }
+    if(binding.role==='verifier')this.verifierExecution(binding);
     this.admitted++;
     for (const e of this.executions.values()) if (e.parent === binding.sessionID && e.delivery === 'queued' && e.noticeMessageID === body.messageID) { e.delivery = 'consumed'; this.record(binding.sessionID, 'task.delivered', true, undefined, {ref: e.ref, messageID: body.messageID, admitNo: this.admitted}); }
     return { maxOutputTokens: maxObservableTokens - this.observed, admitNo: this.admitted, role: binding.role };
@@ -472,7 +481,8 @@ export class ControlService {
       if (args.background === true) {
         const ref = randomUUID();
         const taskID = typeof args.task_id === 'string' ? args.task_id : undefined;
-        this.executions.set(ref, { ref, run: this.options.runId ?? 'run', parent: binding.sessionID, callID: String(body.callID), role: args.subagent_type as Role, challengeId: taskID ? this.bindings.get(taskID)?.challengeId : this.pending.get(binding.sessionID)?.get(args.subagent_type as Role)?.challengeId, childID: taskID, state: taskID ? 'running' : 'starting', delivered: false });
+        this.executions.set(ref, { ref, run: this.options.runId ?? 'run', parent: binding.sessionID, callID: String(body.callID), role: args.subagent_type as Role, version: this.versions.get(binding.sessionID+'/'+String(args.subagent_type)), challengeId: taskID ? this.bindings.get(taskID)?.challengeId : this.pending.get(binding.sessionID)?.get(args.subagent_type as Role)?.challengeId, childID: taskID, state: taskID ? 'running' : 'starting', delivered: false });
+        this.versions.delete(binding.sessionID+'/'+String(args.subagent_type));
         this.record(binding.sessionID, 'task.execution', true, undefined, {...this.executions.get(ref)});
         return { allowed: true, taskDescription: `[ctf:${ref}]` };
       }
@@ -501,18 +511,23 @@ export class ControlService {
       return { execute: async () => ({ ...await stopped, alreadyStopped }) };
     }
     if (name === 'challenge.assign' || name === 'challenge.unassign') {
-      const { role, challenge } = this.checkDeclaration(binding, body.args, name === 'challenge.assign');
+      const { role, challenge, version } = this.checkDeclaration(binding, body.args, name === 'challenge.assign');
       this.live(binding);
       if (name === 'challenge.unassign') {
+        this.versions.delete(binding.sessionID+'/'+role);
         const cleared = this.declarations.get(binding.sessionID)?.delete(role) ?? false;
         this.record(binding.sessionID, 'assign.clear', true, undefined, { role, cleared });
         return { cleared };
       }
-      const declared = this.declarations.get(binding.sessionID) ?? new Map<Role, string>();
-      declared.set(role, challenge!);
-      this.declarations.set(binding.sessionID, declared);
-      this.record(binding.sessionID, 'assign', true, undefined, { role, challenge });
-      return { challenge };
+      const commit=()=>{
+        this.checkDeclaration(binding,body.args,true);this.live(binding);
+        const declared=this.declarations.get(binding.sessionID)??new Map<Role,string>();
+        declared.set(role,challenge!);this.declarations.set(binding.sessionID,declared);
+        if(version)this.versions.set(binding.sessionID+'/'+role,version);
+        this.record(binding.sessionID,'assign',true,undefined,{role,challenge,version});return {challenge,version};
+      };
+      if(version)return {execute:async()=>{await this.packages.read(this.options.runId??'run',challenge!,{version,component:'manifest'});return this.serial(commit);}};
+      return commit();
     }
     if (SOLVER_TOOLS.includes(name)) return this.prepareSolver(binding, name, (body.args ?? {}) as Record<string, unknown>, body.callID, signal);
     if (!INTAKE_TOOLS.includes(name)) throw new ControlDenied('no managed tools');
@@ -526,7 +541,9 @@ export class ControlService {
     if (!binding.challengeId || !CHALLENGE_ROLES.includes(binding.role) ||
       (name === 'http.request' && !['recon', 'domain-solver'].includes(binding.role)) ||
       (name === 'artifact.publish' && binding.role === 'verifier') ||
-      (name.startsWith('package.') && binding.role !== 'engineer')) throw new ControlDenied('tool not permitted');
+      (name === 'package.publish' && binding.role !== 'engineer') ||
+      (name === 'package.read' && !['engineer','verifier'].includes(binding.role)) ||
+      (name === 'package.prepare' && binding.role !== 'verifier')) throw new ControlDenied('tool not permitted');
     if (!this.options.challenges?.some(c => c.id === binding.challengeId)) throw new ControlDenied('challenge outside run');
   }
 
@@ -554,6 +571,10 @@ export class ControlService {
     if (this.resources.has(key)) throw new ControlDenied('duplicate tool call');
     const active = [...this.resources.values()].filter(r => r.state !== 'settled');
     if (name === 'http.request' && active.filter(r => r.tool === name && r.challengeId === binding.challengeId).length >= 8) throw new ControlDenied('http limit');
+    if(binding.role==='verifier'&&['package.read','package.prepare','job.run'].includes(name)) {
+      const e=this.verifierExecution(binding);
+      if(name==='package.read'&&args.version!==e.version)throw new ControlDenied('verification version');
+    }
     this.waitLimit(binding, name, args);
     const duration = name === 'http.request' ? Math.min(typeof args.timeout_ms === 'number' ? args.timeout_ms : 15000, 60000) :
       name === 'job.run' ? Math.min(typeof args.timeout_ms === 'number' ? args.timeout_ms : 60000, 600000) : 15000;
@@ -590,8 +611,27 @@ export class ControlService {
             result=operation.execution?{...response,resource}:response;
           } else if (name === 'job.run') {
             const jobBinding = this.jobBinding(binding, roots);
+            let association:Record<string,unknown>|undefined;
+            let preparation:Preparation|undefined;
+            if(binding.role==='verifier') {
+              const e=this.verifierExecution(binding);
+              if(Object.keys(args).some(k=>!['argv','timeout_ms','wait_ms','completion','preparation'].includes(k)))throw new ControlDenied('job arguments');
+              preparation=typeof args.preparation==='string'?this.preparations.get(args.preparation):undefined;
+              if(!preparation||preparation.sessionID!==binding.sessionID||preparation.execution!==e.ref||preparation.version!==e.version)throw new ControlDenied('preparation');
+              await this.packages.checkPrepared(roots.workDir,preparation);
+              operation.controller.signal.throwIfAborted();this.live(binding);
+              if(this.verifierExecution(binding).ref!==operation.execution)throw new ControlDenied('verification execution');
+              jobBinding.workDir=join(roots.workDir,preparation.directory);
+              association={version:e.version,preparation:args.preparation,execution:e.ref,argv:args.argv,files:preparation.files,metadata:preparation.metadata,before:'matched',after:'pending',continuousIntegrity:'unknown',undeclaredDependencies:'unknown'};
+              this.record(binding.sessionID,'verification.job.input',true,undefined,structuredClone(association));
+            }
             result = await this.jobs.run(jobBinding, args, { signal: operation.controller.signal, deadline: operation.deadline, onRegistered: job => { operation.job = job; if(operation.execution) this.outputSources.set(job,{source:{...this.source(binding,'job',job,operation.execution),callID:call}}); } });
-            const done = this.jobs.waitSettled(jobBinding, operation.job!);
+            const done = this.jobs.waitSettled(jobBinding, operation.job!).then(async snapshot=>{
+              if(association&&preparation){try{await this.packages.checkPrepared(roots.workDir,preparation);association.after='matched';}catch{association.after='changed_or_unreadable';}
+                this.record(binding.sessionID,'verification.job.terminal',true,undefined,{...association,job:operation.job,terminal:snapshot});
+                return {...snapshot,inputAssociation:association};}
+              return snapshot;
+            });
             keep = true;
             void done.then(snapshot => this.settleResource(operation, snapshot.reapIncomplete ? 'cleanup_unknown' : snapshot.state));
             // Decision prototype: retain the same RPC/call until terminal cleanup, without a model polling loop.
@@ -626,6 +666,14 @@ export class ControlService {
             result=await this.packages.publish({source:this.source(binding,'package',call,operation.execution),dir:roots.publishedDir,challenge:this.options.challenges!.find(c=>c.id===binding.challengeId)!},args,()=>{operation.controller.signal.throwIfAborted();this.live(binding);});
             this.record(binding.sessionID,'package.published',true,undefined,this.publicationSnapshot().find(p=>p.ref===(result as {version:string}).version));
           } else if(name==='package.read') result=await this.packages.read(operation.run,binding.challengeId!,args);
+          else if(name==='package.prepare') {
+            if(Object.keys(args).length)throw new ControlDenied('prepare arguments');
+            const e=this.verifierExecution(binding);
+            const p=await this.packages.prepare(operation.run,binding.challengeId!,e.version,roots.workDir,()=>{operation.controller.signal.throwIfAborted();this.live(binding);if(this.verifierExecution(binding).ref!==e.ref)throw new ControlDenied('verification execution');});
+            this.preparations.set(p.preparation,{...p,sessionID:binding.sessionID,execution:e.ref,version:e.version});
+            this.record(binding.sessionID,'package.prepared',true,undefined,{...p,execution:e.ref,version:e.version});
+            result={...p,execution:e.ref,version:e.version};
+          }
           else if(name==='artifact.read') result=await this.publications.read(operation.run,binding.challengeId!,args);
           else if (name === 'job.read') result = this.jobs.read(this.jobBinding(binding, roots), args);
           else if (name === 'job.cancel') result = await this.jobs.cancel(this.jobBinding(binding, roots), args.job);
@@ -707,7 +755,7 @@ export class ControlService {
   }
 
   /** G §2.1: declarations are distinct from in-flight dispatches and survive model admissions. */
-  private checkDeclaration(binding: Binding, raw: unknown, assigning: boolean): { role: Role; challenge?: string } {
+  private checkDeclaration(binding: Binding, raw: unknown, assigning: boolean): { role: Role; challenge?: string; version?:string } {
     if (binding.role !== 'coordinator') throw new ControlDenied('tool not permitted');
     const args = (raw && typeof raw === 'object' ? raw : {}) as Record<string, unknown>;
     const role = args.role;
@@ -717,7 +765,10 @@ export class ControlService {
     if (this.declarations.get(binding.sessionID)?.has(role)) throw new ControlDenied('dispatch', 'challenge already declared');
     const challenge = args.challenge;
     if (typeof challenge !== 'string' || !this.options.challenges?.some(c => c.id === challenge)) throw new ControlDenied('dispatch', 'challenge outside run');
-    return { role, challenge };
+    const version=args.version;
+    if(role==='verifier'&&(typeof version!=='string'||!version))throw new ControlDenied('verification version');
+    if(role!=='verifier'&&version!==undefined)throw new ControlDenied('verification role');
+    return { role, challenge,version:version as string|undefined };
   }
 
   private async checkReadPath(args: Record<string, unknown>): Promise<void> {
@@ -744,6 +795,7 @@ export class ControlService {
       if (!owned || owned.parent !== binding.sessionID || owned.role !== role || !child) throw new ControlDenied('dispatch', 'task id not owned');
       this.live(child);
       if ([...this.executions.values()].some(e => e.childID === taskId && (e.state === 'starting' || e.state === 'running'))) throw new ControlDenied('dispatch', 'execution still active');
+      if(role==='verifier'&&!this.versions.has(binding.sessionID+'/'+role))throw new ControlDenied('verification version');
       const declared = this.declarations.get(binding.sessionID)?.get(role);
       if (declared !== undefined && declared !== child.challengeId) throw new ControlDenied('dispatch', 'declared challenge differs from resumed session');
       this.declarations.get(binding.sessionID)?.delete(role);
@@ -754,7 +806,8 @@ export class ControlService {
     if (byRole.has(role)) throw new ControlDenied('dispatch', 'pending dispatch exists for role');
     const challengeId = this.declarations.get(binding.sessionID)?.get(role);
     if (CHALLENGE_ROLES.includes(role) && challengeId === undefined) throw new ControlDenied('dispatch', 'no challenge declared for role');
-    byRole.set(role, { callID, challengeId, background: args.background === true });
+    if(role==='verifier'&&args.background!==true)throw new ControlDenied('verification execution');
+    byRole.set(role, { callID, challengeId, background: args.background === true,version:this.versions.get(binding.sessionID+'/'+role) });
     this.declarations.get(binding.sessionID)?.delete(role);
     this.record(binding.sessionID, 'dispatch.register', true, undefined, { role, callID, challengeId });
     this.pending.set(binding.sessionID, byRole);

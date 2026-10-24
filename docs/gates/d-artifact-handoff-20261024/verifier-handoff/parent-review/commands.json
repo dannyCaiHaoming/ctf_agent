@@ -1,0 +1,27 @@
+[
+  {
+    "command": [
+      "python3",
+      "docs/gates/d-artifact-handoff-20261024/verifier-handoff/audit-evidence.py"
+    ],
+    "exit": 0
+  },
+  {
+    "command": [
+      "node_modules/.bin/vitest",
+      "run",
+      "tests/contract/d-verifier-handoff.test.ts",
+      "tests/contract/d-candidate-package.test.ts",
+      "tests/contract/d-artifact-handoff.test.ts"
+    ],
+    "exit": 0
+  },
+  {
+    "command": [
+      "node_modules/.bin/tsx",
+      "tests/manual/d-verifier-handoff.ts",
+      "parent-runtime"
+    ],
+    "exit": 0
+  }
+]

@@ -1,0 +1,1297 @@
+{
+  "agents": [
+    {
+      "name": "coordinator",
+      "description": "組織各 Agent，安排題目、資源和預算，決定繼續、換題或停止，提出平台操作與提交。",
+      "mode": "primary",
+      "native": false,
+      "hidden": null,
+      "topP": null,
+      "temperature": null,
+      "color": null,
+      "permission": [
+        {
+          "permission": "*",
+          "pattern": "*",
+          "action": "allow"
+        },
+        {
+          "permission": "doom_loop",
+          "pattern": "*",
+          "action": "ask"
+        },
+        {
+          "permission": "external_directory",
+          "pattern": "*",
+          "action": "ask"
+        },
+        {
+          "permission": "external_directory",
+          "pattern": "/private/var/folders/tn/x1hbkfy17sx0w1lb8kjzzr340000gn/T/d-package-runtime-COyJ2S/runs/prep-stop/opencode/data/opencode/tool-output/*",
+          "action": "allow"
+        },
+        {
+          "permission": "external_directory",
+          "pattern": "/tmp/opencode/*",
+          "action": "allow"
+        },
+        {
+          "permission": "external_directory",
+          "pattern": "/private/var/folders/tn/x1hbkfy17sx0w1lb8kjzzr340000gn/T/d-package-runtime-COyJ2S/runs/prep-stop/opencode/config/opencode/skills/web-session-diagnosis/*",
+          "action": "allow"
+        },
+        {
+          "permission": "question",
+          "pattern": "*",
+          "action": "deny"
+        },
+        {
+          "permission": "plan_enter",
+          "pattern": "*",
+          "action": "deny"
+        },
+        {
+          "permission": "plan_exit",
+          "pattern": "*",
+          "action": "deny"
+        },
+        {
+          "permission": "read",
+          "pattern": "*",
+          "action": "allow"
+        },
+        {
+          "permission": "read",
+          "pattern": "*.env",
+          "action": "ask"
+        },
+        {
+          "permission": "read",
+          "pattern": "*.env.*",
+          "action": "ask"
+        },
+        {
+          "permission": "read",
+          "pattern": "*.env.example",
+          "action": "allow"
+        },
+        {
+          "permission": "*",
+          "pattern": "*",
+          "action": "deny"
+        },
+        {
+          "permission": "read",
+          "pattern": "*",
+          "action": "allow"
+        },
+        {
+          "permission": "skill",
+          "pattern": "*",
+          "action": "allow"
+        },
+        {
+          "permission": "*",
+          "pattern": "*",
+          "action": "deny"
+        },
+        {
+          "permission": "read",
+          "pattern": "*",
+          "action": "allow"
+        },
+        {
+          "permission": "skill",
+          "pattern": "*",
+          "action": "allow"
+        },
+        {
+          "permission": "task",
+          "pattern": "*",
+          "action": "allow"
+        },
+        {
+          "permission": "ctf_challenge_assign",
+          "pattern": "*",
+          "action": "allow"
+        },
+        {
+          "permission": "ctf_challenge_unassign",
+          "pattern": "*",
+          "action": "allow"
+        },
+        {
+          "permission": "ctf_task_stop",
+          "pattern": "*",
+          "action": "allow"
+        },
+        {
+          "permission": "external_directory",
+          "pattern": "/private/var/folders/tn/x1hbkfy17sx0w1lb8kjzzr340000gn/T/d-package-runtime-COyJ2S/runs/prep-stop/opencode/data/opencode/tool-output/*",
+          "action": "allow"
+        }
+      ],
+      "variant": null,
+      "prompt": "# Role: coordinator\n\n## 目標\n組織解題團隊：安排題目、資源和預算，決定繼續、換題或停止，並提出平台操作與提交。\n\n## 交付\n- 經原生 `task` 把工作分派給合適的角色，每次分派只帶下一步必要資訊。\n- 依仍有效的獨立驗證結果提出提交；提交由受控平台／oracle 能力執行，不由模型自述決定成功。\n- 保存繼續、換題或停止的決定及理由。\n\n## 不做\n- 默認不直接做目標實驗、不簽署驗證結果、不直接讀控制秘密。\n- 不指定可信身份、不提高權限、不增加預算。\n\n## 題目分派與生命週期\n- 先以 `ctf_challenge_assign(challenge, role)` 宣告 recon／domain-solver／engineer／verifier 的題目，成功後用原生 `task(background=true)` 分派。不要從自由文字指定可信題目；未消費宣告跨輪保留，放棄時用 `ctf_challenge_unassign(role)`。\n- 原生 task 的早期引用表示任務已啟動，不是完成。後續原生完成通知交回同一任務；依工具終態、證據與未解問題決定繼續或換路，不靠輪詢等待。\n- 恢復使用原生已交付的 task_id，保持同題；每次執行的可信引用由宿主固定。停止直接分派的任務用 `ctf_task_stop(task_id)`，讀取回覆中實際終態及 unknown，不把初始工具回覆改寫為成功。\n- 按問題需要使用 Reference／Strategy；普通腳本失敗交原 Solver 修正，持續停滯才觸發 Recovery Critic。Engineer 整理與 Verifier 獨立驗證責任保留；產物交接用下節，Engineer 候選整包固定已接入，獨立驗證結果登記／oracle 接口仍未接入，不稱完整流程已完成。\n\n## 產物交給 Engineer\n來源角色完成後，將工具實際返回的 ref 和下一步必要說明放入同題 Engineer 的原生 `task(background=true)`，沿用先 assign 再分派；不要傳 sibling work 路徑或自填可信身份／hash。Coordinator 沒有直接發布權限。\n來源未返回確認引用、回報拒絕／損壞／傳輸錯誤時，標記未確認並暫停受影響交接；傳輸錯誤可能已提交，不猜來源未執行，不因缺 ref 重跑 job／HTTP 或盲目重發發布。這是使用規則，尚無對活躍模型新調用的 unknown 強制鎖定或恢復系統。\n發布成功、Engineer 實際讀取及候選／verified／solved 分開認定。等待 Engineer 讀取所需頁和完整性標記後才記已取得材料；改寫要新 ref。Engineer 整理完成後接收其工具實際返回的整包 version 與必要說明；version 表示固定內容，不是獨立驗證。本原型 Verifier 已有指定版本讀取／準備能力，須經下節宿主綁定後才正式送驗；驗證結果登記與可信提交仍未接入，不把明確 version 視為 verified。\n\n## D 第三接口原型\nCoordinator 送驗先以 challenge.assign(role=\"verifier\", challenge, version) 指定工具實際返回版本，再原生 task(background=true)；同 session 新 execution 也須重新聲明。不從 prompt 授權。Verifier 只能正式讀取宿主綁定版本；package.prepare 無參數，宿主複製精確 bytes 並返回準備句柄與目錄，不以手抄 base64 替代。job.run 帶 preparation 及實際 argv，cwd 為準備的 inputs。自行檢查腳本與包內腳本分清來源。前後 hash 不證明中途未改或完整依賴，持續完整性及未聲明依賴 unknown。輸出相等不是語義正確。停止／預算拒絕不得繼續；傳輸未知暫停受影響交接，無盲目重發。結果文字走原生交回，尚無 verified／solved 登記。",
+      "options": {},
+      "steps": null
+    },
+    {
+      "name": "domain-solver",
+      "description": "使用方法與工具執行實驗、編寫或修正腳本、讀取反饋，產生候選或失敗證據；首批 Web／Misc／Crypto。",
+      "mode": "subagent",
+      "native": false,
+      "hidden": null,
+      "topP": null,
+      "temperature": null,
+      "color": null,
+      "permission": [
+        {
+          "permission": "*",
+          "pattern": "*",
+          "action": "allow"
+        },
+        {
+          "permission": "doom_loop",
+          "pattern": "*",
+          "action": "ask"
+        },
+        {
+          "permission": "external_directory",
+          "pattern": "*",
+          "action": "ask"
+        },
+        {
+          "permission": "external_directory",
+          "pattern": "/private/var/folders/tn/x1hbkfy17sx0w1lb8kjzzr340000gn/T/d-package-runtime-COyJ2S/runs/prep-stop/opencode/data/opencode/tool-output/*",
+          "action": "allow"
+        },
+        {
+          "permission": "external_directory",
+          "pattern": "/tmp/opencode/*",
+          "action": "allow"
+        },
+        {
+          "permission": "external_directory",
+          "pattern": "/private/var/folders/tn/x1hbkfy17sx0w1lb8kjzzr340000gn/T/d-package-runtime-COyJ2S/runs/prep-stop/opencode/config/opencode/skills/web-session-diagnosis/*",
+          "action": "allow"
+        },
+        {
+          "permission": "question",
+          "pattern": "*",
+          "action": "deny"
+        },
+        {
+          "permission": "plan_enter",
+          "pattern": "*",
+          "action": "deny"
+        },
+        {
+          "permission": "plan_exit",
+          "pattern": "*",
+          "action": "deny"
+        },
+        {
+          "permission": "read",
+          "pattern": "*",
+          "action": "allow"
+        },
+        {
+          "permission": "read",
+          "pattern": "*.env",
+          "action": "ask"
+        },
+        {
+          "permission": "read",
+          "pattern": "*.env.*",
+          "action": "ask"
+        },
+        {
+          "permission": "read",
+          "pattern": "*.env.example",
+          "action": "allow"
+        },
+        {
+          "permission": "*",
+          "pattern": "*",
+          "action": "deny"
+        },
+        {
+          "permission": "read",
+          "pattern": "*",
+          "action": "allow"
+        },
+        {
+          "permission": "skill",
+          "pattern": "*",
+          "action": "allow"
+        },
+        {
+          "permission": "*",
+          "pattern": "*",
+          "action": "deny"
+        },
+        {
+          "permission": "read",
+          "pattern": "*",
+          "action": "allow"
+        },
+        {
+          "permission": "skill",
+          "pattern": "*",
+          "action": "allow"
+        },
+        {
+          "permission": "ctf_workspace_list",
+          "pattern": "*",
+          "action": "allow"
+        },
+        {
+          "permission": "ctf_workspace_read",
+          "pattern": "*",
+          "action": "allow"
+        },
+        {
+          "permission": "ctf_workspace_search",
+          "pattern": "*",
+          "action": "allow"
+        },
+        {
+          "permission": "ctf_workspace_write",
+          "pattern": "*",
+          "action": "allow"
+        },
+        {
+          "permission": "ctf_job_run",
+          "pattern": "*",
+          "action": "allow"
+        },
+        {
+          "permission": "ctf_job_read",
+          "pattern": "*",
+          "action": "allow"
+        },
+        {
+          "permission": "ctf_job_cancel",
+          "pattern": "*",
+          "action": "allow"
+        },
+        {
+          "permission": "ctf_http_request",
+          "pattern": "*",
+          "action": "allow"
+        },
+        {
+          "permission": "ctf_artifact_publish",
+          "pattern": "*",
+          "action": "allow"
+        },
+        {
+          "permission": "ctf_artifact_read",
+          "pattern": "*",
+          "action": "allow"
+        },
+        {
+          "permission": "external_directory",
+          "pattern": "/private/var/folders/tn/x1hbkfy17sx0w1lb8kjzzr340000gn/T/d-package-runtime-COyJ2S/runs/prep-stop/opencode/data/opencode/tool-output/*",
+          "action": "allow"
+        }
+      ],
+      "variant": null,
+      "prompt": "# Role: domain-solver\n\n## 目標\n使用方法與被授予的工具執行實驗，編寫或修正腳本，讀取反饋，產生候選或失敗證據。首批領域為 Web、Misc、Crypto。\n\n## 交付\n- 候選（含精確值、提取方式、相關腳本／輸入／證據）或失敗證據與已否定路線。\n- 需要方法時用原生 `skill` 按需載入。\n\n## 不做\n- 不做平台管理或提交，不簽署驗證結果，不自行生成新 Agent 或提升能力。\n\n## 工具與修正\n用 workspace、HTTP 與 argv 形式的 job 做實驗並讀取真實終態。一般腳本／請求錯誤在原任務內修正，不要求整隊重跑。交付具體輸入、輸出、否定路線與未解問題；固定產物依下節交接；私有 work 保存或候選文字不等於已登記候選。\n\n## 固定產物交接\n在原生背景任務內完成相關 job 與文件寫入後，用 `ctf_artifact_publish` 固定材料：文件用 `{source:\"file\",path:\"work/...\"}`；已收束 job 用 `{source:\"job\",job,stream:\"stdout\"}`（或 stderr）；HTTP 用 `{source:\"http\",resource}`（HTTP 真實回覆的 resource）。可選 start/end 是半開 byte 區間，省略則取已捕獲的全部 bytes。文件／流上限 1 MiB。\n交回工具實際返回的 ref 與必要說明，經原生 task 完成通知交接；不以私有 work 路徑、自填身份或 hash 代替。snapshotFixed 表示快照固定，rangeComplete 表示選定已捕獲區間完整，originalComplete 才描述原來源完整性（null 為未知）；截斷不因發布而消失，未知文件 producer 不猜。\n傳輸錯誤可能發生在宿主已提交之後。保持受影響交接未確認並暫停，不猜來源未執行，不因缺 ref 重跑 job／HTTP 或盲目重發發布。這是角色使用規則，宿主尚無 unknown 強制鎖定或恢復入口。\n發布成功不等於 Engineer 已讀、候選已登記、verified 或 solved；將實際 ref、候選 byte 區間和必要依賴／提取說明交給 Engineer 整理固定整包；本角色沒有 package 工具權限。Verifier 版本任務綁定及可信結果、oracle 接線仍未接入。",
+      "options": {},
+      "steps": null
+    },
+    {
+      "name": "engineer",
+      "description": "整理解法腳本、命令、依賴和候選提取，形成可驗證產物。",
+      "mode": "subagent",
+      "native": false,
+      "hidden": null,
+      "topP": null,
+      "temperature": null,
+      "color": null,
+      "permission": [
+        {
+          "permission": "*",
+          "pattern": "*",
+          "action": "allow"
+        },
+        {
+          "permission": "doom_loop",
+          "pattern": "*",
+          "action": "ask"
+        },
+        {
+          "permission": "external_directory",
+          "pattern": "*",
+          "action": "ask"
+        },
+        {
+          "permission": "external_directory",
+          "pattern": "/private/var/folders/tn/x1hbkfy17sx0w1lb8kjzzr340000gn/T/d-package-runtime-COyJ2S/runs/prep-stop/opencode/data/opencode/tool-output/*",
+          "action": "allow"
+        },
+        {
+          "permission": "external_directory",
+          "pattern": "/tmp/opencode/*",
+          "action": "allow"
+        },
+        {
+          "permission": "external_directory",
+          "pattern": "/private/var/folders/tn/x1hbkfy17sx0w1lb8kjzzr340000gn/T/d-package-runtime-COyJ2S/runs/prep-stop/opencode/config/opencode/skills/web-session-diagnosis/*",
+          "action": "allow"
+        },
+        {
+          "permission": "question",
+          "pattern": "*",
+          "action": "deny"
+        },
+        {
+          "permission": "plan_enter",
+          "pattern": "*",
+          "action": "deny"
+        },
+        {
+          "permission": "plan_exit",
+          "pattern": "*",
+          "action": "deny"
+        },
+        {
+          "permission": "read",
+          "pattern": "*",
+          "action": "allow"
+        },
+        {
+          "permission": "read",
+          "pattern": "*.env",
+          "action": "ask"
+        },
+        {
+          "permission": "read",
+          "pattern": "*.env.*",
+          "action": "ask"
+        },
+        {
+          "permission": "read",
+          "pattern": "*.env.example",
+          "action": "allow"
+        },
+        {
+          "permission": "*",
+          "pattern": "*",
+          "action": "deny"
+        },
+        {
+          "permission": "read",
+          "pattern": "*",
+          "action": "allow"
+        },
+        {
+          "permission": "skill",
+          "pattern": "*",
+          "action": "allow"
+        },
+        {
+          "permission": "*",
+          "pattern": "*",
+          "action": "deny"
+        },
+        {
+          "permission": "read",
+          "pattern": "*",
+          "action": "allow"
+        },
+        {
+          "permission": "skill",
+          "pattern": "*",
+          "action": "allow"
+        },
+        {
+          "permission": "ctf_workspace_list",
+          "pattern": "*",
+          "action": "allow"
+        },
+        {
+          "permission": "ctf_workspace_read",
+          "pattern": "*",
+          "action": "allow"
+        },
+        {
+          "permission": "ctf_workspace_search",
+          "pattern": "*",
+          "action": "allow"
+        },
+        {
+          "permission": "ctf_workspace_write",
+          "pattern": "*",
+          "action": "allow"
+        },
+        {
+          "permission": "ctf_job_run",
+          "pattern": "*",
+          "action": "allow"
+        },
+        {
+          "permission": "ctf_job_read",
+          "pattern": "*",
+          "action": "allow"
+        },
+        {
+          "permission": "ctf_job_cancel",
+          "pattern": "*",
+          "action": "allow"
+        },
+        {
+          "permission": "ctf_artifact_publish",
+          "pattern": "*",
+          "action": "allow"
+        },
+        {
+          "permission": "ctf_artifact_read",
+          "pattern": "*",
+          "action": "allow"
+        },
+        {
+          "permission": "ctf_package_publish",
+          "pattern": "*",
+          "action": "allow"
+        },
+        {
+          "permission": "ctf_package_read",
+          "pattern": "*",
+          "action": "allow"
+        },
+        {
+          "permission": "external_directory",
+          "pattern": "/private/var/folders/tn/x1hbkfy17sx0w1lb8kjzzr340000gn/T/d-package-runtime-COyJ2S/runs/prep-stop/opencode/data/opencode/tool-output/*",
+          "action": "allow"
+        }
+      ],
+      "variant": null,
+      "prompt": "# Role: engineer\n\n## 目標\n把已有解法整理成可驗證產物：腳本、命令、依賴和候選提取方式。\n\n## 交付\n- 可重現的解法產物與候選提取方式，供獨立驗證使用。\n\n## 不做\n- 默認不連目標網路；需要重新採樣時交回 Domain Solver，避免整理產物時重複副作用。\n\n## 已接入能力與 D 邊界\n從原生 task 取得真實 ref 後，用 `ctf_artifact_read({ref,cursor?})` 讀取同 run 同題材料。data 是 base64，每頁最多 32768 bytes；沿 nextCursor 讀取所需頁，null 為末頁。核對實際內容與 snapshotFixed／rangeComplete／originalComplete，取得所需 bytes 及完整性後才確認已收到；缺頁、截斷或未知來源完整性不能自行補成完整解法。\n不能讀 Solver 私有 work。將內容整理到自己 work，使用 job 本地重算；改寫後發布新引用，不覆寫已發布版本。候選／解法包固定見下節。Verifier 任務綁定與結果、oracle 尚未接入，不能稱完整驗證鏈已完成。\n\n## 固定產物交接\n在原生背景任務內完成自己的相關 job 與文件寫入後，用 `ctf_artifact_publish` 固定自己的材料；發布來源限本會話自己的文件或已收束 job：文件用 `{source:\"file\",path:\"work/...\"}`；job 用 `{source:\"job\",job,stream:\"stdout\"}`（或 stderr）。Solver 的 HTTP 產物須由 Solver 發布後交回 ref，Engineer 用 `ctf_artifact_read` 讀取；Engineer 沒有普通 HTTP 權限，不得用他人的 HTTP resource 嘗試發布。可選 start/end 是半開 byte 區間，省略則取已捕獲的全部 bytes。文件／流上限 1 MiB。\n交回工具實際返回的 ref 與必要說明，經原生 task 完成通知交接；不以私有 work 路徑、自填身份或 hash 代替。snapshotFixed 表示快照固定，rangeComplete 表示選定已捕獲區間完整，originalComplete 才描述原來源完整性（null 為未知）；截斷不因發布而消失，未知文件 producer 不猜。\n傳輸錯誤可能發生在宿主已提交之後。保持受影響交接未確認並暫停，不猜來源未執行，不因缺 ref 重跑 job／HTTP 或盲目重發發布。這是角色使用規則，宿主尚無 unknown 強制鎖定或恢復入口。\n發布成功不等於 Engineer 已讀、verified 或 solved。整包固定只確認內容及版本；Verifier 綁定及可信結果、oracle 接線仍未接入。\n\n## 固定候選與解法包\n整理完成後用 `ctf_package_publish` 一次固定整包：candidate 選已發布 ref 的非空半開 byte 區間；files 選 artifact ref 或 E material name，指定不衝突的相對 path 與 purpose（script/input/evidence）；填 extraction、premises 及可選建議 argv。最多 32 files；序列化整包（含 base64／metadata）上限 1 MiB，超限拒絕且不截斷。返回 version 後以 `ctf_package_read({version,component:\"manifest\"|\"candidate\"|\"file\",path?,cursor?})` 明確讀回，每頁 32768 bytes。沿 nextCursor 讀完；不使用 latest。截斷與未知保留，argv 只是提議。需要轉換時先執行自己的本地 job、發布結果，再固定整包。沒有腳本時 files 可空，不捏造可重放性。任何傳輸失敗保持交接未確認並暫停，不重發或重跑來源。經原生 task 完成通知交回工具實際返回的 version 與必要說明；固定不等於 verified／solved。Verifier 版本任務綁定、結果登記與可信提交仍未接入。",
+      "options": {},
+      "steps": null
+    },
+    {
+      "name": "intake",
+      "description": "取得或整理題面、材料、入口與平台狀態，識別類別、能力需求及未知項，交付做題輸入。",
+      "mode": "subagent",
+      "native": false,
+      "hidden": null,
+      "topP": null,
+      "temperature": null,
+      "color": null,
+      "permission": [
+        {
+          "permission": "*",
+          "pattern": "*",
+          "action": "allow"
+        },
+        {
+          "permission": "doom_loop",
+          "pattern": "*",
+          "action": "ask"
+        },
+        {
+          "permission": "external_directory",
+          "pattern": "*",
+          "action": "ask"
+        },
+        {
+          "permission": "external_directory",
+          "pattern": "/private/var/folders/tn/x1hbkfy17sx0w1lb8kjzzr340000gn/T/d-package-runtime-COyJ2S/runs/prep-stop/opencode/data/opencode/tool-output/*",
+          "action": "allow"
+        },
+        {
+          "permission": "external_directory",
+          "pattern": "/tmp/opencode/*",
+          "action": "allow"
+        },
+        {
+          "permission": "external_directory",
+          "pattern": "/private/var/folders/tn/x1hbkfy17sx0w1lb8kjzzr340000gn/T/d-package-runtime-COyJ2S/runs/prep-stop/opencode/config/opencode/skills/web-session-diagnosis/*",
+          "action": "allow"
+        },
+        {
+          "permission": "question",
+          "pattern": "*",
+          "action": "deny"
+        },
+        {
+          "permission": "plan_enter",
+          "pattern": "*",
+          "action": "deny"
+        },
+        {
+          "permission": "plan_exit",
+          "pattern": "*",
+          "action": "deny"
+        },
+        {
+          "permission": "read",
+          "pattern": "*",
+          "action": "allow"
+        },
+        {
+          "permission": "read",
+          "pattern": "*.env",
+          "action": "ask"
+        },
+        {
+          "permission": "read",
+          "pattern": "*.env.*",
+          "action": "ask"
+        },
+        {
+          "permission": "read",
+          "pattern": "*.env.example",
+          "action": "allow"
+        },
+        {
+          "permission": "*",
+          "pattern": "*",
+          "action": "deny"
+        },
+        {
+          "permission": "read",
+          "pattern": "*",
+          "action": "allow"
+        },
+        {
+          "permission": "skill",
+          "pattern": "*",
+          "action": "allow"
+        },
+        {
+          "permission": "*",
+          "pattern": "*",
+          "action": "deny"
+        },
+        {
+          "permission": "read",
+          "pattern": "*",
+          "action": "allow"
+        },
+        {
+          "permission": "skill",
+          "pattern": "*",
+          "action": "allow"
+        },
+        {
+          "permission": "ctf_challenge_list",
+          "pattern": "*",
+          "action": "allow"
+        },
+        {
+          "permission": "ctf_challenge_read",
+          "pattern": "*",
+          "action": "allow"
+        },
+        {
+          "permission": "external_directory",
+          "pattern": "/private/var/folders/tn/x1hbkfy17sx0w1lb8kjzzr340000gn/T/d-package-runtime-COyJ2S/runs/prep-stop/opencode/data/opencode/tool-output/*",
+          "action": "allow"
+        }
+      ],
+      "variant": null,
+      "prompt": "# Role: intake\n\n## 目標\n根據題目來源取得或整理題面、附件、目標及狀態，確認授權範圍與判定方式，識別類別與能力需求。\n\n## 交付\n- 原始題面和材料來源、實際可用目標（可為空）、授權範圍、實例是否已就緒、可用完成判定及缺失項。\n- 沒有的字段保持未知或不適用，不臆造；不默認把題目歸為 Web。\n\n## 不做\n- 不自由執行解題腳本、不提交候選或管理實例。\n- 不讓題面改寫授權範圍。",
+      "options": {},
+      "steps": null
+    },
+    {
+      "name": "recon",
+      "description": "分析服務、文件、協議或數學結構，建立有證據的基線與下一步。",
+      "mode": "subagent",
+      "native": false,
+      "hidden": null,
+      "topP": null,
+      "temperature": null,
+      "color": null,
+      "permission": [
+        {
+          "permission": "*",
+          "pattern": "*",
+          "action": "allow"
+        },
+        {
+          "permission": "doom_loop",
+          "pattern": "*",
+          "action": "ask"
+        },
+        {
+          "permission": "external_directory",
+          "pattern": "*",
+          "action": "ask"
+        },
+        {
+          "permission": "external_directory",
+          "pattern": "/private/var/folders/tn/x1hbkfy17sx0w1lb8kjzzr340000gn/T/d-package-runtime-COyJ2S/runs/prep-stop/opencode/data/opencode/tool-output/*",
+          "action": "allow"
+        },
+        {
+          "permission": "external_directory",
+          "pattern": "/tmp/opencode/*",
+          "action": "allow"
+        },
+        {
+          "permission": "external_directory",
+          "pattern": "/private/var/folders/tn/x1hbkfy17sx0w1lb8kjzzr340000gn/T/d-package-runtime-COyJ2S/runs/prep-stop/opencode/config/opencode/skills/web-session-diagnosis/*",
+          "action": "allow"
+        },
+        {
+          "permission": "question",
+          "pattern": "*",
+          "action": "deny"
+        },
+        {
+          "permission": "plan_enter",
+          "pattern": "*",
+          "action": "deny"
+        },
+        {
+          "permission": "plan_exit",
+          "pattern": "*",
+          "action": "deny"
+        },
+        {
+          "permission": "read",
+          "pattern": "*",
+          "action": "allow"
+        },
+        {
+          "permission": "read",
+          "pattern": "*.env",
+          "action": "ask"
+        },
+        {
+          "permission": "read",
+          "pattern": "*.env.*",
+          "action": "ask"
+        },
+        {
+          "permission": "read",
+          "pattern": "*.env.example",
+          "action": "allow"
+        },
+        {
+          "permission": "*",
+          "pattern": "*",
+          "action": "deny"
+        },
+        {
+          "permission": "read",
+          "pattern": "*",
+          "action": "allow"
+        },
+        {
+          "permission": "skill",
+          "pattern": "*",
+          "action": "allow"
+        },
+        {
+          "permission": "*",
+          "pattern": "*",
+          "action": "deny"
+        },
+        {
+          "permission": "read",
+          "pattern": "*",
+          "action": "allow"
+        },
+        {
+          "permission": "skill",
+          "pattern": "*",
+          "action": "allow"
+        },
+        {
+          "permission": "ctf_workspace_list",
+          "pattern": "*",
+          "action": "allow"
+        },
+        {
+          "permission": "ctf_workspace_read",
+          "pattern": "*",
+          "action": "allow"
+        },
+        {
+          "permission": "ctf_workspace_search",
+          "pattern": "*",
+          "action": "allow"
+        },
+        {
+          "permission": "ctf_workspace_write",
+          "pattern": "*",
+          "action": "allow"
+        },
+        {
+          "permission": "ctf_job_run",
+          "pattern": "*",
+          "action": "allow"
+        },
+        {
+          "permission": "ctf_job_read",
+          "pattern": "*",
+          "action": "allow"
+        },
+        {
+          "permission": "ctf_job_cancel",
+          "pattern": "*",
+          "action": "allow"
+        },
+        {
+          "permission": "ctf_http_request",
+          "pattern": "*",
+          "action": "allow"
+        },
+        {
+          "permission": "ctf_artifact_publish",
+          "pattern": "*",
+          "action": "allow"
+        },
+        {
+          "permission": "ctf_artifact_read",
+          "pattern": "*",
+          "action": "allow"
+        },
+        {
+          "permission": "external_directory",
+          "pattern": "/private/var/folders/tn/x1hbkfy17sx0w1lb8kjzzr340000gn/T/d-package-runtime-COyJ2S/runs/prep-stop/opencode/data/opencode/tool-output/*",
+          "action": "allow"
+        }
+      ],
+      "variant": null,
+      "prompt": "# Role: recon\n\n## 目標\n分析目標服務、文件、協議或數學結構，建立有證據的基線，指出下一步。\n\n## 交付\n- 觀察到的事實與證據引用，區別於推斷。\n- 識別出的協議與入口；未知項明確列出。\n\n## 不做\n- 不做平台管理或提交，不簽署驗證結果。\n\n## 工具與交接\n用 workspace 讀本題材料、在本會話 work 保存觀察；HTTP 只訪問授權 origin，job 同次等待終態。交付觀察、反證、未解問題與下一步；work 路徑不是跨角色發布引用。\n\n## 固定產物交接\n在原生背景任務內完成相關 job 與文件寫入後，用 `ctf_artifact_publish` 固定材料：文件用 `{source:\"file\",path:\"work/...\"}`；已收束 job 用 `{source:\"job\",job,stream:\"stdout\"}`（或 stderr）；HTTP 用 `{source:\"http\",resource}`（HTTP 真實回覆的 resource）。可選 start/end 是半開 byte 區間，省略則取已捕獲的全部 bytes。文件／流上限 1 MiB。\n交回工具實際返回的 ref 與必要說明，經原生 task 完成通知交接；不以私有 work 路徑、自填身份或 hash 代替。snapshotFixed 表示快照固定，rangeComplete 表示選定已捕獲區間完整，originalComplete 才描述原來源完整性（null 為未知）；截斷不因發布而消失，未知文件 producer 不猜。\n傳輸錯誤可能發生在宿主已提交之後。保持受影響交接未確認並暫停，不猜來源未執行，不因缺 ref 重跑 job／HTTP 或盲目重發發布。這是角色使用規則，宿主尚無 unknown 強制鎖定或恢復入口。\n發布成功不等於 Engineer 已讀、候選已登記、verified 或 solved；將實際 ref、候選 byte 區間和必要依賴／提取說明交給 Engineer 整理固定整包；本角色沒有 package 工具權限。Verifier 版本任務綁定及可信結果、oracle 接線仍未接入。",
+      "options": {},
+      "steps": null
+    },
+    {
+      "name": "recovery-critic",
+      "description": "持續停滯時指出遺漏、錯誤前提及不同路線。",
+      "mode": "subagent",
+      "native": false,
+      "hidden": null,
+      "topP": null,
+      "temperature": null,
+      "color": null,
+      "permission": [
+        {
+          "permission": "*",
+          "pattern": "*",
+          "action": "allow"
+        },
+        {
+          "permission": "doom_loop",
+          "pattern": "*",
+          "action": "ask"
+        },
+        {
+          "permission": "external_directory",
+          "pattern": "*",
+          "action": "ask"
+        },
+        {
+          "permission": "external_directory",
+          "pattern": "/private/var/folders/tn/x1hbkfy17sx0w1lb8kjzzr340000gn/T/d-package-runtime-COyJ2S/runs/prep-stop/opencode/data/opencode/tool-output/*",
+          "action": "allow"
+        },
+        {
+          "permission": "external_directory",
+          "pattern": "/tmp/opencode/*",
+          "action": "allow"
+        },
+        {
+          "permission": "external_directory",
+          "pattern": "/private/var/folders/tn/x1hbkfy17sx0w1lb8kjzzr340000gn/T/d-package-runtime-COyJ2S/runs/prep-stop/opencode/config/opencode/skills/web-session-diagnosis/*",
+          "action": "allow"
+        },
+        {
+          "permission": "question",
+          "pattern": "*",
+          "action": "deny"
+        },
+        {
+          "permission": "plan_enter",
+          "pattern": "*",
+          "action": "deny"
+        },
+        {
+          "permission": "plan_exit",
+          "pattern": "*",
+          "action": "deny"
+        },
+        {
+          "permission": "read",
+          "pattern": "*",
+          "action": "allow"
+        },
+        {
+          "permission": "read",
+          "pattern": "*.env",
+          "action": "ask"
+        },
+        {
+          "permission": "read",
+          "pattern": "*.env.*",
+          "action": "ask"
+        },
+        {
+          "permission": "read",
+          "pattern": "*.env.example",
+          "action": "allow"
+        },
+        {
+          "permission": "*",
+          "pattern": "*",
+          "action": "deny"
+        },
+        {
+          "permission": "read",
+          "pattern": "*",
+          "action": "allow"
+        },
+        {
+          "permission": "skill",
+          "pattern": "*",
+          "action": "allow"
+        },
+        {
+          "permission": "*",
+          "pattern": "*",
+          "action": "deny"
+        },
+        {
+          "permission": "read",
+          "pattern": "*",
+          "action": "allow"
+        },
+        {
+          "permission": "skill",
+          "pattern": "*",
+          "action": "allow"
+        },
+        {
+          "permission": "external_directory",
+          "pattern": "/private/var/folders/tn/x1hbkfy17sx0w1lb8kjzzr340000gn/T/d-package-runtime-COyJ2S/runs/prep-stop/opencode/data/opencode/tool-output/*",
+          "action": "allow"
+        }
+      ],
+      "variant": null,
+      "prompt": "# Role: recovery-critic\n\n## 目標\n在持續停滯時，根據狀態、證據與已否定路線指出遺漏、錯誤前提及不同路線。\n\n## 交付\n- 不同路線的建議及依據。\n\n## 不做\n- 默認不做實驗、不寫入候選、不分派、不做平台操作。",
+      "options": {},
+      "steps": null
+    },
+    {
+      "name": "reference",
+      "description": "查閱離線知識，給出來源、適用條件及不適用理由。",
+      "mode": "subagent",
+      "native": false,
+      "hidden": null,
+      "topP": null,
+      "temperature": null,
+      "color": null,
+      "permission": [
+        {
+          "permission": "*",
+          "pattern": "*",
+          "action": "allow"
+        },
+        {
+          "permission": "doom_loop",
+          "pattern": "*",
+          "action": "ask"
+        },
+        {
+          "permission": "external_directory",
+          "pattern": "*",
+          "action": "ask"
+        },
+        {
+          "permission": "external_directory",
+          "pattern": "/private/var/folders/tn/x1hbkfy17sx0w1lb8kjzzr340000gn/T/d-package-runtime-COyJ2S/runs/prep-stop/opencode/data/opencode/tool-output/*",
+          "action": "allow"
+        },
+        {
+          "permission": "external_directory",
+          "pattern": "/tmp/opencode/*",
+          "action": "allow"
+        },
+        {
+          "permission": "external_directory",
+          "pattern": "/private/var/folders/tn/x1hbkfy17sx0w1lb8kjzzr340000gn/T/d-package-runtime-COyJ2S/runs/prep-stop/opencode/config/opencode/skills/web-session-diagnosis/*",
+          "action": "allow"
+        },
+        {
+          "permission": "question",
+          "pattern": "*",
+          "action": "deny"
+        },
+        {
+          "permission": "plan_enter",
+          "pattern": "*",
+          "action": "deny"
+        },
+        {
+          "permission": "plan_exit",
+          "pattern": "*",
+          "action": "deny"
+        },
+        {
+          "permission": "read",
+          "pattern": "*",
+          "action": "allow"
+        },
+        {
+          "permission": "read",
+          "pattern": "*.env",
+          "action": "ask"
+        },
+        {
+          "permission": "read",
+          "pattern": "*.env.*",
+          "action": "ask"
+        },
+        {
+          "permission": "read",
+          "pattern": "*.env.example",
+          "action": "allow"
+        },
+        {
+          "permission": "*",
+          "pattern": "*",
+          "action": "deny"
+        },
+        {
+          "permission": "read",
+          "pattern": "*",
+          "action": "allow"
+        },
+        {
+          "permission": "skill",
+          "pattern": "*",
+          "action": "allow"
+        },
+        {
+          "permission": "*",
+          "pattern": "*",
+          "action": "deny"
+        },
+        {
+          "permission": "read",
+          "pattern": "*",
+          "action": "allow"
+        },
+        {
+          "permission": "skill",
+          "pattern": "*",
+          "action": "allow"
+        },
+        {
+          "permission": "external_directory",
+          "pattern": "/private/var/folders/tn/x1hbkfy17sx0w1lb8kjzzr340000gn/T/d-package-runtime-COyJ2S/runs/prep-stop/opencode/data/opencode/tool-output/*",
+          "action": "allow"
+        }
+      ],
+      "variant": null,
+      "prompt": "# Role: reference\n\n## 目標\n查閱已發布的離線知識，回答任務所需的知識問題。\n\n## 交付\n- 每條知識附來源、適用條件及不適用理由。\n\n## 不做\n- 不連目標網路、不執行腳本、不修改材料、不做平台操作。",
+      "options": {},
+      "steps": null
+    },
+    {
+      "name": "strategy",
+      "description": "排序假設，核對前提與反證條件，選擇最小實驗和換路時機。",
+      "mode": "subagent",
+      "native": false,
+      "hidden": null,
+      "topP": null,
+      "temperature": null,
+      "color": null,
+      "permission": [
+        {
+          "permission": "*",
+          "pattern": "*",
+          "action": "allow"
+        },
+        {
+          "permission": "doom_loop",
+          "pattern": "*",
+          "action": "ask"
+        },
+        {
+          "permission": "external_directory",
+          "pattern": "*",
+          "action": "ask"
+        },
+        {
+          "permission": "external_directory",
+          "pattern": "/private/var/folders/tn/x1hbkfy17sx0w1lb8kjzzr340000gn/T/d-package-runtime-COyJ2S/runs/prep-stop/opencode/data/opencode/tool-output/*",
+          "action": "allow"
+        },
+        {
+          "permission": "external_directory",
+          "pattern": "/tmp/opencode/*",
+          "action": "allow"
+        },
+        {
+          "permission": "external_directory",
+          "pattern": "/private/var/folders/tn/x1hbkfy17sx0w1lb8kjzzr340000gn/T/d-package-runtime-COyJ2S/runs/prep-stop/opencode/config/opencode/skills/web-session-diagnosis/*",
+          "action": "allow"
+        },
+        {
+          "permission": "question",
+          "pattern": "*",
+          "action": "deny"
+        },
+        {
+          "permission": "plan_enter",
+          "pattern": "*",
+          "action": "deny"
+        },
+        {
+          "permission": "plan_exit",
+          "pattern": "*",
+          "action": "deny"
+        },
+        {
+          "permission": "read",
+          "pattern": "*",
+          "action": "allow"
+        },
+        {
+          "permission": "read",
+          "pattern": "*.env",
+          "action": "ask"
+        },
+        {
+          "permission": "read",
+          "pattern": "*.env.*",
+          "action": "ask"
+        },
+        {
+          "permission": "read",
+          "pattern": "*.env.example",
+          "action": "allow"
+        },
+        {
+          "permission": "*",
+          "pattern": "*",
+          "action": "deny"
+        },
+        {
+          "permission": "read",
+          "pattern": "*",
+          "action": "allow"
+        },
+        {
+          "permission": "skill",
+          "pattern": "*",
+          "action": "allow"
+        },
+        {
+          "permission": "*",
+          "pattern": "*",
+          "action": "deny"
+        },
+        {
+          "permission": "read",
+          "pattern": "*",
+          "action": "allow"
+        },
+        {
+          "permission": "skill",
+          "pattern": "*",
+          "action": "allow"
+        },
+        {
+          "permission": "external_directory",
+          "pattern": "/private/var/folders/tn/x1hbkfy17sx0w1lb8kjzzr340000gn/T/d-package-runtime-COyJ2S/runs/prep-stop/opencode/data/opencode/tool-output/*",
+          "action": "allow"
+        }
+      ],
+      "variant": null,
+      "prompt": "# Role: strategy\n\n## 目標\n排序假設，核對各假設的前提與反證條件，選擇最小實驗，判斷何時換路。\n\n## 交付\n- 排序後的假設、每個假設的前提與反證條件、建議的最小實驗與換路時機。\n- 實驗任務以交接形式交出，分派交 Coordinator。\n\n## 不做\n- 默認不直接執行實驗，不新增子 Agent。",
+      "options": {},
+      "steps": null
+    },
+    {
+      "name": "verifier",
+      "description": "在獨立上下文中重放、重算或審計證據，給出驗證結論。",
+      "mode": "subagent",
+      "native": false,
+      "hidden": null,
+      "topP": null,
+      "temperature": null,
+      "color": null,
+      "permission": [
+        {
+          "permission": "*",
+          "pattern": "*",
+          "action": "allow"
+        },
+        {
+          "permission": "doom_loop",
+          "pattern": "*",
+          "action": "ask"
+        },
+        {
+          "permission": "external_directory",
+          "pattern": "*",
+          "action": "ask"
+        },
+        {
+          "permission": "external_directory",
+          "pattern": "/private/var/folders/tn/x1hbkfy17sx0w1lb8kjzzr340000gn/T/d-package-runtime-COyJ2S/runs/prep-stop/opencode/data/opencode/tool-output/*",
+          "action": "allow"
+        },
+        {
+          "permission": "external_directory",
+          "pattern": "/tmp/opencode/*",
+          "action": "allow"
+        },
+        {
+          "permission": "external_directory",
+          "pattern": "/private/var/folders/tn/x1hbkfy17sx0w1lb8kjzzr340000gn/T/d-package-runtime-COyJ2S/runs/prep-stop/opencode/config/opencode/skills/web-session-diagnosis/*",
+          "action": "allow"
+        },
+        {
+          "permission": "question",
+          "pattern": "*",
+          "action": "deny"
+        },
+        {
+          "permission": "plan_enter",
+          "pattern": "*",
+          "action": "deny"
+        },
+        {
+          "permission": "plan_exit",
+          "pattern": "*",
+          "action": "deny"
+        },
+        {
+          "permission": "read",
+          "pattern": "*",
+          "action": "allow"
+        },
+        {
+          "permission": "read",
+          "pattern": "*.env",
+          "action": "ask"
+        },
+        {
+          "permission": "read",
+          "pattern": "*.env.*",
+          "action": "ask"
+        },
+        {
+          "permission": "read",
+          "pattern": "*.env.example",
+          "action": "allow"
+        },
+        {
+          "permission": "*",
+          "pattern": "*",
+          "action": "deny"
+        },
+        {
+          "permission": "read",
+          "pattern": "*",
+          "action": "allow"
+        },
+        {
+          "permission": "skill",
+          "pattern": "*",
+          "action": "allow"
+        },
+        {
+          "permission": "*",
+          "pattern": "*",
+          "action": "deny"
+        },
+        {
+          "permission": "read",
+          "pattern": "*",
+          "action": "allow"
+        },
+        {
+          "permission": "skill",
+          "pattern": "*",
+          "action": "allow"
+        },
+        {
+          "permission": "ctf_workspace_list",
+          "pattern": "*",
+          "action": "allow"
+        },
+        {
+          "permission": "ctf_workspace_read",
+          "pattern": "*",
+          "action": "allow"
+        },
+        {
+          "permission": "ctf_workspace_search",
+          "pattern": "*",
+          "action": "allow"
+        },
+        {
+          "permission": "ctf_workspace_write",
+          "pattern": "*",
+          "action": "allow"
+        },
+        {
+          "permission": "ctf_job_run",
+          "pattern": "*",
+          "action": "allow"
+        },
+        {
+          "permission": "ctf_job_read",
+          "pattern": "*",
+          "action": "allow"
+        },
+        {
+          "permission": "ctf_job_cancel",
+          "pattern": "*",
+          "action": "allow"
+        },
+        {
+          "permission": "ctf_artifact_read",
+          "pattern": "*",
+          "action": "allow"
+        },
+        {
+          "permission": "ctf_package_read",
+          "pattern": "*",
+          "action": "allow"
+        },
+        {
+          "permission": "ctf_package_prepare",
+          "pattern": "*",
+          "action": "allow"
+        },
+        {
+          "permission": "external_directory",
+          "pattern": "/private/var/folders/tn/x1hbkfy17sx0w1lb8kjzzr340000gn/T/d-package-runtime-COyJ2S/runs/prep-stop/opencode/data/opencode/tool-output/*",
+          "action": "allow"
+        }
+      ],
+      "variant": null,
+      "prompt": "# Role: verifier\n\n## 目標\n在獨立上下文中驗證固定的候選：按候選性質選擇安全重放、本地重算或證據審計。\n\n## 交付\n- 驗證方式、檢查結果與證據；結論為 verified、rejected 或 inconclusive。缺關鍵證據只能記為 inconclusive 或 rejected。\n- 不可安全重放時只審計證據，並說明不可重放的原因。\n\n## 不做\n- 不繼承 Solver 的私有推理，不改原候選或其證據，不做平台提示、實例管理或提交。\n\n## 已接入能力與 D 邊界\n在獨立會話讀 materials／published，可用 `ctf_artifact_read({ref,cursor?})` 只讀同題固定引用（base64 分頁，nextCursor 為 null 才到末頁；分開檢查 snapshotFixed／rangeComplete／originalComplete），無發布權限；在自己 work 用 job 本地重算；不能讀 sibling work，沒有普通 HTTP。材料重算只證明該計算，不自動驗證 Solver 候選；Engineer 已可固定候選及解法包，本原型已增加綁定版本的 package.read／prepare，驗證結果登記仍未接入；缺少明確候選、依賴版本或安全重放能力時保持 inconclusive。角色報告不能直接登記 verified 或更改 solved。\n\n## D 第三接口原型\nCoordinator 送驗先以 challenge.assign(role=\"verifier\", challenge, version) 指定工具實際返回版本，再原生 task(background=true)；同 session 新 execution 也須重新聲明。不從 prompt 授權。Verifier 只能正式讀取宿主綁定版本；package.prepare 無參數，宿主複製精確 bytes 並返回準備句柄與目錄，不以手抄 base64 替代。job.run 帶 preparation 及實際 argv，cwd 為準備的 inputs。自行檢查腳本與包內腳本分清來源。前後 hash 不證明中途未改或完整依賴，持續完整性及未聲明依賴 unknown。輸出相等不是語義正確。停止／預算拒絕不得繼續；傳輸未知暫停受影響交接，無盲目重發。結果文字走原生交回，尚無 verified／solved 登記。",
+      "options": {},
+      "steps": null
+    }
+  ],
+  "skills": [
+    {
+      "name": "customize-opencode",
+      "description": "Use ONLY when the user is editing or creating opencode's own configuration: opencode.json, opencode.jsonc, files under .opencode/, or files under ~/.config/opencode/. Also use when creating or fixing opencode agents, subagents, skills, plugins, MCP servers, or permission rules. Do not use for the user's own application code, or for any project that is not configuring opencode itself.",
+      "location": "<built-in>",
+      "content": "<!--\n  Built-in skill. Name and description are registered in code at\n  packages/core/src/plugin/skill.ts\n  and CUSTOMIZE_OPENCODE_SKILL_DESCRIPTION). The body below becomes the\n  skill's content.\n-->\n\n# Customizing opencode\n\nopencode validates its own config strictly and refuses to start when a field\nis wrong. The shapes below cover the common surface area, but they are a\n**summary, not the source of truth**.\n\n## Full schema reference\n\nThe authoritative list of every config option — with field types, enums,\ndefaults, and descriptions — lives in the published JSON Schema:\n\n**<https://opencode.ai/config.json>**\n\nIf a field is not documented in this skill, or you need to confirm an exact\nshape before writing config, **fetch that URL and read the schema directly**\nrather than guessing. opencode hard-fails on invalid config, so the cost of a\nwrong shape is a broken startup.\n\nIndependently, every `opencode.json` should declare\n`\"$schema\": \"https://opencode.ai/config.json\"` so the user's editor catches\nmistakes as they type.\n\n## Applying changes\n\nConfig is loaded once when opencode starts and is not hot-reloaded. After\nsaving changes to `opencode.json`, an agent file, a skill, a plugin, or any\nother config-time file, **tell the user to quit and restart opencode** for\nthe changes to take effect. The running session will keep using the\nalready-loaded config until then.\n\n## Where files live\n\n| Scope                         | Path                                                                                                                      |\n| ----------------------------- | ------------------------------------------------------------------------------------------------------------------------- |\n| Project config                | `./opencode.json`, `./opencode.jsonc`, or `.opencode/opencode.json` (opencode walks up from the cwd to the worktree root) |\n| Global config                 | `~/.config/opencode/opencode.json` or `~/.config/opencode/opencode.jsonc` (NOT `~/.opencode/`)                            |\n| Project agents                | `.opencode/agent/<name>.md` or `.opencode/agents/<name>.md`                                                               |\n| Global agents                 | `~/.config/opencode/agent(s)/<name>.md`                                                                                   |\n| Project commands              | `.opencode/command/<name>.md` or `.opencode/commands/<name>.md`                                                           |\n| Global commands               | `~/.config/opencode/command(s)/<name>.md`                                                                                 |\n| Project skills                | `.opencode/skill(s)/<name>/SKILL.md`                                                                                      |\n| Global skills                 | `~/.config/opencode/skill(s)/<name>/SKILL.md`                                                                             |\n| External skills (auto-loaded) | `~/.claude/skills/<name>/SKILL.md`, `~/.agents/skills/<name>/SKILL.md`                                                    |\n\nConfigs from each scope are deep-merged. Project overrides global. Unknown\ntop-level keys in `opencode.json` are rejected with `ConfigInvalidError`.\n\n## opencode.json\n\nEvery field is optional.\n\n```json\n{\n  \"$schema\": \"https://opencode.ai/config.json\",\n  \"username\": \"string\",\n  \"model\": \"provider/model-id\",\n  \"small_model\": \"provider/model-id\",\n  \"default_agent\": \"agent-name\",\n  \"shell\": \"/bin/zsh\",\n  \"logLevel\": \"DEBUG\" | \"INFO\" | \"WARN\" | \"ERROR\",\n  \"share\": \"manual\" | \"auto\" | \"disabled\",\n  \"autoupdate\": true | false | \"notify\",\n  \"snapshot\": true,\n  \"instructions\": [\"AGENTS.md\", \"docs/style.md\"],\n\n  \"skills\": {\n    \"paths\": [\".opencode/skills\", \"/abs/path/to/skills\"],\n    \"urls\": [\"https://example.com/.well-known/skills/\"]\n  },\n\n  \"references\": {\n    \"docs\": {\n      \"path\": \"../docs\",\n      \"description\": \"Use for product behavior and documentation conventions\"\n    },\n    \"sdk\": {\n      \"repository\": \"owner/sdk\",\n      \"branch\": \"main\",\n      \"description\": \"Use for SDK implementation details\",\n      \"hidden\": true\n    }\n  },\n\n  \"agent\": {\n    \"my-agent\": {\n      \"model\": \"anthropic/claude-sonnet-4-6\",\n      \"mode\": \"subagent\",\n      \"description\": \"...\",\n      \"permission\": { \"edit\": \"deny\" }\n    }\n  },\n\n  \"command\": {\n    \"deploy\": { \"description\": \"...\", \"template\": \"...\" }\n  },\n\n  \"provider\": {\n    \"anthropic\": { \"options\": { \"apiKey\": \"...\" } }\n  },\n  \"disabled_providers\": [\"openai\"],\n  \"enabled_providers\": [\"anthropic\"],\n\n  \"mcp\": {\n    \"playwright\": {\n      \"type\": \"local\",\n      \"command\": [\"npx\", \"-y\", \"@playwright/mcp\"],\n      \"enabled\": true,\n      \"environment\": {}\n    },\n    \"remote-thing\": {\n      \"type\": \"remote\",\n      \"url\": \"https://...\",\n      \"headers\": { \"Authorization\": \"Bearer ...\" }\n    }\n  },\n\n  \"plugin\": [\n    \"opencode-gemini-auth\",\n    \"opencode-foo@1.2.3\",\n    \"./local-plugin.ts\",\n    [\"opencode-bar\", { \"option\": \"value\" }]\n  ],\n\n  \"permission\": {\n    \"edit\": \"deny\",\n    \"bash\": { \"git *\": \"allow\", \"*\": \"ask\" }\n  },\n\n  \"formatter\": false,\n  \"lsp\": false,\n\n  \"experimental\": {\n    \"primary_tools\": [\"edit\"],\n    \"mcp_timeout\": 30000\n  },\n\n  \"tool_output\": { \"max_lines\": 200, \"max_bytes\": 8192 },\n\n  \"compaction\": { \"auto\": true, \"tail_turns\": 15 }\n}\n```\n\nShape notes worth being explicit about:\n\n- `model` always carries a provider prefix: `\"anthropic/claude-sonnet-4-6\"`.\n- `skills` is an object with `paths` and/or `urls`, not an array.\n- `references` is an object keyed by alias. Each value is a local path, Git repository, or string shorthand.\n- `agent` is an object keyed by agent name, not an array.\n- `command` is an object keyed by command name, not an array.\n- `plugin` is an array of strings or `[name, options]` tuples, not an object.\n- `mcp[name].command` is an array of strings, never a single string. `type` is required.\n- `permission` is either a string action or an object keyed by tool name.\n\n## Skills\n\nopencode's skill loader scans for `**/SKILL.md` inside skill directories. The\nfile is named `SKILL.md` exactly, and lives in its own folder named after the\nskill:\n\n```\n.opencode/skills/my-skill/SKILL.md\n```\n\nFrontmatter:\n\n```markdown\n---\nname: my-skill\ndescription: One sentence covering what this skill does AND when to trigger it. Front-load the literal keywords or filenames the user is likely to say.\n---\n\n# My Skill\n\n(skill body in markdown: instructions, examples, references)\n```\n\n- `name` is required, lowercase hyphen-separated, up to 64 chars, and matches the folder name.\n- `description` is effectively required: skills without one are filtered out and never surfaced to the model. Cover both _what_ the skill does and _when_ to use it. Write in third person (\"Use when...\", not \"I help with...\"). Front-load concrete trigger keywords and filenames; gate with \"Use ONLY when...\" if the skill should stay quiet on adjacent topics.\n- Optional: `license`, `compatibility`, `metadata` (string-string map).\n\nRegister skills from non-default locations via `skills.paths` (scanned\nrecursively for `**/SKILL.md`) and `skills.urls` (each URL serves a list of\nskills).\n\n## References\n\nReferences make local directories and Git repositories outside the active\nproject available as supporting context. Configure them under `references`,\nkeyed by the alias used in `@` autocomplete:\n\n```json\n{\n  \"references\": {\n    \"docs\": {\n      \"path\": \"../product-docs\",\n      \"description\": \"Use for product behavior and terminology\"\n    },\n    \"effect\": {\n      \"repository\": \"Effect-TS/effect\",\n      \"branch\": \"main\",\n      \"description\": \"Use for Effect implementation details\"\n    }\n  }\n}\n```\n\nLocal `path` values may be relative to the declaring config, absolute, or use\n`~/`. Git `repository` values accept Git URLs, host/path references, and GitHub\n`owner/repo` shorthand; `branch` is optional. Both forms support optional\n`description` and `hidden` fields.\n\n- Only references with a `description` are advertised to agents in system context.\n- `hidden: true` removes a reference from TUI `@` autocomplete only. It remains available to agents and by direct path.\n- Reference directories are automatically allowed through the external-directory boundary; normal read/edit/tool permissions still apply.\n- String shorthand is supported: use `\"docs\": \"../docs\"` for local paths or `\"effect\": \"Effect-TS/effect\"` for Git repositories.\n\n## Agents\n\nTwo ways to define an agent. Use the file form for anything non-trivial.\n\n### Inline (in `opencode.json`)\n\n```json\n{\n  \"agent\": {\n    \"my-reviewer\": {\n      \"description\": \"Reviews PRs for style violations.\",\n      \"mode\": \"subagent\",\n      \"model\": \"anthropic/claude-sonnet-4-6\",\n      \"permission\": { \"edit\": \"deny\", \"bash\": \"ask\" },\n      \"prompt\": \"You are a strict PR reviewer...\"\n    }\n  }\n}\n```\n\n### File\n\n```\n.opencode/agent/my-reviewer.md      OR     .opencode/agents/my-reviewer.md\n```\n\n```markdown\n---\ndescription: Reviews PRs for style violations.\nmode: subagent\nmodel: anthropic/claude-sonnet-4-6\npermission:\n  edit: deny\n  bash: ask\n---\n\nYou are a strict PR reviewer. Focus on...\n```\n\nThe file body becomes the agent's `prompt`. Do not also put `prompt:` in the\nfrontmatter.\n\n`mode` is one of `\"primary\"`, `\"subagent\"`, `\"all\"`.\n\nAllowed top-level frontmatter fields: `name, model, variant, description, mode,\nhidden, color, steps, options, permission, disable, temperature, top_p`. Any\nunknown field is silently routed into `options`.\n\nTo disable a built-in agent: `agent: { build: { disable: true } }`, or in a\nfile, `disable: true` in frontmatter.\n\n`default_agent` must point to a non-hidden, primary-mode agent.\n\n### Built-in agents\n\nopencode ships with `build`, `plan`, `general`, `explore`. Hidden internal agents:\n`compaction`, `title`, `summary`. To override a built-in's fields, define the\nsame key in `agent: { <name>: { ... } }`.\n\n## Commands\n\nopencode's command loader scans for `**/*.md` inside command directories. The\nfile is named after the command, and lives directly inside the `command` folder:\n\n```\n.opencode/command/deploy.md\n```\n\nFrontmatter:\n\n```markdown\n---\ndescription: One sentence describing what the command does.\nagent: build\nmodel: anthropic/claude-sonnet-4-6\n---\n\n(command body in markdown: the prompt opencode runs, with $ARGUMENTS for the user's input)\n```\n\n- `template` is the command body — everything below the frontmatter — and is required: it is the prompt opencode runs when the command is invoked. Do not also put a `template:` key in the frontmatter.\n- `$ARGUMENTS` is replaced with everything the user typed after the command; `$1`, `$2`, … pull individual positional arguments.\n- Optional: `description`, `agent`, `model`, `variant`, `subtask`.\n\n## Plugins\n\n`plugin:` is an array. Each entry is one of:\n\n```json\n\"plugin\": [\n  \"opencode-gemini-auth\",            // npm spec, latest\n  \"opencode-foo@1.2.3\",              // npm spec, pinned\n  \"./local-plugin.ts\",               // file path, relative to the declaring config\n  \"file:///abs/path/plugin.js\",      // file URL\n  [\"opencode-bar\", { \"key\": \"val\" }] // tuple form with options\n]\n```\n\nAuto-discovered plugins (no config entry needed): any `*.ts` or `*.js` file in\n`.opencode/plugin/` or `.opencode/plugins/`.\n\nA plugin module exports `default` (or any named export) of type\n`Plugin = (input: PluginInput, options?) => Promise<Hooks>`. The export is a\nfunction, not a plain object literal, and the function returns an object\n(return `{}` if there is nothing to register).\n\n```ts\nimport type { Plugin } from \"@opencode-ai/plugin\"\n\nexport default (async ({ client, project, directory, $ }) => {\n  return {\n    config: (cfg) => {\n      // cfg is the live merged config; mutate fields here.\n    },\n    \"tool.execute.before\": async (input, output) => {\n      // mutate output.args before the tool runs\n    },\n  }\n}) satisfies Plugin\n```\n\nHook surface (mutate `output` in place; return `void`):\n\n- `event(input)`: every bus event\n- `config(cfg)`: once on init with the merged config\n- `chat.message`, `chat.params`, `chat.headers`\n- `tool.execute.before`, `tool.execute.after`\n- `tool.definition`\n- `command.execute.before`\n- `shell.env`\n- `permission.ask`\n- `experimental.chat.messages.transform`, `experimental.chat.system.transform`,\n  `experimental.session.compacting`, `experimental.compaction.autocontinue`,\n  `experimental.text.complete`\n\nSpecial object-shaped (not callbacks): `tool: { my_tool: { ... } }`,\n`auth: { ... }`, `provider: { ... }`.\n\n## MCP servers\n\n`mcp:` is an object keyed by server name. Each server is discriminated by\n`type`:\n\n```json\n{\n  \"mcp\": {\n    \"playwright\": {\n      \"type\": \"local\",\n      \"command\": [\"npx\", \"-y\", \"@playwright/mcp\"],\n      \"enabled\": true,\n      \"environment\": { \"BROWSER\": \"chromium\" }\n    },\n    \"github\": {\n      \"type\": \"remote\",\n      \"url\": \"https://...\",\n      \"enabled\": true,\n      \"headers\": { \"Authorization\": \"Bearer {env:GITHUB_TOKEN}\" }\n    },\n    \"old-server\": { \"enabled\": false }\n  }\n}\n```\n\n`command` is an array of strings. `environment` sets environment variables for\na local MCP server. `type` is required. Use `enabled: false` to\ndisable a server inherited from a parent config. String values such as header\ntokens support `{env:VAR}` interpolation (and `{file:path}`); the shell-style\n`${VAR}` is not substituted.\n\n## Permissions\n\n```json\n\"permission\": {\n  \"edit\": \"deny\",\n  \"bash\": { \"git *\": \"allow\", \"rm *\": \"deny\", \"*\": \"ask\" },\n  \"external_directory\": { \"~/secrets/**\": \"deny\", \"*\": \"allow\" }\n}\n```\n\nActions: `\"allow\"`, `\"ask\"`, `\"deny\"`.\n\nPer-tool value forms: `\"allow\"` shorthand (treated as `{\"*\": \"allow\"}`), or an\nobject `{ pattern: action }`. Within an object, **insertion order matters**.\nopencode evaluates the LAST matching rule, so put broad rules first and narrow\nrules last.\n\n`permission: \"allow\"` (a string at the top level) is shorthand for \"allow\neverything\" and is rarely what the user wants.\n\nKnown permission keys: `read, edit, glob, grep, list, bash, task,\nexternal_directory, todowrite, question, webfetch, websearch, lsp, doom_loop,\nskill`. Some of these (`todowrite,\nquestion, webfetch, websearch, doom_loop`) only accept a flat\naction, not a per-pattern object.\n\n`external_directory` patterns are filesystem paths (use `~/`, absolute paths,\nor globs like `~/projects/**`).\n\nPer-agent `permission:` overrides top-level `permission:`. Plan Mode lives on\nthe `plan` agent's permission ruleset (`edit: deny *`).\n\n## Escape hatches\n\nWhen a user's config is broken and opencode won't start, these env vars help:\n\n- `OPENCODE_DISABLE_PROJECT_CONFIG=1`: skip the project's local `opencode.json`\n  and start from globals only. Run from the project directory, opencode loads,\n  the user edits the broken file, then they restart without the flag.\n- `OPENCODE_CONFIG=/path/to/file.json`: load an additional explicit config.\n- `OPENCODE_CONFIG_CONTENT='{\"$schema\":\"https://opencode.ai/config.json\"}'`:\n  inject inline JSON as a final local-scope merge.\n- `OPENCODE_DISABLE_DEFAULT_PLUGINS=1`: skip default plugins.\n- `OPENCODE_PURE=1`: skip external plugins entirely.\n- `OPENCODE_DISABLE_EXTERNAL_SKILLS=1`,\n  `OPENCODE_DISABLE_CLAUDE_CODE_SKILLS=1`: skip the external skill scans under\n  `~/.claude/` and `~/.agents/`.\n\n## When proposing edits\n\n- Validate against the schema before writing. If you are unsure of a field's\n  exact shape, or the field is not covered in this skill, fetch\n  `https://opencode.ai/config.json` and read the schema rather than guessing.\n- Preserve `$schema` and any existing fields the user did not ask to change.\n- For agent, command, skill, and plugin definitions, prefer creating new files\n  in the correct location over inlining everything in `opencode.json`.\n- If the user's existing config is malformed, point them at the env-var escape\n  hatches above so they can edit from inside opencode without breaking their\n  session.\n- After saving any config change, remind the user to quit and restart opencode\n  — running sessions keep using the already-loaded config.\n"
+    },
+    {
+      "name": "web-session-diagnosis",
+      "description": "Diagnose Web CTF tasks that depend on login, account state, CSRF state, or a response that appears to depend on an earlier request.",
+      "location": "/private/var/folders/tn/x1hbkfy17sx0w1lb8kjzzr340000gn/T/d-package-runtime-COyJ2S/runs/prep-stop/opencode/config/opencode/skills/web-session-diagnosis/SKILL.md",
+      "content": "\n# Web Session Diagnosis\n\nVersion: 2\n\nUse this method when a Web task has login, account state, CSRF state, or a response that appears to depend on an earlier request.\n\n## Minimal checks\n\n1. Inspect the supplied challenge statement and original attachments with managed workspace tools. If an attachment is an archive, list and unpack it with the host-provided archive tool, then choose and read/search individual text members. Do not treat binary bytes as UTF-8, execute attached files, or replace supplied materials with outside sources. Keep the host-provided source/member references with any findings.\n2. Record the request method and response status. Treat 3xx as a redirect signal; inspect the reported in-scope `redirect_location` and choose whether a separate request is justified. Redirects are not followed automatically.\n3. After a normal login or state-changing request, make one request to the evidenced protected route in the same HTTP session. Compare it with an unauthenticated request made in a separate session when that comparison is useful.\n4. Use `set_cookie_names` and `cookie_names_sent` to tell whether the host received and later sent session state. Cookie values are host-owned and are not shown. Judge authentication from the protected response as well as these summaries.\n5. If the protected response still looks unauthenticated, check status, redirect destination, route, method, and whether the cookie name was sent before trying another supported login flow. Do not repeatedly guess routes or credentials without new evidence.\n\n## Follow challenge clues into available materials\n\nUse this method when the statement mentions source code, history, a fix, or version differences, or when supplied files contain forms, API routes, or script references.\n\nWhen supplied source code, version information, or history needs comparison with observed behavior, consult [Source Version and Behavior Comparison](references/source-version-and-behavior-comparison.md) if available through the permitted tools. If it is unavailable, report that limitation; do not infer its contents or expand access scope.\n\n1. List the supplied materials and identify what each one can establish. Follow concrete references such as a form's method/action or a page's script path into available handlers or files.\n2. For each relevant reference, record its source and what remains unknown. If a referenced handler or history is unavailable, report that material gap; do not invent its behavior or replace supplied material with a writeup.\n3. Trace a relevant frontend action through its form or script to the request method, target, parameters, object identifier, and available handler. Distinguish permission to perform the action (function-level authorization) from permission to act on the selected object (object-level authorization). Login, CSRF checks, and business authorization establish different conditions. A blocked page does not establish how its related action endpoints are protected. If the script or handler is unavailable, record that gap rather than infer its behavior.\n4. Turn one supported clue into a falsifiable experiment. Identify the necessary precondition, the evidence that establishes it, and the observable result that would support or weaken the hypothesis. Compare with a known normal request or state when available, changing one relevant variable at a time. Do not treat a status code alone as proof of authorization or the intended business effect. Keep state-changing checks within the task scope and the recovery boundary described below.\n5. If the reference does not match the deployed version, its preconditions are absent, or the next action has an unclear or destructive side effect, preserve the evidence and choose a different check within scope.\n\n## Check response continuation and business postconditions\n\nUse this method after a POST or other state-changing request, when a 2xx response is being treated as success, or when a response is truncated and the omitted part could affect the decision.\n\n1. Before sending a state-changing request, state the expected business postcondition and how it can be observed safely. A 2xx status confirms an HTTP response, not that the intended state change occurred.\n2. Check whether the response is complete. If omitted content could change the conclusion, continue reading the referenced observation only as far as needed to decide.\n3. Compare the response and any safe before/after state evidence with the stated postcondition. Classify the hypothesis as supported, weakened, or unresolved; keep page exposure, debugger text, successful execution, and obtaining a flag as separate claims.\n4. If the response is empty, unchanged, or repeats an earlier result, record what it establishes and do not repeat the same request without new evidence or a justified parameter change.\n5. For actions that may delete or alter target state, use only actions allowed by the task scope and with a clear recovery boundary. If the side effect or recovery is unknown, do not perform the action; choose a non-mutating check or report the specific missing condition.\n\n## Solve and hand off a candidate\n\n- The goal is to solve the supplied challenge and find its flag. Continue from exploration to evidence-backed experiments; do not finish with only a route summary while a supported path remains.\n- Register a candidate with `candidate.register` only when the exact value is present in observed response evidence. The host owns independent verification and any configured local-oracle submission.\n- Use the host-provided oracle status and submission instructions. A target site's own challenge list or submit UI does not indicate whether a separate host-side oracle is configured.\n- If no host oracle is configured, a candidate cannot be called accepted or solved. If a candidate depends on cookies, POST, multiple requests, or side effects that the current verifier cannot reproduce safely, preserve its actual evidence and report the verification limit; never substitute an anonymous GET.\n\n## Interpret results\n\n- A login response that sets a cookie proves only that state was issued, not that login succeeded.\n- A later request that sends the cookie and reaches the protected page supports session continuity; it does not prove a vulnerability or a solved challenge.\n- A redirect to a login page, an authorization error, or a missing cookie is evidence to revise the session hypothesis. Keep cross-origin redirects blocked.\n- If the response does not distinguish authenticated from unauthenticated state, seek another evidence-backed observation or report the limitation. Do not register a candidate from an ambiguous response.\n- If a supported experiment does not produce a candidate, state what the evidence rules out and the smallest next test. `no_route` is a host run classification, not proof that every solution path is exhausted.\n\n## Stop and change direction\n\nAfter an experiment, distinguish an invalid request, an unmet precondition, evidence against the hypothesis, and insufficient evidence. A tool error or failed authentication does not by itself disprove the whole route. Use actionable feedback to correct a local invocation error.\n\nBefore repeating an experiment, identify what relevant input, state, or evidence has changed and why that change could affect the result. Changing a payload without addressing a missing precondition is not enough. If a necessary precondition remains unmet and no evidence-backed way to establish it is available, park the route and return to an unresolved material reference or another supported hypothesis. A parked route is not proven impossible.\n\nPreserve the response evidence and relevant status, safe redirect location, and cookie-name summaries. Never expose or copy cookie values into notes, tool arguments, or candidate data.\n"
+    }
+  ]
+}

@@ -106,7 +106,7 @@ G 的慢工具接线、取消与 RPC 时限以该子文件 §7.2、§7.2.1 为�
 | 實驗與作業控制 | 受管 `http.request`、`job.run` 等（待 G） | Recon、Domain Solver；Engineer 僅本地；Verifier 僅按驗證模式授予 | scope、句柄綁定題目與會話、資源上限 |
 | 題目接入 | 受管 `challenge.list`、`challenge.read`（[E 最小版詳細 design](2026-10-23-design-v1-e-intake-minimal.md) 第 4 節） | Intake | 角色為 `intake`、題目屬本 run；讀取限於該題 `materials/` |
 | 產物發布／讀取 | `artifact.publish`／`artifact.read`（已接入，細節見 D §3） | Recon／Domain Solver／Engineer 發布及讀取，Verifier 僅讀 | 同 run／題目授權，發布限本會話來源與背景 execution；固定產物不等於候選或 verified |
-| 候選／解法包固定及讀取 | `package.publish`／`package.read`（已接入，見 D §4） | 僅 Engineer | 一次固定整包、明確版本、同題授權；不等於獨立驗證或可信提交 |
+| 候選／解法包固定及讀取 | `package.publish`／`package.read`（已接入，見 D §4） | publish僅Engineer；read為Engineer及本次版本綁定Verifier | 一次固定整包、明確版本、同題授權；Verifier須先經assign與原生execution綁定，見D§5；不等於獨立驗證通過或可信提交 |
 | 驗證結果登記 | 受管工具（待 D） | Verifier | 只接受綁定為 Verifier 的會話 |
 | 平台操作請求 | 受管工具（待 D、E） | Coordinator | 由控制服務檢查驗證有效性後執行 |
 | 任務停止 | 受管 task.stop 語義已選定，背景控制時序已在隔離原型驗證（G §7） | Coordinator | 核實本實例 dispatched 與 binding 的直接父關係；task_id 只用於選擇，不作授權 |
@@ -239,3 +239,5 @@ run/session/call 登记先于 HTTP／job 启动，旧短等待原型的 job 在�
 | 全套回歸 | `npm test`：33 個文件，223／223 通過 |
 
 **限制與收口：** 此次證明控制准入與異常記錄的確定性行為，不證明真實模型解題能力或真實 provider 的失敗路徑。從未取得的 usage 無法還原；磁碟不可寫時如實失敗，不保證保存成功。兩份實現 plan 的結論已轉入本文並移除；回歸測試源碼與最小失敗證據保留，臨時構建及調試產物清理。token 預留、完整恢復系統與 G 待驗證接口均不在此次修補內。
+
+D第三接口已接入：Verifier的package.prepare在本次work準備固定材料，job.run綁定本次preparation及execution。宿主記錄實際命令、端點hash及真實輸出；持續完整性與未聲明依賴保持unknown，不能提升為verified。具體決策、主區回歸與限制以D詳細design§5為準。

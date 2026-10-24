@@ -1,0 +1,46 @@
+{
+  "schemaVersion": 1,
+  "generatedAt": "2026-10-23T07:11:57.715Z",
+  "project": "pentest-agent",
+  "session": "8f74d8c6",
+  "headline": "Goal: real-model smoke verifying Intake role reads challenge materials via managed ctf_challenge_list/ctf_challenge_read",
+  "summary": "Two authorized real-model runs executed from parent session local_aa00185d-7ae4-4979-8b77-20952e8268bf (e-intake-prep/e-intake-tools lineage). Configs written outside repo at /Users/caihaoming/Documents/pentest-agent-run-data/intake-smoke/ (challenges.json, profile.json), opencode config config/opencode.volcano-coding.example.json, model volcano-coding/deepseek-v4-1-flash-261017. No repo code changed, nothing committed.",
+  "taskDescription": "Goal: real-model smoke verifying Intake role reads challenge materials via managed ctf_challenge_list/ctf_challenge_read tools, for 3 local CTF challenges (mfw, throwback, seizure) on Docker containers (127.0.0.1:8010/8001/8003). Core intent: confirm E minimal intake wiring works end-to-end before building G (solver role tooling); not solving challenges, just intake read-path verification.",
+  "currentStatus": "Both authorized runs complete and reported back to parent session. Run 1 (maxSteps=30): stopped budget_exceeded at 30/30 admitted calls; Intake read all 3 challenges' statements+tar.gz signatures successfully, but Coordinator only dispatched solver roles for mfw (domain-solver) and throwback (recon) before budget ran out — seizure never dispatched to a solver. Run 2 (maxSteps=60, user-authorized bump): completed naturally (stopReason completed, root_idle) at 40/60 admitted calls; Intake's first dispatch read all 3 challenges including seizure (text matched source exactly); Coordinator again only dispatched solver/recon for mfw, never for throwback or seizure — this is Coordinator's own task allocation choice, not a tooling failure. No provider errors, no ARK_API_KEY leakage, in either run's evidence.",
+  "keyDecisions": [
+    "Decision: report run 1 (budget_exceeded, 30 admitted calls) without retrying — Reason: rerun rule only permits retry when admitted calls == 0; nonzero admissions mean the run must be reported as-is.",
+    "Decision: run 2 only after parent session explicitly authorized maxSteps 30→60 with fresh single-run authorization — Reason: original authorization capped at maxSteps 30 for exactly one run; scope changes need new authorization per CLAUDE.md budget-authorization rule.",
+    "Decision: left 3 Docker challenge containers running after both runs — Reason: parent/user explicitly said containers would be kept up and reused, no cleanup requested."
+  ],
+  "userContribution": null,
+  "userDecisions": [],
+  "failedApproaches": [
+    "Approach: run a one-off precheck script via `npx tsx script.ts` in a scratch dir outside the repo → Result: esbuild error 'Top-level await is currently not supported with the \"cjs\" output format' → Lesson: for standalone ESM scripts run via tsx outside the repo's own module config, name the file .mts (not .ts) so esbuild treats it as ESM."
+  ],
+  "blockers": null,
+  "modifiedFiles": [
+    "/Users/caihaoming/Documents/pentest-agent-run-data/intake-smoke/challenges.json: new file (outside repo), 3 challenge entries (mfw/throwback/seizure) with id/title/statement(File)/materials/target per apps/launcher/src/challenges.ts field schema",
+    "/Users/caihaoming/Documents/pentest-agent-run-data/intake-smoke/profile.json: new file (outside repo), release profile pointing at challenges.json + volcano-coding opencode config; budget.maxSteps changed 30→60 between run 1 and run 2 at parent session's request"
+  ],
+  "implicitRules": [
+    "apps/launcher/src/challenges.ts only accepts fields id/title/statement/statementFile/materials/target in challenge list JSON; unknown fields throw Blocked.",
+    "prepareRun()/loadReleaseProfile() can be zero-token-precheck-verified before any real model call by invoking them directly via a small .mts script.",
+    "Launcher reads ARK_API_KEY from repo .env itself; must run from the main checkout root (not a worktree) for this to resolve.",
+    "Run evidence lives under ~/.ctf-agent/runs/<runId>/{evidence,state,workspace}; admissions.json + control-audit.json are the audit trail for model.call/tool permission decisions; state/run.json has stopReason/usageTotal/admittedModelCalls.",
+    "CLAUDE.md rerun rule (from this task's brief): only retry a failed real-model run if admitted model calls == 0, max 2 retries; otherwise stop and report."
+  ],
+  "nextSteps": [
+    "No further run is currently authorized — both approved real-model runs are done and reported; do not start another run without fresh explicit authorization from the user/parent session.",
+    "If a future task wants Coordinator to actually dispatch recon/domain-solver (not just Intake read) for throwback and/or seizure, that needs new scope+budget authorization — this session's authorization only covered Intake-read verification across all 3 challenges.",
+    "The 3 challenge containers (mfw :8010, throwback :8001, seizure :8003) are left running per parent session's instruction; no cleanup done here.",
+    "Parent session (local_aa00185d...) is waiting on this session's report of run 2 results (seizure read successfully this time); relay findings there if not already done."
+  ],
+  "keywords": [
+    "intake smoke run",
+    "ctf_challenge_read",
+    "ctf_challenge_list",
+    "mfw throwback seizure",
+    "budget_exceeded maxSteps",
+    "opencode launcher run"
+  ]
+}

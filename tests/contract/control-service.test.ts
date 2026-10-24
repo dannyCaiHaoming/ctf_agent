@@ -30,14 +30,27 @@ function fakeService(sessions: Record<string, { parentID?: string; agent?: strin
     if (id === 'root' && op === 'tool.before' && b.tool === 'task' && !b.args?.task_id &&
         ['recon', 'domain-solver', 'engineer', 'verifier'].includes(b.args?.subagent_type ?? '')) {
       // A duplicate while pending must still reach C's original assertion.
-      try { await handle(id, 'tool.execute', { tool: 'challenge.assign', args: { role: b.args!.subagent_type, challenge: 'C-fixture' } }); }
+      let version:string|undefined;
+      if(b.args!.subagent_type==='verifier'&&![...service.bindings.values()].some(v=>v.role==='engineer')){
+        sessions['d-engineer']={parentID:'root',agent:'engineer'};
+        await handle('root','tool.execute',{tool:'challenge.assign',args:{role:'engineer',challenge:'C-fixture'}});
+        await handle('root','tool.before',{tool:'task',callID:'d-engineer',args:{subagent_type:'engineer',background:true}});
+        await handle('root','tool.after',{tool:'task',callID:'d-engineer',metadata:{sessionId:'d-engineer'},output:'running'});
+        await handle('d-engineer','chat.message',{agent:'engineer'});
+      const engineer=[...service.bindings.values()].find(b=>b.role==='engineer')!.sessionID;
+      await service.handle(engineer,'tool.execute',{tool:'workspace.write',callID:'d-input-write',args:{path:'work/d-input',content:'x'}});
+      const a=await service.handle(engineer,'tool.execute',{tool:'artifact.publish',callID:'d-input-publish',args:{source:'file',path:'work/d-input'}}) as {ref:string};
+      const p=await service.handle(engineer,'tool.execute',{tool:'package.publish',callID:'d-package-publish',args:{candidate:{ref:a.ref,start:0,end:1},files:[],extraction:'all',premises:[]}}) as {version:string};
+      version=p.version;
+      }
+      try { await handle(id, 'tool.execute', { tool: 'challenge.assign', args: { role: b.args!.subagent_type, challenge: 'C-fixture',...(version?{version}:{}) } }); }
       catch (error) { if (!(error instanceof Error) || error.message !== 'denied: dispatch') throw error; }
     }
     return handle(id, op, input);
   };
   return service;
 }
-const task = (role: string, extra: object = {}) => ({ tool: 'task', callID: `call-${Math.random()}`, args: { subagent_type: role, ...extra } });
+const task = (role: string, extra: object = {}) => ({ tool: 'task', callID: `call-${Math.random()}`, args: { subagent_type: role,...(role==='verifier'?{background:true}:{}), ...extra } });
 
 function deferred() {
   let resolve!: () => void;

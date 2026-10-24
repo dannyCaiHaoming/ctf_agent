@@ -1,4 +1,7 @@
 // D interface two: immutable candidate and solution package. One existing ArtifactPublisher commit fixes the whole package.
+import {mkdir,writeFile,rename,rm} from 'node:fs/promises';
+import {join} from 'node:path';
+import {randomUUID} from 'node:crypto';
 import {createHash} from 'node:crypto';
 import {z} from 'zod';
 import {ArtifactPublisher,snapshotFile,type ArtifactSource,type Publication} from './artifact-tools.js';
@@ -45,6 +48,28 @@ export class CandidatePackages {
   const serialized=Buffer.from(JSON.stringify(manifest));if(serialized.length>1048576)deny();active();
   const p=await this.artifacts.publish(ctx.dir,ctx.source,serialized,true,{},active);
   return {version:p.ref,manifestSha256:p.sha256,manifestSize:p.size,snapshotFixed:true,candidateSize:bytes.length,candidateSha256:hash(bytes)};
+ }
+ async prepare(run:string,challenge:string,version:string,work:string,active:()=>void){
+  const all=async(component:string,path?:string)=>{
+   let cursor:string|undefined;const chunks:Buffer[]=[];
+   do{const p=await this.read(run,challenge,{version,component,...(path?{path}:{}),...(cursor?{cursor}:{})});chunks.push(Buffer.from(p.data,'base64'));cursor=p.nextCursor??undefined;active();}while(cursor);
+   return Buffer.concat(chunks);
+  };
+  const manifest=await all('manifest');const m=JSON.parse(manifest.toString()) as Manifest;
+  const id=randomUUID(),directory='verify-'+id+'/inputs',staging=join(work,'.prepare-'+id),final=join(work,'verify-'+id);
+  const files:{path:string;sha256:string;size:number}[]=[];
+  try{
+   await mkdir(join(staging,'inputs'),{recursive:true});
+   await writeFile(join(staging,'manifest.json'),manifest,{flag:'wx'});
+   const candidate=await all('candidate');await writeFile(join(staging,'candidate.bin'),candidate,{flag:'wx'});
+   for(const f of m.files){relative(f.path);const bytes=await all('file',f.path);active();const dest=join(staging,'inputs',f.path);await mkdir(join(dest,'..'),{recursive:true});await writeFile(dest,bytes,{flag:'wx'});files.push({path:f.path,sha256:hash(bytes),size:bytes.length});}
+   active();await rename(staging,final);active();
+   const p={ready:true,preparation:id,directory,manifestPath:'verify-'+id+'/manifest.json',candidatePath:'verify-'+id+'/candidate.bin',manifestSha256:hash(manifest),metadata:[{path:'verify-'+id+'/manifest.json',sha256:hash(manifest),size:manifest.length},{path:'verify-'+id+'/candidate.bin',sha256:hash(candidate),size:candidate.length}],files};
+   await this.checkPrepared(work,p);active();return p;
+  }catch(error){await rm(staging,{recursive:true,force:true});await rm(final,{recursive:true,force:true});throw error;}
+ }
+ async checkPrepared(work:string,p:{directory:string;metadata:{path:string;sha256:string;size:number}[];files:{path:string;sha256:string;size:number}[]}){
+  for(const f of [...p.metadata,...p.files.map(f=>({...f,path:p.directory+'/'+f.path}))]){const bytes=await snapshotFile(work,f.path.split('/'));if(bytes.length!==f.size||hash(bytes)!==f.sha256)deny();}
  }
  async read(run:string,challenge:string,args:Record<string,unknown>){
   const parsed=readInput.safeParse(args);if(!parsed.success)deny();const a=parsed.data!;

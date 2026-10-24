@@ -1,0 +1,49 @@
+{
+  "schemaVersion": 1,
+  "generatedAt": "2026-10-23T07:47:43.583Z",
+  "project": "pentest-agent",
+  "session": "0f7bd955",
+  "headline": "Goal: write minimal-G detailed design (solver-role tools) under design v1 section 2 G, plus no-model verification plan f",
+  "summary": "Wrote docs/superpowers/specs/2026-10-23-design-v1-g-solver-minimal.md (draft, unverified). Linked from design v1 G section and pending-items row, and docs/superpowers/README.md table row. Wrote docs/superpowers/plans/2026-10-23-g-solver-verification.md: steps V-1..V-5 (V-1 control-service assign + OpenCode stub probe; V-2 read-only native bash inspection; V-3 workspace-tools; V-4 http-tools; V-5 job-tools), each in own worktree, Sonnet tier, no real model. Renamed step labels from invented S-A..S-E to design V numbers. No code changed, nothing committed. AGENTS.md and CLAUDE.md have pre-existing uncommitted user changes, untouched.",
+  "taskDescription": "Goal: write minimal-G detailed design (solver-role tools) under design v1 section 2 G, plus no-model verification plan for design section 9 items V-1..V-5. Core intent: unblock solver roles (Recon, Domain Solver, Engineer, Verifier) — currently have zero tools after E intake; need per-challenge binding, workspace rw, HTTP, scripts, before first real-model solve smoke. Design is unverified draft; nothing executed.",
+  "currentStatus": "DONE: G design draft written and cross-linked; V-1..V-5 plan written, labels aligned to design. REMAINING: nothing executed. V-1..V-5 need user go-ahead. V-6 (ARM64 product image OS isolation) and V-7 (real-model smoke, needs separate authorization) not planned. Design section 9 V-results not yet written back. Plan says delete after results reflected into design.",
+  "keyDecisions": [
+    "Decision: solver-to-challenge binding = candidate A — Coordinator calls challenge.assign(challenge, role) before task; host attaches challengeId to pending dispatch keyed by parent+role; solver tools take no challenge id — Reason: only minimal extension of C pending-dispatch rule; tool args cannot redirect challenge; candidate B (parse prompt text) unreliable",
+    "Decision: workspace roots materials (ro), work (per-session rw), published (host-written, D), jobs (host-owned, read via job.read); virtual roots hide host paths — Reason: materials immutable, session isolation, no host paths to model",
+    "Decision: no archive-unpack tool; unpack inside job in work/ — Reason: avoids new tool; deferred until real need shown",
+    "Decision: HTTP origin must equal target origin exactly; redirects off by default, each hop re-checked; connection pinned to resolved address; per-challenge cookie jar; self-signed TLS accepted only for scoped origin (proposal) — Reason: scope enforcement at tool layer, DNS-rebinding defense, CTF targets often self-signed",
+    "Decision: managed job.run (argv only, env whitelist, /dev/null stdin, process-group kill) instead of native bash — Reason: OpenCode native shell inherits provider and RPC credentials from its process env",
+    "Decision: job network explicitly not scope-enforced; recorded as known gap section 5.5 — Reason: network isolation design is pending in design v1 section 3; not claiming enforcement",
+    "Decision: product-level job isolation needs separate OS user plus per-challenge group, verified on ARM64 image in V-6 — Reason: same-user scripts could read materials or OpenCode environ",
+    "Decision: Intake gets no workspace write (narrows design H table row) — Reason: E design Intake needs read only; amend H only if D or tests show need",
+    "Decision: remove legacy plugin manifest names workspace.patch, workspace.unpack, observation.read, hypothesis.* ; candidate.register left to D — Reason: belong to retired single-solver design"
+  ],
+  "userContribution": "Specified the scope for minimal G: solver-role workspace read/write and HTTP/script execution, plus binding of solver sessions to a challenge. Requested the detailed design be derived from design v1. Requested a no-model verification plan for V-1..V-5. Flagged the confusing mix of G/V/S labels in the plan, leading to the relabeling to design V numbers.",
+  "userDecisions": [
+    {
+      "decision": "Plan step labels must use design-v1-G V numbers, not the S-A..S-E labels I invented",
+      "reason": "User found three overlapping label systems (G, V, S) confusing",
+      "alternativesRejected": "Keeping the S-A..S-E labels alongside V-1..V-5"
+    }
+  ],
+  "failedApproaches": [
+    "Approach: draft plan step labels S-A..S-E beside design V-1..V-5 → Result: three overlapping label sets, user confused → Lesson: reuse design's own IDs, do not invent parallel codes",
+    "Approach: TodoPlan update without scope field → Result: rejected → Lesson: scope required on every items update",
+    "Approach: Edit on docs/superpowers/README.md with traditional-Chinese old_string against simplified-Chinese file → Result: no match → Lesson: copy exact row text from Read output before editing"
+  ],
+  "blockers": "None blocking. Open: user go-ahead for V-1..V-5 execution. Open design questions: numeric defaults unconfirmed (workspace 128 MiB; HTTP 8 in-flight per challenge; jobs 2 per session, 8 per challenge; job timeout default 60s max 600s; wait_ms default 5s max 30s); whether H table Intake-write row should be amended; whether job network gap acceptable until network isolation design.",
+  "modifiedFiles": [
+    "docs/superpowers/specs/2026-10-23-design-v1-g-solver-minimal.md: NEW draft detailed design for minimal G (sections 1-10)",
+    "docs/superpowers/specs/2026-10-22-ctf-agent-design-v1.md: G section gained link paragraph to G design; pending-items row (binding) gained progress note pointing to candidate A",
+    "docs/superpowers/README.md: added G row to status table; G row updated to point to plan with V-1..V-5 status",
+    "docs/superpowers/plans/2026-10-23-g-solver-verification.md: NEW no-model verification plan V-1..V-5 with per-step changes, criteria, prohibitions, execution model; labels aligned to design V numbers"
+  ],
+  "implicitRules": [],
+  "nextSteps": [
+    "Await user go-ahead to execute V-1..V-5 plan, each in its own worktree, Sonnet tier, no real model",
+    "On go-ahead: start V-1 first (control-service challenge.assign + OpenCode stub probe); V-2 read-only; V-3/V-4/V-5 deterministic vitest in parallel",
+    "After each step: write gate report under docs/gates/g-solver-verification-20261023/ and write result back into G design section 9 and matching section",
+    "Do not run real-model calls; V-7 needs separate authorization with target, model, batch and token budget"
+  ],
+  "keywords": []
+}

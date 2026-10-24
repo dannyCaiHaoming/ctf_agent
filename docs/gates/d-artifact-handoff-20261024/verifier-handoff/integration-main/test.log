@@ -1,0 +1,121 @@
+
+> ctf-agent@0.1.0 test
+> vitest run
+
+
+ RUN  v2.1.9 /Users/caihaoming/Documents/pentest-agent
+
+ ✓ tests/contract/http-lifecycle.test.ts (10 tests) 49ms
+stdout | tests/contract/d-artifact-handoff.test.ts > D deterministic phase-controlled races and failures (not runtime) > H5 same-length-in-place rejects modified or out-of-root source with exact phase order
+{"criterion":"H5","kind":"same-length-in-place","order":["ancestry-validated","descriptor-validated","source-mutated-before-read","read-chunk","read-chunk"],"result":"refused","timing":"explicit awaited phase, no sleep"}
+
+stdout | tests/contract/d-artifact-handoff.test.ts > D deterministic phase-controlled races and failures (not runtime) > H5 rename-file rejects modified or out-of-root source with exact phase order
+{"criterion":"H5","kind":"rename-file","order":["ancestry-validated","descriptor-validated","source-mutated-before-read","read-chunk","read-chunk"],"result":"refused","timing":"explicit awaited phase, no sleep"}
+
+stdout | tests/contract/d-artifact-handoff.test.ts > D deterministic phase-controlled races and failures (not runtime) > H5 replace-parent rejects modified or out-of-root source with exact phase order
+{"criterion":"H5","kind":"replace-parent","order":["ancestry-validated","parent-swapped"],"result":"refused","timing":"explicit awaited phase, no sleep"}
+
+stdout | tests/contract/d-artifact-handoff.test.ts > D deterministic phase-controlled races and failures (not runtime) > H5 symlink-parent rejects modified or out-of-root source with exact phase order
+{"criterion":"H5","kind":"symlink-parent","order":["ancestry-validated","parent-swapped"],"result":"refused","timing":"explicit awaited phase, no sleep"}
+
+stdout | tests/contract/d-artifact-handoff.test.ts > D deterministic phase-controlled races and failures (not runtime) > H5 symlink-leaf rejects modified or out-of-root source with exact phase order
+{"criterion":"H5","kind":"symlink-leaf","order":["ancestry-validated","leaf-swapped"],"result":"refused","timing":"explicit awaited phase, no sleep"}
+
+stdout | tests/contract/d-artifact-handoff.test.ts > D deterministic phase-controlled races and failures (not runtime) > H5 quiescent atomic rename selects a whole version; hash does not stop same-uid writes
+{"criterion":"H5","osCounterexample":"same uid directly rewrote published bytes; managed read detects but cannot prevent","isolation":false}
+
+stdout | tests/contract/d-artifact-handoff.test.ts > D deterministic phase-controlled races and failures (not runtime) > H7 write-failure leaves no half ref or implicit source replay
+{"criterion":"H7","kind":"write-failure","order":["check-live","write"],"commits":0,"visibleRefs":0,"sourceReplay":0}
+
+stdout | tests/contract/d-artifact-handoff.test.ts > D deterministic phase-controlled races and failures (not runtime) > H7 cancel-before-write leaves no half ref or implicit source replay
+{"criterion":"H7","kind":"cancel-before-write","order":["check-live"],"commits":0,"visibleRefs":0,"sourceReplay":0}
+
+stdout | tests/contract/d-artifact-handoff.test.ts > D deterministic phase-controlled races and failures (not runtime) > H7 cancel-after-rename leaves no half ref or implicit source replay
+{"criterion":"H7","kind":"cancel-after-rename","order":["check-live","write","check-live","rename","check-live"],"commits":1,"visibleRefs":0,"sourceReplay":0}
+
+stdout | tests/contract/d-artifact-handoff.test.ts > D deterministic phase-controlled races and failures (not runtime) > H7 deadline-after-rename leaves no half ref or implicit source replay
+{"criterion":"H7","kind":"deadline-after-rename","order":["check-live","write","check-live","rename","check-live"],"commits":1,"visibleRefs":0,"sourceReplay":0}
+
+stdout | tests/contract/d-artifact-handoff.test.ts > D deterministic phase-controlled races and failures (not runtime) > H7 reply-lost leaves no half ref or implicit source replay
+{"criterion":"H7","kind":"reply-lost","order":["check-live","write","check-live","rename","check-live"],"commits":1,"visibleRefs":1,"sourceReplay":0}
+
+stdout | tests/contract/d-artifact-handoff.test.ts > H5 external writer rendezvous between reads rejects a mixed buffer with deterministic order
+{"criterion":"H5","barrier":"awaited external writer between chunks","order":["read-1","second-read-blocked","external-write-completed","second-read-released","read-2"],"result":"mixed buffer refused before publication"}
+
+stdout | tests/contract/d-artifact-handoff.test.ts > H3 concurrent publication audit attaches each own ref rather than last registry entry
+{"criterion":"H3","interleaving":"two real commits before either C reply resumes","order":["committed:e7104975-1061-43c3-8fba-01e8d7552b1f","committed:840b2d1b-6e05-4de3-9974-978cb4eba514","reply:e7104975-1061-43c3-8fba-01e8d7552b1f","reply:840b2d1b-6e05-4de3-9974-978cb4eba514"],"result":"audit source matched own ref"}
+
+ ✓ tests/contract/d-artifact-handoff.test.ts (22 tests) 264ms
+ ✓ tests/integration/candidate-verification.test.ts (7 tests) 205ms
+ ✓ tests/contract/http-tools.test.ts (10 tests) 162ms
+ ✓ tests/contract/control-service.test.ts (31 tests) 490ms
+   ✓ plugin denies when the control service cannot answer > rejects when the service never replies, is unreachable, or replies with something unusable 409ms
+ ✓ tests/contract/d-candidate-package.test.ts (14 tests) 667ms
+   ✓ D interface two minimal package > P1 reconstructs multi-page manifest, candidate and file with exact bytes and hashes 331ms
+ ✓ tests/contract/hypothesis-lifecycle.test.ts (18 tests) 21ms
+ ✓ tests/contract/d-verifier-handoff.test.ts (10 tests) 841ms
+ ✓ tests/contract/intake-tools.test.ts (8 tests) 13ms
+ ✓ tests/contract/runtime-interactive-sessions.test.ts (10 tests) 950ms
+ ✓ tests/contract/responsibility-sessions.test.ts (10 tests) 7ms
+ ✓ tests/contract/run-prep.test.ts (13 tests) 1074ms
+ ✓ tests/contract/g-team-integration.test.ts (3 tests) 239ms
+ ✓ tests/contract/hypothesis-progress.test.ts (8 tests) 16ms
+ ✓ tests/contract/workspace-tools.test.ts (9 tests) 46ms
+ ✓ tests/integration/compaction-evidence.test.ts (7 tests) 590ms
+ ✓ tests/contract/opencode.test.ts (7 tests) 29ms
+ ✓ tests/contract/hypothesis-routes.test.ts (7 tests) 9ms
+ ✓ tests/contract/d-h7-rpc-stop.test.ts (3 tests) 51ms
+ ✓ tests/integration/verified-multiflag-candidate.test.ts (3 tests) 749ms
+ ✓ tests/integration/runtime-tar-gzip.test.ts (4 tests) 101ms
+ ✓ tests/integration/compaction-local-guards.test.ts (5 tests) 554ms
+ ✓ tests/integration/runtime-http-session.test.ts (2 tests) 43ms
+ ✓ tests/integration/multiflag-continuation.test.ts (4 tests) 19ms
+ ✓ tests/contract/responsibility-handoff.test.ts (37 tests) 7ms
+ ✓ tests/contract/contracts.test.ts (5 tests) 4ms
+ ✓ tests/contract/state.test.ts (4 tests) 23ms
+ ✓ tests/integration/long-job-continuation.test.ts (3 tests) 380ms
+   ✓ durable long-job continuation > releases the Worker, wakes from a terminal event, and claims one saved continuation 316ms
+ ✓ tests/integration/compaction-hypotheses.test.ts (3 tests) 14ms
+ ✓ tests/contract/job-tools.test.ts (9 tests) 2034ms
+   ✓ G-V5 managed jobs > kills the grandchild with the process group on timeout 1529ms
+ ✓ tests/contract/policy.test.ts (4 tests) 3ms
+ ✓ tests/bootstrap/test-harness.test.ts (4 tests) 26ms
+ ✓ tests/contract/responsibility-artifacts.test.ts (1 test) 7ms
+ ✓ tests/contract/opencode-config.test.ts (2 tests) 14ms
+ ✓ tests/contract/model.test.ts (4 tests) 24ms
+ ✓ tests/contract/platform.test.ts (2 tests) 10ms
+ ✓ tests/integration/compaction-process-restart.test.ts (2 tests) 1020ms
+   ✓ ctf-agent canonical local process restart > kills the original process, ignores misleading JSON export, resumes original raw range and exact next action once 604ms
+   ✓ ctf-agent canonical local process restart > two fresh CLI processes race for one canonical dispatch and execute once 416ms
+ ✓ tests/contract/runtime.test.ts (5 tests) 372ms
+ ✓ tests/contract/artifacts.test.ts (2 tests) 8ms
+ ✓ tests/integration/compaction-snapshot.test.ts (2 tests) 2ms
+ ✓ tests/contract/runtime-batch-output.test.ts (2 tests) 157ms
+ ✓ tests/contract/job-start-cleanup.test.ts (1 test) 254ms
+ ✓ tests/contract/g-coordinator-stop.test.ts (9 tests) 3446ms
+   ✓ completed jobs remain exited when stopped; abort failure and unknown reap never claim stopped 3069ms
+ ✓ tests/contract/launch-evidence.test.ts (12 tests) 5086ms
+   ✓ launch failure evidence with SDK stand-in only > keeps normal success and complete reported usage 658ms
+   ✓ launch failure evidence with SDK stand-in only > continues other bound sessions after children failure 586ms
+   ✓ launch failure evidence with SDK stand-in only > continues other bound sessions after export failure 589ms
+   ✓ launch failure evidence with SDK stand-in only > records real per-session abort results and continues remaining aborts 595ms
+   ✓ launch failure evidence with SDK stand-in only > keeps retained message consumption in the actual run file after abort zeroes it 562ms
+   ✓ launch failure evidence with SDK stand-in only > includes known SDK descendant usage even if the descendant never bound 569ms
+   ✓ launch failure evidence with SDK stand-in only > marks total as a lower bound if an unbound descendant export fails 579ms
+   ✓ launch failure evidence with SDK stand-in only > continues evidence writes and records a single-file write failure 583ms
+ ✓ tests/contract/g-async-lifecycle.test.ts (13 tests) 5604ms
+   ✓ default job.run returns terminal without wait/completion modes 5575ms
+ ✓ tests/contract/slow-tools.test.ts (21 tests) 14367ms
+   ✓ stop during registered workspace preparation returns bounded unknown and prevents a late job spawn 4005ms
+   ✓ C retains HTTP cleanup_unknown reservation when response persistence is blocked 1008ms
+   ✓ expiry cancels an already delivered job and refuses its handle after expiry 1027ms
+   ✓ unknown process-group cleanup keeps its session quota reserved 3034ms
+   ✓ terminal candidate keeps one execute pending beyond wait_ms, permits admission and incremental reads, then returns final result once 786ms
+   ✓ terminal candidate timeout and binding expiry do not return an early running handle 713ms
+   ✓ terminal candidate reports incomplete reaping as unknown and keeps its slot reserved 3106ms
+
+ Test Files  46 passed (46)
+      Tests  372 passed (372)
+   Start at  14:24:20
+   Duration  14.79s (transform 703ms, setup 0ms, collect 2.39s, tests 40.05s, environment 3ms, prepare 1.30s)
+

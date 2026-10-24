@@ -1,0 +1,69 @@
+
+ RUN  v2.1.8 /Users/caihaoming/.codex/worktrees/388a/pentest-agent
+
+ ❯ tests/contract/d-verifier-handoff.test.ts (9 tests | 1 failed) 371ms
+   × D third interface > V3 rejects replacement of prepared candidate/manifest and an input parent directory 54ms
+     → promise resolved "{ …(6) }" instead of rejecting
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/contract/d-verifier-handoff.test.ts > D third interface > V3 rejects replacement of prepared candidate/manifest and an input parent directory
+AssertionError: promise resolved "{ …(6) }" instead of rejecting
+
+- Expected
++ Received
+
+- [Error: rejected promise]
++ Object {
++   "exitCode": 0,
++   "inputAssociation": Object {
++     "after": "matched",
++     "argv": Array [
++       "/opt/homebrew/Cellar/node/26.3.0/bin/node",
++       "solve.cjs",
++     ],
++     "before": "matched",
++     "continuousIntegrity": "unknown",
++     "execution": "553151ae-f9ae-4995-af66-26d054eda854",
++     "files": Array [
++       Object {
++         "path": "solve.cjs",
++         "sha256": "9ae4336264e4c21d65169d453ebe26dab742b0fa62e44c72198ced00c4d4bac3",
++         "size": 33,
++       },
++       Object {
++         "path": "data/input.bin",
++         "sha256": "e9489f37fb3051e9efa1dc916004d7274e7b63975e3209708947267f2393a9be",
++         "size": 4,
++       },
++       Object {
++         "path": "evidence/raw.bin",
++         "sha256": "8af1702498192f6c0ac605c33a0f2deb4ec738ff6a5e84992c7af4a9ea068917",
++         "size": 16,
++       },
++     ],
++     "preparation": "0084e22e-437a-495a-b2cd-924fd934a83c",
++     "undeclaredDependencies": "unknown",
++     "version": "fc0d4e70-4502-4a63-9ecb-df200222a2ae",
++   },
++   "job": "16d67318-d73f-4c45-b483-31b49e1366d2",
++   "reapIncomplete": false,
++   "signal": null,
++   "state": "exited",
++ }
+
+ ❯ tests/contract/d-verifier-handoff.test.ts:113:109
+    111|    if(target==='manifest')await writeFile(join(work,r.manifestPath),'f…
+    112|    if(target==='directory'){await rename(join(work,r.directory,'data')…
+    113|    await expect(f.exec('verifier','job.run',{preparation:r.preparation…
+       |                                                                                                             ^
+    114|   }
+    115|  });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 8 passed (9)
+   Start at  14:06:37
+   Duration  631ms (transform 53ms, setup 0ms, collect 68ms, tests 371ms, environment 0ms, prepare 26ms)
+

@@ -1,0 +1,29 @@
+
+ RUN  v2.1.8 /Users/caihaoming/.codex/worktrees/388a/pentest-agent
+
+ ❯ tests/contract/d-verifier-handoff.test.ts (1 test | 1 failed) 9ms
+   × D third interface > V1/V2 binds a real execution before first read and prepares exact bytes 9ms
+     → denied: tool not permitted
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/contract/d-verifier-handoff.test.ts > D third interface > V1/V2 binds a real execution before first read and prepares exact bytes
+Error: denied: tool not permitted
+ ❯ ControlService.checkSolver apps/launcher/src/control-service.ts:529:75
+    527|       (name === 'http.request' && !['recon', 'domain-solver'].includes…
+    528|       (name === 'artifact.publish' && binding.role === 'verifier') ||
+    529|       (name.startsWith('package.') && binding.role !== 'engineer')) th…
+       |                                                                           ^
+    530|     if (!this.options.challenges?.some(c => c.id === binding.challenge…
+    531|   }
+ ❯ ControlService.prepareSolver apps/launcher/src/control-service.ts:551:10
+ ❯ ControlService.executeManaged apps/launcher/src/control-service.ts:517:50
+ ❯ apps/launcher/src/control-service.ts:209:32
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+ Test Files  1 failed (1)
+      Tests  1 failed (1)
+   Start at  14:00:37
+   Duration  308ms (transform 52ms, setup 0ms, collect 63ms, tests 9ms, environment 0ms, prepare 32ms)
+

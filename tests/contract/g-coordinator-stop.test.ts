@@ -19,8 +19,17 @@ async function fixture(target?: string) {
   c.bindRoot('root'); clean.push(() => c.stopAll('cleanup'));
   async function bind(id: string, role = 'recon') {
     identities[id] = { parentID: 'root', agent: role };
-    if (['recon','engineer','domain-solver','verifier'].includes(role)) await c.handle('root','tool.execute',{tool:'challenge.assign',args:{role,challenge:'X'}});
-    await c.handle('root','tool.before',{tool:'task',callID:`dispatch-${id}`,args:{subagent_type:role}});
+    let version:string|undefined;
+    if(role==='verifier'){if(![...c.bindings.values()].some(b=>b.role==='engineer'))await bind('d-engineer','engineer');
+      const engineer=[...c.bindings.values()].find(b=>b.role==='engineer')!.sessionID;
+      await c.handle(engineer,'tool.execute',{tool:'workspace.write',callID:'d-input-write',args:{path:'work/d-input',content:'x'}});
+      const a=await c.handle(engineer,'tool.execute',{tool:'artifact.publish',callID:'d-input-publish',args:{source:'file',path:'work/d-input'}}) as {ref:string};
+      const p=await c.handle(engineer,'tool.execute',{tool:'package.publish',callID:'d-package-publish',args:{candidate:{ref:a.ref,start:0,end:1},files:[],extraction:'all',premises:[]}}) as {version:string};
+      version=p.version;
+    }
+    if (['recon','engineer','domain-solver','verifier'].includes(role)) await c.handle('root','tool.execute',{tool:'challenge.assign',args:{role,challenge:'X',...(version?{version}:{})}});
+    await c.handle('root','tool.before',{tool:'task',callID:`dispatch-${id}`,args:{subagent_type:role,background:role==='engineer'||role==='verifier'}});
+    if(role==='engineer'||role==='verifier')await c.handle('root','tool.after',{tool:'task',callID:`dispatch-${id}`,metadata:{sessionId:id},output:'running'});
     await c.handle(id,'chat.message',{agent:role});
   }
   await bind('a'); await bind('b'); return { c, bind, abort, dir };

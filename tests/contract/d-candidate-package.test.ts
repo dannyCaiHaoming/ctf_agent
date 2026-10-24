@@ -12,7 +12,7 @@ async function fixture(){
  const client={session:{get:async({sessionID}:any)=>({data:{id:sessionID,parentID:'root',agent:sessionID==='other'?'engineer':sessionID}}),children:async()=>({data:[]}),messages:async()=>({data:[]}),abort:async()=>({data:true})}};
  const s=new ControlService({runId:'D-package',client:client as never,budget:{maxModelCalls:100,maxObservableTokens:100000},expiresAt:Date.now()+60000,workdir:join(root,'opencode'),skillRoot:join(root,'skills'),challenges:[{id:'X',title:null,target:null,reachability:null,materials:[{name:'input.bin',sha256:createHash('sha256').update(Buffer.from([0,255,13,10])).digest('hex'),bytes:4}],materialsDir},{id:'Y',title:null,target:null,reachability:null,materials:[],materialsDir:join(root,'Y/materials')}]});services.push(s);s.bindRoot('root');let n=0;
  const exec=(sid:string,tool:string,args:object={})=>s.handle(sid,'tool.execute',{tool,args,callID:'p'+(++n)}) as Promise<any>;
- async function bind(sid:string,role:string,challenge='X'){await exec('root','challenge.assign',{role,challenge});const callID='t'+(++n);await s.handle('root','tool.before',{tool:'task',callID,args:{subagent_type:role,background:true}});await s.handle('root','tool.after',{tool:'task',callID,metadata:{sessionId:sid},output:'running'});await s.handle(sid,'chat.message',{agent:role});}
+ async function bind(sid:string,role:string,challenge='X',version?:string){await exec('root','challenge.assign',{role,challenge,...(version?{version}:{})});const callID='t'+(++n);await s.handle('root','tool.before',{tool:'task',callID,args:{subagent_type:role,background:true}});await s.handle('root','tool.after',{tool:'task',callID,metadata:{sessionId:sid},output:'running'});await s.handle(sid,'chat.message',{agent:role});}
  await bind('domain-solver','domain-solver');await bind('engineer','engineer');
  const publish=async(sid:string,path:string,bytes:Buffer)=>{await exec(sid,'workspace.write',{path,content:bytes.toString('base64'),encoding:'base64'});return exec(sid,'artifact.publish',{source:'file',path});};
  const source=await publish('domain-solver','work/mixed.bin',Buffer.concat([Buffer.from('log\r\n旗{é}'),Buffer.from([0,255,13,10])]));
@@ -88,10 +88,11 @@ describe('D interface two minimal package',()=>{
   }expect(f.packages()).toHaveLength(0);
  });
  // The C admission boundary must match the role whitelist even for direct managed calls.
- it('P2 limits package publish and read to Engineer at hook and execution admission',async()=>{
+ it('P2 limits publication to Engineer and allows only bound Verifier reads',async()=>{
   const f=await fixture();const p=await f.exec('engineer','package.publish',f.args);
-  await f.bind('recon','recon');await f.bind('verifier','verifier');
+  await f.bind('recon','recon');await f.bind('verifier','verifier','X',p.version);
   for(const role of ['domain-solver','recon','verifier'])for(const [tool,args] of [['publish',f.args],['read',{version:p.version,component:'manifest'}]] as const){
+   if(role==='verifier'&&tool==='read'){expect(await f.exec(role,'package.read',args)).toHaveProperty('data');continue;}
    await expect(f.exec(role,`package.${tool}`,args)).rejects.toThrow('denied');
    await expect(f.s.handle(role,'tool.before',{tool:`ctf_package_${tool}`,args,callID:`role-${role}-${tool}`})).rejects.toThrow('denied');
   }expect(f.packages()).toHaveLength(1);

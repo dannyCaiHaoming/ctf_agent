@@ -1,0 +1,549 @@
+diff --git a/apps/launcher/src/candidate-package-tools.ts b/apps/launcher/src/candidate-package-tools.ts
+index 37d7562..3a7af2c 100644
+--- a/apps/launcher/src/candidate-package-tools.ts
++++ b/apps/launcher/src/candidate-package-tools.ts
+@@ -1,4 +1,7 @@
+ // D interface two: immutable candidate and solution package. One existing ArtifactPublisher commit fixes the whole package.
++import {mkdir,writeFile,rename,rm} from 'node:fs/promises';
++import {join} from 'node:path';
++import {randomUUID} from 'node:crypto';
+ import {createHash} from 'node:crypto';
+ import {z} from 'zod';
+ import {ArtifactPublisher,snapshotFile,type ArtifactSource,type Publication} from './artifact-tools.js';
+@@ -46,6 +49,28 @@ export class CandidatePackages {
+   const p=await this.artifacts.publish(ctx.dir,ctx.source,serialized,true,{},active);
+   return {version:p.ref,manifestSha256:p.sha256,manifestSize:p.size,snapshotFixed:true,candidateSize:bytes.length,candidateSha256:hash(bytes)};
+  }
++ async prepare(run:string,challenge:string,version:string,work:string,active:()=>void){
++  const all=async(component:string,path?:string)=>{
++   let cursor:string|undefined;const chunks:Buffer[]=[];
++   do{const p=await this.read(run,challenge,{version,component,...(path?{path}:{}),...(cursor?{cursor}:{})});chunks.push(Buffer.from(p.data,'base64'));cursor=p.nextCursor??undefined;active();}while(cursor);
++   return Buffer.concat(chunks);
++  };
++  const manifest=await all('manifest');const m=JSON.parse(manifest.toString()) as Manifest;
++  const id=randomUUID(),directory='verify-'+id+'/inputs',staging=join(work,'.prepare-'+id),final=join(work,'verify-'+id);
++  const files:{path:string;sha256:string;size:number}[]=[];
++  try{
++   await mkdir(join(staging,'inputs'),{recursive:true});
++   await writeFile(join(staging,'manifest.json'),manifest,{flag:'wx'});
++   const candidate=await all('candidate');await writeFile(join(staging,'candidate.bin'),candidate,{flag:'wx'});
++   for(const f of m.files){relative(f.path);const bytes=await all('file',f.path);active();const dest=join(staging,'inputs',f.path);await mkdir(join(dest,'..'),{recursive:true});await writeFile(dest,bytes,{flag:'wx'});files.push({path:f.path,sha256:hash(bytes),size:bytes.length});}
++   active();await rename(staging,final);active();
++   const p={ready:true,preparation:id,directory,manifestPath:'verify-'+id+'/manifest.json',candidatePath:'verify-'+id+'/candidate.bin',manifestSha256:hash(manifest),metadata:[{path:'verify-'+id+'/manifest.json',sha256:hash(manifest),size:manifest.length},{path:'verify-'+id+'/candidate.bin',sha256:hash(candidate),size:candidate.length}],files};
++   await this.checkPrepared(work,p);active();return p;
++  }catch(error){await rm(staging,{recursive:true,force:true});await rm(final,{recursive:true,force:true});throw error;}
++ }
++ async checkPrepared(work:string,p:{directory:string;metadata:{path:string;sha256:string;size:number}[];files:{path:string;sha256:string;size:number}[]}){
++  for(const f of [...p.metadata,...p.files.map(f=>({...f,path:p.directory+'/'+f.path}))]){const bytes=await snapshotFile(work,f.path.split('/'));if(bytes.length!==f.size||hash(bytes)!==f.sha256)deny();}
++ }
+  async read(run:string,challenge:string,args:Record<string,unknown>){
+   const parsed=readInput.safeParse(args);if(!parsed.success)deny();const a=parsed.data!;
+   if((a.component==='file')!==!!a.path)deny();
+diff --git a/apps/launcher/src/control-service.ts b/apps/launcher/src/control-service.ts
+index b6ed5d7..b92f48b 100644
+--- a/apps/launcher/src/control-service.ts
++++ b/apps/launcher/src/control-service.ts
+@@ -92,11 +92,12 @@ export function summarizeUsage(messages: Message[]): SessionUsage {
+   return usage;
+ }
+ 
+-export const SOLVER_TOOLS = ['workspace.list', 'workspace.read', 'workspace.search', 'workspace.write', 'http.request', 'job.run', 'job.read', 'job.cancel', 'artifact.publish', 'artifact.read', 'package.publish', 'package.read'];
++export const SOLVER_TOOLS = ['workspace.list', 'workspace.read', 'workspace.search', 'workspace.write', 'http.request', 'job.run', 'job.read', 'job.cancel', 'artifact.publish', 'artifact.read', 'package.publish', 'package.read', 'package.prepare'];
+ export const MANAGED_TOOLS = [...INTAKE_TOOLS, 'challenge.assign', 'challenge.unassign', 'task.stop', ...SOLVER_TOOLS];
+ interface Resource { run: string; sessionID: string; challengeId: string; callID: string; tool: string; state: 'active' | 'settled' | 'unknown'; result?: string; job?: string; controller: AbortController; deadline: number; execution?: string; timer?: ReturnType<typeof setTimeout>; done?: Promise<unknown>; detachRpc?: () => void }
+ interface TaskStopResult { state: 'stopped' | 'unknown' | 'completed' | 'failed'; resources: 'settled' | 'unknown'; sessionAbort: 'confirmed' | 'unknown' | 'not_required'; executionRef?: string }
+-interface Execution { ref: string; run: string; parent: string; callID: string; role: Role; challengeId?: string; childID?: string; state: 'starting' | 'running' | 'completed' | 'failed' | 'cancelled'; delivered: boolean; noticeMessageID?: string; delivery?: 'queued' | 'consumed' | 'suppressed' | 'stop_reply'; lateResult?: string; initialOutput?: string; result?: string }
++interface Execution { version?: string; ref: string; run: string; parent: string; callID: string; role: Role; challengeId?: string; childID?: string; state: 'starting' | 'running' | 'completed' | 'failed' | 'cancelled'; delivered: boolean; noticeMessageID?: string; delivery?: 'queued' | 'consumed' | 'suppressed' | 'stop_reply'; lateResult?: string; initialOutput?: string; result?: string }
++interface Preparation {sessionID:string;execution:string;version:string;directory:string;metadata:{path:string;sha256:string;size:number}[];files:{path:string;sha256:string;size:number}[]}
+ interface Outside { execute: () => Promise<unknown> }
+ 
+ export interface ControlOptions {
+@@ -124,7 +125,8 @@ export class ControlService {
+   readonly startedAt = Date.now();
+   private tail: Promise<unknown> = Promise.resolve();
+   private stopping?: Promise<void>;
+-  private readonly pending = new Map<string, Map<Role, { callID: string; challengeId?: string; childID?: string; background?: boolean }>>();
++  private readonly pending = new Map<string, Map<Role, { callID: string; challengeId?: string; childID?: string; background?: boolean; version?: string }>>();
++  private readonly versions = new Map<string, string>();
+   private readonly declarations = new Map<string, Map<Role, string>>();
+   private readonly executions = new Map<string, Execution>();
+   private readonly childStops = new Map<string, Promise<TaskStopResult>>();
+@@ -138,6 +140,12 @@ export class ControlService {
+   private readonly jobs: JobManager;
+   private readonly publications = new ArtifactPublisher();
+   private readonly packages = new CandidatePackages(this.publications);
++  private readonly preparations = new Map<string, Preparation>();
++  private verifierExecution(binding:Binding) {
++    const e=[...this.executions.values()].find(e=>e.childID===binding.sessionID&&e.state==='running');
++    if(!e?.version) throw new ControlDenied('verification version');
++    return e as Execution & {version:string};
++  }
+   private readonly fileSources = new Map<string,{sha256:string;source:ArtifactSource}>();
+   private readonly outputSources = new Map<string, {source: ArtifactSource; bytes?: Buffer; complete?: boolean}>();
+   publicationSnapshot() { return this.publications.snapshot(); }
+@@ -446,6 +454,7 @@ export class ControlService {
+       void this.stopAll('budget');
+       throw new ControlDenied('budget', JSON.stringify({ admitted: this.admitted, observedTokens: this.observed }));
+     }
++    if(binding.role==='verifier')this.verifierExecution(binding);
+     this.admitted++;
+     for (const e of this.executions.values()) if (e.parent === binding.sessionID && e.delivery === 'queued' && e.noticeMessageID === body.messageID) { e.delivery = 'consumed'; this.record(binding.sessionID, 'task.delivered', true, undefined, {ref: e.ref, messageID: body.messageID, admitNo: this.admitted}); }
+     return { maxOutputTokens: maxObservableTokens - this.observed, admitNo: this.admitted, role: binding.role };
+@@ -472,7 +481,8 @@ export class ControlService {
+       if (args.background === true) {
+         const ref = randomUUID();
+         const taskID = typeof args.task_id === 'string' ? args.task_id : undefined;
+-        this.executions.set(ref, { ref, run: this.options.runId ?? 'run', parent: binding.sessionID, callID: String(body.callID), role: args.subagent_type as Role, challengeId: taskID ? this.bindings.get(taskID)?.challengeId : this.pending.get(binding.sessionID)?.get(args.subagent_type as Role)?.challengeId, childID: taskID, state: taskID ? 'running' : 'starting', delivered: false });
++        this.executions.set(ref, { ref, run: this.options.runId ?? 'run', parent: binding.sessionID, callID: String(body.callID), role: args.subagent_type as Role, version: this.versions.get(binding.sessionID+'/'+String(args.subagent_type)), challengeId: taskID ? this.bindings.get(taskID)?.challengeId : this.pending.get(binding.sessionID)?.get(args.subagent_type as Role)?.challengeId, childID: taskID, state: taskID ? 'running' : 'starting', delivered: false });
++        this.versions.delete(binding.sessionID+'/'+String(args.subagent_type));
+         this.record(binding.sessionID, 'task.execution', true, undefined, {...this.executions.get(ref)});
+         return { allowed: true, taskDescription: `[ctf:${ref}]` };
+       }
+@@ -501,18 +511,23 @@ export class ControlService {
+       return { execute: async () => ({ ...await stopped, alreadyStopped }) };
+     }
+     if (name === 'challenge.assign' || name === 'challenge.unassign') {
+-      const { role, challenge } = this.checkDeclaration(binding, body.args, name === 'challenge.assign');
++      const { role, challenge, version } = this.checkDeclaration(binding, body.args, name === 'challenge.assign');
+       this.live(binding);
+       if (name === 'challenge.unassign') {
++        this.versions.delete(binding.sessionID+'/'+role);
+         const cleared = this.declarations.get(binding.sessionID)?.delete(role) ?? false;
+         this.record(binding.sessionID, 'assign.clear', true, undefined, { role, cleared });
+         return { cleared };
+       }
+-      const declared = this.declarations.get(binding.sessionID) ?? new Map<Role, string>();
+-      declared.set(role, challenge!);
+-      this.declarations.set(binding.sessionID, declared);
+-      this.record(binding.sessionID, 'assign', true, undefined, { role, challenge });
+-      return { challenge };
++      const commit=()=>{
++        this.checkDeclaration(binding,body.args,true);this.live(binding);
++        const declared=this.declarations.get(binding.sessionID)??new Map<Role,string>();
++        declared.set(role,challenge!);this.declarations.set(binding.sessionID,declared);
++        if(version)this.versions.set(binding.sessionID+'/'+role,version);
++        this.record(binding.sessionID,'assign',true,undefined,{role,challenge,version});return {challenge,version};
++      };
++      if(version)return {execute:async()=>{await this.packages.read(this.options.runId??'run',challenge!,{version,component:'manifest'});return this.serial(commit);}};
++      return commit();
+     }
+     if (SOLVER_TOOLS.includes(name)) return this.prepareSolver(binding, name, (body.args ?? {}) as Record<string, unknown>, body.callID, signal);
+     if (!INTAKE_TOOLS.includes(name)) throw new ControlDenied('no managed tools');
+@@ -526,7 +541,9 @@ export class ControlService {
+     if (!binding.challengeId || !CHALLENGE_ROLES.includes(binding.role) ||
+       (name === 'http.request' && !['recon', 'domain-solver'].includes(binding.role)) ||
+       (name === 'artifact.publish' && binding.role === 'verifier') ||
+-      (name.startsWith('package.') && binding.role !== 'engineer')) throw new ControlDenied('tool not permitted');
++      (name === 'package.publish' && binding.role !== 'engineer') ||
++      (name === 'package.read' && !['engineer','verifier'].includes(binding.role)) ||
++      (name === 'package.prepare' && binding.role !== 'verifier')) throw new ControlDenied('tool not permitted');
+     if (!this.options.challenges?.some(c => c.id === binding.challengeId)) throw new ControlDenied('challenge outside run');
+   }
+ 
+@@ -554,6 +571,10 @@ export class ControlService {
+     if (this.resources.has(key)) throw new ControlDenied('duplicate tool call');
+     const active = [...this.resources.values()].filter(r => r.state !== 'settled');
+     if (name === 'http.request' && active.filter(r => r.tool === name && r.challengeId === binding.challengeId).length >= 8) throw new ControlDenied('http limit');
++    if(binding.role==='verifier'&&['package.read','package.prepare','job.run'].includes(name)) {
++      const e=this.verifierExecution(binding);
++      if(name==='package.read'&&args.version!==e.version)throw new ControlDenied('verification version');
++    }
+     this.waitLimit(binding, name, args);
+     const duration = name === 'http.request' ? Math.min(typeof args.timeout_ms === 'number' ? args.timeout_ms : 15000, 60000) :
+       name === 'job.run' ? Math.min(typeof args.timeout_ms === 'number' ? args.timeout_ms : 60000, 600000) : 15000;
+@@ -590,8 +611,27 @@ export class ControlService {
+             result=operation.execution?{...response,resource}:response;
+           } else if (name === 'job.run') {
+             const jobBinding = this.jobBinding(binding, roots);
++            let association:Record<string,unknown>|undefined;
++            let preparation:Preparation|undefined;
++            if(binding.role==='verifier') {
++              const e=this.verifierExecution(binding);
++              if(Object.keys(args).some(k=>!['argv','timeout_ms','wait_ms','completion','preparation'].includes(k)))throw new ControlDenied('job arguments');
++              preparation=typeof args.preparation==='string'?this.preparations.get(args.preparation):undefined;
++              if(!preparation||preparation.sessionID!==binding.sessionID||preparation.execution!==e.ref||preparation.version!==e.version)throw new ControlDenied('preparation');
++              await this.packages.checkPrepared(roots.workDir,preparation);
++              operation.controller.signal.throwIfAborted();this.live(binding);
++              if(this.verifierExecution(binding).ref!==operation.execution)throw new ControlDenied('verification execution');
++              jobBinding.workDir=join(roots.workDir,preparation.directory);
++              association={version:e.version,preparation:args.preparation,execution:e.ref,argv:args.argv,files:preparation.files,metadata:preparation.metadata,before:'matched',after:'pending',continuousIntegrity:'unknown',undeclaredDependencies:'unknown'};
++              this.record(binding.sessionID,'verification.job.input',true,undefined,structuredClone(association));
++            }
+             result = await this.jobs.run(jobBinding, args, { signal: operation.controller.signal, deadline: operation.deadline, onRegistered: job => { operation.job = job; if(operation.execution) this.outputSources.set(job,{source:{...this.source(binding,'job',job,operation.execution),callID:call}}); } });
+-            const done = this.jobs.waitSettled(jobBinding, operation.job!);
++            const done = this.jobs.waitSettled(jobBinding, operation.job!).then(async snapshot=>{
++              if(association&&preparation){try{await this.packages.checkPrepared(roots.workDir,preparation);association.after='matched';}catch{association.after='changed_or_unreadable';}
++                this.record(binding.sessionID,'verification.job.terminal',true,undefined,{...association,job:operation.job,terminal:snapshot});
++                return {...snapshot,inputAssociation:association};}
++              return snapshot;
++            });
+             keep = true;
+             void done.then(snapshot => this.settleResource(operation, snapshot.reapIncomplete ? 'cleanup_unknown' : snapshot.state));
+             // Decision prototype: retain the same RPC/call until terminal cleanup, without a model polling loop.
+@@ -626,6 +666,14 @@ export class ControlService {
+             result=await this.packages.publish({source:this.source(binding,'package',call,operation.execution),dir:roots.publishedDir,challenge:this.options.challenges!.find(c=>c.id===binding.challengeId)!},args,()=>{operation.controller.signal.throwIfAborted();this.live(binding);});
+             this.record(binding.sessionID,'package.published',true,undefined,this.publicationSnapshot().find(p=>p.ref===(result as {version:string}).version));
+           } else if(name==='package.read') result=await this.packages.read(operation.run,binding.challengeId!,args);
++          else if(name==='package.prepare') {
++            if(Object.keys(args).length)throw new ControlDenied('prepare arguments');
++            const e=this.verifierExecution(binding);
++            const p=await this.packages.prepare(operation.run,binding.challengeId!,e.version,roots.workDir,()=>{operation.controller.signal.throwIfAborted();this.live(binding);if(this.verifierExecution(binding).ref!==e.ref)throw new ControlDenied('verification execution');});
++            this.preparations.set(p.preparation,{...p,sessionID:binding.sessionID,execution:e.ref,version:e.version});
++            this.record(binding.sessionID,'package.prepared',true,undefined,{...p,execution:e.ref,version:e.version});
++            result={...p,execution:e.ref,version:e.version};
++          }
+           else if(name==='artifact.read') result=await this.publications.read(operation.run,binding.challengeId!,args);
+           else if (name === 'job.read') result = this.jobs.read(this.jobBinding(binding, roots), args);
+           else if (name === 'job.cancel') result = await this.jobs.cancel(this.jobBinding(binding, roots), args.job);
+@@ -707,7 +755,7 @@ export class ControlService {
+   }
+ 
+   /** G §2.1: declarations are distinct from in-flight dispatches and survive model admissions. */
+-  private checkDeclaration(binding: Binding, raw: unknown, assigning: boolean): { role: Role; challenge?: string } {
++  private checkDeclaration(binding: Binding, raw: unknown, assigning: boolean): { role: Role; challenge?: string; version?:string } {
+     if (binding.role !== 'coordinator') throw new ControlDenied('tool not permitted');
+     const args = (raw && typeof raw === 'object' ? raw : {}) as Record<string, unknown>;
+     const role = args.role;
+@@ -717,7 +765,10 @@ export class ControlService {
+     if (this.declarations.get(binding.sessionID)?.has(role)) throw new ControlDenied('dispatch', 'challenge already declared');
+     const challenge = args.challenge;
+     if (typeof challenge !== 'string' || !this.options.challenges?.some(c => c.id === challenge)) throw new ControlDenied('dispatch', 'challenge outside run');
+-    return { role, challenge };
++    const version=args.version;
++    if(role==='verifier'&&(typeof version!=='string'||!version))throw new ControlDenied('verification version');
++    if(role!=='verifier'&&version!==undefined)throw new ControlDenied('verification role');
++    return { role, challenge,version:version as string|undefined };
+   }
+ 
+   private async checkReadPath(args: Record<string, unknown>): Promise<void> {
+@@ -744,6 +795,7 @@ export class ControlService {
+       if (!owned || owned.parent !== binding.sessionID || owned.role !== role || !child) throw new ControlDenied('dispatch', 'task id not owned');
+       this.live(child);
+       if ([...this.executions.values()].some(e => e.childID === taskId && (e.state === 'starting' || e.state === 'running'))) throw new ControlDenied('dispatch', 'execution still active');
++      if(role==='verifier'&&!this.versions.has(binding.sessionID+'/'+role))throw new ControlDenied('verification version');
+       const declared = this.declarations.get(binding.sessionID)?.get(role);
+       if (declared !== undefined && declared !== child.challengeId) throw new ControlDenied('dispatch', 'declared challenge differs from resumed session');
+       this.declarations.get(binding.sessionID)?.delete(role);
+@@ -754,7 +806,8 @@ export class ControlService {
+     if (byRole.has(role)) throw new ControlDenied('dispatch', 'pending dispatch exists for role');
+     const challengeId = this.declarations.get(binding.sessionID)?.get(role);
+     if (CHALLENGE_ROLES.includes(role) && challengeId === undefined) throw new ControlDenied('dispatch', 'no challenge declared for role');
+-    byRole.set(role, { callID, challengeId, background: args.background === true });
++    if(role==='verifier'&&args.background!==true)throw new ControlDenied('verification execution');
++    byRole.set(role, { callID, challengeId, background: args.background === true,version:this.versions.get(binding.sessionID+'/'+role) });
+     this.declarations.get(binding.sessionID)?.delete(role);
+     this.record(binding.sessionID, 'dispatch.register', true, undefined, { role, callID, challengeId });
+     this.pending.set(binding.sessionID, byRole);
+diff --git a/apps/opencode-plugin/src/index.ts b/apps/opencode-plugin/src/index.ts
+index 9703884..6edd07d 100644
+--- a/apps/opencode-plugin/src/index.ts
++++ b/apps/opencode-plugin/src/index.ts
+@@ -12,18 +12,19 @@ export interface CTFPluginOptions {
+ export const pluginId = 'ctf-agent-host-foundation';
+ const packageEntry={path:tool.schema.string(),purpose:tool.schema.enum(['script','input','evidence'])};
+ const schemas = {
++  'package.prepare': {},
+   'package.publish': {candidate:tool.schema.object({ref:tool.schema.string(),start:tool.schema.number().int().nonnegative(),end:tool.schema.number().int().nonnegative()}),files:tool.schema.array(tool.schema.discriminatedUnion('kind',[tool.schema.object({kind:tool.schema.literal('artifact'),ref:tool.schema.string(),...packageEntry}),tool.schema.object({kind:tool.schema.literal('material'),name:tool.schema.string(),...packageEntry})])).max(32),argv:tool.schema.array(tool.schema.string()).max(32).optional(),extraction:tool.schema.string(),premises:tool.schema.array(tool.schema.string()).max(32)},
+   'package.read': {version:tool.schema.string(),component:tool.schema.enum(['manifest','candidate','file']),path:tool.schema.string().optional(),cursor:tool.schema.string().optional()},
+   'artifact.publish': {source:tool.schema.enum(['file','job','http']),path:tool.schema.string().optional(),job:tool.schema.string().optional(),stream:tool.schema.enum(['stdout','stderr']).optional(),resource:tool.schema.string().optional(),start:tool.schema.number().int().nonnegative().optional(),end:tool.schema.number().int().nonnegative().optional()},
+   'artifact.read': {ref:tool.schema.string(),cursor:tool.schema.string().optional()},
+-  'challenge.assign': { role: tool.schema.enum(['recon', 'domain-solver', 'engineer', 'verifier']), challenge: tool.schema.string().min(1) },
++  'challenge.assign': { role: tool.schema.enum(['recon', 'domain-solver', 'engineer', 'verifier']), challenge: tool.schema.string().min(1), version:tool.schema.string().optional() },
+   'challenge.unassign': { role: tool.schema.enum(['recon', 'domain-solver', 'engineer', 'verifier']) },
+   'workspace.list': { path: tool.schema.string().optional() },
+   'workspace.read': { path: tool.schema.string(), cursor: tool.schema.string().optional() },
+   'workspace.search': { path: tool.schema.string().optional(), needle: tool.schema.string().min(1) },
+   'workspace.write': { path: tool.schema.string(), content: tool.schema.string(), encoding: tool.schema.enum(['utf8', 'base64']).optional() },
+   'task.stop': { task_id: tool.schema.string().min(1).max(128) },
+-  'job.run': { argv: tool.schema.array(tool.schema.string()).min(1).max(32), timeout_ms: tool.schema.number().int().positive().max(600000).optional() },
++  'job.run': { preparation:tool.schema.string().optional(), argv: tool.schema.array(tool.schema.string()).min(1).max(32), timeout_ms: tool.schema.number().int().positive().max(600000).optional() },
+   'job.read': { job: tool.schema.string().uuid(), stream: tool.schema.enum(['stdout', 'stderr']), cursor: tool.schema.string().optional() },
+   'job.cancel': { job: tool.schema.string().uuid() },
+   'http.request': { url: tool.schema.string().url(), method: tool.schema.enum(['GET', 'HEAD', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS']).optional(),
+@@ -33,11 +34,13 @@ const schemas = {
+   'challenge.read': { id: tool.schema.string().min(1), path: tool.schema.string().min(1), cursor: tool.schema.string().regex(/^\d{1,15}$/).optional() }
+ };
+ const descriptions: Record<string, string> = {
++  'package.prepare': 'Verifier only: prepare the host-bound version into a new private work subdirectory. No arguments. Host copies exact manifest paths and bytes, returns preparation handle, directory, manifestPath, candidatePath and hashes. Preparation does not execute argv. Use job.run with preparation and actual argv; no invented receipt. Before/after matching hashes cannot prove continuous integrity or all dependencies; those remain unknown. No verified or solved claim. Transport failure may follow preparation: pause affected handoff, no blind resend.',
++  'challenge.assign': 'Coordinator: declare challenge for the next native task. Verifier additionally requires the actual fixed package version, validated by the host before first admission. Each resumed execution needs an explicit new declaration. A prompt is not authorization.',
+   'package.publish': 'Engineer only: fix a candidate and solution package. Fix a whole package once: candidate is a published ref and exact nonempty half-open byte range; files select published refs or E material names, each with an unambiguous relative path and script/input/evidence purpose. Supply proposed argv (optional), extraction explanation and premises. At most 32 files; the serialized envelope, including base64 and metadata, is bounded to 1 MiB. No text normalization or automatic execution. Returned version refers to the whole package; hand off that actual version through native task completion. Incomplete/unknown provenance stays incomplete/unknown. Not verified or solved. Transport failure can follow commit: pause unconfirmed handoff; never blindly republish or rerun source. No unknown lock or recovery.',
+-  'package.read': 'Engineer only: read one explicit whole-package version from this run/challenge. component manifest or candidate, or file with exact manifest path. Base64 pages (32768 bytes); follow nextCursor until null. Rechecks immutable package and every dependency. No latest alias. No validation/solved claim.',
++  'package.read': 'Engineer or version-bound Verifier: read one explicit whole-package version from this run/challenge. component manifest or candidate, or file with exact manifest path. Base64 pages (32768 bytes); follow nextCursor until null. Rechecks immutable package and every dependency. No latest alias. No validation/solved claim.',
+   'artifact.publish': 'Fix an immutable snapshot from your own completed source in a native background task. Use exactly one source: {source:"file",path:"work/..."} after all writes/jobs finish; {source:"job",job,stream:"stdout"|"stderr"} after job cleanup; or {source:"http",resource} from the HTTP reply. Optional start/end select a half-open byte range [start,end), default all captured bytes. Files/streams are bounded to 1 MiB. The host returns ref/path/sha256/size and snapshotFixed (fixed bytes), rangeComplete (selected captured range), originalComplete (source completeness; null means unknown). A fixed range does not prove complete original output; unknown file producers are not inferred. Hand off the actual returned ref and necessary explanation through native task completion, never a private work path or invented identity/hash. Publication is not Engineer receipt, candidate registration, verified or solved. A transport error may follow a committed publication: keep this handoff unconfirmed and paused; do not rerun the source job/HTTP or blindly republish. There is no recovery or automatic unknown lock.',
+   'artifact.read': 'Read a host-issued ref from the same run and challenge: {ref,cursor?}. Decode data as base64; pages contain at most 32768 bytes. Pass the previous nextCursor unchanged until it is null for all bytes you need. Check snapshotFixed, rangeComplete and originalComplete separately; fixed bytes or a complete selected range do not prove the original source was complete. Confirm receipt only after actually reading the required bytes and completeness markers. No sibling work access. Edit in your own work and publish a new ref for changes; publication/read alone do not register a candidate or set verified/solved.',
+-  'job.run': 'Start one managed job and wait in this call until terminal cleanup. Output remains bounded and readable after completion. Host timeout and lifetime bound execution.',
++  'job.run': 'Verifier must supply host preparation handle and actual argv; cwd is prepared inputs. Host records version/input hashes and actual command; continuous integrity and undeclared dependencies remain unknown. Start one managed job and wait in this call until terminal cleanup. Output remains bounded and readable after completion. Host timeout and lifetime bound execution.',
+   'challenge.list': 'List every challenge of this run: id, title, authorized network target (or "無網路目標"), time of the start-up reachability check, and the pinned material files with size and sha256. Takes no arguments. The statement is the material statement.md.',
+   'challenge.read': 'Read one pinned material file of a challenge. Arguments: id (challenge id from challenge.list), path (file name relative to that challenge\'s materials, e.g. "statement.md"), cursor (optional, the nextCursor of the previous page). Text is returned in pages with nextCursor (null on the last page); a binary file returns only its size and first 8 bytes as hex. Read-only.'
+ };
+diff --git a/docs/superpowers/specs/2026-10-24-design-v1-d-candidate-verification-minimal.md b/docs/superpowers/specs/2026-10-24-design-v1-d-candidate-verification-minimal.md
+index 65ddde9..5ffb203 100644
+--- a/docs/superpowers/specs/2026-10-24-design-v1-d-candidate-verification-minimal.md
++++ b/docs/superpowers/specs/2026-10-24-design-v1-d-candidate-verification-minimal.md
+@@ -2,7 +2,7 @@
+ 
+ 記錄日期：2026-10-24（Asia/Tokyo）。
+ 
+-**狀態：接口一按首題最小邊界已接入主工作區並完成主區無模型回歸。H1 原完整條件未通過及 H5/H7 限制保留。接口二已按核對版本接入主區並完成無模型回歸；後三接口仍為待驗候選。** 本文是 [核心 design v1](2026-10-22-ctf-agent-design-v1.md) 第 2 節 D 的詳細子文件；D 的接口細節與待決問題以本文為準。本文只寫設計，不授權產品修改、驗證 session、真實模型運行或 commit。下文「推薦候選」是本次設計建議，不冒稱已驗證或已批准的外部接口。
++**狀態：接口一按首題最小邊界已接入主工作區並完成主區無模型回歸。H1 原完整條件未通過及 H5/H7 限制保留。接口二已按核對版本接入主區並完成無模型回歸；接口三已在專屬隔離工作樹完成無模型原型驗證，V3 完整固定輸入執行證明仍不成立，主 session 獨立核對／主區接入待做；接口四、五仍為待驗候選。** 本文是 [核心 design v1](2026-10-22-ctf-agent-design-v1.md) 第 2 節 D 的詳細子文件；D 的接口細節與待決問題以本文為準。本文只寫設計，不授權產品修改、驗證 session、真實模型運行或 commit。下文「推薦候選」是本次設計建議，不冒稱已驗證或已批准的外部接口。
+ 
+ ## 1. 目的與範圍
+ 
+@@ -196,7 +196,7 @@ P3 曾暴露 snapshotFile 將父目錄新增 sibling 的 metadata 變化誤判
+ 
+ ### 主區接入（2026-10-24）
+ 
+-使用者授權後已將核對版本的13個產品／測試／角色文件接入主區，hash 與 9b7d 最終版本一致；前節為接入前歷史。主區 typecheck/build exit 0、全套362/362；同一新批原生四場景通過，包提交1/1/0/1。原始bytes、版本依賴、實際載入正文及資源終態已核對，見 [主區接入記錄](../../gates/d-artifact-handoff-20261024/candidate-package/integration/main-20261024/README.md)。第一接口依賴與舊失敗保留，未加入延後項或後三接口；無真實模型調用。完成的驗證／實現 plan 已清理，第二接口的驗證與實現子 session 已歸檔；ae52／9b7d 工作樹原生歸檔均被應用以主工作目錄不可移除拒絕，仍保留，未冒稱清理完成。此狀態不代表獨立驗證、可信判定或 solved 已完成。
++使用者授權後已將核對版本的13個產品／測試／角色文件接入主區，hash 與 9b7d 最終版本一致；前節為接入前歷史。主區 typecheck/build exit 0、全套362/362；同一新批原生四場景通過，包提交1/1/0/1。原始bytes、版本依賴、實際載入正文及資源終態已核對，見 [主區接入記錄](../../gates/d-artifact-handoff-20261024/candidate-package/integration/main-20261024/README.md)。第一接口依賴與舊失敗保留，未加入延後項或後三接口；無真實模型調用。完成的驗證／實現 plan 已清理，第二接口的驗證與實現子 session 已歸檔；ae52／9b7d 工作樹最初因主工作目錄限制拒絕直接移除，聊天歸檔後應用已自動清理；後續核對代碼與失敗證據均已保存，僅餘空名稱標記亦已清除，其他工作樹不變。此狀態不代表獨立驗證、可信判定或 solved 已完成。
+ 
+ ## 5. 接口三：固定材料交給獨立 Verifier
+ 
+@@ -204,17 +204,38 @@ P3 曾暴露 snapshotFile 將父目錄新增 sibling 的 metadata 變化誤判
+ 
+ Coordinator 決定何時驗證，沿用 G 的 assign 與原生 task 分派獨立 Verifier 會話。Verifier 接收固定候選／解法包、必要題面與證據，以及明示的前提和未知項，不接收 Solver 完整推理上下文。不得以另一個自造 session ID 冒充獨立。
+ 
+-### 推薦候選與待驗契約
++### 首題接口三原型契約（隔離無模型已驗，主核對／接入待做）
++
++復用接口一 ArtifactPublisher 與接口二 CandidatePackages，不新建候選 registry。Coordinator 在既有 challenge.assign 聲明中指定送驗 version；宿主校驗同 run／同題及完整包，將版本隨原生 task callID 綁到 C 核實的 Verifier session 與本次 execution。版本不是 prompt 授權；首次驗證操作之前必須已綁定。新 execution 必須明確重新指定版本，不能默認沿用上次候選；錯題、錯角色、外來 task 或遲到 child 不得取得綁定。具體欄位與線性化位置由原型驗證後定稿。
++
++Verifier 復用 package.read，只能以本次綁定版本作正式驗證輸入；Engineer 原有讀寫權不變，Verifier 無 package.publish、artifact.publish、普通 HTTP 或提交權。既有同題 artifact/materials 讀取保留，但讀過其他資料不等於已驗該版本。原生 task 只交接題面、固定包引用、必要證據、前提與未知項，不帶 Solver 完整推理。
++
++需要執行時，推薦由宿主依 manifest 將固定 bytes 準備到 Verifier 自己 work 中本次 execution 的專用子目錄，核對精確路徑與 hash；不得讓模型抄寫 base64 代替交接。準備失敗／停止不能標成 ready；不能覆寫其他工作或讀 sibling work。Verifier 自寫檢查腳本須與包內原腳本分清來源。包 argv 仍是 proposed，準備不自動執行。
++
++復用 G job 真實執行與原始輸出，補充 version、準備輸入、實際 argv、session/execution、job 及終態的宿主關聯。模型提交的 receipt 不構成證據。執行前／後 hash 只證明檢查時點內容；不能據此聲稱已捕獲任意腳本全部依賴或排除中途改寫再恢復。原型須測試並記錄修改、替換與並發寫邊界：能拒絕則拒絕，無法可信證明使用版本則標為未知，不產生虛假的固定輸入執行證明。不為補足該聲明引入強隔離部署。
++
++首題先打通固定材料讀取與本地 recompute；重算相同 bytes 不等於解法正確。evidence_audit 保留來源、順序、完整性與不可重放原因的審核材料，證據不足為 inconclusive，不用它掩蓋缺失重放能力。普通 HTTP／通用 replay 延後；只有實際題目需要時再提出具體可信通道與狀態條件。
++
++### 本輪結論、條件與去向（2026-10-24）
++
++版本：隔離工作樹 `/Users/caihaoming/.codex/worktrees/388a/pentest-agent`，HEAD `abe7d6e82cd6ebf96641acd9403a848e6d02c04d` 上未提交原型；Node 26.3.0、OpenCode 1.19.3、SDK/plugin 1.19.0。最終同源批次為 [runtime-final-2](../../gates/d-artifact-handoff-20261024/verifier-handoff/runtime-final-2/)，27 個產品／角色／測試來源的副本及 hash 隨批保存；作者核對結果見 [verification-final.json](../../gates/d-artifact-handoff-20261024/verifier-handoff/verification-final.json)。主 session 獨立核對尚未完成，不代表主區已接入。
++
++| 契約 | 判定及實際邊界 |
++| --- | --- |
++| V1 版本／任務綁定 | **最小契約成立。** `challenge.assign(role,challenge,version?)` 只在 Verifier 要求 version；先核對同 run／同題整包，再串行提交宣告。原生 task before 消費宣告至 callID 對應 execution，C 再核實真實 child；首個 Verifier 模型准入前已有 version。錯角色、錯題、外來版本／task、遲到 child、缺版本及舊 preparation 拒絕；同 session 新 execution 必須明確重綁。原生 runtime 保存 assign→execution→bind→首准入順序；不同 execution 的邊界另由 contract 測試覆蓋。 |
++| V2 固定材料交付 | **在可信穩定 work 根、無不受管並發寫入條件下成立。** `package.read` 重用整包／依賴校驗及 32768-byte 分頁；Verifier 正式讀取僅接受綁定版本。`package.prepare({})` 不接收身份、路徑、hash 或自填 bytes；宿主建立唯一 `verify-<uuid>/`，`inputs/` 保留 manifest 文件路徑，候選及 manifest 副本獨立置於父目錄。先 staging、再 rename、最終存活／hash 校驗後登記 ready；失敗／停止清除半準備，不覆寫其他 work。正常 runtime 真實交接 20-byte 原產物與 9-byte 二進位候選、CRLF/UTF-8、artifact 和 E 材料；多頁與損壞／路徑替換為 contract 證據。 |
++| V3 執行輸入關聯 | **部分成立；完整固定輸入執行證明未成立。** Verifier `job.run` 要求本次 session/execution/version 的宿主 preparation，cwd 指向其 inputs；校驗候選／manifest／全部列明文件，保存版本、實際 argv、文件 hash、真實 job、原 stdout/stderr 與終態。假 receipt、偽句柄、準備後改寫／symlink／父路徑替換，以及等待校驗時舊 execution 被重綁，均拒絕。執行後永久修改記 `changed_or_unreadable`。真實反例先改寫再恢復並讀取未聲明文件，前後 hash 均 matched，而輸出為 `CHANGEDUNDECLARED`；所以所有作業的 `continuousIntegrity`、`undeclaredDependencies` 固定為 `unknown`，不從端點檢查推論讀取時點或完整依賴。 |
++| V4 停止與遲到 | **本次最小停止／傳輸契約成立。** 同一最終來源完整跑六案：正常、準備回复丟失、準備在途停止、job 讀到準備的 20 bytes 後在途停止、已 ready 後回复遲到、預算拒絕。停止由 Recon 原生完成通知喚醒 Coordinator，再經 plugin/C `task.stop`，不用 SDK resume child。準備先停無 ready／殘目錄；job 取消且資源 settled；ready 先勝則保留已準備事實，遲到回复被 native abort 丟棄。預算案 run 為 `budget_exceeded`（預期的停止，不是正常成功），下一 Verifier 請求被拒且無 job 啟動。 |
++
++**精確聲明與推薦決策。** 保留上述最小接口原型，供主 session 核對後選擇是否接入；V1/V2 可作首題材料交接，V3 僅交付可信來源關聯及端點檢查，不能當完整固定輸入執行證明。若實際題目需要對任意並發或未聲明依賴給出確定證明，須另行解決具體隔離／依賴能力，不能用本輪結果冒充已驗。沒有為本輪加入容器、通用依賴捕獲或強隔離。
+ 
+-宿主先登記待驗的候選／解法包版本，再將該次驗證綁到 C 核實的 Verifier session 與 execution。具體透過哪個受管入口登記、如何與原生分派銜接仍待驗；不從 prompt 自由文字決定授權，不建立另一套 ResponsibilityRegistry 會話身份。
++**證據層次與限制。** 最終正常案同一 run 完成 E→Solver 真實發布→Coordinator→Engineer 真實讀／整理／固定→Coordinator 指定版本→獨立 Verifier 讀／宿主準備／真實本地 job→原生交回；沒有預置 published 或拼接不同批成功。正常作業輸出 9 bytes 相等，只證明重算接線，不證明解法／候選語義正確。六案共 244 次 loopback 預定替身請求，真實模型調用 0，真實 usage `unavailable`。角色全文、實際載入工具／描述、provider 原請求、messages、execution、binding/admission/resource、固定包與原 bytes 均保存。原生 cwd／instructions 的路徑可見性、同 uid 文件／網路邊界沿用已知限制，沒有重標為通過。
+ 
+-Verifier 在自己的 work 準備必要文件，用 G 已有工具操作，結果沿用原生完成交付。job／HTTP 輸出記錄要能追溯到此次真實執行及所用固定輸入，不能由模型上傳一份聲稱「執行成功」的 JSON 取代。如何把固定輸入複製到驗證 work、比對實際使用版本與命令，是 D/G 的直接接口問題；不預先假設任意腳本全部依賴都能被自動捕獲。
++回复丟失時 C 已準備完成，而 plugin 返回 `denied: control unavailable`；調用方不能猜未提交。遲到案是 socket 已取消、回复未送達，不證明插件收到成功的遲到回复再拒絕。unknown／暫停／不盲目重發是替身預定決策；程序只證明同一調用不自動重試，沒有新增活躍模型的新調用強制鎖或恢復系統。跨重啟、真實模型遵從、普通 HTTP／通用 replay、接口四結果登記及接口五可信提交均未驗／未實作。
+ 
+-- **recompute：** 重算保存輸入及提取鏈；G 已有本地 job，可先驗公開接線，但重算出同一值本身不證明解法成立。
+-- **replay：** 僅在操作確實可安全重放時使用；Verifier 普通 HTTP 仍不開放。若實際題目需要網路重放，先定該路徑的可信模式與狀態條件，不順手建通用重放平台。
+-- **evidence_audit：** 審核必要執行順序、狀態、來源、提取位置與不可重放理由；證據不足保持 inconclusive。不能因重放接口未做就無條件改稱審計通過。
++驗證：10/10 第三接口 contract、125/125 D/C/G 定向回歸、372/372 全套、typecheck/build 通過；手動 runtime 場景收緊後另跑 typecheck 通過。所有原始 RED、類型錯誤、舊測試契約失敗及早批證據保留，早批 job-stop 只觀察到 spawn 不作最終在途讀取證明。完整命令、退出碼、來源／最終 hash、作者復核與最小證據入口見 [證據說明](../../gates/d-artifact-handoff-20261024/verifier-handoff/README.md)。未 commit/push、未合併、未清理專屬工作樹或刪 plan；主核對前保留現場。
+ 
+-尚待驗：宿主指定候選版本與首次 Verifier 准入的銜接、錯角色／外來任務拒絕、同 Verifier 新 execution 不誤用舊候選、停止及預算拒絕後不再放行驗證操作。復用 G 已驗生命週期，不重做整套分派研究。
++本接口完成只表示原型中獨立 Verifier 真實取得並操作指定材料，結果文字仍走原生交回。verified/rejected/inconclusive 的受管登記屬接口四，可信判定屬接口五；本次不實作兩者。前兩接口已驗結論保留，無模型替身不能證明模型語義能力，也不代表 D 整體完成或 solved。
+ 
+ ## 6. 接口四：驗證結論與有效性
+ 
+@@ -270,7 +291,7 @@ Coordinator 基於當前有效驗證提出對指定候選的提交／判定。
+ 
+ ## 9. 要驗證的問題及結果去向
+ 
+-這是待定契約的問題表，不是執行計劃或固定階段順序。接口一的本輪結果與限制見 §3；其他四項尚未運行，既有 G 成果不重算為 D 通過。
++這是待定契約的問題表，不是執行計劃或固定階段順序。接口一、二已接入主區並完成無模型回歸，依據與限制見 §3–4；接口三按 §5 候選契約待驗，接口四、五尚待驗。下表前兩項保留為已驗問題索引，不重新列為未定；既有 G 成果不重算為 D 通過。
+ 
+ | 問題 | 最小有效觀察 | 通過／不通過後的去向 |
+ | --- | --- | --- |
+@@ -288,4 +309,4 @@ Coordinator 基於當前有效驗證提出對指定候選的提交／判定。
+ 
+ 不展開全部平台 adapter、跨平台操作描述／自動對帳、完整多 flag 管理、通用 HTTP 重放、全協議工具、跨重啟恢復、部署系統或 G 已延後的隔離／配額工程。若一道題暴露具體依賴，只提回直接需要的部分，不取消核心 v1 的安全與成功標準。
+ 
+-當前接口一按 §3 首題最小邊界已接入主區並完成無模型驗收；H1/H5/H7 的延後項與真實模型邊界不改判通過，產品已接入但未提交。其餘需要定稿的是：候選／解法包的登記粒度、驗證任務與真實執行的綁定、判斷及有效性核對、當前可用裁判的受控接入。已定角色分工、E 讀題、G 工具與原生任務生命週期維持原設計。未知問題先在本文收斂並驗證；證據與決策回寫本文，才生成相應最小實作 plan，不把 plan 當設計權威。
++當前接口一按 §3 首題最小邊界已接入主區並完成無模型驗收；H1/H5/H7 的延後項與真實模型邊界不改判通過，接口一、二已接入並隨 abe7d6e 提交，候選／解法包粒度已定。其餘需要定稿的是：接口三的版本任務綁定、材料準備與執行關聯，以及後續判斷及有效性核對、當前可用裁判的受控接入。已定角色分工、E 讀題、G 工具與原生任務生命週期維持原設計。未知問題先在本文收斂並驗證；證據與決策回寫本文，才生成相應最小實作 plan，不把 plan 當設計權威。
+diff --git a/product/opencode/agents/coordinator.md b/product/opencode/agents/coordinator.md
+index 4f26c5a..5f48062 100644
+--- a/product/opencode/agents/coordinator.md
++++ b/product/opencode/agents/coordinator.md
+@@ -20,9 +20,12 @@ mode: primary
+ - 先以 `ctf_challenge_assign(challenge, role)` 宣告 recon／domain-solver／engineer／verifier 的題目，成功後用原生 `task(background=true)` 分派。不要從自由文字指定可信題目；未消費宣告跨輪保留，放棄時用 `ctf_challenge_unassign(role)`。
+ - 原生 task 的早期引用表示任務已啟動，不是完成。後續原生完成通知交回同一任務；依工具終態、證據與未解問題決定繼續或換路，不靠輪詢等待。
+ - 恢復使用原生已交付的 task_id，保持同題；每次執行的可信引用由宿主固定。停止直接分派的任務用 `ctf_task_stop(task_id)`，讀取回覆中實際終態及 unknown，不把初始工具回覆改寫為成功。
+-- 按問題需要使用 Reference／Strategy；普通腳本失敗交原 Solver 修正，持續停滯才觸發 Recovery Critic。Engineer 整理與 Verifier 獨立驗證責任保留；產物交接用下節，Engineer 候選整包固定已接入，獨立驗證／oracle 接口仍未接入，不稱完整流程已完成。
++- 按問題需要使用 Reference／Strategy；普通腳本失敗交原 Solver 修正，持續停滯才觸發 Recovery Critic。Engineer 整理與 Verifier 獨立驗證責任保留；產物交接用下節，Engineer 候選整包固定已接入，獨立驗證結果登記／oracle 接口仍未接入，不稱完整流程已完成。
+ 
+ ## 產物交給 Engineer
+ 來源角色完成後，將工具實際返回的 ref 和下一步必要說明放入同題 Engineer 的原生 `task(background=true)`，沿用先 assign 再分派；不要傳 sibling work 路徑或自填可信身份／hash。Coordinator 沒有直接發布權限。
+ 來源未返回確認引用、回報拒絕／損壞／傳輸錯誤時，標記未確認並暫停受影響交接；傳輸錯誤可能已提交，不猜來源未執行，不因缺 ref 重跑 job／HTTP 或盲目重發發布。這是使用規則，尚無對活躍模型新調用的 unknown 強制鎖定或恢復系統。
+-發布成功、Engineer 實際讀取及候選／verified／solved 分開認定。等待 Engineer 讀取所需頁和完整性標記後才記已取得材料；改寫要新 ref。Engineer 整理完成後接收其工具實際返回的整包 version 與必要說明；version 表示固定內容，不是獨立驗證。Verifier 尚無 package 工具權限，版本任務綁定、驗證結果與可信提交仍未接入，不把明確 version 視為已送驗或 verified。
++發布成功、Engineer 實際讀取及候選／verified／solved 分開認定。等待 Engineer 讀取所需頁和完整性標記後才記已取得材料；改寫要新 ref。Engineer 整理完成後接收其工具實際返回的整包 version 與必要說明；version 表示固定內容，不是獨立驗證。本原型 Verifier 已有指定版本讀取／準備能力，須經下節宿主綁定後才正式送驗；驗證結果登記與可信提交仍未接入，不把明確 version 視為 verified。
++
++## D 第三接口原型
++Coordinator 送驗先以 challenge.assign(role="verifier", challenge, version) 指定工具實際返回版本，再原生 task(background=true)；同 session 新 execution 也須重新聲明。不從 prompt 授權。Verifier 只能正式讀取宿主綁定版本；package.prepare 無參數，宿主複製精確 bytes 並返回準備句柄與目錄，不以手抄 base64 替代。job.run 帶 preparation 及實際 argv，cwd 為準備的 inputs。自行檢查腳本與包內腳本分清來源。前後 hash 不證明中途未改或完整依賴，持續完整性及未聲明依賴 unknown。輸出相等不是語義正確。停止／預算拒絕不得繼續；傳輸未知暫停受影響交接，無盲目重發。結果文字走原生交回，尚無 verified／solved 登記。
+diff --git a/product/opencode/agents/verifier.md b/product/opencode/agents/verifier.md
+index 27ae49a..1375d38 100644
+--- a/product/opencode/agents/verifier.md
++++ b/product/opencode/agents/verifier.md
+@@ -15,4 +15,7 @@ mode: subagent
+ - 不繼承 Solver 的私有推理，不改原候選或其證據，不做平台提示、實例管理或提交。
+ 
+ ## 已接入能力與 D 邊界
+-在獨立會話讀 materials／published，可用 `ctf_artifact_read({ref,cursor?})` 只讀同題固定引用（base64 分頁，nextCursor 為 null 才到末頁；分開檢查 snapshotFixed／rangeComplete／originalComplete），無發布權限；在自己 work 用 job 本地重算；不能讀 sibling work，沒有普通 HTTP。材料重算只證明該計算，不自動驗證 Solver 候選；Engineer 已可固定候選及解法包，但本角色尚無 package 工具權限，正式版本任務綁定與驗證結果登記未接入；缺少明確候選、依賴版本或安全重放能力時保持 inconclusive。角色報告不能直接登記 verified 或更改 solved。
++在獨立會話讀 materials／published，可用 `ctf_artifact_read({ref,cursor?})` 只讀同題固定引用（base64 分頁，nextCursor 為 null 才到末頁；分開檢查 snapshotFixed／rangeComplete／originalComplete），無發布權限；在自己 work 用 job 本地重算；不能讀 sibling work，沒有普通 HTTP。材料重算只證明該計算，不自動驗證 Solver 候選；Engineer 已可固定候選及解法包，本原型已增加綁定版本的 package.read／prepare，驗證結果登記仍未接入；缺少明確候選、依賴版本或安全重放能力時保持 inconclusive。角色報告不能直接登記 verified 或更改 solved。
++
++## D 第三接口原型
++Coordinator 送驗先以 challenge.assign(role="verifier", challenge, version) 指定工具實際返回版本，再原生 task(background=true)；同 session 新 execution 也須重新聲明。不從 prompt 授權。Verifier 只能正式讀取宿主綁定版本；package.prepare 無參數，宿主複製精確 bytes 並返回準備句柄與目錄，不以手抄 base64 替代。job.run 帶 preparation 及實際 argv，cwd 為準備的 inputs。自行檢查腳本與包內腳本分清來源。前後 hash 不證明中途未改或完整依賴，持續完整性及未聲明依賴 unknown。輸出相等不是語義正確。停止／預算拒絕不得繼續；傳輸未知暫停受影響交接，無盲目重發。結果文字走原生交回，尚無 verified／solved 登記。
+diff --git a/product/opencode/opencode.json b/product/opencode/opencode.json
+index 1ec9331..10d4239 100644
+--- a/product/opencode/opencode.json
++++ b/product/opencode/opencode.json
+@@ -140,7 +140,9 @@
+         "ctf_job_run": "allow",
+         "ctf_job_read": "allow",
+         "ctf_job_cancel": "allow",
+-        "ctf_artifact_read": "allow"
++        "ctf_artifact_read": "allow",
++        "ctf_package_read": "allow",
++        "ctf_package_prepare": "allow"
+       }
+     },
+     "recovery-critic": {
+diff --git a/tests/contract/control-service.test.ts b/tests/contract/control-service.test.ts
+index 8805625..d7b3616 100644
+--- a/tests/contract/control-service.test.ts
++++ b/tests/contract/control-service.test.ts
+@@ -30,14 +30,27 @@ function fakeService(sessions: Record<string, { parentID?: string; agent?: strin
+     if (id === 'root' && op === 'tool.before' && b.tool === 'task' && !b.args?.task_id &&
+         ['recon', 'domain-solver', 'engineer', 'verifier'].includes(b.args?.subagent_type ?? '')) {
+       // A duplicate while pending must still reach C's original assertion.
+-      try { await handle(id, 'tool.execute', { tool: 'challenge.assign', args: { role: b.args!.subagent_type, challenge: 'C-fixture' } }); }
++      let version:string|undefined;
++      if(b.args!.subagent_type==='verifier'&&![...service.bindings.values()].some(v=>v.role==='engineer')){
++        sessions['d-engineer']={parentID:'root',agent:'engineer'};
++        await handle('root','tool.execute',{tool:'challenge.assign',args:{role:'engineer',challenge:'C-fixture'}});
++        await handle('root','tool.before',{tool:'task',callID:'d-engineer',args:{subagent_type:'engineer',background:true}});
++        await handle('root','tool.after',{tool:'task',callID:'d-engineer',metadata:{sessionId:'d-engineer'},output:'running'});
++        await handle('d-engineer','chat.message',{agent:'engineer'});
++      const engineer=[...service.bindings.values()].find(b=>b.role==='engineer')!.sessionID;
++      await service.handle(engineer,'tool.execute',{tool:'workspace.write',callID:'d-input-write',args:{path:'work/d-input',content:'x'}});
++      const a=await service.handle(engineer,'tool.execute',{tool:'artifact.publish',callID:'d-input-publish',args:{source:'file',path:'work/d-input'}}) as {ref:string};
++      const p=await service.handle(engineer,'tool.execute',{tool:'package.publish',callID:'d-package-publish',args:{candidate:{ref:a.ref,start:0,end:1},files:[],extraction:'all',premises:[]}}) as {version:string};
++      version=p.version;
++      }
++      try { await handle(id, 'tool.execute', { tool: 'challenge.assign', args: { role: b.args!.subagent_type, challenge: 'C-fixture',...(version?{version}:{}) } }); }
+       catch (error) { if (!(error instanceof Error) || error.message !== 'denied: dispatch') throw error; }
+     }
+     return handle(id, op, input);
+   };
+   return service;
+ }
+-const task = (role: string, extra: object = {}) => ({ tool: 'task', callID: `call-${Math.random()}`, args: { subagent_type: role, ...extra } });
++const task = (role: string, extra: object = {}) => ({ tool: 'task', callID: `call-${Math.random()}`, args: { subagent_type: role,...(role==='verifier'?{background:true}:{}), ...extra } });
+ 
+ function deferred() {
+   let resolve!: () => void;
+diff --git a/tests/contract/d-candidate-package.test.ts b/tests/contract/d-candidate-package.test.ts
+index 1efc4a3..0154785 100644
+--- a/tests/contract/d-candidate-package.test.ts
++++ b/tests/contract/d-candidate-package.test.ts
+@@ -12,7 +12,7 @@ async function fixture(){
+  const client={session:{get:async({sessionID}:any)=>({data:{id:sessionID,parentID:'root',agent:sessionID==='other'?'engineer':sessionID}}),children:async()=>({data:[]}),messages:async()=>({data:[]}),abort:async()=>({data:true})}};
+  const s=new ControlService({runId:'D-package',client:client as never,budget:{maxModelCalls:100,maxObservableTokens:100000},expiresAt:Date.now()+60000,workdir:join(root,'opencode'),skillRoot:join(root,'skills'),challenges:[{id:'X',title:null,target:null,reachability:null,materials:[{name:'input.bin',sha256:createHash('sha256').update(Buffer.from([0,255,13,10])).digest('hex'),bytes:4}],materialsDir},{id:'Y',title:null,target:null,reachability:null,materials:[],materialsDir:join(root,'Y/materials')}]});services.push(s);s.bindRoot('root');let n=0;
+  const exec=(sid:string,tool:string,args:object={})=>s.handle(sid,'tool.execute',{tool,args,callID:'p'+(++n)}) as Promise<any>;
+- async function bind(sid:string,role:string,challenge='X'){await exec('root','challenge.assign',{role,challenge});const callID='t'+(++n);await s.handle('root','tool.before',{tool:'task',callID,args:{subagent_type:role,background:true}});await s.handle('root','tool.after',{tool:'task',callID,metadata:{sessionId:sid},output:'running'});await s.handle(sid,'chat.message',{agent:role});}
++ async function bind(sid:string,role:string,challenge='X',version?:string){await exec('root','challenge.assign',{role,challenge,...(version?{version}:{})});const callID='t'+(++n);await s.handle('root','tool.before',{tool:'task',callID,args:{subagent_type:role,background:true}});await s.handle('root','tool.after',{tool:'task',callID,metadata:{sessionId:sid},output:'running'});await s.handle(sid,'chat.message',{agent:role});}
+  await bind('domain-solver','domain-solver');await bind('engineer','engineer');
+  const publish=async(sid:string,path:string,bytes:Buffer)=>{await exec(sid,'workspace.write',{path,content:bytes.toString('base64'),encoding:'base64'});return exec(sid,'artifact.publish',{source:'file',path});};
+  const source=await publish('domain-solver','work/mixed.bin',Buffer.concat([Buffer.from('log\r\n旗{é}'),Buffer.from([0,255,13,10])]));
+@@ -88,10 +88,11 @@ describe('D interface two minimal package',()=>{
+   }expect(f.packages()).toHaveLength(0);
+  });
+  // The C admission boundary must match the role whitelist even for direct managed calls.
+- it('P2 limits package publish and read to Engineer at hook and execution admission',async()=>{
++ it('P2 limits publication to Engineer and allows only bound Verifier reads',async()=>{
+   const f=await fixture();const p=await f.exec('engineer','package.publish',f.args);
+-  await f.bind('recon','recon');await f.bind('verifier','verifier');
++  await f.bind('recon','recon');await f.bind('verifier','verifier','X',p.version);
+   for(const role of ['domain-solver','recon','verifier'])for(const [tool,args] of [['publish',f.args],['read',{version:p.version,component:'manifest'}]] as const){
++   if(role==='verifier'&&tool==='read'){expect(await f.exec(role,'package.read',args)).toHaveProperty('data');continue;}
+    await expect(f.exec(role,`package.${tool}`,args)).rejects.toThrow('denied');
+    await expect(f.s.handle(role,'tool.before',{tool:`ctf_package_${tool}`,args,callID:`role-${role}-${tool}`})).rejects.toThrow('denied');
+   }expect(f.packages()).toHaveLength(1);
+diff --git a/tests/contract/g-coordinator-stop.test.ts b/tests/contract/g-coordinator-stop.test.ts
+index db80333..000df31 100644
+--- a/tests/contract/g-coordinator-stop.test.ts
++++ b/tests/contract/g-coordinator-stop.test.ts
+@@ -19,8 +19,17 @@ async function fixture(target?: string) {
+   c.bindRoot('root'); clean.push(() => c.stopAll('cleanup'));
+   async function bind(id: string, role = 'recon') {
+     identities[id] = { parentID: 'root', agent: role };
+-    if (['recon','engineer','domain-solver','verifier'].includes(role)) await c.handle('root','tool.execute',{tool:'challenge.assign',args:{role,challenge:'X'}});
+-    await c.handle('root','tool.before',{tool:'task',callID:`dispatch-${id}`,args:{subagent_type:role}});
++    let version:string|undefined;
++    if(role==='verifier'){if(![...c.bindings.values()].some(b=>b.role==='engineer'))await bind('d-engineer','engineer');
++      const engineer=[...c.bindings.values()].find(b=>b.role==='engineer')!.sessionID;
++      await c.handle(engineer,'tool.execute',{tool:'workspace.write',callID:'d-input-write',args:{path:'work/d-input',content:'x'}});
++      const a=await c.handle(engineer,'tool.execute',{tool:'artifact.publish',callID:'d-input-publish',args:{source:'file',path:'work/d-input'}}) as {ref:string};
++      const p=await c.handle(engineer,'tool.execute',{tool:'package.publish',callID:'d-package-publish',args:{candidate:{ref:a.ref,start:0,end:1},files:[],extraction:'all',premises:[]}}) as {version:string};
++      version=p.version;
++    }
++    if (['recon','engineer','domain-solver','verifier'].includes(role)) await c.handle('root','tool.execute',{tool:'challenge.assign',args:{role,challenge:'X',...(version?{version}:{})}});
++    await c.handle('root','tool.before',{tool:'task',callID:`dispatch-${id}`,args:{subagent_type:role,background:role==='engineer'||role==='verifier'}});
++    if(role==='engineer'||role==='verifier')await c.handle('root','tool.after',{tool:'task',callID:`dispatch-${id}`,metadata:{sessionId:id},output:'running'});
+     await c.handle(id,'chat.message',{agent:role});
+   }
+   await bind('a'); await bind('b'); return { c, bind, abort, dir };
+diff --git a/tests/contract/g-team-integration.test.ts b/tests/contract/g-team-integration.test.ts
+index b872817..ffbe441 100644
+--- a/tests/contract/g-team-integration.test.ts
++++ b/tests/contract/g-team-integration.test.ts
+@@ -24,8 +24,17 @@ async function fixture() {
+   c.bindRoot('root'); cleanup.push(() => c.stopAll('cleanup'));
+   async function bind(id: string, role: string) {
+     sessions[id] = { parentID: 'root', agent: role };
+-    if (['recon', 'domain-solver', 'engineer', 'verifier'].includes(role)) await c.handle('root', 'tool.execute', { tool: 'challenge.assign', args: { challenge: 'X', role } });
+-    await c.handle('root', 'tool.before', { tool: 'task', callID: `dispatch-${id}`, args: { subagent_type: role } });
++    let version:string|undefined;
++    if(role==='verifier'){
++      const engineer=[...c.bindings.values()].find(b=>b.role==='engineer')!.sessionID;
++      await c.handle(engineer,'tool.execute',{tool:'workspace.write',callID:'d-input-write',args:{path:'work/d-input',content:'x'}});
++      const a=await c.handle(engineer,'tool.execute',{tool:'artifact.publish',callID:'d-input-publish',args:{source:'file',path:'work/d-input'}}) as {ref:string};
++      const p=await c.handle(engineer,'tool.execute',{tool:'package.publish',callID:'d-package-publish',args:{candidate:{ref:a.ref,start:0,end:1},files:[],extraction:'all',premises:[]}}) as {version:string};
++      version=p.version;
++    }
++    if (['recon', 'domain-solver', 'engineer', 'verifier'].includes(role)) await c.handle('root', 'tool.execute', { tool: 'challenge.assign', args: { challenge: 'X', role,...(version?{version}:{}) } });
++    await c.handle('root', 'tool.before', { tool: 'task', callID: `dispatch-${id}`, args: { subagent_type: role,background:role==='engineer'||role==='verifier' } });
++    if(role==='engineer'||role==='verifier')await c.handle('root','tool.after',{tool:'task',callID:`dispatch-${id}`,metadata:{sessionId:id},output:'running'});
+     await c.handle(id, 'chat.message', { agent: role });
+   }
+   let n = 0;
+@@ -92,7 +101,8 @@ it('enforces all nine roles at both hooks and execution, with independent Verifi
+     await bind(role, role);
+     await execute(role, 'workspace.write', { path: 'work/own.txt', content: role });
+     expect(await execute(role, 'workspace.read', { path: 'work/own.txt' })).toMatchObject({ text: role });
+-    const result = await execute(role, 'job.run', { argv: [process.execPath, '-e', 'console.log(6*7)'], timeout_ms: 3000 });
++    const prepared=role==='verifier'?await execute(role,'package.prepare',{}) as {preparation:string}:undefined;
++    const result = await execute(role, 'job.run', { ...(prepared?{preparation:prepared.preparation}:{}),argv: [process.execPath, '-e', 'console.log(6*7)'], timeout_ms: 3000 });
+     expect(result).toMatchObject({ state: 'exited', exitCode: 0 });
+     if (role === 'engineer' || role === 'verifier') {
+       await expect(execute(role, 'http.request', { url: 'http://127.0.0.1:1' })).rejects.toThrow('tool not permitted');
+diff --git a/tests/contract/opencode-config.test.ts b/tests/contract/opencode-config.test.ts
+index 10709e6..a6736d1 100644
+--- a/tests/contract/opencode-config.test.ts
++++ b/tests/contract/opencode-config.test.ts
+@@ -19,7 +19,7 @@ describe('OpenCode solve configuration admission', () => {
+   });
+ });
+ 
+-it('grants package tools only to Engineer and keeps verification/submission unavailable', async () => {
++it('grants package publish only to Engineer and bound read/prepare to Verifier; submission unavailable', async () => {
+   const { readFile } = await import('node:fs/promises');
+   const config = JSON.parse(await readFile(new URL('../../product/opencode/opencode.json', import.meta.url), 'utf8'));
+   const workspace = ['ctf_workspace_list', 'ctf_workspace_read', 'ctf_workspace_search', 'ctf_workspace_write'];
+@@ -28,7 +28,7 @@ it('grants package tools only to Engineer and keeps verification/submission unav
+   const allowed: Record<string, string[]> = {
+     coordinator: ['ctf_challenge_assign', 'ctf_challenge_unassign', 'ctf_task_stop'], intake: ['ctf_challenge_list', 'ctf_challenge_read'],
+     recon: [...workspace, ...jobs, ...artifacts, 'ctf_http_request'], 'domain-solver': [...workspace, ...jobs, ...artifacts, 'ctf_http_request'],
+-    engineer: [...workspace, ...jobs, ...artifacts, 'ctf_package_publish', 'ctf_package_read'], verifier: [...workspace, ...jobs, 'ctf_artifact_read'], reference: [], strategy: [], 'recovery-critic': []
++    engineer: [...workspace, ...jobs, ...artifacts, 'ctf_package_publish', 'ctf_package_read'], verifier: [...workspace, ...jobs, 'ctf_artifact_read', 'ctf_package_read', 'ctf_package_prepare'], reference: [], strategy: [], 'recovery-critic': []
+   };
+   for (const [role, tools] of Object.entries(allowed)) {
+     const permission = config.agent[role].permission;
