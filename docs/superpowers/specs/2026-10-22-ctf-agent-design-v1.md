@@ -106,6 +106,8 @@ OpenCode 工作目錄由宿主為每次 run 新建並控制，只含宿主寫入
 
 產品資產目錄的位置與布局、載入方式及版本記錄，以 [A／B 詳細 design](2026-10-22-design-v1-ab-product-assets.md) 為準。
 
+產品角色與現有 Web Skill 的舊接口及過時階段說明清理，以 [產品指令契約對齊詳細 design](2026-10-24-design-v1-product-instruction-contract-alignment.md) 為準。此片已完成契約清理與剩餘收口核對，8 檔／89 項無模型定向測試通過；不擴展工具、權限、角色或解題方法，亦不證明模型遵循。
+
 ### B. 原生 Skill 與受控 Reference
 
 現有 Skill 的發現描述、適用條件與方法使用優化，以 [Skill 發現與使用詳細 design](2026-10-24-design-v1-skill-discovery-and-use.md) 為準。離線核對後已將既有 SKILL.md 更新至 v4，調整發現描述與條件分區；五情境靜態核對及獨立復核通過。未拆分 Skill、未加角色提醒、未改工具權限或 Reference；當前原生載入與模型選用效果仍未驗證。
@@ -115,6 +117,8 @@ OpenCode 工作目錄由宿主為每次 run 新建並控制，只含宿主寫入
 區分 Skill 附屬短 Reference 與共用知識目錄。前者優先接通；後者以唯讀目錄發布並經限定路徑的讀取規則查閱，固定版本的本地 `references` 配置無可觀察效果，不作為載入路徑。運行時不使用 Git 拉取。Skill metadata、Reference 接法、權限與 `rg` 依賴的細節以 [A／B 詳細 design](2026-10-22-design-v1-ab-product-assets.md) 為準。原生目錄可見性不能替代人工審核、固定快照和來源記錄；不為未發生的查詢需求另設檢索服務。
 
 只准讀已發布知識根目錄並核對實際路徑，不放行整個含配置／憑據的控制目錄。題目資料仍走受管工作區工具，避免其中的指令文件被自動提升為產品指令。
+
+現有 `web-session-diagnosis` 的候選交接、HTTP／會話、解包及輸出續讀說明，按 [產品指令契約對齊詳細 design](2026-10-24-design-v1-product-instruction-contract-alignment.md) 對齊既有工具；不為舊文案新增相容能力。
 
 ### C. 原生多 Agent 與薄控制層
 
