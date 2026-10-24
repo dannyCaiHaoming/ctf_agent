@@ -1,0 +1,52 @@
+
+> ctf-agent@0.1.0 test
+> vitest run tests/contract/launch-evidence.test.ts -t same millisecond|real APIError
+
+
+ RUN  v2.1.9 /Users/caihaoming/.codex/worktrees/run-completeness-validation/pentest-agent
+
+ ❯ tests/contract/launch-evidence.test.ts (30 tests | 2 failed | 28 skipped) 3164ms
+   × root final report provenance > accepts uniquely parent-linked messages created within the same millisecond 2082ms
+     → expected 'deadline_exceeded' to be 'completed' // Object.is equality
+   × root final report provenance > preserves a real APIError as failure even without completed metadata 1081ms
+     → expected 'deadline_exceeded' to be 'failed' // Object.is equality
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 2 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/contract/launch-evidence.test.ts > root final report provenance > accepts uniquely parent-linked messages created within the same millisecond
+AssertionError: expected 'deadline_exceeded' to be 'completed' // Object.is equality
+
+Expected: "completed"
+Received: "deadline_exceeded"
+
+ ❯ tests/contract/launch-evidence.test.ts:239:136
+    237|   it('accepts uniquely parent-linked messages created within the same …
+    238|     rootSequence = [[user('root'), assistant('stop', 'unsolved', { tim…
+    239|     expect((await launch({ profile: join(dir, 'profile.json'), runsRoo…
+       |                                                                                                                                        ^
+    240|     expect((await json('state/run.json')).rootResult.completeness).toB…
+    241|   });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/2]⎯
+
+ FAIL  tests/contract/launch-evidence.test.ts > root final report provenance > preserves a real APIError as failure even without completed metadata
+AssertionError: expected 'deadline_exceeded' to be 'failed' // Object.is equality
+
+Expected: "failed"
+Received: "deadline_exceeded"
+
+ ❯ tests/contract/launch-evidence.test.ts:244:134
+    242|   it('preserves a real APIError as failure even without completed meta…
+    243|     rootSequence = [[user('root'), assistant('stop', '', { time: { cre…
+    244|     expect((await launch({ profile: join(dir, 'profile.json'), runsRoo…
+       |                                                                                                                                      ^
+    245|     expect((await json('state/run.json')).rootResult).toMatchObject({ …
+    246|   });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/2]⎯
+
+ Test Files  1 failed (1)
+      Tests  2 failed | 28 skipped (30)
+   Start at  00:58:32
+   Duration  3.57s (transform 149ms, setup 0ms, collect 213ms, tests 3.16s, environment 0ms, prepare 40ms)
+

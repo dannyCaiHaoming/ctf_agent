@@ -1,0 +1,413 @@
+--- baseline/apps/launcher/src/launch.ts
++++ final/apps/launcher/src/launch.ts
+@@ -17,10 +17,11 @@
+ import { loadOpenCodeConfig, startManagedOpenCode } from '@ctf/opencode-bridge';
+ import type { OpencodeClient } from '@opencode-ai/sdk/v2';
+ import { Blocked } from './blocked.js';
+ import { prepareRun, type PreparedChallenge } from './run-prep.js';
+ import { ControlService, MANAGED_TOOLS, summarizeUsage, type Message, type SessionUsage } from './control-service.js';
++import { classifyRootResult, canSettleRoot, type RootResult } from './root-result.js';
+ import { ProgressLedger } from './progress-ledger.js';
+ import { startControlRpc } from './control-rpc.js';
+ import { loadLocalEnv } from '../../cli/src/composition/localEnv.js';
+ import { loadReleaseProfile } from '../../cli/src/composition/releaseProfile.js';
+ 
+@@ -211,10 +212,17 @@
+     binaryPath: profile.opencode.binaryPath, signal: controller.signal });
+   mark('opencode_started', { version: engine.version });
+   const client = engine.client;
+   let rootId = '';
+   let status = 'completed';
++  let rootResult: RootResult = classifyRootResult([]);
++  let frozenRootResult = false;
++  let preStopRootError = false;
++  const observeRoot = (messages: Parameters<typeof classifyRootResult>[0]) => {
++    preStopRootError ||= messages.some(m => m.info.role === 'assistant' && !!m.info.error);
++    return classifyRootResult(messages);
++  };
+   const sessionIds = new Set<string>();
+   const deadlineAt = Date.now() + deadlineMs; // one deadline for the launcher loop and for every binding's expiry
+   const control = new ControlService({ completionJudges:options.completionJudges, client, runId, budget: { maxModelCalls: profile.budget.maxSteps, maxObservableTokens: profile.budget.maxObservableTokens },
+     expiresAt: deadlineAt, workdir: real.opencode, skillRoot: join(configDirectory, 'skills'), challenges: prepared, redactions: secrets, onAudit: record => progress.append(record) });
+   attach(control);
+@@ -245,33 +253,51 @@
+     mark('root_bound', { rootId });
+     await client.session.promptAsync({ sessionID: rootId, agent: COORDINATOR, parts: [{ type: 'text', text: START_MESSAGE }] }, { throwOnError: true });
+     mark('start_message_sent', { rootId });
+     await options.onStarted?.({ client, rootId });
+     let idleSeen = 0;
++    let idleSource = '';
+     while (true) {
+       await control.checkBudget();
+       const reason = control.stopReason ?? (Date.now() >= deadlineAt ? 'deadline' : undefined);
+       if (reason) {
+         status = reason === 'deadline' ? 'deadline_exceeded' : 'budget_exceeded';
+         mark(reason === 'deadline' ? 'deadline' : 'budget_stop');
++        if (!frozenRootResult) {
++          // checkBudget may already have started aborting sessions. Only a prior observation is trustworthy then.
++          if (!control.stopReason) {
++            try { rootResult = observeRoot((await client.session.messages({ sessionID: rootId }, { throwOnError: true })).data ?? []); rootResult.observedAt = Date.now(); }
++            catch { rootResult = { ...classifyRootResult([]), reason: 'snapshot_unavailable' }; }
++          } else if (rootResult.observedAt === null) rootResult = { ...classifyRootResult([]), reason: 'snapshot_unavailable' };
++          frozenRootResult = true;
++        }
+         await control.stopAll(reason); // marks every session first, then aborts them all
+         await delay(500);
+         break;
+       }
+       const statuses = (await client.session.status({}, { throwOnError: true })).data;
+       if (!statuses) throw new Error('session status unavailable');
+       const current = statuses[rootId];
+       if (!current || current.type === 'idle') {
+         const messages = (await client.session.messages({ sessionID: rootId }, { throwOnError: true })).data ?? [];
+-        const done = messages.some(m => m.info.role === 'assistant' && m.info.time.completed !== undefined);
+-        idleSeen = done && !control.hasOutstandingWork(statuses) ? idleSeen + 1 : 0;
+-        if (idleSeen >= 2) { mark('root_idle'); await control.stopAll('completed'); break; }
++        rootResult = observeRoot(messages);
++        if (rootResult.hasError) throw new Error('root assistant error');
++        const source = JSON.stringify(rootResult);
++        idleSeen = canSettleRoot(rootResult) && !control.hasOutstandingWork(statuses) ? (source === idleSource ? idleSeen + 1 : 1) : 0;
++        idleSource = source;
++        rootResult.observedAt = Date.now();
++        if (idleSeen >= 2) { rootResult.observedAt = Date.now(); frozenRootResult = true; mark('root_idle', { rootResult }); await control.stopAll('completed'); break; }
+       } else idleSeen = 0;
+       await delay(500);
+     }
+   } catch (cause) {
+     fail('error', cause);
++    if (!frozenRootResult) {
++      try { rootResult = observeRoot((await client.session.messages({ sessionID: rootId }, { throwOnError: true })).data ?? []); }
++      catch { rootResult = { ...classifyRootResult([]), reason: 'snapshot_unavailable' }; }
++      rootResult.observedAt = Date.now(); frozenRootResult = true;
++    }
+     await control.stopAll('error');
+   }
+   await save(join(real.evidence, 'task-executions.json'), control.executionSnapshot());
+   // 5. Common best-effort finalization while the SDK remains available. Each query/write is independent.
+   for (const id of control.bindings.keys()) sessionIds.add(id);
+@@ -295,19 +321,29 @@
+     try {
+       messages = (await client.session.messages({ sessionID: id }, { throwOnError: true })).data as Message[] | undefined;
+       if (!messages) throw new Error('messages unavailable');
+       if (control.bindings.has(id)) control.observeUsage(id, messages);
+       await save(join(real.evidence, `messages-${id}.json`), messages);
++      if (id === rootId) {
++        const exported = classifyRootResult(messages);
++        rootResult.exportedSourceMatches = ['userMessageID', 'assistantMessageID', 'userCreated', 'assistantCreated', 'assistantCompleted', 'finish', 'completed', 'textChars', 'hasError'].every(key => exported[key as keyof RootResult] === rootResult[key as keyof RootResult]);
++        if (existsSync(join(real.evidence, `messages-${id}.json`))) rootResult.evidence = `evidence/messages-${id}.json`;
++        else rootResult = { ...rootResult, completeness: 'unknown', reason: 'export_unavailable' };
++      }
+     } catch (cause) {
+       if (control.bindings.has(id)) control.markUsageIncomplete(id);
++      if (id === rootId) rootResult = { ...rootResult, completeness: 'unknown', reason: 'export_unavailable', evidence: null };
+       errors.push(String(cause)); fail('session_messages_error', `${id}: ${String(cause)}`);
+     }
+     const usage = control.usageSnapshot().sessions[id] ?? summarizeUsage(messages ?? []);
+     // SDK descendants can exist without a role binding. Count their exported usage without granting authority.
+     if (!control.bindings.has(id)) unboundUsage.push(usage);
+-    const messageError = messages?.findLast(m => m.info.role === 'assistant' && m.info.error)?.info.error;
+-    if (messageError && status === 'completed' && id === rootId) status = 'failed';
++    const erroredMessage = messages?.findLast(m => m.info.role === 'assistant' && m.info.error);
++    const messageError = erroredMessage?.info.error;
++    if (messageError && status === 'completed' && id === rootId &&
++      !(frozenRootResult && messageError.name === 'MessageAbortedError' && !preStopRootError && !rootResult.hasError && erroredMessage?.info.id === rootResult.assistantMessageID)) status = 'failed';
++    if (id === rootId && (rootResult.hasError || preStopRootError) && status === 'completed') status = 'failed';
+     sessions.push({ id, parentID: info?.parentID ?? control.bindings.get(id)?.parentID ?? null,
+       title: info?.title ?? null, status: finalStatus[id]?.type ?? 'unavailable',
+       agents: messages ? [...new Set(messages.map(m => (m.info as { agent?: string }).agent).filter(Boolean))] : null,
+       assistantMessages: usage.assistantMessages,
+       usage: { availability: usage.availability, input_tokens: usage.input, output_tokens: usage.output,
+@@ -327,11 +363,11 @@
+   // A failed enumeration leaves an unknown number of sessions outside the exported total.
+   total.incomplete ||= timeline.some(item => item.event === 'session_enumeration_error') ||
+     control.audit.some(r => r.op === 'stop_enumerated' && !r.allow);
+   const usageTotal = { availability: total.availability, input_tokens: total.input, output_tokens: total.output,
+     reasoning_tokens: total.reasoning, lowerBound: total.incomplete || (!!control.stopReason && control.stopReason !== 'completed') };
+-  try { await progress.finalize({ status, model: loaded.config.model ?? 'unavailable',
++  try { await progress.finalize({ status, rootResult, trustedResults: { publications: control.publicationSnapshot().length, verifications: control.verificationResultSnapshot().length, completions: control.completionSnapshot().length }, model: loaded.config.model ?? 'unavailable',
+     budget: { maxModelCalls: profile.budget.maxSteps, maxObservableTokens: profile.budget.maxObservableTokens },
+     usage: { availability: usageTotal.availability, observableTokens: total.input + total.output + total.reasoning, lowerBound: usageTotal.lowerBound } }); }
+   catch (cause) { fail('progress_write_error', cause); }
+   await save(join(real.evidence, 'sessions.json'), sessions);
+   await save(join(real.evidence, 'bindings.json'), [...control.bindings.values()]);
+@@ -340,11 +376,11 @@
+   await save(join(real.evidence, 'tool-resources.json'), control.resourceSnapshot());
+   await save(join(real.evidence, 'publications.json'), control.publicationSnapshot());
+   await save(join(real.evidence, 'completion-results.json'), control.completionSnapshot());
+   await save(join(real.evidence, 'verification-results.json'), control.verificationResultSnapshot());
+   await save(join(real.evidence, 'assets.json'), { productRevision, copies });
+-  await save(join(real.state, 'run.json'), { runId, status, rootSessionId: rootId || null, sessions: [...sessionIds],
++  await save(join(real.state, 'run.json'), { runId, status, rootResult, rootSessionId: rootId || null, sessions: [...sessionIds],
+     deadlineMs, opencodeVersion: engine.version, model: loaded.config.model, configSha256: sha256(JSON.stringify({ ...config, plugin: undefined })), productRevision,
+     budget: profile.budget, admittedModelCalls: control.admitted, stopReason: control.stopReason ?? null, usageTotal,
+     paths: real, timeline });
+   return { code: status === 'completed' ? 0 : 1, status, runDir };
+ }
+--- baseline/apps/launcher/src/progress-ledger.ts
++++ final/apps/launcher/src/progress-ledger.ts
+@@ -33,10 +33,12 @@
+   nextAction?: string;
+   capabilityGap?: { kind: string; detail: string };
+ }
+ 
+ interface FinalSummary {
++  rootResult?: import('./root-result.js').RootResult;
++  trustedResults?: { publications: number; verifications: number; completions: number };
+   status: string;
+   model: string;
+   budget: { maxModelCalls: number; maxObservableTokens: number };
+   usage: { availability: string; observableTokens: number; lowerBound: boolean };
+ }
+@@ -336,10 +338,18 @@
+ export function renderProgressMarkdown(events: readonly ProgressEvent[], summary: FinalSummary): string {
+   const lines: string[] = ['# CTF Agent run progress', '', '> 本檔是去敏的人工入口；完整原始訊息仍在 `evidence/`。事件只表示宿主可定位的事實，Critic 判斷不是 solved 依據。', ''];
+   lines.push('## Run 摘要', '', `- Status: **${summary.status}**`, `- Model: \`${summary.model}\``,
+     `- Budget: ${summary.budget.maxModelCalls} model calls / ${summary.budget.maxObservableTokens} observable tokens`,
+     `- Observed: ${summary.usage.availability}, ${summary.usage.observableTokens} tokens${summary.usage.lowerBound ? '（下限／不完整）' : ''}`, '');
++  if (summary.rootResult) {
++    const r = summary.rootResult;
++    lines.push(`- Report completeness: **${r.completeness}** (${r.reason})`,
++      `- Report source: user=${r.userMessageID ?? 'unknown'}, assistant=${r.assistantMessageID ?? 'unknown'}; finish=${r.finish ?? 'unknown'}; completed=${r.completed}; textChars=${r.textChars}; hasError=${r.hasError}`,
++      `- Report metadata: created=${r.assistantCreated ?? 'unknown'}, completed=${r.assistantCompleted ?? 'unknown'}; evidence: ${r.evidence ?? 'unavailable'}; 判定來源見 state/run.json（收束前觀測凍結，非原子最終快照）; observedAt=${r.observedAt ?? 'unknown'}; exportedSourceMatches=${r.exportedSourceMatches ?? 'unknown'}`,
++      '- complete 只表示報告正常結束且有文字，不表示內容正確或 solved。', '');
++  }
++  if (summary.trustedResults) lines.push(`- 可信產物記錄數量：publications=${summary.trustedResults.publications}, verifications=${summary.trustedResults.verifications}, completions=${summary.trustedResults.completions}；記錄位於 evidence/publications.json、evidence/verification-results.json、evidence/completion-results.json；數量不代表 verified 或 solved。`, '');
+   const latestByChallenge = new Map<string, ProgressEvent>();
+   for (const event of events) if (event.challenge) latestByChallenge.set(event.challenge, event);
+   lines.push('## Challenge 進度', '');
+   if (!latestByChallenge.size) lines.push('- 尚未建立 challenge 綁定。');
+   else for (const [challenge, event] of latestByChallenge) {
+--- baseline/apps/launcher/src/root-result.ts
++++ final/apps/launcher/src/root-result.ts
+@@ -0,0 +1,46 @@
++/** Host-only metadata projection. Never retains message text or reasoning. */
++export interface RootResult {
++  userMessageID: string | null; assistantMessageID: string | null;
++  userCreated: number | null; assistantCreated: number | null; assistantCompleted: number | null;
++  finish: string | null; completed: boolean; textChars: number; hasError: boolean;
++  completeness: 'complete' | 'incomplete' | 'unknown'; reason: string;
++  evidence: string | null; observedAt: number | null; exportedSourceMatches: boolean | null;
++}
++type RootMessage = { info: { id?: string; role: string; parentID?: string; finish?: string; error?: unknown; time?: { created?: number; completed?: number } }; parts?: Array<{ type: string; text?: string }> };
++const timestamp = (v: unknown): v is number => typeof v === 'number' && Number.isFinite(v);
++export function classifyRootResult(messages: readonly RootMessage[], evidence: string | null = null): RootResult {
++  const result: RootResult = { userMessageID: null, assistantMessageID: null, userCreated: null, assistantCreated: null,
++    assistantCompleted: null, finish: null, completed: false, textChars: 0, hasError: false,
++    completeness: 'unknown', reason: 'missing_user', observedAt: null, exportedSourceMatches: null, evidence };
++  const latest = (items: readonly RootMessage[]): RootMessage | undefined => {
++    if (!items.length || items.some(m => !m.info.id || !timestamp(m.info.time?.created))) return;
++    const max = Math.max(...items.map(m => m.info.time!.created!));
++    const matches = items.filter(m => m.info.time!.created === max);
++    return matches.length === 1 && items.filter(m => m.info.id === matches[0]!.info.id).length === 1 ? matches[0] : undefined;
++  };
++  const user = latest(messages.filter(m => m.info.role === 'user'));
++  if (!user) return result;
++  result.userMessageID = user.info.id!; result.userCreated = user.info.time!.created!;
++  result.reason = 'unresolved_assistant';
++  // A later unassociated assistant must not be hidden by an older associated reply.
++  const assistants = messages.filter(m => m.info.role === 'assistant' &&
++    (!timestamp(m.info.time?.created) || m.info.time!.created! >= result.userCreated!));
++  const assistant = latest(assistants);
++  if (!assistant || assistant.info.parentID !== user.info.id || assistant.info.time!.created! < result.userCreated) return result;
++  result.assistantMessageID = assistant.info.id!; result.assistantCreated = assistant.info.time!.created!;
++  result.assistantCompleted = timestamp(assistant.info.time?.completed) ? assistant.info.time!.completed! : null;
++  result.completed = result.assistantCompleted !== null;
++  result.finish = typeof assistant.info.finish === 'string' ? assistant.info.finish : null;
++  const text = (assistant.parts ?? []).filter(p => p.type === 'text').map(p => p.text ?? '').join('');
++  result.textChars = text.length; result.hasError = !!assistant.info.error;
++  if (result.hasError) { result.reason = 'error'; result.completeness = 'incomplete'; }
++  else if (result.finish === 'length') { result.reason = 'length'; result.completeness = 'incomplete'; }
++  else if (result.finish === 'tool-calls') { result.reason = 'tool_calls'; result.completeness = 'incomplete'; }
++  else if (!result.completed) result.reason = 'not_completed';
++  else if (result.finish === 'stop') { result.reason = text.trim() ? 'stop' : 'missing_text'; result.completeness = text.trim() ? 'complete' : 'incomplete'; }
++  else result.reason = 'unknown_finish';
++  return result;
++}
++export function canSettleRoot(result: RootResult): boolean {
++  return !!result.assistantMessageID && result.completed && result.finish !== 'tool-calls';
++}
+--- baseline/tests/contract/launch-evidence.test.ts
++++ final/tests/contract/launch-evidence.test.ts
+@@ -16,11 +16,13 @@
+ });
+ import { launch } from '../../apps/launcher/src/launch.js';
+ 
+ const SECRET = 'fictional-evidence-key-0123456789';
+ const msg = (sessionID: string) => ({ info: { id: `msg-${sessionID}`, sessionID, role: 'assistant', agent: 'coordinator',
+-  tokens: { input: 400, output: 150, reasoning: 50 }, time: { completed: 1 } }, parts: [{ type: 'text', text: SECRET }] });
++  tokens: { input: 400, output: 150, reasoning: 50 }, parentID: `user-${sessionID}`, finish: 'stop', time: { created: 2, completed: 3 } }, parts: [{ type: 'text', text: SECRET }] });
++const user = (id: string) => ({ info: { id: `user-${id}`, role: 'user', time: { created: 1 } }, parts: [] });
++let rootSequence: unknown[][] | undefined;
+ let dir: string;
+ let mode: string;
+ let reads: number;
+ let childGets: number;
+ let config: { plugin: Array<[string, { controlUrl: string; controlToken: string }]> };
+@@ -38,25 +40,26 @@
+     children: async ({ sessionID }: { sessionID: string }) => {
+       if (mode === 'children') throw error('children failed');
+       return { data: sessionID === 'root' ? [{ id: 'child' }, ...(['export', 'abort', 'unbound', 'unbound-missing'].includes(mode) ? [{ id: 'other' }] : [])] : [] };
+     },
+     messages: async ({ sessionID }: { sessionID: string }) => {
++      if (sessionID === 'root' && rootSequence) return { data: rootSequence[Math.min(reads++, rootSequence.length - 1)] };
+       if (sessionID === 'root' && ++reads >= 3 && (mode === 'usage' || mode === 'missing')) throw error('usage failed');
+       if ((mode === 'messages' && sessionID === 'child') || (mode === 'unbound-missing' && sessionID === 'other')) throw error('child messages failed');
+-      if (mode === 'zeroed' && reads >= 3 && sessionID === 'root') return { data: [{ ...msg(sessionID), info: { ...msg(sessionID).info, tokens: { input: 0, output: 0, reasoning: 0 }, error: { name: 'MessageAbortedError' } } }] };
+-      return { data: sessionID === 'other' && mode !== 'unbound' ? [] : mode === 'missing' ? [] : [msg(sessionID)] };
++      if (mode === 'zeroed' && reads >= 3 && sessionID === 'root') return { data: [user(sessionID), { ...msg(sessionID), info: { ...msg(sessionID).info, tokens: { input: 0, output: 0, reasoning: 0 }, error: { name: 'MessageAbortedError' } } }] };
++      return { data: sessionID === 'other' && mode !== 'unbound' ? [] : mode === 'missing' ? [] : [user(sessionID), msg(sessionID)] };
+     },
+     status: async () => { if (mode === 'status') throw error('status failed'); return { data: { root: { type: 'idle' }, child: { type: 'busy' } } }; },
+     abort: vi.fn(async ({ sessionID }: { sessionID: string }) => {
+       if (mode === 'abort' && sessionID === 'child') throw error('abort failed');
+       return { data: true };
+     })
+   } };
+ }
+ beforeEach(async () => {
+   dir = realpathSync(await mkdtemp(join(tmpdir(), 'launch-evidence-')));
+-  mode = ''; reads = 0; childGets = 0; fake.failWrite = '';
++  rootSequence = undefined; mode = ''; reads = 0; childGets = 0; fake.failWrite = '';
+   process.env.LAUNCH_EVIDENCE_TEST_KEY = SECRET;
+   await writeFile(join(dir, 'opencode.json'), JSON.stringify({ model: 'fake/model', provider: { fake: {
+     npm: '@ai-sdk/openai-compatible', options: { apiKey: '{env:LAUNCH_EVIDENCE_TEST_KEY}', baseURL: 'http://127.0.0.1:1' }, models: { model: {} }
+   } } }));
+   await writeFile(join(dir, 'challenges.json'), JSON.stringify({ challenges: [{ id: 'offline', statement: 'fixture' }] }));
+@@ -64,19 +67,19 @@
+     budget: { wallClockMs: 10000, maxSteps: 10, maxToolJobs: 1, maxObservableTokens: 10000 }, os: { platform: 'macos' } }));
+   client = makeClient(); close = vi.fn(async () => { if (mode === 'close') throw error('close failed'); });
+   fake.start.mockImplementation(async (options: { config: typeof config }) => { config = options.config; return { client, close, version: 'fake-sdk-1' }; });
+ });
+ afterEach(async () => { fake.failWrite = ''; delete process.env.LAUNCH_EVIDENCE_TEST_KEY; await rm(dir, { recursive: true, force: true }); });
+-async function run(failInStart = false) {
+-  return launch({ profile: join(dir, 'profile.json'), runsRoot: join(dir, 'runs'), runId: 'run', onStarted: async ({ rootId }) => {
++async function run(failInStart = false, deadlineMs?: number) {
++  return launch({ profile: join(dir, 'profile.json'), runsRoot: join(dir, 'runs'), runId: 'run', deadlineMs, onStarted: async ({ rootId }) => {
+     const opts = config.plugin[0]![1];
+     const hooks = createCtfAgentHooks({ ...opts, tools: [] });
+     await hooks['chat.params']!({ sessionID: rootId, agent: 'coordinator', model: { providerID: 'fake', id: 'model' } } as never, { maxOutputTokens: 1000 } as never);
+     await fetch(opts.controlUrl, { method: 'POST', headers: { authorization: `Bearer ${opts.controlToken}` },
+       body: JSON.stringify({ sessionID: rootId, operation: 'tool.execute', input: { tool: 'challenge.assign', args: { role: 'recon', challenge: 'offline' } } }) });
+     await hooks['tool.execute.before']!({ sessionID: rootId, tool: 'task', callID: 'dispatch' }, { args: { subagent_type: 'recon' } });
+-    await hooks['chat.message']!({ sessionID: 'child', agent: 'recon' } as never, {} as never);
++    if (mode !== 'pending') await hooks['chat.message']!({ sessionID: 'child', agent: 'recon' } as never, {} as never);
+     if (failInStart) throw error('original run failed');
+   } });
+ }
+ const json = async (name: string) => JSON.parse(await readFile(join(dir, 'runs/run', name), 'utf8'));
+ async function checkEvidence() {
+@@ -111,14 +114,19 @@
+   it.each(['children', 'export'])('continues other bound sessions after %s failure', async fault => {
+     mode = fault;
+     expect(await run()).toMatchObject({ code: 1, status: 'failed' });
+     const record = await checkEvidence();
+     expect(JSON.stringify(record.timeline)).toContain(fault === 'children' ? 'children failed' : 'child export failed');
+-    expect(await json('evidence/messages-root.json')).toHaveLength(1);
++    expect(await json('evidence/messages-root.json')).toHaveLength(2);
+     if (fault === 'export') expect(await json('evidence/messages-other.json')).toEqual([]);
+     const sessions = await json('evidence/sessions.json');
+     expect(sessions.find((s: { id: string }) => s.id === 'child').status).toBe('busy');
++  });
++  it('does not settle while a dispatch remains pending', async () => {
++    mode = 'pending';
++    expect((await run(false, 20)).status).toBe('deadline_exceeded');
++    expect((await json('state/run.json')).rootResult.completeness).toBe('complete');
+   });
+   it('keeps original and close errors plus memory evidence', async () => {
+     mode = 'close';
+     expect(await run(true)).toMatchObject({ code: 1, status: 'failed' });
+     const record = await checkEvidence();
+@@ -140,11 +148,11 @@
+     mode = 'messages';
+     expect(await run()).toMatchObject({ code: 1, status: 'failed' });
+     const record = await checkEvidence();
+     expect(record.usageTotal.lowerBound).toBe(true);
+     expect(await readdir(join(dir, 'runs/run/evidence'))).not.toContain('messages-child.json');
+-    expect(await json('evidence/messages-root.json')).toHaveLength(1);
++    expect(await json('evidence/messages-root.json')).toHaveLength(2);
+     mode = 'status';
+     // Use another output directory for a separate failed-status run.
+     await rm(join(dir, 'runs'), { recursive: true }); reads = 0; childGets = 0;
+     expect(await run()).toMatchObject({ code: 1, status: 'failed' });
+     const sessions = await json('evidence/sessions.json');
+@@ -192,5 +200,80 @@
+     const record = await json('state/run.json');
+     expect(record.status).toBe('failed');
+     expect(JSON.stringify(record.timeline)).toContain('injected write failure');
+   });
+ });
++
++describe('root final report provenance', () => {
++  const assistant = (finish: string, text: string, extra = {}) => ({ ...msg('root'), info: { ...msg('root').info, finish, ...extra }, parts: [{ type: 'text', text }] });
++  it.each<[string, string, string, string, Record<string, unknown>?]>([
++    ['length', '', 'incomplete', 'length'], ['length', 'partial', 'incomplete', 'length'],
++    ['stop', 'unsolved', 'complete', 'stop'], ['stop', '  ', 'incomplete', 'missing_text'],
++    ['other', 'text', 'unknown', 'unknown_finish'], ['stop', 'partial', 'unknown', 'not_completed', { time: { created: 2 } }],
++    ['tool-calls', 'partial', 'incomplete', 'tool_calls'],
++  ])('records %s report with text %s', async (finish, text, completeness, reason, extra = {}) => {
++    rootSequence = [[user('root'), assistant(finish, text, extra)]];
++    const waiting = reason === 'not_completed' || reason === 'tool_calls';
++    const result = await launch({ profile: join(dir, 'profile.json'), runsRoot: join(dir, 'runs'), runId: 'run', deadlineMs: waiting ? 20 : 10000 });
++    expect(result.status).toBe(waiting ? 'deadline_exceeded' : 'completed');
++    const record = await json('state/run.json');
++    expect(record.rootResult).toMatchObject({ userMessageID: 'user-root', assistantMessageID: 'msg-root', finish, completeness, reason });
++    const report = await readFile(join(dir, 'runs/run/progress.md'), 'utf8');
++    expect(report).toContain(`Report completeness: **${completeness}**`);
++    expect(report).toContain('evidence/messages-root.json');
++    expect(report).not.toContain('partial');
++  });
++  it.each(['new-user', 'wrong-parent', 'tie', 'missing-id', 'missing-created', 'historical'])('does not settle uncertain %s provenance', async fault => {
++    const latest = assistant('stop', 'new', fault === 'historical' ? { id: 'new', time: { created: 4 } } : fault === 'wrong-parent' ? { parentID: 'other' } : fault === 'missing-id' ? { id: undefined } : fault === 'missing-created' ? { time: { completed: 3 } } : {});
++    rootSequence = [[user('root'), ...(fault === 'historical' ? [assistant('stop', 'old')] : []), latest,
++      ...(fault === 'new-user' ? [{ info: { id: 'new-user', role: 'user', time: { created: 5 } } }] : []),
++      ...(fault === 'tie' ? [assistant('stop', 'tie', { id: 'tie' })] : [])]];
++    expect((await launch({ profile: join(dir, 'profile.json'), runsRoot: join(dir, 'runs'), runId: 'run', deadlineMs: 20 })).status).toBe('deadline_exceeded');
++    expect((await json('state/run.json')).rootResult.completeness).toBe('unknown');
++  });
++  it('restarts idle confirmation when source changes and freezes before cleanup', async () => {
++    const first = assistant('stop', 'first');
++    const second = assistant('stop', 'second', { id: 'second', time: { created: 4, completed: 5 } });
++    rootSequence = [[first, user('root')], [first, user('root')], [second, user('root'), first], [second, user('root'), first], [first, second, user('root')], [first, second, user('root')],
++      [user('root'), assistant('stop', '', { id: 'second', time: { created: 4, completed: 5 }, error: { name: 'MessageAbortedError' } })]];
++    expect((await launch({ profile: join(dir, 'profile.json'), runsRoot: join(dir, 'runs'), runId: 'run' })).status).toBe('completed');
++    // Three rounds each read usage then idle; only the seventh read is the post-stop export.
++    expect(reads).toBe(7);
++    expect((await json('evidence/messages-root.json'))).toMatchObject([
++      { info: { id: 'user-root', role: 'user' } },
++      { info: { id: 'second', error: { name: 'MessageAbortedError' } }, parts: [{ type: 'text', text: '' }] }
++    ]);
++    expect((await json('state/run.json')).rootResult).toMatchObject({ assistantMessageID: 'second', completeness: 'complete', textChars: 6, hasError: false, exportedSourceMatches: false });
++  });
++  it('accepts uniquely parent-linked messages created within the same millisecond', async () => {
++    rootSequence = [[user('root'), assistant('stop', 'unsolved', { time: { created: 1, completed: 3 } })]];
++    expect((await launch({ profile: join(dir, 'profile.json'), runsRoot: join(dir, 'runs'), runId: 'run', deadlineMs: 1500 })).status).toBe('completed');
++    expect((await json('state/run.json')).rootResult.completeness).toBe('complete');
++  });
++  it('preserves a real APIError as failure even without completed metadata', async () => {
++    rootSequence = [[user('root'), assistant('stop', '', { time: { created: 2 }, error: { name: 'APIError' } })]];
++    expect((await launch({ profile: join(dir, 'profile.json'), runsRoot: join(dir, 'runs'), runId: 'run', deadlineMs: 20 })).status).toBe('failed');
++    expect((await json('state/run.json')).rootResult).toMatchObject({ hasError: true, completeness: 'incomplete', reason: 'error' });
++  });
++  it('marks unavailable exported root evidence unknown without inventing a path', async () => {
++    fake.failWrite = '/messages-root.json';
++    rootSequence = [[user('root'), assistant('stop', 'unsolved')]];
++    expect((await launch({ profile: join(dir, 'profile.json'), runsRoot: join(dir, 'runs'), runId: 'run' })).status).toBe('failed');
++    expect((await json('state/run.json')).rootResult).toMatchObject({ completeness: 'unknown', reason: 'export_unavailable', evidence: null });
++  });
++
++  it('does not invent a pre-stop snapshot when budget cleanup already began', async () => {
++    const path = join(dir, 'profile.json');
++    const profile = JSON.parse(await readFile(path, 'utf8')); profile.budget.maxObservableTokens = 1;
++    await writeFile(path, JSON.stringify(profile));
++    rootSequence = [[user('root'), assistant('stop', 'cleanup text')]];
++    expect((await launch({ profile: path, runsRoot: join(dir, 'runs'), runId: 'run' })).status).toBe('budget_exceeded');
++    expect((await json('state/run.json')).rootResult).toMatchObject({ completeness: 'unknown', reason: 'snapshot_unavailable' });
++  });
++
++  it('does not hide a historical real abort behind a later normal report', async () => {
++    rootSequence = [[user('root'), assistant('stop', 'old', { id: 'old', time: { created: 1, completed: 2 }, error: { name: 'MessageAbortedError' } }), assistant('stop', 'unsolved')]];
++    expect((await launch({ profile: join(dir, 'profile.json'), runsRoot: join(dir, 'runs'), runId: 'run' })).status).toBe('failed');
++    expect((await json('state/run.json')).rootResult.completeness).toBe('complete');
++  });
++
++});

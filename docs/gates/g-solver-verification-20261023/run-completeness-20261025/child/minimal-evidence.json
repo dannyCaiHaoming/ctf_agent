@@ -1,0 +1,570 @@
+{
+  "partial-sdk-runtime.json": {
+    "requests": 8,
+    "failure": null,
+    "sessions": [
+      {
+        "at": 1792856408670,
+        "sessionID": "ses_e916e40abffeFkhxqRHnb15KN5",
+        "messages": [
+          {
+            "info": {
+              "id": "msg_16e91bf67001ZUB32Pb4kPaY9u",
+              "role": "user",
+              "time": {
+                "created": 1792856407911
+              }
+            },
+            "parts": [
+              {
+                "id": "prt_16e91bf69001feAcsgrh953KBx",
+                "type": "text",
+                "textLength": 10
+              }
+            ]
+          },
+          {
+            "info": {
+              "id": "msg_16e91c035001NXWMGif9xEHHyX",
+              "role": "assistant",
+              "parentID": "msg_16e91bf67001ZUB32Pb4kPaY9u",
+              "time": {
+                "created": 1792856408117,
+                "completed": 1792856408551
+              },
+              "finish": "tool-calls"
+            },
+            "parts": [
+              {
+                "id": "prt_16e91c1da001YYYtbGZm8rFy2y",
+                "type": "tool",
+                "callID": "call_2_0",
+                "tool": "task",
+                "state": {
+                  "status": "completed",
+                  "input": {
+                    "subagent_type": "probe-child",
+                    "description": "first",
+                    "prompt": "CHILD_PROBE first",
+                    "background": true
+                  },
+                  "output": "<task id=\"ses_e916e3e22ffevftOjZHiIitrtZ\" state=\"running\">\n<summary>Background task started</summary>\n<task_result>\nThe task is working in the background. You will be notified automatically when it finishes.\nDO NOT sleep, poll for progress, ask the task for status, or duplicate this task's work \u2014 avoid working with the same files or topics it is using.\nWork on non-overlapping tasks, or briefly tell the user what you launched and end your response.\n</task_result>\n</task>",
+                  "title": "first",
+                  "metadata": {
+                    "parentSessionId": "ses_e916e40abffeFkhxqRHnb15KN5",
+                    "sessionId": "ses_e916e3e22ffevftOjZHiIitrtZ",
+                    "model": {
+                      "modelID": "scripted",
+                      "providerID": "stub"
+                    },
+                    "background": true,
+                    "jobId": "ses_e916e3e22ffevftOjZHiIitrtZ",
+                    "truncated": false
+                  },
+                  "time": {
+                    "start": 1792856408542,
+                    "end": 1792856408549
+                  }
+                }
+              }
+            ]
+          },
+          {
+            "info": {
+              "id": "msg_16e91c1e8001rIk6ItO76i5AmO",
+              "role": "assistant",
+              "parentID": "msg_16e91bf67001ZUB32Pb4kPaY9u",
+              "time": {
+                "created": 1792856408552,
+                "completed": 1792856408609
+              },
+              "finish": "stop"
+            },
+            "parts": [
+              {
+                "id": "prt_16e91c2180028B6FxX00gONezr",
+                "type": "text",
+                "textLength": 9
+              }
+            ]
+          },
+          {
+            "info": {
+              "id": "msg_16e91c22b001Ta9iANuHsIH3gG",
+              "role": "user",
+              "time": {
+                "created": 1792856408619
+              }
+            },
+            "parts": [
+              {
+                "id": "prt_16e91c22b002mESZRiBP4i7uZM",
+                "type": "text",
+                "synthetic": true,
+                "textLength": 163,
+                "text": "<task id=\"ses_e916e3e22ffevftOjZHiIitrtZ\" state=\"completed\">\n<summary>Background task completed: first</summary>\n<task_result>\nPARTIAL_FIRST\n</task_result>\n</task>"
+              }
+            ]
+          },
+          {
+            "info": {
+              "id": "msg_16e91c22d001Y4TQxsHcpayQ0q",
+              "role": "assistant",
+              "parentID": "msg_16e91c22b001Ta9iANuHsIH3gG",
+              "time": {
+                "created": 1792856408621,
+                "completed": 1792856408635
+              },
+              "finish": "tool-calls"
+            },
+            "parts": [
+              {
+                "id": "prt_16e91c2360029OI7XGkgXnQTMc",
+                "type": "tool",
+                "callID": "call_5_0",
+                "tool": "task",
+                "state": {
+                  "status": "completed",
+                  "input": {
+                    "subagent_type": "probe-child",
+                    "description": "second",
+                    "prompt": "CHILD_PROBE second",
+                    "task_id": "ses_e916e3e22ffevftOjZHiIitrtZ",
+                    "background": true
+                  },
+                  "output": "<task id=\"ses_e916e3e22ffevftOjZHiIitrtZ\" state=\"running\">\n<summary>Background task started</summary>\n<task_result>\nThe task is working in the background. You will be notified automatically when it finishes.\nDO NOT sleep, poll for progress, ask the task for status, or duplicate this task's work \u2014 avoid working with the same files or topics it is using.\nWork on non-overlapping tasks, or briefly tell the user what you launched and end your response.\n</task_result>\n</task>",
+                  "title": "second",
+                  "metadata": {
+                    "parentSessionId": "ses_e916e40abffeFkhxqRHnb15KN5",
+                    "sessionId": "ses_e916e3e22ffevftOjZHiIitrtZ",
+                    "model": {
+                      "modelID": "scripted",
+                      "providerID": "stub"
+                    },
+                    "background": true,
+                    "jobId": "ses_e916e3e22ffevftOjZHiIitrtZ",
+                    "truncated": false
+                  },
+                  "time": {
+                    "start": 1792856408631,
+                    "end": 1792856408634
+                  }
+                }
+              }
+            ]
+          },
+          {
+            "info": {
+              "id": "msg_16e91c23c001lDRDwG4mZoVDIP",
+              "role": "assistant",
+              "parentID": "msg_16e91c22b001Ta9iANuHsIH3gG",
+              "time": {
+                "created": 1792856408636,
+                "completed": 1792856408643
+              },
+              "finish": "stop"
+            },
+            "parts": [
+              {
+                "id": "prt_16e91c242001noRc23KKVnCqmo",
+                "type": "text",
+                "textLength": 9
+              }
+            ]
+          },
+          {
+            "info": {
+              "id": "msg_16e91c248001TKwyy99nd9HO1O",
+              "role": "user",
+              "time": {
+                "created": 1792856408648
+              }
+            },
+            "parts": [
+              {
+                "id": "prt_16e91c248002nNFIWyr04VavnO",
+                "type": "text",
+                "synthetic": true,
+                "textLength": 166,
+                "text": "<task id=\"ses_e916e3e22ffevftOjZHiIitrtZ\" state=\"completed\">\n<summary>Background task completed: second</summary>\n<task_result>\nSECOND_COMPLETE\n</task_result>\n</task>"
+              }
+            ]
+          },
+          {
+            "info": {
+              "id": "msg_16e91c24b001iMV5T15pb86L3O",
+              "role": "assistant",
+              "parentID": "msg_16e91c248001TKwyy99nd9HO1O",
+              "time": {
+                "created": 1792856408651,
+                "completed": 1792856408662
+              },
+              "finish": "stop"
+            },
+            "parts": [
+              {
+                "id": "prt_16e91c2540022NaIkMYm1pEGZU",
+                "type": "text",
+                "textLength": 9
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "at": 1792856408671,
+        "sessionID": "ses_e916e3e22ffevftOjZHiIitrtZ",
+        "parentID": "ses_e916e40abffeFkhxqRHnb15KN5",
+        "messages": [
+          {
+            "info": {
+              "id": "msg_16e91c1df001SsolKw6sWrzV05",
+              "role": "user",
+              "time": {
+                "created": 1792856408543
+              }
+            },
+            "parts": [
+              {
+                "id": "prt_16e91c1e0001YtixJeCVMNBssy",
+                "type": "text",
+                "textLength": 17
+              }
+            ]
+          },
+          {
+            "info": {
+              "id": "msg_16e91c2140017iolSZJsKnLssn",
+              "role": "assistant",
+              "parentID": "msg_16e91c1df001SsolKw6sWrzV05",
+              "time": {
+                "created": 1792856408596,
+                "completed": 1792856408617
+              },
+              "finish": "length"
+            },
+            "parts": [
+              {
+                "id": "prt_16e91c227002FS8fmTnSTof1Nd",
+                "type": "text",
+                "textLength": 13
+              }
+            ]
+          },
+          {
+            "info": {
+              "id": "msg_16e91c238001Z0UgLd1MEKhmwP",
+              "role": "user",
+              "time": {
+                "created": 1792856408632
+              }
+            },
+            "parts": [
+              {
+                "id": "prt_16e91c238002VApvyZ8k2Bo1c6",
+                "type": "text",
+                "textLength": 18
+              }
+            ]
+          },
+          {
+            "info": {
+              "id": "msg_16e91c23d001I4EHHlTXbweAxu",
+              "role": "assistant",
+              "parentID": "msg_16e91c238001Z0UgLd1MEKhmwP",
+              "time": {
+                "created": 1792856408637,
+                "completed": 1792856408647
+              },
+              "finish": "stop"
+            },
+            "parts": [
+              {
+                "id": "prt_16e91c245002Wdb1Mzk8GBa8Wr",
+                "type": "text",
+                "textLength": 15
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "empty-sdk-runtime.json": {
+    "requests": 8,
+    "failure": null,
+    "sessions": [
+      {
+        "at": 1792856429912,
+        "sessionID": "ses_e916deebaffe305AryEXYBzK5w",
+        "messages": [
+          {
+            "info": {
+              "id": "msg_16e921153001RssBTdeJ3V3Zu6",
+              "role": "user",
+              "time": {
+                "created": 1792856428883
+              }
+            },
+            "parts": [
+              {
+                "id": "prt_16e921155001jv7Ahm9Bv24xZD",
+                "type": "text",
+                "textLength": 10
+              }
+            ]
+          },
+          {
+            "info": {
+              "id": "msg_16e921219001t4dkoOVTEDj0wn",
+              "role": "assistant",
+              "parentID": "msg_16e921153001RssBTdeJ3V3Zu6",
+              "time": {
+                "created": 1792856429081,
+                "completed": 1792856429792
+              },
+              "finish": "tool-calls"
+            },
+            "parts": [
+              {
+                "id": "prt_16e9214d4001J4tP6AgetlVgTm",
+                "type": "tool",
+                "callID": "call_2_0",
+                "tool": "task",
+                "state": {
+                  "status": "completed",
+                  "input": {
+                    "subagent_type": "probe-child",
+                    "description": "first",
+                    "prompt": "CHILD_PROBE first",
+                    "background": true
+                  },
+                  "output": "<task id=\"ses_e916deb29ffe63XzS1nddHwjC5\" state=\"running\">\n<summary>Background task started</summary>\n<task_result>\nThe task is working in the background. You will be notified automatically when it finishes.\nDO NOT sleep, poll for progress, ask the task for status, or duplicate this task's work \u2014 avoid working with the same files or topics it is using.\nWork on non-overlapping tasks, or briefly tell the user what you launched and end your response.\n</task_result>\n</task>",
+                  "title": "first",
+                  "metadata": {
+                    "parentSessionId": "ses_e916deebaffe305AryEXYBzK5w",
+                    "sessionId": "ses_e916deb29ffe63XzS1nddHwjC5",
+                    "model": {
+                      "modelID": "scripted",
+                      "providerID": "stub"
+                    },
+                    "background": true,
+                    "jobId": "ses_e916deb29ffe63XzS1nddHwjC5",
+                    "truncated": false
+                  },
+                  "time": {
+                    "start": 1792856429783,
+                    "end": 1792856429789
+                  }
+                }
+              }
+            ]
+          },
+          {
+            "info": {
+              "id": "msg_16e9214e0001pbFgs35bE9f1jO",
+              "role": "assistant",
+              "parentID": "msg_16e921153001RssBTdeJ3V3Zu6",
+              "time": {
+                "created": 1792856429792,
+                "completed": 1792856429855
+              },
+              "finish": "stop"
+            },
+            "parts": [
+              {
+                "id": "prt_16e921516001en8TClfSvWgypW",
+                "type": "text",
+                "textLength": 9
+              }
+            ]
+          },
+          {
+            "info": {
+              "id": "msg_16e92152c001prFnXSw8tH4qC5",
+              "role": "user",
+              "time": {
+                "created": 1792856429868
+              }
+            },
+            "parts": [
+              {
+                "id": "prt_16e92152c002IWcpKhtd1ejE1P",
+                "type": "text",
+                "synthetic": true,
+                "textLength": 150,
+                "text": "<task id=\"ses_e916deb29ffe63XzS1nddHwjC5\" state=\"completed\">\n<summary>Background task completed: first</summary>\n<task_result>\n\n</task_result>\n</task>"
+              }
+            ]
+          },
+          {
+            "info": {
+              "id": "msg_16e92152f0019L07gjMnGn1Ecn",
+              "role": "assistant",
+              "parentID": "msg_16e92152c001prFnXSw8tH4qC5",
+              "time": {
+                "created": 1792856429871,
+                "completed": 1792856429881
+              },
+              "finish": "tool-calls"
+            },
+            "parts": [
+              {
+                "id": "prt_16e921533002xxmvZJ2lrSkJ1B",
+                "type": "tool",
+                "callID": "call_5_0",
+                "tool": "task",
+                "state": {
+                  "status": "completed",
+                  "input": {
+                    "subagent_type": "probe-child",
+                    "description": "second",
+                    "prompt": "CHILD_PROBE second",
+                    "task_id": "ses_e916deb29ffe63XzS1nddHwjC5",
+                    "background": true
+                  },
+                  "output": "<task id=\"ses_e916deb29ffe63XzS1nddHwjC5\" state=\"running\">\n<summary>Background task started</summary>\n<task_result>\nThe task is working in the background. You will be notified automatically when it finishes.\nDO NOT sleep, poll for progress, ask the task for status, or duplicate this task's work \u2014 avoid working with the same files or topics it is using.\nWork on non-overlapping tasks, or briefly tell the user what you launched and end your response.\n</task_result>\n</task>",
+                  "title": "second",
+                  "metadata": {
+                    "parentSessionId": "ses_e916deebaffe305AryEXYBzK5w",
+                    "sessionId": "ses_e916deb29ffe63XzS1nddHwjC5",
+                    "model": {
+                      "modelID": "scripted",
+                      "providerID": "stub"
+                    },
+                    "background": true,
+                    "jobId": "ses_e916deb29ffe63XzS1nddHwjC5",
+                    "truncated": false
+                  },
+                  "time": {
+                    "start": 1792856429877,
+                    "end": 1792856429880
+                  }
+                }
+              }
+            ]
+          },
+          {
+            "info": {
+              "id": "msg_16e92153a001872bvsbFES2DWe",
+              "role": "assistant",
+              "parentID": "msg_16e92152c001prFnXSw8tH4qC5",
+              "time": {
+                "created": 1792856429882,
+                "completed": 1792856429894
+              },
+              "finish": "stop"
+            },
+            "parts": [
+              {
+                "id": "prt_16e9215440013URqVfn3gki8ty",
+                "type": "text",
+                "textLength": 9
+              }
+            ]
+          },
+          {
+            "info": {
+              "id": "msg_16e92154a001iyOp3ou3jthCTZ",
+              "role": "user",
+              "time": {
+                "created": 1792856429898
+              }
+            },
+            "parts": [
+              {
+                "id": "prt_16e92154a002zU8YHkefgoGZnx",
+                "type": "text",
+                "synthetic": true,
+                "textLength": 166,
+                "text": "<task id=\"ses_e916deb29ffe63XzS1nddHwjC5\" state=\"completed\">\n<summary>Background task completed: second</summary>\n<task_result>\nSECOND_COMPLETE\n</task_result>\n</task>"
+              }
+            ]
+          },
+          {
+            "info": {
+              "id": "msg_16e92154e001XDcsFnjnRu21Zk",
+              "role": "assistant",
+              "parentID": "msg_16e92154a001iyOp3ou3jthCTZ",
+              "time": {
+                "created": 1792856429902
+              }
+            },
+            "parts": []
+          }
+        ]
+      },
+      {
+        "at": 1792856429914,
+        "sessionID": "ses_e916deb29ffe63XzS1nddHwjC5",
+        "parentID": "ses_e916deebaffe305AryEXYBzK5w",
+        "messages": [
+          {
+            "info": {
+              "id": "msg_16e9214d9001YlsAvUBoqd4MVU",
+              "role": "user",
+              "time": {
+                "created": 1792856429785
+              }
+            },
+            "parts": [
+              {
+                "id": "prt_16e9214da001u8my4nu0tEi2SU",
+                "type": "text",
+                "textLength": 17
+              }
+            ]
+          },
+          {
+            "info": {
+              "id": "msg_16e9215100017nwk5UDoocN4BK",
+              "role": "assistant",
+              "parentID": "msg_16e9214d9001YlsAvUBoqd4MVU",
+              "time": {
+                "created": 1792856429840,
+                "completed": 1792856429867
+              },
+              "finish": "length"
+            },
+            "parts": []
+          },
+          {
+            "info": {
+              "id": "msg_16e921535001jRmzVZnq5KiSLR",
+              "role": "user",
+              "time": {
+                "created": 1792856429877
+              }
+            },
+            "parts": [
+              {
+                "id": "prt_16e921535002YjJM4VybGeef7t",
+                "type": "text",
+                "textLength": 18
+              }
+            ]
+          },
+          {
+            "info": {
+              "id": "msg_16e92153b001jAY8tjKjrAJsj6",
+              "role": "assistant",
+              "parentID": "msg_16e921535001jRmzVZnq5KiSLR",
+              "time": {
+                "created": 1792856429883,
+                "completed": 1792856429897
+              },
+              "finish": "stop"
+            },
+            "parts": [
+              {
+                "id": "prt_16e921547002IYsIYoE43P91Jb",
+                "type": "text",
+                "textLength": 15
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}

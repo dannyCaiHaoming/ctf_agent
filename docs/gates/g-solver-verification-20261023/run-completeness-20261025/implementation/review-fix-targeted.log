@@ -1,0 +1,42 @@
+
+> ctf-agent@0.1.0 test
+> vitest run tests/contract/launch-evidence.test.ts tests/contract/progress-ledger.test.ts
+
+
+ RUN  v2.1.9 /Users/caihaoming/.codex/worktrees/run-completeness-validation/pentest-agent
+
+ ✓ tests/contract/progress-ledger.test.ts (3 tests) 10ms
+ ✓ tests/contract/launch-evidence.test.ts (33 tests) 20908ms
+   ✓ launch failure evidence with SDK stand-in only > keeps normal success and complete reported usage 585ms
+   ✓ launch failure evidence with SDK stand-in only > continues other bound sessions after children failure 578ms
+   ✓ launch failure evidence with SDK stand-in only > continues other bound sessions after export failure 591ms
+   ✓ launch failure evidence with SDK stand-in only > does not settle while a dispatch remains pending 1082ms
+   ✓ launch failure evidence with SDK stand-in only > records real per-session abort results and continues remaining aborts 560ms
+   ✓ launch failure evidence with SDK stand-in only > includes known SDK descendant usage even if the descendant never bound 557ms
+   ✓ launch failure evidence with SDK stand-in only > marks total as a lower bound if an unbound descendant export fails 570ms
+   ✓ launch failure evidence with SDK stand-in only > marks the run failed when the final progress report cannot be written but keeps existing evidence 583ms
+   ✓ launch failure evidence with SDK stand-in only > continues evidence writes and records a single-file write failure 592ms
+   ✓ root final report provenance > records length report with text  574ms
+   ✓ root final report provenance > records length report with text partial 563ms
+   ✓ root final report provenance > records stop report with text unsolved 563ms
+   ✓ root final report provenance > records stop report with text    577ms
+   ✓ root final report provenance > records other report with text text 573ms
+   ✓ root final report provenance > records stop report with text partial 1111ms
+   ✓ root final report provenance > records tool-calls report with text partial 1083ms
+   ✓ root final report provenance > does not settle uncertain new-user provenance 1095ms
+   ✓ root final report provenance > does not settle uncertain wrong-parent provenance 1085ms
+   ✓ root final report provenance > does not settle uncertain tie provenance 1059ms
+   ✓ root final report provenance > does not settle uncertain missing-id provenance 1060ms
+   ✓ root final report provenance > does not settle uncertain missing-created provenance 1057ms
+   ✓ root final report provenance > does not settle uncertain historical provenance 1070ms
+   ✓ root final report provenance > restarts idle confirmation when source changes and freezes before cleanup 1071ms
+   ✓ root final report provenance > accepts uniquely parent-linked messages created within the same millisecond 564ms
+   ✓ root final report provenance > marks unavailable exported root evidence unknown without inventing a path 553ms
+   ✓ root final report provenance > does not invent a pre-stop snapshot when budget cleanup already began 566ms
+   ✓ root final report provenance > does not hide a historical real abort behind a later normal report 557ms
+
+ Test Files  2 passed (2)
+      Tests  36 passed (36)
+   Start at  01:05:43
+   Duration  21.31s (transform 167ms, setup 0ms, collect 245ms, tests 20.92s, environment 0ms, prepare 48ms)
+

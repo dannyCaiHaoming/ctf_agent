@@ -1,0 +1,118 @@
+
+> ctf-agent@0.1.0 test
+> vitest run tests/contract/launch-evidence.test.ts tests/contract/progress-ledger.test.ts
+
+
+ RUN  v2.1.9 /Users/caihaoming/.codex/worktrees/run-completeness-validation/pentest-agent
+
+ ✓ tests/contract/progress-ledger.test.ts (3 tests) 11ms
+ ❯ tests/contract/launch-evidence.test.ts (27 tests | 14 failed) 17648ms
+   ✓ launch failure evidence with SDK stand-in only > keeps normal success and complete reported usage 579ms
+   ✓ launch failure evidence with SDK stand-in only > continues other bound sessions after children failure 574ms
+   ✓ launch failure evidence with SDK stand-in only > continues other bound sessions after export failure 588ms
+   ✓ launch failure evidence with SDK stand-in only > records real per-session abort results and continues remaining aborts 563ms
+   ✓ launch failure evidence with SDK stand-in only > keeps retained message consumption in the actual run file after abort zeroes it 557ms
+   ✓ launch failure evidence with SDK stand-in only > includes known SDK descendant usage even if the descendant never bound 564ms
+   ✓ launch failure evidence with SDK stand-in only > marks total as a lower bound if an unbound descendant export fails 591ms
+   ✓ launch failure evidence with SDK stand-in only > marks the run failed when the final progress report cannot be written but keeps existing evidence 586ms
+   ✓ launch failure evidence with SDK stand-in only > continues evidence writes and records a single-file write failure 583ms
+   × root final report provenance > records length report with text  583ms
+     → expected undefined to match object { userMessageID: 'user-root', …(4) }
+   × root final report provenance > records length report with text partial 573ms
+     → expected undefined to match object { userMessageID: 'user-root', …(4) }
+   × root final report provenance > records stop report with text unsolved 581ms
+     → expected undefined to match object { userMessageID: 'user-root', …(4) }
+   × root final report provenance > records stop report with text    580ms
+     → expected undefined to match object { userMessageID: 'user-root', …(4) }
+   × root final report provenance > records other report with text text 584ms
+     → expected undefined to match object { userMessageID: 'user-root', …(4) }
+   × root final report provenance > records stop report with text partial 1077ms
+     → expected undefined to match object { userMessageID: 'user-root', …(4) }
+   × root final report provenance > records tool-calls report with text partial 1082ms
+     → expected undefined to match object { userMessageID: 'user-root', …(4) }
+   × root final report provenance > does not settle uncertain new-user provenance 1081ms
+     → Cannot read properties of undefined (reading 'completeness')
+   × root final report provenance > does not settle uncertain wrong-parent provenance 1084ms
+     → Cannot read properties of undefined (reading 'completeness')
+   × root final report provenance > does not settle uncertain tie provenance 1083ms
+     → Cannot read properties of undefined (reading 'completeness')
+   × root final report provenance > does not settle uncertain missing-id provenance 1084ms
+     → Cannot read properties of undefined (reading 'completeness')
+   × root final report provenance > does not settle uncertain missing-created provenance 1081ms
+     → Cannot read properties of undefined (reading 'completeness')
+   × root final report provenance > does not settle uncertain historical provenance 1071ms
+     → Cannot read properties of undefined (reading 'completeness')
+   × root final report provenance > restarts idle confirmation when source changes and freezes before cleanup 582ms
+     → expected 'failed' to be 'completed' // Object.is equality
+
+⎯⎯⎯⎯⎯⎯ Failed Tests 14 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/contract/launch-evidence.test.ts > root final report provenance > records length report with text 
+ FAIL  tests/contract/launch-evidence.test.ts > root final report provenance > records length report with text partial
+ FAIL  tests/contract/launch-evidence.test.ts > root final report provenance > records stop report with text unsolved
+ FAIL  tests/contract/launch-evidence.test.ts > root final report provenance > records stop report with text   
+ FAIL  tests/contract/launch-evidence.test.ts > root final report provenance > records other report with text text
+ FAIL  tests/contract/launch-evidence.test.ts > root final report provenance > records stop report with text partial
+ FAIL  tests/contract/launch-evidence.test.ts > root final report provenance > records tool-calls report with text partial
+AssertionError: expected undefined to match object { userMessageID: 'user-root', …(4) }
+
+- Expected: 
+Object {
+  "assistantMessageID": "msg-root",
+  "completeness": "incomplete",
+  "finish": "length",
+  "reason": "length",
+  "userMessageID": "user-root",
+}
+
++ Received: 
+undefined
+
+ ❯ tests/contract/launch-evidence.test.ts:214:31
+    212|     expect(result.status).toBe(waiting ? 'deadline_exceeded' : 'comple…
+    213|     const record = await json('state/run.json');
+    214|     expect(record.rootResult).toMatchObject({ userMessageID: 'user-roo…
+       |                               ^
+    215|     const report = await readFile(join(dir, 'runs/run/progress.md'), '…
+    216|     expect(report).toContain(`Report completeness: **${completeness}**…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/14]⎯
+
+ FAIL  tests/contract/launch-evidence.test.ts > root final report provenance > does not settle uncertain new-user provenance
+ FAIL  tests/contract/launch-evidence.test.ts > root final report provenance > does not settle uncertain wrong-parent provenance
+ FAIL  tests/contract/launch-evidence.test.ts > root final report provenance > does not settle uncertain tie provenance
+ FAIL  tests/contract/launch-evidence.test.ts > root final report provenance > does not settle uncertain missing-id provenance
+ FAIL  tests/contract/launch-evidence.test.ts > root final report provenance > does not settle uncertain missing-created provenance
+ FAIL  tests/contract/launch-evidence.test.ts > root final report provenance > does not settle uncertain historical provenance
+TypeError: Cannot read properties of undefined (reading 'completeness')
+ ❯ tests/contract/launch-evidence.test.ts:226:54
+    224|       ...(fault === 'tie' ? [assistant('stop', 'tie', { id: 'tie' })] …
+    225|     expect((await launch({ profile: join(dir, 'profile.json'), runsRoo…
+    226|     expect((await json('state/run.json')).rootResult.completeness).toB…
+       |                                                      ^
+    227|   });
+    228|   it('restarts idle confirmation when source changes and freezes befor…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/14]⎯
+
+ FAIL  tests/contract/launch-evidence.test.ts > root final report provenance > restarts idle confirmation when source changes and freezes before cleanup
+AssertionError: expected 'failed' to be 'completed' // Object.is equality
+
+Expected: "completed"
+Received: "failed"
+
+ ❯ tests/contract/launch-evidence.test.ts:233:118
+    231|     rootSequence = [[first, user('root')], [second, user('root'), firs…
+    232|       [user('root'), assistant('stop', '', { error: { name: 'MessageAb…
+    233|     expect((await launch({ profile: join(dir, 'profile.json'), runsRoo…
+       |                                                                                                                      ^
+    234|     expect(reads).toBeGreaterThanOrEqual(4);
+    235|     expect((await json('state/run.json')).rootResult).toMatchObject({ …
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/14]⎯
+
+ Test Files  1 failed | 1 passed (2)
+      Tests  14 failed | 16 passed (30)
+   Start at  00:55:28
+   Duration  18.05s (transform 162ms, setup 0ms, collect 240ms, tests 17.66s, environment 0ms, prepare 56ms)
+

@@ -1,0 +1,37 @@
+--- a/apps/launcher/src/control-service.ts
++++ b/apps/launcher/src/control-service.ts
+@@ -65,6 +65,8 @@
+   allow: boolean;
+   reason?: string;
+   detail?: unknown;
++  role?: Role;
++  challengeId?: string;
+ }
+ 
+ export interface SessionUsage {
+@@ -115,6 +117,10 @@
+   skillRoot: string;
+   /** Challenges pinned by run preparation; the scope of the intake tools. Absent means none. */
+   challenges?: PreparedChallenge[];
++  /** Known credentials and other exact strings that must never reach the progress ledger. */
++  redactions?: readonly string[];
++  /** Incremental human-review projection callback; the full audit remains authoritative. */
++  onAudit?: (record: AuditRecord) => void;
+ }
+ 
+ export class ControlService {
+@@ -378,8 +384,12 @@
+   }
+ 
+   private record(sessionID: string, op: string, allow: boolean, reason?: string, detail?: unknown): void {
+-    this.audit.push({ seq: ++this.seq, t: Date.now() - this.startedAt, at: Date.now(), sessionID, op, allow,
+-      ...(reason ? { reason } : {}), ...(detail === undefined ? {} : { detail }) });
++    const binding = this.bindings.get(sessionID);
++    const record: AuditRecord = { seq: ++this.seq, t: Date.now() - this.startedAt, at: Date.now(), sessionID, op, allow,
++      ...(reason ? { reason } : {}), ...(detail === undefined ? {} : { detail }),
++      ...(binding ? { role: binding.role } : {}), ...(binding?.challengeId ? { challengeId: binding.challengeId } : {}) };
++    this.audit.push(record);
++    this.options.onAudit?.(record);
+   }
+ 
+   private async refreshObserved(): Promise<void> {

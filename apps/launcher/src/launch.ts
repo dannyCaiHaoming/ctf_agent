@@ -19,6 +19,8 @@ import type { OpencodeClient } from '@opencode-ai/sdk/v2';
 import { Blocked } from './blocked.js';
 import { prepareRun, type PreparedChallenge } from './run-prep.js';
 import { ControlService, MANAGED_TOOLS, summarizeUsage, type Message, type SessionUsage } from './control-service.js';
+import { classifyRootResult, canSettleRoot, type RootResult } from './root-result.js';
+import { ProgressLedger } from './progress-ledger.js';
 import { startControlRpc } from './control-rpc.js';
 import { loadLocalEnv } from '../../cli/src/composition/localEnv.js';
 import { loadReleaseProfile } from '../../cli/src/composition/releaseProfile.js';
@@ -202,6 +204,8 @@ async function runLaunch(options: LaunchOptions, rpc: { url: string; token: stri
   const t0 = Date.now();
   const mark = (event: string, detail?: unknown) => timeline.push({ t: Date.now() - t0, event, ...(detail === undefined ? {} : { detail }) });
   const scrub = (text: string) => secrets.reduce((acc, s) => (s ? acc.split(s).join('<redacted>') : acc), text);
+  const progress = new ProgressLedger({ directory: runDir, runId, redactions: secrets, startedAt: t0 });
+  await progress.initialize();
   const controller = new AbortController();
   mark('start', { runId, deadlineMs });
   const engine = await startManagedOpenCode({ directory: real.opencode, config: config as never, environment: loaded.environment,
@@ -210,10 +214,17 @@ async function runLaunch(options: LaunchOptions, rpc: { url: string; token: stri
   const client = engine.client;
   let rootId = '';
   let status = 'completed';
+  let rootResult: RootResult = classifyRootResult([]);
+  let frozenRootResult = false;
+  let preStopRootError = false;
+  const observeRoot = (messages: Parameters<typeof classifyRootResult>[0]) => {
+    preStopRootError ||= messages.some(m => m.info.role === 'assistant' && !!m.info.error);
+    return classifyRootResult(messages);
+  };
   const sessionIds = new Set<string>();
   const deadlineAt = Date.now() + deadlineMs; // one deadline for the launcher loop and for every binding's expiry
   const control = new ControlService({ completionJudges:options.completionJudges, client, runId, budget: { maxModelCalls: profile.budget.maxSteps, maxObservableTokens: profile.budget.maxObservableTokens },
-    expiresAt: deadlineAt, workdir: real.opencode, skillRoot: join(configDirectory, 'skills'), challenges: prepared });
+    expiresAt: deadlineAt, workdir: real.opencode, skillRoot: join(configDirectory, 'skills'), challenges: prepared, redactions: secrets, onAudit: record => progress.append(record) });
   attach(control);
   const fail = (event: string, cause: unknown) => { status = 'failed'; mark(event, scrub(String(cause))); };
   const save = async (path: string, value: unknown) => {
@@ -244,12 +255,21 @@ async function runLaunch(options: LaunchOptions, rpc: { url: string; token: stri
     mark('start_message_sent', { rootId });
     await options.onStarted?.({ client, rootId });
     let idleSeen = 0;
+    let idleSource = '';
     while (true) {
       await control.checkBudget();
       const reason = control.stopReason ?? (Date.now() >= deadlineAt ? 'deadline' : undefined);
       if (reason) {
         status = reason === 'deadline' ? 'deadline_exceeded' : 'budget_exceeded';
         mark(reason === 'deadline' ? 'deadline' : 'budget_stop');
+        if (!frozenRootResult) {
+          // checkBudget may already have started aborting sessions. Only a prior observation is trustworthy then.
+          if (!control.stopReason) {
+            try { rootResult = observeRoot((await client.session.messages({ sessionID: rootId }, { throwOnError: true })).data ?? []); rootResult.observedAt = Date.now(); }
+            catch { rootResult = { ...classifyRootResult([]), reason: 'snapshot_unavailable' }; }
+          } else if (rootResult.observedAt === null) rootResult = { ...classifyRootResult([]), reason: 'snapshot_unavailable' };
+          frozenRootResult = true;
+        }
         await control.stopAll(reason); // marks every session first, then aborts them all
         await delay(500);
         break;
@@ -259,14 +279,23 @@ async function runLaunch(options: LaunchOptions, rpc: { url: string; token: stri
       const current = statuses[rootId];
       if (!current || current.type === 'idle') {
         const messages = (await client.session.messages({ sessionID: rootId }, { throwOnError: true })).data ?? [];
-        const done = messages.some(m => m.info.role === 'assistant' && m.info.time.completed !== undefined);
-        idleSeen = done && !control.hasOutstandingWork(statuses) ? idleSeen + 1 : 0;
-        if (idleSeen >= 2) { mark('root_idle'); await control.stopAll('completed'); break; }
+        rootResult = observeRoot(messages);
+        if (rootResult.hasError) throw new Error('root assistant error');
+        const source = JSON.stringify(rootResult);
+        idleSeen = canSettleRoot(rootResult) && !control.hasOutstandingWork(statuses) ? (source === idleSource ? idleSeen + 1 : 1) : 0;
+        idleSource = source;
+        rootResult.observedAt = Date.now();
+        if (idleSeen >= 2) { rootResult.observedAt = Date.now(); frozenRootResult = true; mark('root_idle', { rootResult }); await control.stopAll('completed'); break; }
       } else idleSeen = 0;
       await delay(500);
     }
   } catch (cause) {
     fail('error', cause);
+    if (!frozenRootResult) {
+      try { rootResult = observeRoot((await client.session.messages({ sessionID: rootId }, { throwOnError: true })).data ?? []); }
+      catch { rootResult = { ...classifyRootResult([]), reason: 'snapshot_unavailable' }; }
+      rootResult.observedAt = Date.now(); frozenRootResult = true;
+    }
     await control.stopAll('error');
   }
   await save(join(real.evidence, 'task-executions.json'), control.executionSnapshot());
@@ -294,15 +323,25 @@ async function runLaunch(options: LaunchOptions, rpc: { url: string; token: stri
       if (!messages) throw new Error('messages unavailable');
       if (control.bindings.has(id)) control.observeUsage(id, messages);
       await save(join(real.evidence, `messages-${id}.json`), messages);
+      if (id === rootId) {
+        const exported = classifyRootResult(messages);
+        rootResult.exportedSourceMatches = ['userMessageID', 'assistantMessageID', 'userCreated', 'assistantCreated', 'assistantCompleted', 'finish', 'completed', 'textChars', 'hasError'].every(key => exported[key as keyof RootResult] === rootResult[key as keyof RootResult]);
+        if (existsSync(join(real.evidence, `messages-${id}.json`))) rootResult.evidence = `evidence/messages-${id}.json`;
+        else rootResult = { ...rootResult, completeness: 'unknown', reason: 'export_unavailable' };
+      }
     } catch (cause) {
       if (control.bindings.has(id)) control.markUsageIncomplete(id);
+      if (id === rootId) rootResult = { ...rootResult, completeness: 'unknown', reason: 'export_unavailable', evidence: null };
       errors.push(String(cause)); fail('session_messages_error', `${id}: ${String(cause)}`);
     }
     const usage = control.usageSnapshot().sessions[id] ?? summarizeUsage(messages ?? []);
     // SDK descendants can exist without a role binding. Count their exported usage without granting authority.
     if (!control.bindings.has(id)) unboundUsage.push(usage);
-    const messageError = messages?.findLast(m => m.info.role === 'assistant' && m.info.error)?.info.error;
-    if (messageError && status === 'completed' && id === rootId) status = 'failed';
+    const erroredMessage = messages?.findLast(m => m.info.role === 'assistant' && m.info.error);
+    const messageError = erroredMessage?.info.error;
+    if (messageError && status === 'completed' && id === rootId &&
+      !(frozenRootResult && messageError.name === 'MessageAbortedError' && !preStopRootError && !rootResult.hasError && erroredMessage?.info.id === rootResult.assistantMessageID)) status = 'failed';
+    if (id === rootId && (rootResult.hasError || preStopRootError) && status === 'completed') status = 'failed';
     sessions.push({ id, parentID: info?.parentID ?? control.bindings.get(id)?.parentID ?? null,
       title: info?.title ?? null, status: finalStatus[id]?.type ?? 'unavailable',
       agents: messages ? [...new Set(messages.map(m => (m.info as { agent?: string }).agent).filter(Boolean))] : null,
@@ -326,6 +365,10 @@ async function runLaunch(options: LaunchOptions, rpc: { url: string; token: stri
     control.audit.some(r => r.op === 'stop_enumerated' && !r.allow);
   const usageTotal = { availability: total.availability, input_tokens: total.input, output_tokens: total.output,
     reasoning_tokens: total.reasoning, lowerBound: total.incomplete || (!!control.stopReason && control.stopReason !== 'completed') };
+  try { await progress.finalize({ status, rootResult, trustedResults: { publications: control.publicationSnapshot().length, verifications: control.verificationResultSnapshot().length, completions: control.completionSnapshot().length }, model: loaded.config.model ?? 'unavailable',
+    budget: { maxModelCalls: profile.budget.maxSteps, maxObservableTokens: profile.budget.maxObservableTokens },
+    usage: { availability: usageTotal.availability, observableTokens: total.input + total.output + total.reasoning, lowerBound: usageTotal.lowerBound } }); }
+  catch (cause) { fail('progress_write_error', cause); }
   await save(join(real.evidence, 'sessions.json'), sessions);
   await save(join(real.evidence, 'bindings.json'), [...control.bindings.values()]);
   await save(join(real.evidence, 'admissions.json'), control.audit.filter(r => r.op === 'model.call'));
@@ -335,7 +378,7 @@ async function runLaunch(options: LaunchOptions, rpc: { url: string; token: stri
   await save(join(real.evidence, 'completion-results.json'), control.completionSnapshot());
   await save(join(real.evidence, 'verification-results.json'), control.verificationResultSnapshot());
   await save(join(real.evidence, 'assets.json'), { productRevision, copies });
-  await save(join(real.state, 'run.json'), { runId, status, rootSessionId: rootId || null, sessions: [...sessionIds],
+  await save(join(real.state, 'run.json'), { runId, status, rootResult, rootSessionId: rootId || null, sessions: [...sessionIds],
     deadlineMs, opencodeVersion: engine.version, model: loaded.config.model, configSha256: sha256(JSON.stringify({ ...config, plugin: undefined })), productRevision,
     budget: profile.budget, admittedModelCalls: control.admitted, stopReason: control.stopReason ?? null, usageTotal,
     paths: real, timeline });

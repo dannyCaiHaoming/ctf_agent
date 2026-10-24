@@ -1,0 +1,34 @@
+
+> ctf-agent@0.1.0 test
+> vitest run tests/contract/launch-evidence.test.ts -t historical real abort
+
+
+ RUN  v2.1.9 /Users/caihaoming/.codex/worktrees/run-completeness-validation/pentest-agent
+
+ ❯ tests/contract/launch-evidence.test.ts (33 tests | 1 failed | 32 skipped) 570ms
+   × root final report provenance > does not hide a historical real abort behind a later normal report 569ms
+     → expected 'completed' to be 'failed' // Object.is equality
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/contract/launch-evidence.test.ts > root final report provenance > does not hide a historical real abort behind a later normal report
+AssertionError: expected 'completed' to be 'failed' // Object.is equality
+
+Expected: "failed"
+Received: "completed"
+
+ ❯ tests/contract/launch-evidence.test.ts:270:118
+    268|   it('does not hide a historical real abort behind a later normal repo…
+    269|     rootSequence = [[user('root'), assistant('stop', 'old', { id: 'old…
+    270|     expect((await launch({ profile: join(dir, 'profile.json'), runsRoo…
+       |                                                                                                                      ^
+    271|     expect((await json('state/run.json')).rootResult.completeness).toB…
+    272|   });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 32 skipped (33)
+   Start at  01:00:42
+   Duration  972ms (transform 143ms, setup 0ms, collect 206ms, tests 570ms, environment 0ms, prepare 23ms)
+

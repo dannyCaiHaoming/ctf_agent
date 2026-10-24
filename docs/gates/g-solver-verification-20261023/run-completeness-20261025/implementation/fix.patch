@@ -1,0 +1,18 @@
+--- a/tests/contract/launch-evidence.test.ts
++++ b/tests/contract/launch-evidence.test.ts
+@@ -236,8 +236,13 @@
+     rootSequence = [[first, user('root')], [first, user('root')], [second, user('root'), first], [second, user('root'), first], [first, second, user('root')], [first, second, user('root')],
+       [user('root'), assistant('stop', '', { id: 'second', time: { created: 4, completed: 5 }, error: { name: 'MessageAbortedError' } })]];
+     expect((await launch({ profile: join(dir, 'profile.json'), runsRoot: join(dir, 'runs'), runId: 'run' })).status).toBe('completed');
+-    expect(reads).toBeGreaterThanOrEqual(4);
+-    expect((await json('state/run.json')).rootResult).toMatchObject({ assistantMessageID: 'second', completeness: 'complete', hasError: false });
++    // Three rounds each read usage then idle; only the seventh read is the post-stop export.
++    expect(reads).toBe(7);
++    expect((await json('evidence/messages-root.json'))).toMatchObject([
++      { info: { id: 'user-root', role: 'user' } },
++      { info: { id: 'second', error: { name: 'MessageAbortedError' } }, parts: [{ type: 'text', text: '' }] }
++    ]);
++    expect((await json('state/run.json')).rootResult).toMatchObject({ assistantMessageID: 'second', completeness: 'complete', textChars: 6, hasError: false, exportedSourceMatches: false });
+   });
+   it('accepts uniquely parent-linked messages created within the same millisecond', async () => {
+     rootSequence = [[user('root'), assistant('stop', 'unsolved', { time: { created: 1, completed: 3 } })]];

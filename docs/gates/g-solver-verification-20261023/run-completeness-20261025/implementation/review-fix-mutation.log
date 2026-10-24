@@ -1,0 +1,37 @@
+
+> ctf-agent@0.1.0 test
+> vitest run tests/contract/launch-evidence.test.ts -t restarts idle confirmation
+
+
+ RUN  v2.1.9 /Users/caihaoming/.codex/worktrees/run-completeness-validation/pentest-agent
+
+ ❯ tests/contract/launch-evidence.test.ts (33 tests | 1 failed | 32 skipped) 571ms
+   × root final report provenance > restarts idle confirmation when source changes and freezes before cleanup 571ms
+     → expected 5 to be 7 // Object.is equality
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/contract/launch-evidence.test.ts > root final report provenance > restarts idle confirmation when source changes and freezes before cleanup
+AssertionError: expected 5 to be 7 // Object.is equality
+
+- Expected
++ Received
+
+- 7
++ 5
+
+ ❯ tests/contract/launch-evidence.test.ts:240:19
+    238|     expect((await launch({ profile: join(dir, 'profile.json'), runsRoo…
+    239|     // Three rounds each read usage then idle; only the seventh read i…
+    240|     expect(reads).toBe(7);
+       |                   ^
+    241|     expect((await json('evidence/messages-root.json'))).toMatchObject([
+    242|       { info: { id: 'user-root', role: 'user' } },
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 32 skipped (33)
+   Start at  01:05:34
+   Duration  946ms (transform 147ms, setup 0ms, collect 208ms, tests 571ms, environment 0ms, prepare 34ms)
+

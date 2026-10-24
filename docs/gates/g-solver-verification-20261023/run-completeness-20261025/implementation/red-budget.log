@@ -1,0 +1,43 @@
+
+> ctf-agent@0.1.0 test
+> vitest run tests/contract/launch-evidence.test.ts -t pre-stop snapshot
+
+
+ RUN  v2.1.9 /Users/caihaoming/.codex/worktrees/run-completeness-validation/pentest-agent
+
+ ❯ tests/contract/launch-evidence.test.ts (32 tests | 1 failed | 31 skipped) 567ms
+   × root final report provenance > does not invent a pre-stop snapshot when budget cleanup already began 567ms
+     → expected { userMessageID: 'user-root', …(13) } to match object { completeness: 'unknown', …(1) }
+(12 matching properties omitted from actual)
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/contract/launch-evidence.test.ts > root final report provenance > does not invent a pre-stop snapshot when budget cleanup already began
+AssertionError: expected { userMessageID: 'user-root', …(13) } to match object { completeness: 'unknown', …(1) }
+(12 matching properties omitted from actual)
+
+- Expected
++ Received
+
+  Object {
+-   "completeness": "unknown",
+-   "reason": "snapshot_unavailable",
++   "completeness": "complete",
++   "reason": "stop",
+  }
+
+ ❯ tests/contract/launch-evidence.test.ts:265:55
+    263|     rootSequence = [[user('root'), assistant('stop', 'cleanup text')]];
+    264|     expect((await launch({ profile: path, runsRoot: join(dir, 'runs'),…
+    265|     expect((await json('state/run.json')).rootResult).toMatchObject({ …
+       |                                                       ^
+    266|   });
+    267| 
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 31 skipped (32)
+   Start at  00:59:39
+   Duration  967ms (transform 150ms, setup 0ms, collect 215ms, tests 567ms, environment 0ms, prepare 23ms)
+

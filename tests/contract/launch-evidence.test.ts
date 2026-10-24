@@ -18,7 +18,9 @@ import { launch } from '../../apps/launcher/src/launch.js';
 
 const SECRET = 'fictional-evidence-key-0123456789';
 const msg = (sessionID: string) => ({ info: { id: `msg-${sessionID}`, sessionID, role: 'assistant', agent: 'coordinator',
-  tokens: { input: 400, output: 150, reasoning: 50 }, time: { completed: 1 } }, parts: [{ type: 'text', text: SECRET }] });
+  tokens: { input: 400, output: 150, reasoning: 50 }, parentID: `user-${sessionID}`, finish: 'stop', time: { created: 2, completed: 3 } }, parts: [{ type: 'text', text: SECRET }] });
+const user = (id: string) => ({ info: { id: `user-${id}`, role: 'user', time: { created: 1 } }, parts: [] });
+let rootSequence: unknown[][] | undefined;
 let dir: string;
 let mode: string;
 let reads: number;
@@ -40,10 +42,11 @@ function makeClient() {
       return { data: sessionID === 'root' ? [{ id: 'child' }, ...(['export', 'abort', 'unbound', 'unbound-missing'].includes(mode) ? [{ id: 'other' }] : [])] : [] };
     },
     messages: async ({ sessionID }: { sessionID: string }) => {
+      if (sessionID === 'root' && rootSequence) return { data: rootSequence[Math.min(reads++, rootSequence.length - 1)] };
       if (sessionID === 'root' && ++reads >= 3 && (mode === 'usage' || mode === 'missing')) throw error('usage failed');
       if ((mode === 'messages' && sessionID === 'child') || (mode === 'unbound-missing' && sessionID === 'other')) throw error('child messages failed');
-      if (mode === 'zeroed' && reads >= 3 && sessionID === 'root') return { data: [{ ...msg(sessionID), info: { ...msg(sessionID).info, tokens: { input: 0, output: 0, reasoning: 0 }, error: { name: 'MessageAbortedError' } } }] };
-      return { data: sessionID === 'other' && mode !== 'unbound' ? [] : mode === 'missing' ? [] : [msg(sessionID)] };
+      if (mode === 'zeroed' && reads >= 3 && sessionID === 'root') return { data: [user(sessionID), { ...msg(sessionID), info: { ...msg(sessionID).info, tokens: { input: 0, output: 0, reasoning: 0 }, error: { name: 'MessageAbortedError' } } }] };
+      return { data: sessionID === 'other' && mode !== 'unbound' ? [] : mode === 'missing' ? [] : [user(sessionID), msg(sessionID)] };
     },
     status: async () => { if (mode === 'status') throw error('status failed'); return { data: { root: { type: 'idle' }, child: { type: 'busy' } } }; },
     abort: vi.fn(async ({ sessionID }: { sessionID: string }) => {
@@ -54,7 +57,7 @@ function makeClient() {
 }
 beforeEach(async () => {
   dir = realpathSync(await mkdtemp(join(tmpdir(), 'launch-evidence-')));
-  mode = ''; reads = 0; childGets = 0; fake.failWrite = '';
+  rootSequence = undefined; mode = ''; reads = 0; childGets = 0; fake.failWrite = '';
   process.env.LAUNCH_EVIDENCE_TEST_KEY = SECRET;
   await writeFile(join(dir, 'opencode.json'), JSON.stringify({ model: 'fake/model', provider: { fake: {
     npm: '@ai-sdk/openai-compatible', options: { apiKey: '{env:LAUNCH_EVIDENCE_TEST_KEY}', baseURL: 'http://127.0.0.1:1' }, models: { model: {} }
@@ -66,21 +69,27 @@ beforeEach(async () => {
   fake.start.mockImplementation(async (options: { config: typeof config }) => { config = options.config; return { client, close, version: 'fake-sdk-1' }; });
 });
 afterEach(async () => { fake.failWrite = ''; delete process.env.LAUNCH_EVIDENCE_TEST_KEY; await rm(dir, { recursive: true, force: true }); });
-async function run(failInStart = false) {
-  return launch({ profile: join(dir, 'profile.json'), runsRoot: join(dir, 'runs'), runId: 'run', onStarted: async ({ rootId }) => {
+async function run(failInStart = false, deadlineMs?: number) {
+  return launch({ profile: join(dir, 'profile.json'), runsRoot: join(dir, 'runs'), runId: 'run', deadlineMs, onStarted: async ({ rootId }) => {
     const opts = config.plugin[0]![1];
     const hooks = createCtfAgentHooks({ ...opts, tools: [] });
     await hooks['chat.params']!({ sessionID: rootId, agent: 'coordinator', model: { providerID: 'fake', id: 'model' } } as never, { maxOutputTokens: 1000 } as never);
     await fetch(opts.controlUrl, { method: 'POST', headers: { authorization: `Bearer ${opts.controlToken}` },
       body: JSON.stringify({ sessionID: rootId, operation: 'tool.execute', input: { tool: 'challenge.assign', args: { role: 'recon', challenge: 'offline' } } }) });
     await hooks['tool.execute.before']!({ sessionID: rootId, tool: 'task', callID: 'dispatch' }, { args: { subagent_type: 'recon' } });
-    await hooks['chat.message']!({ sessionID: 'child', agent: 'recon' } as never, {} as never);
+    if (mode !== 'pending') await hooks['chat.message']!({ sessionID: 'child', agent: 'recon' } as never, {} as never);
     if (failInStart) throw error('original run failed');
   } });
 }
 const json = async (name: string) => JSON.parse(await readFile(join(dir, 'runs/run', name), 'utf8'));
 async function checkEvidence() {
   for (const name of ['bindings.json', 'admissions.json', 'control-audit.json', 'assets.json', 'sessions.json']) await json(`evidence/${name}`);
+  const progressJsonl = await readFile(join(dir, 'runs/run/progress.jsonl'), 'utf8');
+  const progressMarkdown = await readFile(join(dir, 'runs/run/progress.md'), 'utf8');
+  expect(progressJsonl.trim().split('\n').length).toBeGreaterThan(0);
+  expect(progressMarkdown).toContain('## Recovery Critic 判斷');
+  expect(progressJsonl).not.toContain(SECRET);
+  expect(progressMarkdown).not.toContain(SECRET);
   expect((await json('evidence/admissions.json')).some((r: { allow: boolean }) => r.allow)).toBe(true);
   for (const folder of ['state', 'evidence']) for (const name of await readdir(join(dir, 'runs/run', folder))) {
     expect(await readFile(join(dir, 'runs/run', folder, name), 'utf8')).not.toContain(SECRET);
@@ -107,10 +116,15 @@ describe('launch failure evidence with SDK stand-in only', () => {
     expect(await run()).toMatchObject({ code: 1, status: 'failed' });
     const record = await checkEvidence();
     expect(JSON.stringify(record.timeline)).toContain(fault === 'children' ? 'children failed' : 'child export failed');
-    expect(await json('evidence/messages-root.json')).toHaveLength(1);
+    expect(await json('evidence/messages-root.json')).toHaveLength(2);
     if (fault === 'export') expect(await json('evidence/messages-other.json')).toEqual([]);
     const sessions = await json('evidence/sessions.json');
     expect(sessions.find((s: { id: string }) => s.id === 'child').status).toBe('busy');
+  });
+  it('does not settle while a dispatch remains pending', async () => {
+    mode = 'pending';
+    expect((await run(false, 20)).status).toBe('deadline_exceeded');
+    expect((await json('state/run.json')).rootResult.completeness).toBe('complete');
   });
   it('keeps original and close errors plus memory evidence', async () => {
     mode = 'close';
@@ -136,7 +150,7 @@ describe('launch failure evidence with SDK stand-in only', () => {
     const record = await checkEvidence();
     expect(record.usageTotal.lowerBound).toBe(true);
     expect(await readdir(join(dir, 'runs/run/evidence'))).not.toContain('messages-child.json');
-    expect(await json('evidence/messages-root.json')).toHaveLength(1);
+    expect(await json('evidence/messages-root.json')).toHaveLength(2);
     mode = 'status';
     // Use another output directory for a separate failed-status run.
     await rm(join(dir, 'runs'), { recursive: true }); reads = 0; childGets = 0;
@@ -169,6 +183,15 @@ describe('launch failure evidence with SDK stand-in only', () => {
     expect(record.usageTotal).toMatchObject({ input_tokens: 800, lowerBound: true });
     expect(await readdir(join(dir, 'runs/run/evidence'))).not.toContain('messages-other.json');
   });
+  it('marks the run failed when the final progress report cannot be written but keeps existing evidence', async () => {
+    fake.failWrite = '/progress.md';
+    expect(await run()).toMatchObject({ code: 1, status: 'failed' });
+    expect(await json('evidence/assets.json')).toHaveProperty('productRevision');
+    expect(await readFile(join(dir, 'runs/run/progress.jsonl'), 'utf8')).not.toContain(SECRET);
+    const record = await json('state/run.json');
+    expect(record.status).toBe('failed');
+    expect(JSON.stringify(record.timeline)).toContain('injected write failure');
+  });
   it('continues evidence writes and records a single-file write failure', async () => {
     fake.failWrite = '/admissions.json';
     expect(await run()).toMatchObject({ code: 1, status: 'failed' });
@@ -178,4 +201,79 @@ describe('launch failure evidence with SDK stand-in only', () => {
     expect(record.status).toBe('failed');
     expect(JSON.stringify(record.timeline)).toContain('injected write failure');
   });
+});
+
+describe('root final report provenance', () => {
+  const assistant = (finish: string, text: string, extra = {}) => ({ ...msg('root'), info: { ...msg('root').info, finish, ...extra }, parts: [{ type: 'text', text }] });
+  it.each<[string, string, string, string, Record<string, unknown>?]>([
+    ['length', '', 'incomplete', 'length'], ['length', 'partial', 'incomplete', 'length'],
+    ['stop', 'unsolved', 'complete', 'stop'], ['stop', '  ', 'incomplete', 'missing_text'],
+    ['other', 'text', 'unknown', 'unknown_finish'], ['stop', 'partial', 'unknown', 'not_completed', { time: { created: 2 } }],
+    ['tool-calls', 'partial', 'incomplete', 'tool_calls'],
+  ])('records %s report with text %s', async (finish, text, completeness, reason, extra = {}) => {
+    rootSequence = [[user('root'), assistant(finish, text, extra)]];
+    const waiting = reason === 'not_completed' || reason === 'tool_calls';
+    const result = await launch({ profile: join(dir, 'profile.json'), runsRoot: join(dir, 'runs'), runId: 'run', deadlineMs: waiting ? 20 : 10000 });
+    expect(result.status).toBe(waiting ? 'deadline_exceeded' : 'completed');
+    const record = await json('state/run.json');
+    expect(record.rootResult).toMatchObject({ userMessageID: 'user-root', assistantMessageID: 'msg-root', finish, completeness, reason });
+    const report = await readFile(join(dir, 'runs/run/progress.md'), 'utf8');
+    expect(report).toContain(`Report completeness: **${completeness}**`);
+    expect(report).toContain('evidence/messages-root.json');
+    expect(report).not.toContain('partial');
+  });
+  it.each(['new-user', 'wrong-parent', 'tie', 'missing-id', 'missing-created', 'historical'])('does not settle uncertain %s provenance', async fault => {
+    const latest = assistant('stop', 'new', fault === 'historical' ? { id: 'new', time: { created: 4 } } : fault === 'wrong-parent' ? { parentID: 'other' } : fault === 'missing-id' ? { id: undefined } : fault === 'missing-created' ? { time: { completed: 3 } } : {});
+    rootSequence = [[user('root'), ...(fault === 'historical' ? [assistant('stop', 'old')] : []), latest,
+      ...(fault === 'new-user' ? [{ info: { id: 'new-user', role: 'user', time: { created: 5 } } }] : []),
+      ...(fault === 'tie' ? [assistant('stop', 'tie', { id: 'tie' })] : [])]];
+    expect((await launch({ profile: join(dir, 'profile.json'), runsRoot: join(dir, 'runs'), runId: 'run', deadlineMs: 20 })).status).toBe('deadline_exceeded');
+    expect((await json('state/run.json')).rootResult.completeness).toBe('unknown');
+  });
+  it('restarts idle confirmation when source changes and freezes before cleanup', async () => {
+    const first = assistant('stop', 'first');
+    const second = assistant('stop', 'second', { id: 'second', time: { created: 4, completed: 5 } });
+    rootSequence = [[first, user('root')], [first, user('root')], [second, user('root'), first], [second, user('root'), first], [first, second, user('root')], [first, second, user('root')],
+      [user('root'), assistant('stop', '', { id: 'second', time: { created: 4, completed: 5 }, error: { name: 'MessageAbortedError' } })]];
+    expect((await launch({ profile: join(dir, 'profile.json'), runsRoot: join(dir, 'runs'), runId: 'run' })).status).toBe('completed');
+    // Three rounds each read usage then idle; only the seventh read is the post-stop export.
+    expect(reads).toBe(7);
+    expect((await json('evidence/messages-root.json'))).toMatchObject([
+      { info: { id: 'user-root', role: 'user' } },
+      { info: { id: 'second', error: { name: 'MessageAbortedError' } }, parts: [{ type: 'text', text: '' }] }
+    ]);
+    expect((await json('state/run.json')).rootResult).toMatchObject({ assistantMessageID: 'second', completeness: 'complete', textChars: 6, hasError: false, exportedSourceMatches: false });
+  });
+  it('accepts uniquely parent-linked messages created within the same millisecond', async () => {
+    rootSequence = [[user('root'), assistant('stop', 'unsolved', { time: { created: 1, completed: 3 } })]];
+    expect((await launch({ profile: join(dir, 'profile.json'), runsRoot: join(dir, 'runs'), runId: 'run', deadlineMs: 1500 })).status).toBe('completed');
+    expect((await json('state/run.json')).rootResult.completeness).toBe('complete');
+  });
+  it('preserves a real APIError as failure even without completed metadata', async () => {
+    rootSequence = [[user('root'), assistant('stop', '', { time: { created: 2 }, error: { name: 'APIError' } })]];
+    expect((await launch({ profile: join(dir, 'profile.json'), runsRoot: join(dir, 'runs'), runId: 'run', deadlineMs: 20 })).status).toBe('failed');
+    expect((await json('state/run.json')).rootResult).toMatchObject({ hasError: true, completeness: 'incomplete', reason: 'error' });
+  });
+  it('marks unavailable exported root evidence unknown without inventing a path', async () => {
+    fake.failWrite = '/messages-root.json';
+    rootSequence = [[user('root'), assistant('stop', 'unsolved')]];
+    expect((await launch({ profile: join(dir, 'profile.json'), runsRoot: join(dir, 'runs'), runId: 'run' })).status).toBe('failed');
+    expect((await json('state/run.json')).rootResult).toMatchObject({ completeness: 'unknown', reason: 'export_unavailable', evidence: null });
+  });
+
+  it('does not invent a pre-stop snapshot when budget cleanup already began', async () => {
+    const path = join(dir, 'profile.json');
+    const profile = JSON.parse(await readFile(path, 'utf8')); profile.budget.maxObservableTokens = 1;
+    await writeFile(path, JSON.stringify(profile));
+    rootSequence = [[user('root'), assistant('stop', 'cleanup text')]];
+    expect((await launch({ profile: path, runsRoot: join(dir, 'runs'), runId: 'run' })).status).toBe('budget_exceeded');
+    expect((await json('state/run.json')).rootResult).toMatchObject({ completeness: 'unknown', reason: 'snapshot_unavailable' });
+  });
+
+  it('does not hide a historical real abort behind a later normal report', async () => {
+    rootSequence = [[user('root'), assistant('stop', 'old', { id: 'old', time: { created: 1, completed: 2 }, error: { name: 'MessageAbortedError' } }), assistant('stop', 'unsolved')]];
+    expect((await launch({ profile: join(dir, 'profile.json'), runsRoot: join(dir, 'runs'), runId: 'run' })).status).toBe('failed');
+    expect((await json('state/run.json')).rootResult.completeness).toBe('complete');
+  });
+
 });
