@@ -1,0 +1,52 @@
+(node:68239) [DEP0205] DeprecationWarning: `module.register()` is deprecated. Use `module.registerHooks()` instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+{"scenario":"control","result":{"code":0,"status":"completed","runDir":"/private/var/folders/tn/x1hbkfy17sx0w1lb8kjzzr340000gn/T/d-package-runtime-c6mKty/runs/control"},"out":"/Users/caihaoming/.codex/worktrees/d5-trusted-verification/pentest-agent/docs/gates/d-artifact-handoff-20261024/trusted-completion/batch-01/control"}
+{"scenario":"rejected","result":{"code":0,"status":"completed","runDir":"/private/var/folders/tn/x1hbkfy17sx0w1lb8kjzzr340000gn/T/d-package-runtime-GsU0kS/runs/rejected"},"out":"/Users/caihaoming/.codex/worktrees/d5-trusted-verification/pentest-agent/docs/gates/d-artifact-handoff-20261024/trusted-completion/batch-01/rejected"}
+{"scenario":"noj","result":{"code":0,"status":"completed","runDir":"/private/var/folders/tn/x1hbkfy17sx0w1lb8kjzzr340000gn/T/d-package-runtime-XUMMfO/runs/noj"},"out":"/Users/caihaoming/.codex/worktrees/d5-trusted-verification/pentest-agent/docs/gates/d-artifact-handoff-20261024/trusted-completion/batch-01/noj"}
+{"scenario":"missing","result":{"code":0,"status":"completed","runDir":"/private/var/folders/tn/x1hbkfy17sx0w1lb8kjzzr340000gn/T/d-package-runtime-ViYm4i/runs/missing"},"out":"/Users/caihaoming/.codex/worktrees/d5-trusted-verification/pentest-agent/docs/gates/d-artifact-handoff-20261024/trusted-completion/batch-01/missing"}
+{"scenario":"judge-lost","result":{"code":0,"status":"completed","runDir":"/private/var/folders/tn/x1hbkfy17sx0w1lb8kjzzr340000gn/T/d-package-runtime-2FtJ15/runs/judge-lost"},"out":"/Users/caihaoming/.codex/worktrees/d5-trusted-verification/pentest-agent/docs/gates/d-artifact-handoff-20261024/trusted-completion/batch-01/judge-lost"}
+{"scenario":"rpc-lost","result":{"code":0,"status":"completed","runDir":"/private/var/folders/tn/x1hbkfy17sx0w1lb8kjzzr340000gn/T/d-package-runtime-NYjBhp/runs/rpc-lost"},"out":"/Users/caihaoming/.codex/worktrees/d5-trusted-verification/pentest-agent/docs/gates/d-artifact-handoff-20261024/trusted-completion/batch-01/rpc-lost"}
+{"scenario":"stop","result":{"code":1,"status":"deadline_exceeded","runDir":"/private/var/folders/tn/x1hbkfy17sx0w1lb8kjzzr340000gn/T/d-package-runtime-otMXq1/runs/stop"},"out":"/Users/caihaoming/.codex/worktrees/d5-trusted-verification/pentest-agent/docs/gates/d-artifact-handoff-20261024/trusted-completion/batch-01/stop"}
+AssertionError [ERR_ASSERTION]: The expression evaluated to a falsy value:
+
+  assert(observations.some(o=>o.event==='C.revoke'))
+
+    at <anonymous> (/Users/caihaoming/.codex/worktrees/d5-trusted-verification/pentest-agent/tests/manual/d-trusted-completion.ts:170:129) {
+  generatedMessage: true,
+  code: 'ERR_ASSERTION',
+  actual: false,
+  expected: true,
+  operator: '==',
+  diff: 'simple'
+}
+{"scenario":"late","result":{"code":1,"status":"deadline_exceeded","runDir":"/private/var/folders/tn/x1hbkfy17sx0w1lb8kjzzr340000gn/T/d-package-runtime-oUc2UB/runs/late"},"failure":"AssertionError [ERR_ASSERTION]: The expression evaluated to a falsy value:\n\n  assert(observations.some(o=>o.event==='C.revoke'))\n","out":"/Users/caihaoming/.codex/worktrees/d5-trusted-verification/pentest-agent/docs/gates/d-artifact-handoff-20261024/trusted-completion/batch-01/late"}
+AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
++ actual - expected
+
++ 'intent'
+- 'not_sent'
+
+    at <anonymous> (/Users/caihaoming/.codex/worktrees/d5-trusted-verification/pentest-agent/tests/manual/d-trusted-completion.ts:167:92) {
+  generatedMessage: true,
+  code: 'ERR_ASSERTION',
+  actual: 'intent',
+  expected: 'not_sent',
+  operator: 'strictEqual',
+  diff: 'simple'
+}
+{"scenario":"before-stop","result":{"code":1,"status":"deadline_exceeded","runDir":"/private/var/folders/tn/x1hbkfy17sx0w1lb8kjzzr340000gn/T/d-package-runtime-KXrPLg/runs/before-stop"},"failure":"AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:\n+ actual - expected\n\n+ 'intent'\n- 'not_sent'\n","out":"/Users/caihaoming/.codex/worktrees/d5-trusted-verification/pentest-agent/docs/gates/d-artifact-handoff-20261024/trusted-completion/batch-01/before-stop"}
+AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
++ actual - expected
+
++ 'AssertionError [ERR_ASSERTION]: actual runtime must load final coordinator body'
+- undefined
+
+    at <anonymous> (/Users/caihaoming/.codex/worktrees/d5-trusted-verification/pentest-agent/tests/manual/d-trusted-completion.ts:156:10) {
+  generatedMessage: true,
+  code: 'ERR_ASSERTION',
+  actual: 'AssertionError [ERR_ASSERTION]: actual runtime must load final coordinator body',
+  expected: undefined,
+  operator: 'strictEqual',
+  diff: 'simple'
+}
+{"scenario":"budget","result":{"code":1,"status":"budget_exceeded","runDir":"/private/var/folders/tn/x1hbkfy17sx0w1lb8kjzzr340000gn/T/d-package-runtime-8jqUZ4/runs/budget"},"failure":"AssertionError [ERR_ASSERTION]: actual runtime must load final coordinator body","out":"/Users/caihaoming/.codex/worktrees/d5-trusted-verification/pentest-agent/docs/gates/d-artifact-handoff-20261024/trusted-completion/batch-01/budget"}

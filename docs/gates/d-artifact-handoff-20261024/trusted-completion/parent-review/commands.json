@@ -1,0 +1,77 @@
+[
+  {
+    "command": "D_COMPLETION_EVIDENCE_DIR=docs/gates/d-artifact-handoff-20261024/trusted-completion/parent-review/contract-evidence npm test -- tests/contract/d-trusted-completion.test.ts tests/contract/d-verification-result.test.ts",
+    "exitCode": 0,
+    "testsPassed": 31,
+    "testsFailed": 0,
+    "sourceManifest": "../d5-frozen-source-hashes.json"
+  },
+  {
+    "command": "npx tsx tests/manual/d-trusted-completion.ts parent-review-native",
+    "exitCode": 0,
+    "scenarios": [
+      {
+        "scenario": "control",
+        "verdict": "passed",
+        "status": "completed",
+        "judgeReceived": 1
+      },
+      {
+        "scenario": "rejected",
+        "verdict": "passed",
+        "status": "completed",
+        "judgeReceived": 1
+      },
+      {
+        "scenario": "noj",
+        "verdict": "passed",
+        "status": "completed",
+        "judgeReceived": 0
+      },
+      {
+        "scenario": "missing",
+        "verdict": "passed",
+        "status": "completed",
+        "judgeReceived": 0
+      },
+      {
+        "scenario": "judge-lost",
+        "verdict": "passed",
+        "status": "completed",
+        "judgeReceived": 1
+      },
+      {
+        "scenario": "rpc-lost",
+        "verdict": "passed",
+        "status": "completed",
+        "judgeReceived": 1
+      },
+      {
+        "scenario": "stop",
+        "verdict": "passed",
+        "status": "deadline_exceeded",
+        "judgeReceived": 1
+      },
+      {
+        "scenario": "late",
+        "verdict": "passed",
+        "status": "deadline_exceeded",
+        "judgeReceived": 1
+      },
+      {
+        "scenario": "before-stop",
+        "verdict": "passed",
+        "status": "deadline_exceeded",
+        "judgeReceived": 0
+      },
+      {
+        "scenario": "budget",
+        "verdict": "passed",
+        "status": "budget_exceeded",
+        "judgeReceived": 0
+      }
+    ],
+    "sourceFilesChecked": 30,
+    "candidateBytesChecked": true
+  }
+]

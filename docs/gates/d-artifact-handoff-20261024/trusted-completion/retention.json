@@ -1,0 +1,44 @@
+{
+  "date": "2026-10-24",
+  "scope": "Only previously untracked D5 trusted-completion evidence",
+  "before": {
+    "files": 4348,
+    "bytes": 150899938,
+    "lines": 3202831
+  },
+  "losslesslyRetainedRecords": 527,
+  "reconstructableSourceFiles": 32,
+  "policy": "Main acceptance: native messages, job/package/verification/completion state, bytes, wire, observations, selected audit. Older batches: original terminal results, logs and version hashes. Drop repeated provider/event streams, workspace copies, extra source snapshots and transient plans.",
+  "limitations": "Full historical dumps removed; cannot claim they remain independently available. Retained summaries from separate runs do not substitute for the main same-batch evidence. No model or native runtime rerun during cleanup.",
+  "validation": {
+    "losslessRecordsComparedWithOriginal": 527,
+    "mainSameBatchScenariosChecked": 10,
+    "sourceFilesReconstructedAndHashMatched": 32,
+    "editedMarkdownLocalLinksChecked": 24,
+    "originalProductAndOtherTestFilesUnchanged": true,
+    "outputPathSmoke": "passed: ignored runs directory; duplicate label EEXIST; no runtime/model calls",
+    "commands": [
+      {
+        "command": "npm run typecheck",
+        "exitCode": 0
+      },
+      {
+        "command": "npm run build",
+        "exitCode": 0
+      },
+      {
+        "command": "npm test",
+        "exitCode": 0,
+        "testFilesPassed": 48,
+        "testsPassed": 403,
+        "testsFailed": 0
+      },
+      {
+        "command": "git diff --check",
+        "exitCode": 0
+      }
+    ],
+    "nativeRuntimeRerun": false,
+    "realModelCalls": 0
+  }
+}

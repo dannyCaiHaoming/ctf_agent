@@ -1,0 +1,28 @@
+
+> ctf-agent@0.1.0 test
+> vitest run tests/contract/d-trusted-completion.test.ts
+
+
+ RUN  v2.1.8 /Users/caihaoming/.codex/worktrees/d5-trusted-verification/pentest-agent
+
+ ❯ tests/contract/d-trusted-completion.test.ts (13 tests | 1 failed) 1303ms
+   ✓ D5 admission, outcome and failure boundaries > maps only correlated explicit accepted whole completion; no judge candidate_only 386ms
+   × post-judge result persistence failure never returns solved and locks new versions 3ms
+     → completion unknown same challenge; no resend
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/contract/d-trusted-completion.test.ts > post-judge result persistence failure never returns solved and locks new versions
+Error: completion unknown same challenge; no resend
+ ❯ deny apps/launcher/src/completion-tools.ts:11:42
+
+ ❯ CompletionRequests.request apps/launcher/src/completion-tools.ts:21:127
+ ❯ tests/contract/d-trusted-completion.test.ts:103:17
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 12 passed (13)
+   Start at  17:00:29
+   Duration  1.57s (transform 64ms, setup 0ms, collect 77ms, tests 1.30s, environment 0ms, prepare 52ms)
+

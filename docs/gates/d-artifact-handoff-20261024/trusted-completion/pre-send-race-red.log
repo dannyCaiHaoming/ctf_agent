@@ -1,0 +1,30 @@
+
+> ctf-agent@0.1.0 test
+> vitest run tests/contract/d-trusted-completion.test.ts
+
+
+ RUN  v2.1.8 /Users/caihaoming/.codex/worktrees/d5-trusted-verification/pentest-agent
+
+ ❯ tests/contract/d-trusted-completion.test.ts (12 tests | 1 failed) 1279ms
+   ✓ D5 admission, outcome and failure boundaries > maps only correlated explicit accepted whole completion; no judge candidate_only 374ms
+   × rechecks fixed necessary source after intent persistence before dispatch 62ms
+     → expected 'confirmed' to be 'not_sent' // Object.is equality
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/contract/d-trusted-completion.test.ts > rechecks fixed necessary source after intent persistence before dispatch
+AssertionError: expected 'confirmed' to be 'not_sent' // Object.is equality
+
+Expected: "not_sent"
+Received: "confirmed"
+
+ ❯ tests/contract/d-trusted-completion.test.ts:94:82
+
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 11 passed (12)
+   Start at  16:54:08
+   Duration  1.53s (transform 62ms, setup 0ms, collect 75ms, tests 1.28s, environment 0ms, prepare 34ms)
+

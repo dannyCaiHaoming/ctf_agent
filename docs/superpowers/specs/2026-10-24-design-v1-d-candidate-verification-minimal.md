@@ -2,7 +2,7 @@
 
 記錄日期：2026-10-24（Asia/Tokyo）。
 
-**狀態：接口一按首題最小邊界已接入主工作區並完成主區無模型回歸。H1 原完整條件未通過及 H5/H7 限制保留。接口二已按核對版本接入主區並完成無模型回歸；接口三已按首題最小邊界定稿；V3完整條件未通過，已接入主區並完成無模型驗收，見§5；第四接口原型調查已完成但語義與動態條件仍有未解邊界、未接入主區；第五接口仍待驗。** 本文是 [核心 design v1](2026-10-22-ctf-agent-design-v1.md) 第 2 節 D 的詳細子文件；D 的接口細節與待決問題以本文為準。本文只寫設計，不授權產品修改、驗證 session、真實模型運行或 commit。下文「推薦候選」是本次設計建議，不冒稱已驗證或已批准的外部接口。
+**狀態：接口一按首題最小邊界已接入主工作區並完成主區無模型回歸。H1 原完整條件未通過及 H5/H7 限制保留。接口二已按核對版本接入主區並完成無模型回歸；接口三已按首題最小邊界定稿；V3完整條件未通過，已接入主區並完成無模型驗收，見§5；第四、第五接口已按核對來源接入主區並完成無模型驗收（§7.1）；語義與動態條件、實際裁判可部署性和秘密隔離限制仍保留。** 本文是 [核心 design v1](2026-10-22-ctf-agent-design-v1.md) 第 2 節 D 的詳細子文件；D 的接口細節與待決問題以本文為準。本文只寫設計，不授權產品修改、驗證 session、真實模型運行或 commit。下文「推薦候選」是本次設計建議，不冒稱已驗證或已批准的外部接口。
 
 ## 1. 目的與範圍
 
@@ -250,7 +250,7 @@ continuousIntegrity與undeclaredDependencies保持unknown不阻塞固定材料�
 
 Verifier 負責方法、前提、反例及證據支持程度的判斷；宿主負責可機械核實的身份、版本、執行記錄和證據關聯。兩者均必要：模型自述不能直接改可信狀態，hash 相同或工具 exit 0 也不能代替獨立判斷。
 
-### 首題推薦契約（待驗，非已接入）
+### 首題機械契約（已按核對版本接入；限制見下文）
 
 只新增受管驗證報告登記與指定結果讀取，復用前三接口的固定包、真實身份與execution、preparation、job與原輸出。報告由獨立Verifier提出，宿主核實機械事實並保存；結果引用經原生task交回Coordinator。不能解析自由文字「通過」直接改狀態，不恢復舊ResponsibilityRegistry／自造session／固定五分鐘有效期，也不新增求解或消息循環。
 
@@ -286,7 +286,7 @@ V3的continuousIntegrity／undeclaredDependencies繼續保留unknown，不要求
 
 ### 原型核對結論與已選機械契約（2026-10-24）
 
-**調查已完成，主區產品未接入；Q2語義充分性與Q3外部／持續完整性仍未證明。** 基線639782b，Node26.3.0、OpenCode1.19.3、SDK/plugin1.19.0。原型採 `verification.report` 僅Verifier、`verification.read` 僅Coordinator，結果與本次真實execution綁定；不是可信提交入口。
+**原型調查已完成；其後主區接入見§7.1。Q2語義充分性與Q3外部／持續完整性仍未證明。** 基線639782b，Node26.3.0、OpenCode1.19.3、SDK/plugin1.19.0。原型採 `verification.report` 僅Verifier、`verification.read` 僅Coordinator，結果與本次真實execution綁定；不是可信提交入口。
 
 報告保存original判斷、宿主blockers與effectiveJudgment。非法身份／版本／job拒絕登記；合法報告缺必要機械證據則effectiveJudgment=inconclusive並保留原提議。相同execution相同內容返回同一結果，衝突拒絕，不覆寫。recompute需本次版本綁定的真實job與精確比較；replay未開放。premises明確區分assumed／unknown，requirements表示判斷是否依賴持續完整性或無未聲明依賴；這些選擇的正確性仍屬Verifier語義判斷，不能偽裝成宿主已證明。
 
@@ -323,6 +323,58 @@ Coordinator 基於當前有效驗證提出對指定候選的提交／判定。�
 
 宿主在受保護提交送出前記錄意圖；遇 unknown 保留受影響操作，不因重建候選或更改 generation 而重送。同題其他正常觀察不一概封鎖。若判定能力只確認部分完成，不提升為整題 solved；多 flag 通用管理不在本次展開。
 
+### 原型驗證採用的最小契約（機械接線已核對，真裁判部署未定）
+
+原型驗證時在隔離子區復用§6已核對的最終原型，當時主區第四接口未接入；其後接入見§7.1。驗證採用「獨立Verifier的明示條件判斷＋宿主機械核對」的工程邊界；不要求宿主證明任意論證。完整虛假echo可能誤得verified的反例必須保留；第五接口的權威裁判應能拒絕這類錯候選，不能以usable或verified本身宣告solved。
+
+已核對入口採 Coordinator 專有 `completion.request({challenge,version,result})`，不接受candidate自由文字、generation或模型提供的權威標記。宿主重查指定結果為effectiveJudgment=verified且目前適用，解析固定版本的精確候選bytes；rejected、inconclusive、缺失／失效／錯題結果不得發送。已聲明條件隨結果保留，無法機械證明的前提不改記為已證明。只有受信配置選定的裁判回覆可作完成事實。
+
+候選判定配置由宿主在啟動時注入，Agent僅見能力是否可用及公開格式限制，不提供任意endpoint。無模型先使用非秘密本地裁判fixture，分開證明接口接線與真實裁判可部署性。若既有環境沒有可核對的實際裁判通道，明確留下接入阻塞，不把fixture認作首題權威裁判。舊LocalFlagOracle只收string；候選若使用它，必須驗證UTF-8嚴格且往返不改bytes，不能trim、正規化或替換非法編碼；無法無損表示的候選明確拒絕，而非偷偷變值。
+
+提交前固定意圖及候選hash／版本／結果／裁判身份；同run同題存在未決已發送操作時，禁止以新版本、新result或重建候選繞過unknown再送，正常觀察仍可繼續。並發相同請求最多一次副作用。拒絕有明確結果可交回團隊修正；duplicate不單獨證明成功。accepted僅在可信回覆明確完成整題且與本次意圖關聯時記完成，部分完成保持未完成；無裁判保留candidate_only。對外狀態應分開業務結果、操作是否發送及回覆是否送達。
+
+停止前未發送則零副作用；已發送後停止／超時不能假定回滾，保留可信已得結果或unknown，不盲目重發。回覆先落盤再返回；真實RPC丟回复與裁判通道丟回复分別驗證。只做本run內去重與未知保留，不展開跨重啟恢復、自動對帳、多flag、通用平台或強隔離工程。
+
+### D5 隔離原型的已核對實作選擇（2026-10-24）
+
+採 `completion-tools.ts` 的本run登記，宿主啟動時以不可由Agent指定的 `completionJudges` 注入題目→裁判物件；不從題面、環境或模型參數讀endpoint/答案。裁判介面收bytes、宿主intent及challenge，回覆必須與intent/challenge一致；能力只作本地非秘密探針，尚無真實部署通道。意圖及結果寫在run的state/completion中，寫入失敗不發送；送出後未確認一律unknown且鎖住同題，確定拒絕允許修訂候選。相同已確認請求可讀原記錄，不重送。只實作本run排他與保存，不承諾fsync／進程崩潰恢復。公開入口只回不含裁判配置的摘要。
+
+
+### D5 原型與主session獨立核對結論（2026-10-24）
+
+**本段記錄隔離原型與非秘密裁判探針的程序驗證；其後主區接入見§7.1，仍不能稱首題已可可信判定或 solved。** 基線 HEAD `2d9fc4e1439449ea30bad4471994a247805c34e0`，D4 必須使用 `verification-result/review-fixes-20261024/final-source/`，31項來源hash全部核對、28項產品／測試／角色／包文件恢復；當時主區未提交D design與plan另行完整帶入。D4基礎與本輪D5差異接入時分別保存；證據精簡後以verified-source.patch統一還原已驗來源，D4來源恢復與D5差異的hash仍在manifest中，沒有將D4語義缺口改判通過。Node26.3.0、OpenCode1.19.3、SDK/plugin1.19.0。
+
+子區採用 Coordinator 專有 `completion.request({challenge,version,result})`，宿主使用同run/同題/同version的指定結果，要求目前usable且effectiveJudgment=verified；拒絕模型candidate／authority／endpoint等自由欄位。宿主完整讀固定candidate的base64頁，並在意圖及保守發送準備記錄落盤後、同步呼叫裁判前重新核對有效性及候選bytes相等，不能在await落盤窗口串用失效結果。必要prepared輸入於意圖落盤期間變更的原始RED曾錯送；補最終核對後GREEN零派送。仍承接可信穩定根與無不受管並發寫入條件，不宣稱抵抗任意同uid惡意寫入。
+
+| 判據 | 子區實錄與結論 |
+| --- | --- |
+| 有效結果與精確bytes | D5定向13項：角色/錯題/錯版本/缺結果/自由candidate與authority拒絕；usable=true rejected及inconclusive不派送；必要來源改變拒絕。裁判byte介面接收固定原bytes，包含NUL/非法UTF-8；獨立string adapter嚴格UTF-8往返，保留換行、BOM及NFC/NFD差異，非法UTF-8拒絕而非替換。沒有把舊string oracle直接當byte裁判使用。 |
+| 判定與結果映射 | 只有宿主啟動時注入的題目裁判可回覆，必須關聯intent與challenge；明確accepted且completed=true才在原型中記solved。rejected/duplicate/部分完成均不提升，無裁判candidate_only，無效/錯關聯/偽造authority回覆保留rawReply並unknown。這是非秘密探針的映射事實，非真實題目solved。 |
+| 語義反例與拒絕回傳 | 同批rejected案：Engineer固定錯候選INCORRECT，Verifier實際job只echo並提供完整虛假論證，宿主仍機械verified；裁判實收錯bytes後拒絕。Coordinator再經原生challenge.assign/task派給另一個既定Engineer會話，帶實際拒絕intent，Engineer實際收到並原生回應。只證明拒絕可送回，不證明模型識破echo或團隊已修正候選。 |
+| 意圖、並發與unknown | 意圖先落盤、同題在途排他，並發最多一次送出；確認過的同一請求返回原記錄。裁判已收件後真socket斷連為unknown，host鎖同run同題，不可換version/result繞過，指定驗證讀取等無關觀察仍可繼續。C保存後真RPC斷連則host保留confirmed，調用方工具為control unavailable且未確認；不重試是scripted決策，不證明模型遵守。 |
+| 自然停止競爭 | Coordinator前台completion在途，由launcher整體deadline自然停止，沒有測試側SDK resume或task.stop。stop案裁判實收1、回覆未得，host unknown，工具原生aborted；late案host先保存confirmed，延遲真RPC後自然停止、socket已destroyed、原生aborted，先存事實保留；before-stop案意圖落盤後barrier，自然stop_marked先勝再放行，host not_sent、裁判實收0。not_sent可先於native abort送達為completed工具；若連接先被abort則調用方未知，不能要求這兩種時序有同一工具狀態。 |
+| 故障、超時與預算 | 發送前保存失敗零裁判副作用；裁判accepted後最終落盤失敗不返回solved，內存unknown/solved=false、磁盤保留sent且sent=false的保守發送準備記錄，後續換version/result仍禁止重送。sent狀態不等於裁判實收；以submit呼叫事實及探針收件分開核對。定向裁判timeout為unknown；同批budget案在completion前由既有預算拒絕，裁判零收件。進程崩潰/fsync/跨重啟恢復未驗。 |
+
+最終同源公開runtime批次為 `trusted-completion/batch-final/`：每案均從E讀題、Solver真job/發布、Engineer固定包、獨立Verifier真prepared job及報告、Coordinator完整讀指定結果，再走completion；未預置published/報告，未跨run拼成功。十案為control、rejected、noj、missing、judge-lost、rpc-lost、stop、late、before-stop、budget；內層deadline_exceeded/budget_exceeded為預期觀察，不是解題成功。最終typecheck/build exit0、全套403/403；真實產品模型調用0，模型usage unavailable，scripted零usage另記，不冒充實測模型成本。其後證據精簡保留本批原始終態與來源manifest於 `batch-final/results.jsonl`，完整最小鏈路證據保留於後續主區同批 `integration-main-native/*/records.jsonl`；兩批身份分開，不互補為同一次通過。
+
+失敗的原始日誌與各批終態保留，完整重複轉儲已精簡：最初入口不存在RED；意圖落盤期間來源變更RED；舊權限白名單401/402；新增保存後故障測試誤把同步拒絕寫成Promise拒絕；batch-01使用錯revoke觀察全局停止及執行中改角色正文；batch-02要求before-stop一定native aborted而實際收到明確not_sent。batch-03舊範圍十案全通，但不包含實際拒絕回傳，不拿來拼接最終批。這些是具體探針／預期失配與已修機械缺口，不籠統稱產品全失敗或以exit0掩蓋。
+
+**尚未驗證／接入阻塞：** 現有E題目配置不含真實權威裁判通道；LocalFlagOracle僅string介面、內存去重，未接目前啟動入口，亦不提供私有答案隔離；舊PlatformService／VerifiedCoordinator責任／generation機制未復活。本輪typed host注入及loopback probe只驗接線，尚無可核對的真實裁判認證、scope、業務回覆或秘密保護部署。G同uid job直連及讀宿主位置的限制不變，不能把真答案放另一JSON/環境就稱隔離。Verifier語義、外部狀態/持續完整性、真實模型協作/拒絕後修正能力未驗。跨重啟、自動對帳、多flag及部署工程仍延後。
+
+主session另實際復跑31/31定向contract與 `parent-review-native/` 同批十案，命令exit0；核對30項同批來源hash與當時來源一致，裁判實收原bytes的長度/hash及completion記錄一致，見 `parent-review/commands.json`。內層deadline/budget exit1是預期。該次主session只將核對結論與證據同步主區；其後授權產品接入見§7.1。
+
+最小證據、來源manifest、可還原已驗來源的 `verified-source.patch` 與失敗日誌見 [D5證據入口](../../gates/d-artifact-handoff-20261024/trusted-completion/README.md)。重複D4/D5差異、來源副本與臨時計畫快照已移除，不再宣稱完整歷史轉儲仍保留。本節可支持下一次按具體題目接入一種真實裁判的決策，不能自行授權主區接入、模型運行、合併或提交。結論與失敗已轉入本文及證據目錄，一次性plan已刪除；專屬工作樹暫留供查閱，不自動合併或歸檔。
+
+## 7.1 第四、第五接口主區接入與無模型驗收（2026-10-24）
+
+使用者明確授權將兩接口接入主工作區，保留限制，暫不commit/push。逐hash核對31個非文檔源，僅接入13個差異文件，接入時實作及探針與已核對來源一致（精簡後可由verified-source.patch還原）；另更新product/AGENTS.md過時能力說明，既有未提交設計與.handoff保留。沒有恢復舊編排或增加真實裁判部署。
+
+主區定向43/43、全套403/403、typecheck/build exit0。同一主區來源完整十案原生runtime均符合判據，harness exit0；30項來源hash一致，實收候選bytes及完成記錄核對一致。覆蓋E→Solver發布→Engineer固定包→獨立Verifier報告→Coordinator讀回→宿主判定，拒絕實際送回Engineer、無裁判、不可用結果、兩類真socket丟回复、自然停止競爭及預算拒絕。deadline/budget內層exit1是預期停止，不是解題成功。證據見[主區接入驗收](../../gates/d-artifact-handoff-20261024/trusted-completion/integration-main/README.md)。
+
+獨立審查未發現接入阻塞。來源角色文案中的conditionalOn舊名稱尚未同步，實際條件位於固定報告original.premises/requirements；保留為非阻塞文案限制。Q2虛假完整echo、Q3/V3動態完整性unknown、真實裁判認證/scope/秘密隔離與模型協作能力均未因此通過；無可信裁判仍candidate_only，verified不等於solved。沒有真實產品模型調用，usage unavailable；跨重啟與任意惡意並發未驗。結論已轉入design及既有證據位置，接入plan刪除，未commit/push。
+
+依使用者要求精簡D5證據：主區十案按原批保留可無損還原的原生訊息、job／固定包／驗證／提交記錄、原bytes、RPC與觀察；audit僅保留相關事件及原索引，重複Provider請求、事件流、workspace與來源副本移除。歷史批次僅保留各自終態、日誌與來源hash，不再提供完整原始轉儲；抽取範圍與核對方式見證據README及retention.json。既有驗收結論不因此擴大。探針後續原始輸出改寫至Git已忽略的 `runs/d-trusted-completion/<label>/`；這項輸出位置修改在既有同批驗收之後，舊來源hash不重寫，也不冒稱已再次跑原生十案。精簡時未commit/push；其後使用者已授權將程式、探針與精簡證據依類型分批提交並推送。
+
 ## 8. 可復用實作與不可直接繼承處
 
 以下為源碼檢查結論，不代表已在目前 D 路徑驗收。
@@ -340,7 +392,7 @@ Coordinator 基於當前有效驗證提出對指定候選的提交／判定。�
 
 ## 9. 要驗證的問題及結果去向
 
-這是待定契約的問題表，不是執行計劃或固定階段順序。接口一、二已接入主區並完成無模型回歸，依據與限制見 §3–4；接口三已接入主區，V3完整條件未成立，結論見 §5；接口四原型調查及主核對完成、產品尚未接入，結論見 §6；接口五尚待驗。下表前兩項保留為已驗問題索引，不重新列為未定；既有 G 成果不重算為 D 通過。
+這是待定契約的問題表，不是執行計劃或固定階段順序。接口一、二已接入主區並完成無模型回歸，依據與限制見 §3–4；接口三已接入主區，V3完整條件未成立，結論見 §5；接口四、五均已完成原型核對及主區接入驗收，結論見§6–7.1；實際裁判部署仍待驗。下表前兩項保留為已驗問題索引，不重新列為未定；既有 G 成果不重算為 D 通過。
 
 | 問題 | 最小有效觀察 | 通過／不通過後的去向 |
 | --- | --- | --- |
@@ -358,4 +410,4 @@ Coordinator 基於當前有效驗證提出對指定候選的提交／判定。�
 
 不展開全部平台 adapter、跨平台操作描述／自動對帳、完整多 flag 管理、通用 HTTP 重放、全協議工具、跨重啟恢復、部署系統或 G 已延後的隔離／配額工程。若一道題暴露具體依賴，只提回直接需要的部分，不取消核心 v1 的安全與成功標準。
 
-當前接口一按 §3 首題最小邊界已接入主區並完成無模型驗收；H1/H5/H7 的延後項與真實模型邊界不改判通過，接口一、二已接入並隨 abe7d6e 提交，候選／解法包粒度已定。接口三已按最小邊界接入主區，V3完整輸入執行證明仍未成立，按§5保留限制。接口四原型及主核對已完成、產品未接入；機械契約與語義信任邊界見§6。當前待驗為接口五的有效結果准入、精確提交與可信結果映射，以及實際裁判通道。已定角色分工、E 讀題、G 工具與原生任務生命週期維持原設計。未知問題先在本文收斂並驗證；證據與決策回寫本文，才生成相應最小實作 plan，不把 plan 當設計權威。
+當前接口一按 §3 首題最小邊界已接入主區並完成無模型驗收；H1/H5/H7 的延後項與真實模型邊界不改判通過，接口一、二已接入並隨 abe7d6e 提交，候選／解法包粒度已定。接口三已按最小邊界接入主區，V3完整輸入執行證明仍未成立，按§5保留限制。接口四、五已按§7.1接入主區並完成無模型驗收；機械契約與語義信任邊界見§6–7，當前仍缺實際裁判通道與可部署秘密邊界。已定角色分工、E 讀題、G 工具與原生任務生命週期維持原設計。未知問題先在本文收斂並驗證；證據與決策回寫本文，才生成相應最小實作 plan，不把 plan 當設計權威。
