@@ -1,44 +1,54 @@
 # 文档索引
 
-通用 CTF 解题 Agent 项目的设计与计划文档索引。
+通用 CTF 解题 Agent 的开发文档入口。更新日期：2026-10-24。
 
-- 架构与产品依据：[核心设计 v1](specs/2026-10-22-ctf-agent-design-v1.md)。
-- 现状、教训与清理方向：[现状、教训与迁移记录](specs/2026-10-22-ctf-agent-current-state-and-migration.md)。
-- 仓库开发规矩：根目录 [`AGENTS.md`](../../AGENTS.md)。
+## 如何按需阅读
 
-**用途边界：** 本产品只用于 CTF 比赛与学习题，操作对象限于授权题目、靶场和附件（见 design v1 开头）。
+先遵守根目录 [AGENTS.md](../../AGENTS.md) 与适用的 [CLAUDE.md](../../CLAUDE.md)，再按下表选择与当前任务有关的文档；不要求每次通读所有 design、历史记录或 gates。
 
-## 当前状态
+- 需要确认全局架构、职责、授权或验收边界：读 [核心设计 v1](specs/2026-10-22-ctf-agent-design-v1.md) 的相关章节。
+- 修改某个具体能力：读对应详细 design；详细 design 是核心设计的子文件，具体决策及验证限制以它为准。
+- 执行已授权工作：读对应的现存 plan §0 及其引用的 design。plan 是临时交接物，不是另一份设计权威；没有 plan 不等于尚未实作。
+- 需要核对失败、版本或原始证据：沿 design 指定的位置读取必要记录，不默认加载整个 gates 或 run。历史迁移文档不作为当前任务清单。
 
-每完成一步就更新本节；只写状态，细节看各自文件。更新日期：2026-10-23。
+本索引只帮助选择文档，不会自动加载内容，也不向产品解题 Agent 注入这些开发资料。状态描述不授予真实模型运行、提交或部署权限；按用户当前目标推进，不由索引推导下一项任务。
 
-| 文件 | 定稿状态 | 已实作 | 未实作 |
-| --- | --- | --- | --- |
-| [核心设计 v1](specs/2026-10-22-ctf-agent-design-v1.md) | 已定稿 | — | 第 3 节仍列 4 项待决：接口的原生／受管映射、工具套件与 ARM64、产品网络隔离、成功率门槛；G 异步绑定／交付的固定原生路径已验证并接入主区 |
-| [A／B 产品资产与 Skill](specs/2026-10-22-design-v1-ab-product-assets.md) | 已定稿；第 6 节列 7 项未定稿 | `product/` 两层布局、白名单复制到每次 run 的配置目录、副本 hash 与来源版本、Skill frontmatter 检查、同名目标拒绝；原生 `skill` 按需载入与附属 Reference 的 `read` 已在开发机实测可用（第 5 节） | 插件按角色放行 `skill`／`read`（待 C）；共用 `references/` 内容 |
-| [入口与本地调试](specs/2026-10-22-design-v1-entry-local-debug.md) | 已定稿（两项未知数已由探针验证） | 启动脚本 `apps/launcher/src/launch.ts`：运行资料目录分区（仓库外、realpath）、工作目录边界检查、`opencode serve` 加一次 SDK 启动讯息、时限 abort 与结果保存；旧 `solveM1` 单一 Solver 入口已退场（第 1 节） | 把 ripgrep 作为开发机前置条件记入开发文档（第 4 节；本机已安装）。控制服务与 token 预算停止已由 C 实作 |
-| [C 控制服务与会话绑定](specs/2026-10-23-design-v1-c-control-service.md) | 前台及 G 原生背景路径已定 | 根／子会话绑定、跨轮 pending、逐次准入、资源结算与预算停止、受管工具、异步结果交付及 task.stop 已接入；见 G §9.2 | D 前兩接口已接入；其餘 D 工具、通用进度及共用知识目录 read 授权仍待完成 |
-| [D 最小版：產物、候選與獨立驗證](specs/2026-10-24-design-v1-d-candidate-verification-minimal.md) | 接口一已接入；接口二已接入主區並完成無模型回歸；後三接口待驗 | 接口一發布／讀取、角色說明與主區回歸已完成；H1 路徑條件未通過，H5 有條件、H7 真實 RPC／停止最小邊界已主核對；詳見 D §3；第二接口一次固定整包已接入主區並通過回歸，見 §4 | 獨立 Verifier 綁定、有效驗證結果與可信判定接線；不展開通用平台或 G 延後工程 |
-| [E 最小版：题目来源与 Intake 接入](specs/2026-10-23-design-v1-e-intake-minimal.md) | 已定稿（最小版：只解决题目进得来；平台 API 与靶场部署不在范围，为 G、D 服务的部分列为延后项，第 6 节） | 全部（第 7 节）：release profile 的 `challenges` 栏位与题目清单（`apps/launcher/src/challenges.ts`，范例 `config/challenges.example.json`）、启动前凭据扫描、可达性检查与材料固定（`run-prep.ts`）、Intake 的 `challenge.list`／`challenge.read`（`intake-tools.ts`） | 第 6 节延后项（待 G、D）；真实模型冒烟已验证取题链（第 7 节，gate `e-intake-smoke-20261023`） |
-| [G 最小版：解題工具與綁定](specs/2026-10-23-design-v1-g-solver-minimal.md) | 當前已定接入部分完成；整體延後項仍未定 | 題目綁定、三根工具、HTTP/job、RPC、原生背景交付／恢復／停止、角色權限及可信收束已接入主區；驗收見 G §9.2 | D 產物交接已接入；候選／可信驗證仍是完整做題流程的直接依賴；隔離部署等按 G §10 延後，不擴回前置研究清單 |
-| [现状、教训与迁移记录](specs/2026-10-22-ctf-agent-current-state-and-migration.md) | 大部分已过期：§1 清理方向已执行完、§2 静态对照已被真实探针取代、§5 指令收敛已完成；§4 教训仍有效，§3 偏离部分已解决 | — | 待精简为「教训与未解偏离」 |
+## 按任务查找 design
 
-**当前推进起点**：E 的取题、Intake 读题及 Coordinator 分派已通过带真实题目的冒烟；现在承接读题后的解题编排与工具执行，不重新研究题目接入。G §10.2／10.3 是延后工程及按需能力，不是下一轮三项研究任务。
+状态按当前工作区及各 design 的记录汇总；“已接入”不代表相关工作均已提交或完成产品验收。只在需要区分本次收口时列出提交记录。具体测试、版本、预算、运行历史与证据位置留在对应 design。
 
-**尚未接通的能力**：D 独立 Verifier 版本绑定、验证结果及平台／oracle 完成判定。G 已定工具与任务生命周期已接入；隔离部署、通用网络、完整配额及恢复按 G §10 延后，运行边界不据此豁免。
+| 何时读取 | 文档 | 当前状态与未验证边界 |
+| --- | --- | --- |
+| 判断跨组件职责、产品范围或验收要求 | [核心设计 v1](specs/2026-10-22-ctf-agent-design-v1.md) | 当前架构依据；第 3 节仍有待决项，不把全文视为全部已实现。 |
+| 修改产品资产布局、固定副本、原生 Skill／Reference 载入 | [A／B 产品资产与 Skill](specs/2026-10-22-design-v1-ab-product-assets.md) | 资产复制、metadata、版本记录已接入；历史无模型 skill → read 连通成立。当前角色准入与 Skill 根内受控 read 已接入，见下方 Skill 核对 §7.2；共用知识目录仍待按需推进。 |
+| 修改角色／Web Skill 中的工具用法，排查旧接口描述 | [产品角色与 Web Skill 契约对齐](specs/2026-10-24-design-v1-product-instruction-contract-alignment.md) | 六份产品文档清理已完成、无模型回归与复核通过；必要清理及剩余收口已提交（`31b10b58`、`f7ad776b`）。不证明模型遵循。 |
+| 修正报告 blocker 的交接、无依据重包或重算比较区间 | [Agent 交接连续性](specs/2026-10-24-design-v1-agent-handoff-continuity.md) | Coordinator／Verifier 最小修改已实作、无模型回归通过并提交（`77e40a5d`）；其余一般交接建议仍为候选，效率改善未验证。 |
+| 调整 Skill 发现描述、判断适用条件或是否需要拆分 | [Skill 找得到、用得对](specs/2026-10-24-design-v1-skill-discovery-and-use.md) | 单一 Skill 已更新至 v4 并提交（`77e40a5d`）；五情境静态核对及独立复核通过。未新增 Skill／角色提醒；当前原生加载与模型选用效果未验证。 |
+| 排查启动、运行目录、依赖或结束时证据保存 | [入口与本地调试](specs/2026-10-22-design-v1-entry-local-debug.md) | `apps/launcher` 入口及资料分区、启动／停止／保存已接入；依赖条件见 §4，控制服务与预算停止见 C。 |
+| 修改会话身份绑定、工具准入、预算或任务停止 | [C 控制服务与会话绑定](specs/2026-10-23-design-v1-c-control-service.md) | 前台及 G 原生背景路径、逐次准入、结算与停止已接入；进度摘要见本地练习 design，更完整通知按需推进。 |
+| 修改产物发布、固定候选、独立验证或可信完成 | [D 最小版](specs/2026-10-24-design-v1-d-candidate-verification-minimal.md) | 五接口已接入并完成无模型验收；§7.2 记录一次本地 `mfw` 真实模型整链 verified／accepted／solved。生产裁判部署与秘密隔离仍有缺口。 |
+| 修改题目输入、材料固定、可达性或 Intake 工具 | [E 最小版](specs/2026-10-23-design-v1-e-intake-minimal.md) | 最小取题链已接入，真实模型冒烟验证过取题；平台 API 与靶场部署等延后项见 §6，不自动恢复。 |
+| 修改 workspace／HTTP／job、异步交付、恢复或执行边界 | [G 最小版](specs/2026-10-23-design-v1-g-solver-minimal.md) | 已定部分接入主区并有无模型验收，单题真实运行观察见 §9.2；整体未定稿，隔离、网络 scope、资源总量与剩余契约见 §10。 |
+| 排查模型误用 workspace 路径或改进工具说明 | [G run 复盘与路径可发现性](specs/2026-10-24-design-v1-g-run-review-and-path-affordance.md) | 路径说明与示例已修正，既有 guard 保留，定向回归通过；修正后的模型遵循未验证。 |
+| 修改进度记录、停滞信号、Critic 判断，或准备练习批次 | [本地三题练习与进度帐本](specs/2026-10-24-design-v1-local-practice-suite-and-progress-ledger.md) | 进度帐本最小切片已接入并通过无模型验证；三题真实模型批次未授权，部分题目 oracle 未核实，不设正式成功率门槛。 |
+| 追溯旧架构取舍、迁移原因或已知教训 | [现状、教训与迁移记录](specs/2026-10-22-ctf-agent-current-state-and-migration.md) | 历史参考，部分状态已过期；优先核对当前实现与详细 design。旧待办、冻结轨迹和里程碑不自动继承。 |
 
-**唯一入口：** `apps/launcher`。旧 `solveM1`／`openCodeTask` 不恢复。当前可在无模型场景串起 E 读题、既定团队工具操作、结果交回、产物发布及 Engineer 读取、固定候选与解法包；D 后三接口尚缺，因此不能声称完整做题流程或 solved 已成立。
+## 当前能力边界
 
-**真实模型：** 2026-10-23 首次真实模型冒烟通过（火山方舟 Coding Plan、`deepseek-v4-1-flash-261017`，8 次模型调用、约 1.1 万 token，Coordinator 自行结束，无 provider 错误）；只确认接线，不代表解题能力。每批真实调用仍须另行授权。
+当前同一 launcher 入口已在本地 Docker 单题上串起取题、团队工具、产物发布、独立验证及可信完成；成功与预算停止的历史均保留在 D §7.2。一次非生产整链成功不外推为多题成功率或完整产品验收。
 
-**已知限制：** OS／网络局部机制证据不等于产品部署或完整 scope 已通过；真实模型解题工具使用未验证，单次输出上限仍依模型 limit.output 与剩余额度推断。
+此后路径说明、产品契约、交接与 Skill v4 的修改各有其无模型或静态验证，不能借用此前真实 run 宣称优化效果已验证。生产秘密隔离、完整网络 scope 及资源边界仍以核心 design 和 G 的未决项为准；在途模型调用可能越过预算门槛，不把额度视为绝对封顶。
 
-**G 当前状态：** 已按用户授权把核实的独立候选接入主区，已有失败及验证来源保留。具体决策、当前接入与延后项见 [G design](specs/2026-10-23-design-v1-g-solver-minimal.md) §9.2／§10；本批无真实模型运行。
+本产品限授权 CTF 比赛、学习题与靶场；全局运行和授权约束见 AGENTS.md 与核心 design，不在索引维护副本。
 
-**G 计划收口：** 七份临时验证 plan 的原始判据快照保存在各证据目录，结果已转入 design，活动 plan 已移除。专属验证 session 核对后归档，从活动列表移除；worktree 与证据保留。清理计划不表示 G 定稿，也不自动启动后续实现。
+## 收口时同步索引
+
+每个 plan 执行、验收并回补对应 design 后，同步本 README 的相关行：何时读取、已实现部分、验证层次及剩余限制。状态改变或文档新增、删除、改名时，一并修正链接；不等到 commit 才更新，也不以 plan 删除推断整个 design 已完成。
+
+先把决策与验证结果写回 design，再更新索引摘要，最后删除结论已转入的临时 plan。只改受影响条目，不在这里复制测试日志、token 明细、运行日记或另建任务路线图。全局开发硬约束仍由 AGENTS.md／CLAUDE.md 维护。
 
 ## 目录约定
 
-- `specs/` — 设计与迁移记录：design v1、其详细 design 子文件，以及迁移记录。
-- `plans/` — 按 `CLAUDE.md` 约定的 §0 交接计划，是一次性交接物：design 不引用 plan，结论转入 design 或 `gates/` 后删除。不放里程碑 plan。
-- `gates/` — 只保留支撑 design 结论的最小原始证据（清理时保留的证据见迁移记录）。
+- `specs/`：核心设计、详细 design 子文件与历史迁移记录。
+- `plans/`：按 CLAUDE.md 的 §0 交接执行，一次性交接物；design 不引用 plan，结论回写后删除。
+- [docs/gates/](../gates/)：支撑 design 结论的最小原始证据；只按相关 design 的引用读取。
