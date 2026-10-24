@@ -1,3 +1,4 @@
+import {CompletionRequests,type CompletionJudge} from './completion-tools.js';
 // Control service (design v1 C): lives in the launcher process, owns the session binding table, the run budget
 // ledger, the role capability table and the stop sequence. The product plugin inside OpenCode only forwards hook
 // events here and obeys the reply. Every failure path is a denial; denial messages are fixed short codes and never
@@ -10,6 +11,7 @@ import { INTAKE_TOOLS, IntakeRefused, checkMaterialPath, findChallenge, listChal
 import { createHttpTools, CookieJar, HttpRefused } from './http-tools.js';
 import { JobManager, JobRefused, type JobBinding } from './job-tools.js';
 import { ArtifactPublisher, snapshotWork, type ArtifactSource } from './artifact-tools.js';
+import { VerificationResults,fixEvidence } from './verification-results.js';
 import { CandidatePackages } from './candidate-package-tools.js';
 import { filePage } from './file-page.js';
 import { listWorkspace, readWorkspace, searchWorkspace, writeWorkspace, WorkspaceRefused, type WorkspaceRoots } from './workspace-tools.js';
@@ -92,8 +94,8 @@ export function summarizeUsage(messages: Message[]): SessionUsage {
   return usage;
 }
 
-export const SOLVER_TOOLS = ['workspace.list', 'workspace.read', 'workspace.search', 'workspace.write', 'http.request', 'job.run', 'job.read', 'job.cancel', 'artifact.publish', 'artifact.read', 'package.publish', 'package.read', 'package.prepare'];
-export const MANAGED_TOOLS = [...INTAKE_TOOLS, 'challenge.assign', 'challenge.unassign', 'task.stop', ...SOLVER_TOOLS];
+export const SOLVER_TOOLS = ['workspace.list', 'workspace.read', 'workspace.search', 'workspace.write', 'http.request', 'job.run', 'job.read', 'job.cancel', 'artifact.publish', 'artifact.read', 'package.publish', 'package.read', 'package.prepare', 'verification.report'];
+export const MANAGED_TOOLS = [...INTAKE_TOOLS, 'challenge.assign', 'challenge.unassign', 'task.stop', 'verification.read', 'completion.request', ...SOLVER_TOOLS];
 interface Resource { run: string; sessionID: string; challengeId: string; callID: string; tool: string; state: 'active' | 'settled' | 'unknown'; result?: string; job?: string; controller: AbortController; deadline: number; execution?: string; timer?: ReturnType<typeof setTimeout>; done?: Promise<unknown>; detachRpc?: () => void }
 interface TaskStopResult { state: 'stopped' | 'unknown' | 'completed' | 'failed'; resources: 'settled' | 'unknown'; sessionAbort: 'confirmed' | 'unknown' | 'not_required'; executionRef?: string }
 interface Execution { version?: string; ref: string; run: string; parent: string; callID: string; role: Role; challengeId?: string; childID?: string; state: 'starting' | 'running' | 'completed' | 'failed' | 'cancelled'; delivered: boolean; noticeMessageID?: string; delivery?: 'queued' | 'consumed' | 'suppressed' | 'stop_reply'; lateResult?: string; initialOutput?: string; result?: string }
@@ -101,6 +103,7 @@ interface Preparation {sessionID:string;execution:string;version:string;director
 interface Outside { execute: () => Promise<unknown> }
 
 export interface ControlOptions {
+  completionJudges?:Readonly<Record<string,CompletionJudge>>;
   runId?: string;
   client: OpencodeClient;
   budget: RunBudget;
@@ -140,6 +143,11 @@ export class ControlService {
   private readonly jobs: JobManager;
   private readonly publications = new ArtifactPublisher();
   private readonly packages = new CandidatePackages(this.publications);
+  private readonly completions:CompletionRequests;
+  completionSnapshot(){return this.completions.snapshot();}
+  private readonly verificationResults = new VerificationResults();
+  private readonly verificationJobs = new Map<string,{sessionID:string;execution:string;version:string;association:Record<string,unknown>;terminal:{state:string;exitCode:number|null}}>();
+  verificationResultSnapshot(){return this.verificationResults.snapshot();}
   private readonly preparations = new Map<string, Preparation>();
   private verifierExecution(binding:Binding) {
     const e=[...this.executions.values()].find(e=>e.childID===binding.sessionID&&e.state==='running');
@@ -156,7 +164,7 @@ export class ControlService {
   }
 
   private readonly rootsReady = new Map<string, Promise<void>>();
-  constructor(private readonly options: ControlOptions) { this.jobs = new JobManager({ jobsRoot: join(options.workdir, '..', 'state', 'jobs') }); }
+  constructor(private readonly options: ControlOptions) { this.completions=new CompletionRequests(join(options.workdir,'..','state','completion')); this.jobs = new JobManager({ jobsRoot: join(options.workdir, '..', 'state', 'jobs') }); }
 
   executionSnapshot() { return [...this.executions.values()].map(e => ({...e})); }
   hasOutstandingWork(status: Record<string, { type: string }>): boolean {
@@ -466,6 +474,8 @@ export class ControlService {
       this.checkDeclaration(binding, body.args, tool === 'ctf_challenge_assign');
       return { allowed: true }; // Precheck only: execution is the declaration's linearization point.
     }
+    if (tool === 'ctf_completion_request') { if(binding.role!=='coordinator')throw new ControlDenied('tool not permitted');return {allowed:true,rpcTimeoutMs:25000}; }
+    if (tool === 'ctf_verification_read') { if(binding.role!=='coordinator')throw new ControlDenied('tool not permitted');return {allowed:true,rpcTimeoutMs:20000}; }
     if (tool === 'ctf_task_stop') { this.checkTaskStop(binding, body.args); return { allowed: true, rpcTimeoutMs: 10000 }; }
     const managed = SOLVER_TOOLS.find(name => `ctf_${name.replaceAll('.', '_')}` === tool);
     if (managed) { this.checkSolver(binding, managed); return { allowed: true, rpcTimeoutMs: this.waitLimit(binding, managed, (body.args ?? {}) as Record<string, unknown>) + 5000 }; }
@@ -529,6 +539,27 @@ export class ControlService {
       if(version)return {execute:async()=>{await this.packages.read(this.options.runId??'run',challenge!,{version,component:'manifest'});return this.serial(commit);}};
       return commit();
     }
+    if(name==='verification.read') {
+      if(binding.role!=='coordinator')throw new ControlDenied('tool not permitted');
+      return {execute:()=>this.verificationResults.read(this.options.runId??'run',(body.args??{}) as Record<string,unknown>,r=>this.checkVerification(r),()=>{if(signal?.aborted)throw new ControlDenied('rpc abandoned');this.live(binding);if(this.stopReason)throw new ControlDenied('run stopped');})};
+    }
+    if(name==='completion.request') {
+      if(binding.role!=='coordinator')throw new ControlDenied('tool not permitted');
+      const args=(body.args??{}) as Record<string,unknown>,run=this.options.runId??'run';
+      const active=()=>{if(signal?.aborted)throw new ControlDenied('rpc abandoned');this.live(binding);if(this.stopReason)throw new ControlDenied('run stopped');};
+      return {execute:async()=>{
+        const result=await this.completions.request(run,args,this.options.completionJudges?.[String(args.challenge)],async()=>{
+          const page=await this.verificationResults.read(run,args,r=>this.checkVerification(r),active);
+          if(page.effectiveJudgment!=='verified'||!page.currentAvailability.usable)throw new ControlDenied('completion requires current verified result');
+          const chunks:Buffer[]=[];let cursor:string|undefined;
+          do{const p=await this.packages.read(run,String(args.challenge),{version:args.version,component:'candidate',...(cursor?{cursor}:{})});chunks.push(Buffer.from(p.data,'base64'));cursor=p.nextCursor??undefined;}while(cursor);
+          // Recheck after bytes are loaded; do not mix results/versions across awaited reads.
+          const check=await this.verificationResults.read(run,args,r=>this.checkVerification(r),active);if(!check.currentAvailability.usable||check.effectiveJudgment!=='verified')throw new ControlDenied('completion invalidated');
+          return Buffer.concat(chunks);
+        },active,signal);
+        this.record(binding.sessionID,'completion.saved',true,undefined,result);return result;
+      }};
+    }
     if (SOLVER_TOOLS.includes(name)) return this.prepareSolver(binding, name, (body.args ?? {}) as Record<string, unknown>, body.callID, signal);
     if (!INTAKE_TOOLS.includes(name)) throw new ControlDenied('no managed tools');
     const args = this.checkIntake(binding, name, body.args);
@@ -537,13 +568,22 @@ export class ControlService {
     return { execute: async () => { try { return await readMaterial(challenges, args); } catch (error) { throw this.refusal(error); } } };
   }
 
+  private async checkVerification(r:import('./verification-results.js').Stored){
+    const reasons:string[]=[],warnings:{evidenceIndex:number;reason:string}[]=[];
+    try{await this.packages.read(r.run,r.challenge,{version:r.version,component:'manifest'});}catch{reasons.push('fixed package or dependency unavailable');}
+    for(const [evidenceIndex,e] of r.evidence.entries()){
+      const changed=(reason:string)=>{if(e.necessary)reasons.push(reason);else warnings.push({evidenceIndex,reason});};
+      if(e.kind==='artifact'){try{const src=e.source as {ref:string};await this.publications.bytes(r.run,r.challenge,src.ref);}catch{changed('fixed evidence unavailable');}}
+      if(e.preparation){const p=this.preparations.get(e.preparation),b=this.bindings.get(r.sessionID);try{if(!p||!b)throw new Error();await this.packages.checkPrepared(this.roots(b).workDir,p);}catch{changed('relevant prepared dependency changed_or_unreadable');}}
+    }return {blocking:reasons,warnings};
+  }
   private checkSolver(binding: Binding, name: string): void {
     if (!binding.challengeId || !CHALLENGE_ROLES.includes(binding.role) ||
       (name === 'http.request' && !['recon', 'domain-solver'].includes(binding.role)) ||
       (name === 'artifact.publish' && binding.role === 'verifier') ||
       (name === 'package.publish' && binding.role !== 'engineer') ||
       (name === 'package.read' && !['engineer','verifier'].includes(binding.role)) ||
-      (name === 'package.prepare' && binding.role !== 'verifier')) throw new ControlDenied('tool not permitted');
+      (['package.prepare','verification.report'].includes(name) && binding.role !== 'verifier')) throw new ControlDenied('tool not permitted');
     if (!this.options.challenges?.some(c => c.id === binding.challengeId)) throw new ControlDenied('challenge outside run');
   }
 
@@ -571,7 +611,7 @@ export class ControlService {
     if (this.resources.has(key)) throw new ControlDenied('duplicate tool call');
     const active = [...this.resources.values()].filter(r => r.state !== 'settled');
     if (name === 'http.request' && active.filter(r => r.tool === name && r.challengeId === binding.challengeId).length >= 8) throw new ControlDenied('http limit');
-    if(binding.role==='verifier'&&['package.read','package.prepare','job.run'].includes(name)) {
+    if(binding.role==='verifier'&&['package.read','package.prepare','job.run','verification.report'].includes(name)) {
       const e=this.verifierExecution(binding);
       if(name==='package.read'&&args.version!==e.version)throw new ControlDenied('verification version');
     }
@@ -628,6 +668,7 @@ export class ControlService {
             result = await this.jobs.run(jobBinding, args, { signal: operation.controller.signal, deadline: operation.deadline, onRegistered: job => { operation.job = job; if(operation.execution) this.outputSources.set(job,{source:{...this.source(binding,'job',job,operation.execution),callID:call}}); } });
             const done = this.jobs.waitSettled(jobBinding, operation.job!).then(async snapshot=>{
               if(association&&preparation){try{await this.packages.checkPrepared(roots.workDir,preparation);association.after='matched';}catch{association.after='changed_or_unreadable';}
+                this.verificationJobs.set(operation.job!,{sessionID:binding.sessionID,execution:operation.execution!,version:String(association.version),association:structuredClone(association),terminal:{state:snapshot.state,exitCode:snapshot.exitCode}});
                 this.record(binding.sessionID,'verification.job.terminal',true,undefined,{...association,job:operation.job,terminal:snapshot});
                 return {...snapshot,inputAssociation:association};}
               return snapshot;
@@ -666,6 +707,29 @@ export class ControlService {
             result=await this.packages.publish({source:this.source(binding,'package',call,operation.execution),dir:roots.publishedDir,challenge:this.options.challenges!.find(c=>c.id===binding.challengeId)!},args,()=>{operation.controller.signal.throwIfAborted();this.live(binding);});
             this.record(binding.sessionID,'package.published',true,undefined,this.publicationSnapshot().find(p=>p.ref===(result as {version:string}).version));
           } else if(name==='package.read') result=await this.packages.read(operation.run,binding.challengeId!,args);
+          else if(name==='verification.report') {
+            const e=this.verifierExecution(binding);
+            if(e.ref!==operation.execution)throw new ControlDenied('verification execution');
+            const active=()=>{operation.controller.signal.throwIfAborted();this.live(binding);if(this.stopReason)throw new ControlDenied('run stopped');if(this.verifierExecution(binding).ref!==e.ref)throw new ControlDenied('verification execution');};
+            result=await this.verificationResults.register({run:operation.run,challenge:binding.challengeId!,version:e.version,sessionID:binding.sessionID,execution:e.ref},args,async selection=>{
+              if(selection.kind==='artifact'){
+                const p=await this.publications.bytes(operation.run,binding.challengeId!,selection.ref);
+                if(p.source.kind==='package')throw new ControlDenied('verification evidence');
+                return fixEvidence(selection,p.bytes,{kind:'artifact',source:{...p.source,ref:selection.ref},originalComplete:p.record.originalComplete});
+              }
+              const j=this.verificationJobs.get(selection.job);
+              if(!j||j.sessionID!==binding.sessionID||j.execution!==e.ref||j.version!==e.version)throw new ControlDenied('verification job');
+              const output=this.jobs.outputSnapshot(this.jobBinding(binding,roots),selection.job,selection.stream);
+              return fixEvidence(selection,output.bytes,{kind:'job',source:{...this.outputSources.get(selection.job)!.source,stream:selection.stream},originalComplete:output.complete,association:structuredClone(j.association),terminal:j.terminal,preparation:String(j.association.preparation)});
+            },async()=>{
+              const p=await this.packages.read(operation.run,binding.challengeId!,{version:e.version,component:'candidate'});
+              // Candidate can span pages: use manifest's fixed base64, validated by CandidatePackages.read.
+              const m=await this.packages.read(operation.run,binding.challengeId!,{version:e.version,component:'manifest'});
+              let data=Buffer.from(m.data,'base64');let cursor=m.nextCursor;while(cursor){const n=await this.packages.read(operation.run,binding.challengeId!,{version:e.version,component:'manifest',cursor});data=Buffer.concat([data,Buffer.from(n.data,'base64')]);cursor=n.nextCursor;active();}
+              void p;return Buffer.from(JSON.parse(data.toString()).candidate.data,'base64');
+            },active);
+            this.record(binding.sessionID,'verification.registered',true,undefined,this.verificationResultSnapshot().find(r=>r.result===(result as {result:string}).result));
+          }
           else if(name==='package.prepare') {
             if(Object.keys(args).length)throw new ControlDenied('prepare arguments');
             const e=this.verifierExecution(binding);

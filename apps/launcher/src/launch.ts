@@ -30,6 +30,7 @@ const COORDINATOR = 'coordinator';
 export interface LaunchOptions {
   profile: string; runsRoot?: string; runId?: string; product?: string; deadlineMs?: number;
   /** Test seam: called once after the start message is sent, with the launcher's own SDK client. */
+  completionJudges?:import('./completion-tools.js').CompletionJudge extends infer J ? Readonly<Record<string,J>> : never;
   onStarted?: (context: { client: OpencodeClient; rootId: string }) => Promise<void>;
 }
 interface Copy { path: string; sha256: string; source: string }
@@ -211,7 +212,7 @@ async function runLaunch(options: LaunchOptions, rpc: { url: string; token: stri
   let status = 'completed';
   const sessionIds = new Set<string>();
   const deadlineAt = Date.now() + deadlineMs; // one deadline for the launcher loop and for every binding's expiry
-  const control = new ControlService({ client, runId, budget: { maxModelCalls: profile.budget.maxSteps, maxObservableTokens: profile.budget.maxObservableTokens },
+  const control = new ControlService({ completionJudges:options.completionJudges, client, runId, budget: { maxModelCalls: profile.budget.maxSteps, maxObservableTokens: profile.budget.maxObservableTokens },
     expiresAt: deadlineAt, workdir: real.opencode, skillRoot: join(configDirectory, 'skills'), challenges: prepared });
   attach(control);
   const fail = (event: string, cause: unknown) => { status = 'failed'; mark(event, scrub(String(cause))); };
@@ -331,6 +332,8 @@ async function runLaunch(options: LaunchOptions, rpc: { url: string; token: stri
   await save(join(real.evidence, 'control-audit.json'), control.audit);
   await save(join(real.evidence, 'tool-resources.json'), control.resourceSnapshot());
   await save(join(real.evidence, 'publications.json'), control.publicationSnapshot());
+  await save(join(real.evidence, 'completion-results.json'), control.completionSnapshot());
+  await save(join(real.evidence, 'verification-results.json'), control.verificationResultSnapshot());
   await save(join(real.evidence, 'assets.json'), { productRevision, copies });
   await save(join(real.state, 'run.json'), { runId, status, rootSessionId: rootId || null, sessions: [...sessionIds],
     deadlineMs, opencodeVersion: engine.version, model: loaded.config.model, configSha256: sha256(JSON.stringify({ ...config, plugin: undefined })), productRevision,
