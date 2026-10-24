@@ -2,13 +2,16 @@
 // ledger, the role capability table and the stop sequence. The product plugin inside OpenCode only forwards hook
 // events here and obeys the reply. Every failure path is a denial; denial messages are fixed short codes and never
 // contain words OpenCode could classify as retryable.
-import { randomUUID } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
 import { mkdir, realpath } from 'node:fs/promises';
 import { dirname, isAbsolute, join, resolve, sep } from 'node:path';
 import type { OpencodeClient } from '@opencode-ai/sdk/v2';
 import { INTAKE_TOOLS, IntakeRefused, checkMaterialPath, findChallenge, listChallenges, readMaterial } from './intake-tools.js';
 import { createHttpTools, CookieJar, HttpRefused } from './http-tools.js';
 import { JobManager, JobRefused, type JobBinding } from './job-tools.js';
+import { ArtifactPublisher, snapshotWork, type ArtifactSource } from './artifact-tools.js';
+import { CandidatePackages } from './candidate-package-tools.js';
+import { filePage } from './file-page.js';
 import { listWorkspace, readWorkspace, searchWorkspace, writeWorkspace, WorkspaceRefused, type WorkspaceRoots } from './workspace-tools.js';
 import type { PreparedChallenge } from './run-prep.js';
 
@@ -89,9 +92,9 @@ export function summarizeUsage(messages: Message[]): SessionUsage {
   return usage;
 }
 
-export const SOLVER_TOOLS = ['workspace.list', 'workspace.read', 'workspace.search', 'workspace.write', 'http.request', 'job.run', 'job.read', 'job.cancel'];
+export const SOLVER_TOOLS = ['workspace.list', 'workspace.read', 'workspace.search', 'workspace.write', 'http.request', 'job.run', 'job.read', 'job.cancel', 'artifact.publish', 'artifact.read', 'package.publish', 'package.read'];
 export const MANAGED_TOOLS = [...INTAKE_TOOLS, 'challenge.assign', 'challenge.unassign', 'task.stop', ...SOLVER_TOOLS];
-interface Resource { run: string; sessionID: string; challengeId: string; callID: string; tool: string; state: 'active' | 'settled' | 'unknown'; result?: string; job?: string; controller: AbortController; deadline: number; timer?: ReturnType<typeof setTimeout>; done?: Promise<unknown>; detachRpc?: () => void }
+interface Resource { run: string; sessionID: string; challengeId: string; callID: string; tool: string; state: 'active' | 'settled' | 'unknown'; result?: string; job?: string; controller: AbortController; deadline: number; execution?: string; timer?: ReturnType<typeof setTimeout>; done?: Promise<unknown>; detachRpc?: () => void }
 interface TaskStopResult { state: 'stopped' | 'unknown' | 'completed' | 'failed'; resources: 'settled' | 'unknown'; sessionAbort: 'confirmed' | 'unknown' | 'not_required'; executionRef?: string }
 interface Execution { ref: string; run: string; parent: string; callID: string; role: Role; challengeId?: string; childID?: string; state: 'starting' | 'running' | 'completed' | 'failed' | 'cancelled'; delivered: boolean; noticeMessageID?: string; delivery?: 'queued' | 'consumed' | 'suppressed' | 'stop_reply'; lateResult?: string; initialOutput?: string; result?: string }
 interface Outside { execute: () => Promise<unknown> }
@@ -133,6 +136,17 @@ export class ControlService {
   private readonly http = new Map<string, ReturnType<typeof createHttpTools>>();
   private readonly jars = new Map<string, CookieJar>();
   private readonly jobs: JobManager;
+  private readonly publications = new ArtifactPublisher();
+  private readonly packages = new CandidatePackages(this.publications);
+  private readonly fileSources = new Map<string,{sha256:string;source:ArtifactSource}>();
+  private readonly outputSources = new Map<string, {source: ArtifactSource; bytes?: Buffer; complete?: boolean}>();
+  publicationSnapshot() { return this.publications.snapshot(); }
+  private source(binding: Binding, kind: ArtifactSource['kind'], resource: string, execution?: string): ArtifactSource {
+    const e=execution ?? [...this.executions.values()].find(e=>e.childID===binding.sessionID && e.state==='running')?.ref;
+    if(!e) throw new ControlDenied('artifact execution');
+    return {kind, run:this.options.runId ?? 'run', challenge:binding.challengeId!, sessionID:binding.sessionID, execution:e, resource};
+  }
+
   private readonly rootsReady = new Map<string, Promise<void>>();
   constructor(private readonly options: ControlOptions) { this.jobs = new JobManager({ jobsRoot: join(options.workdir, '..', 'state', 'jobs') }); }
 
@@ -510,7 +524,9 @@ export class ControlService {
 
   private checkSolver(binding: Binding, name: string): void {
     if (!binding.challengeId || !CHALLENGE_ROLES.includes(binding.role) ||
-      (name === 'http.request' && !['recon', 'domain-solver'].includes(binding.role))) throw new ControlDenied('tool not permitted');
+      (name === 'http.request' && !['recon', 'domain-solver'].includes(binding.role)) ||
+      (name === 'artifact.publish' && binding.role === 'verifier') ||
+      (name.startsWith('package.') && binding.role !== 'engineer')) throw new ControlDenied('tool not permitted');
     if (!this.options.challenges?.some(c => c.id === binding.challengeId)) throw new ControlDenied('challenge outside run');
   }
 
@@ -542,6 +558,7 @@ export class ControlService {
     const duration = name === 'http.request' ? Math.min(typeof args.timeout_ms === 'number' ? args.timeout_ms : 15000, 60000) :
       name === 'job.run' ? Math.min(typeof args.timeout_ms === 'number' ? args.timeout_ms : 60000, 600000) : 15000;
     const operation: Resource = { run: this.options.runId ?? 'run', sessionID: binding.sessionID, challengeId: binding.challengeId!, callID: call, tool: name,
+      execution: [...this.executions.values()].find(e => e.childID === binding.sessionID && e.state === 'running')?.ref,
       state: 'active', controller: new AbortController(), deadline: Math.min(binding.expiresAt, Date.now() + duration) };
     this.resources.set(key, operation);
     this.record(binding.sessionID, 'tool.registered', true, undefined, { callID: call, tool: name, challengeId: binding.challengeId, deadline: operation.deadline });
@@ -566,21 +583,80 @@ export class ControlService {
               const jar = this.jars.get(binding.challengeId!) ?? new CookieJar(); this.jars.set(binding.challengeId!, jar);
               adapter = createHttpTools({ target: challenge.target.url, jar, workDir: roots.workDir }); this.http.set(binding.sessionID, adapter);
             }
-            result = await adapter.request(args, { ...operation, signal: operation.controller.signal });
+            const resource=randomUUID(); let captured: {bytes:Buffer;complete:boolean}|undefined;
+            const response=await adapter.request(args, { ...operation, signal: operation.controller.signal, capture:(bytes,complete)=>{captured={bytes,complete};} });
+            if(!captured) throw new ControlDenied('http capture');
+            if(operation.execution) this.outputSources.set(resource,{source:{...this.source(binding,'http',resource,operation.execution),callID:call},...captured});
+            result=operation.execution?{...response,resource}:response;
           } else if (name === 'job.run') {
             const jobBinding = this.jobBinding(binding, roots);
-            result = await this.jobs.run(jobBinding, args, { signal: operation.controller.signal, deadline: operation.deadline, onRegistered: job => { operation.job = job; } });
+            result = await this.jobs.run(jobBinding, args, { signal: operation.controller.signal, deadline: operation.deadline, onRegistered: job => { operation.job = job; if(operation.execution) this.outputSources.set(job,{source:{...this.source(binding,'job',job,operation.execution),callID:call}}); } });
             const done = this.jobs.waitSettled(jobBinding, operation.job!);
             keep = true;
             void done.then(snapshot => this.settleResource(operation, snapshot.reapIncomplete ? 'cleanup_unknown' : snapshot.state));
             // Decision prototype: retain the same RPC/call until terminal cleanup, without a model polling loop.
             if (args.completion === 'terminal' || args.wait_ms === undefined) result = await done;
-          } else if (name === 'job.read') result = this.jobs.read(this.jobBinding(binding, roots), args);
+          } else if (name === 'artifact.publish') {
+            if(!operation.execution) throw new ControlDenied('artifact execution');
+            const allowed=['source','path','job','stream','resource','start','end'];
+            if(Object.keys(args).some(k=>!allowed.includes(k))) throw new ControlDenied('artifact arguments');
+            let bytes:Buffer,complete:boolean|null,source:ArtifactSource;
+            if(args.source==='file') {
+              if(Object.keys(args).some(k=>!['source','path','start','end'].includes(k))) throw new ControlDenied('artifact arguments');
+              bytes=await snapshotWork(roots,args.path); complete=null;
+              const selected=this.source(binding,'file',call,operation.execution);
+              const known=this.fileSources.get(`${binding.sessionID}/${String(args.path)}`);
+              const matches=known?.sha256===createHash('sha256').update(bytes).digest('hex');
+              source=matches?{...known!.source,selectedExecution:selected.execution!}:{...selected,execution:null,selectedExecution:selected.execution!,path:String(args.path)};
+            } else {
+              const keys=args.source==='job'?['source','job','stream','start','end']:['source','resource','start','end'];
+              if(Object.keys(args).some(k=>!keys.includes(k))) throw new ControlDenied('artifact arguments');
+              const key=args.source==='job'?args.job:args.source==='http'?args.resource:undefined;
+              const original=typeof key==='string'?this.outputSources.get(key):undefined;
+              if(!original || original.source.kind!==args.source || original.source.run!==operation.run || original.source.challenge!==binding.challengeId || original.source.sessionID!==binding.sessionID) throw new ControlDenied('artifact source');
+              source=original.source;
+              if(args.source==='job') { const output=this.jobs.outputSnapshot(this.jobBinding(binding,roots),args.job,args.stream); bytes=output.bytes; complete=output.complete; source={...source,stream:String(args.stream)}; }
+              else { bytes=original.bytes!; complete=original.complete!; }
+            }
+            const publication=await this.publications.publish(roots.publishedDir,source,bytes,complete,args,()=>{ operation.controller.signal.throwIfAborted(); this.live(binding); });
+            result=publication;
+            this.record(binding.sessionID,'artifact.published',true,undefined,this.publicationSnapshot().find(p=>p.ref===publication.ref));
+          } else if(name==='package.publish') {
+            if(!operation.execution) throw new ControlDenied('package execution');
+            result=await this.packages.publish({source:this.source(binding,'package',call,operation.execution),dir:roots.publishedDir,challenge:this.options.challenges!.find(c=>c.id===binding.challengeId)!},args,()=>{operation.controller.signal.throwIfAborted();this.live(binding);});
+            this.record(binding.sessionID,'package.published',true,undefined,this.publicationSnapshot().find(p=>p.ref===(result as {version:string}).version));
+          } else if(name==='package.read') result=await this.packages.read(operation.run,binding.challengeId!,args);
+          else if(name==='artifact.read') result=await this.publications.read(operation.run,binding.challengeId!,args);
+          else if (name === 'job.read') result = this.jobs.read(this.jobBinding(binding, roots), args);
           else if (name === 'job.cancel') result = await this.jobs.cancel(this.jobBinding(binding, roots), args.job);
-          else if (name === 'workspace.list') result = await listWorkspace(roots, args);
-          else if (name === 'workspace.read') result = await readWorkspace(roots, args);
-          else if (name === 'workspace.search') result = await searchWorkspace(roots, args);
-          else result = await writeWorkspace(roots, args);
+          else if (name === 'workspace.list') {
+            if(args.path==='published') {
+              const records=this.publicationSnapshot().filter(p=>p.source.run===operation.run&&p.source.challenge===binding.challengeId);
+              for(const r of records) await this.publications.bytes(operation.run,binding.challengeId!,r.ref);
+              result={path:'published',entries:records.map(r=>({name:`${r.ref}.bin`,type:'file',size:r.size})).sort((a,b)=>a.name.localeCompare(b.name)),truncated:false};
+            } else if(typeof args.path==='string'&&args.path.startsWith('published/')) throw new ControlDenied('workspace path');
+            else result=await listWorkspace(roots,args);
+          }
+          else if (name === 'workspace.read') {
+            if(typeof args.path==='string' && args.path.startsWith('published/')) {
+              const match=/^published\/([\w-]+)\.bin$/.exec(args.path); if(!match) throw new ControlDenied('artifact source');
+              const fixed=await this.publications.bytes(operation.run,binding.challengeId!,match[1]);
+              result={path:args.path,size:fixed.bytes.length,sha256:fixed.record.sha256,...filePage(fixed.bytes,args.cursor,()=>{throw new ControlDenied('cursor');})};
+            } else result=await readWorkspace(roots,args);
+          }
+          else if (name === 'workspace.search') {
+            const published=[];
+            if(args.path===undefined || args.path===null || typeof args.path==='string'&&args.path.startsWith('published')) {
+              for(const r of this.publicationSnapshot().filter(p=>p.source.run===operation.run&&p.source.challenge===binding.challengeId)) {
+                const fixed=await this.publications.bytes(operation.run,binding.challengeId!,r.ref);published.push({path:r.path,bytes:fixed.bytes});
+              }
+            }
+            result=await searchWorkspace(roots,args,published);
+          }
+          else {
+            const written=await writeWorkspace(roots,args);result=written;
+            if(operation.execution) this.fileSources.set(`${binding.sessionID}/${written.path}`,{sha256:written.sha256,source:{...this.source(binding,'file',call,operation.execution),path:written.path,callID:call}});
+          }
           if (!keep) this.settleResource(operation, 'completed');
           return result;
         } catch (error) {

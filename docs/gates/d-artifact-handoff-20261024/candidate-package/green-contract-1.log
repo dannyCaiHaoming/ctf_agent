@@ -1,0 +1,28 @@
+
+ RUN  v2.1.8 /Users/caihaoming/.codex/worktrees/ae52/pentest-agent
+
+ ❯ tests/contract/d-candidate-package.test.ts (8 tests | 1 failed) 104ms
+   × D interface two minimal package prototype > P3 old versions survive unrelated/work/material changes and concurrent new versions 9ms
+     → denied: artifact source
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/contract/d-candidate-package.test.ts > D interface two minimal package prototype > P3 old versions survive unrelated/work/material changes and concurrent new versions
+Error: denied: artifact source
+ ❯ apps/launcher/src/control-service.ts:666:58
+    664|             operation.controller.signal.aborted ? operation.controller…
+    665|           this.settleResource(operation, reason);
+    666|           throw error instanceof ControlDenied ? error : new ControlDe…
+       |                                                          ^
+    667|         } finally { if (!keep) operation.detachRpc?.(); }
+    668|       })();
+ ❯ ControlService.handle apps/launcher/src/control-service.ts:212:90
+ ❯ tests/contract/d-candidate-package.test.ts:54:101
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 7 passed (8)
+   Start at  11:06:15
+   Duration  367ms (transform 63ms, setup 0ms, collect 74ms, tests 104ms, environment 0ms, prepare 45ms)
+

@@ -1,0 +1,180 @@
+[
+  {
+    "info": {
+      "id": "msg_16b64ba3c001IXlEoSnijZTi3H",
+      "sessionID": "ses_e949b45c4ffe6rg007Hsi4KihJ",
+      "role": "user",
+      "time": {
+        "created": 1792803125820
+      },
+      "agent": "domain-solver",
+      "model": {
+        "providerID": "stub",
+        "modelID": "scripted"
+      }
+    },
+    "parts": [
+      {
+        "id": "prt_16b64ba3d00145jZP74XxYkEXT",
+        "sessionID": "ses_e949b45c4ffe6rg007Hsi4KihJ",
+        "messageID": "msg_16b64ba3c001IXlEoSnijZTi3H",
+        "type": "text",
+        "text": "H7_ROLE_domain-solver "
+      }
+    ]
+  },
+  {
+    "info": {
+      "id": "msg_16b64ba45001mL03oJZ3a9Bc7s",
+      "sessionID": "ses_e949b45c4ffe6rg007Hsi4KihJ",
+      "role": "assistant",
+      "time": {
+        "created": 1792803125829,
+        "completed": 1792803125902
+      },
+      "parentID": "msg_16b64ba3c001IXlEoSnijZTi3H",
+      "modelID": "scripted",
+      "providerID": "stub",
+      "mode": "domain-solver",
+      "agent": "domain-solver",
+      "path": {
+        "cwd": "/private/var/folders/tn/x1hbkfy17sx0w1lb8kjzzr340000gn/T/d-h7-n7oEk3/runs/R3/opencode",
+        "root": "/"
+      },
+      "cost": 0,
+      "tokens": {
+        "total": 0,
+        "input": 0,
+        "output": 0,
+        "reasoning": 0,
+        "cache": {
+          "read": 0,
+          "write": 0
+        }
+      },
+      "finish": "tool-calls"
+    },
+    "parts": [
+      {
+        "id": "prt_16b64ba58001RXoYRAnw5oaNTN",
+        "sessionID": "ses_e949b45c4ffe6rg007Hsi4KihJ",
+        "messageID": "msg_16b64ba45001mL03oJZ3a9Bc7s",
+        "type": "step-start"
+      },
+      {
+        "id": "prt_16b64ba59001Y5j0r0E3Ktr22x",
+        "sessionID": "ses_e949b45c4ffe6rg007Hsi4KihJ",
+        "messageID": "msg_16b64ba45001mL03oJZ3a9Bc7s",
+        "type": "tool",
+        "callID": "call_7_0",
+        "tool": "ctf_job_run",
+        "state": {
+          "status": "completed",
+          "input": {
+            "argv": [
+              "/opt/homebrew/Cellar/node/26.3.0/bin/node",
+              "-e",
+              "process.stdout.write('H7-real-job-bytes\\n')"
+            ],
+            "timeout_ms": 5000
+          },
+          "output": "{\"job\":\"bc0f3b60-b8c6-4a9c-9712-82ff6a9b27e8\",\"state\":\"exited\",\"exitCode\":0,\"signal\":null,\"reapIncomplete\":false}",
+          "title": "job.run",
+          "metadata": {
+            "truncated": false
+          },
+          "time": {
+            "start": 1792803125850,
+            "end": 1792803125900
+          }
+        }
+      },
+      {
+        "id": "prt_16b64ba8d001lXD4q3AhvkMn8S",
+        "sessionID": "ses_e949b45c4ffe6rg007Hsi4KihJ",
+        "messageID": "msg_16b64ba45001mL03oJZ3a9Bc7s",
+        "type": "step-finish",
+        "reason": "tool-calls",
+        "cost": 0,
+        "tokens": {
+          "total": 0,
+          "input": 0,
+          "output": 0,
+          "reasoning": 0,
+          "cache": {
+            "read": 0,
+            "write": 0
+          }
+        }
+      }
+    ]
+  },
+  {
+    "info": {
+      "id": "msg_16b64ba8f001aHHvkD3eAhp8GO",
+      "sessionID": "ses_e949b45c4ffe6rg007Hsi4KihJ",
+      "role": "assistant",
+      "time": {
+        "created": 1792803125903,
+        "completed": 1792803126201
+      },
+      "error": {
+        "name": "MessageAbortedError",
+        "data": {
+          "message": "Aborted"
+        }
+      },
+      "parentID": "msg_16b64ba3c001IXlEoSnijZTi3H",
+      "modelID": "scripted",
+      "providerID": "stub",
+      "mode": "domain-solver",
+      "agent": "domain-solver",
+      "path": {
+        "cwd": "/private/var/folders/tn/x1hbkfy17sx0w1lb8kjzzr340000gn/T/d-h7-n7oEk3/runs/R3/opencode",
+        "root": "/"
+      },
+      "cost": 0,
+      "tokens": {
+        "input": 0,
+        "output": 0,
+        "reasoning": 0,
+        "cache": {
+          "read": 0,
+          "write": 0
+        }
+      }
+    },
+    "parts": [
+      {
+        "id": "prt_16b64ba970015vzJZYIsz2kqAm",
+        "sessionID": "ses_e949b45c4ffe6rg007Hsi4KihJ",
+        "messageID": "msg_16b64ba8f001aHHvkD3eAhp8GO",
+        "type": "step-start"
+      },
+      {
+        "id": "prt_16b64ba98001CGX36944rbARF3",
+        "sessionID": "ses_e949b45c4ffe6rg007Hsi4KihJ",
+        "messageID": "msg_16b64ba8f001aHHvkD3eAhp8GO",
+        "type": "tool",
+        "callID": "call_10_0",
+        "tool": "ctf_artifact_publish",
+        "state": {
+          "status": "error",
+          "input": {
+            "source": "job",
+            "job": "bc0f3b60-b8c6-4a9c-9712-82ff6a9b27e8",
+            "stream": "stdout"
+          },
+          "error": "Tool execution aborted",
+          "metadata": {
+            "interrupted": true
+          },
+          "time": {
+            "start": 1792803125913,
+            "end": 1792803126200
+          }
+        }
+      }
+    ]
+  }
+]

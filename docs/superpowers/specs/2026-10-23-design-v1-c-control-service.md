@@ -105,7 +105,8 @@ G 的慢工具接线、取消与 RPC 时限以该子文件 §7.2、§7.2.1 为�
 | 工作區讀寫 | 受管 `workspace.*`（待 G） | Recon、Domain Solver、Engineer、Verifier（獨立工作區）；Intake 最小版只用 E 唯讀接入 | 路徑限於該會話綁定的工作區；原始材料唯讀 |
 | 實驗與作業控制 | 受管 `http.request`、`job.run` 等（待 G） | Recon、Domain Solver；Engineer 僅本地；Verifier 僅按驗證模式授予 | scope、句柄綁定題目與會話、資源上限 |
 | 題目接入 | 受管 `challenge.list`、`challenge.read`（[E 最小版詳細 design](2026-10-23-design-v1-e-intake-minimal.md) 第 4 節） | Intake | 角色為 `intake`、題目屬本 run；讀取限於該題 `materials/` |
-| 產物發布／候選登記 | 受管工具（待 D） | Domain Solver、Engineer | 只產生未驗證候選 |
+| 產物發布／讀取 | `artifact.publish`／`artifact.read`（已接入，細節見 D §3） | Recon／Domain Solver／Engineer 發布及讀取，Verifier 僅讀 | 同 run／題目授權，發布限本會話來源與背景 execution；固定產物不等於候選或 verified |
+| 候選／解法包固定及讀取 | `package.publish`／`package.read`（已接入，見 D §4） | 僅 Engineer | 一次固定整包、明確版本、同題授權；不等於獨立驗證或可信提交 |
 | 驗證結果登記 | 受管工具（待 D） | Verifier | 只接受綁定為 Verifier 的會話 |
 | 平台操作請求 | 受管工具（待 D、E） | Coordinator | 由控制服務檢查驗證有效性後執行 |
 | 任務停止 | 受管 task.stop 語義已選定，背景控制時序已在隔離原型驗證（G §7） | Coordinator | 核實本實例 dispatched 與 binding 的直接父關係；task_id 只用於選擇，不作授權 |

@@ -1,0 +1,51 @@
+
+ RUN  v2.1.8 /Users/caihaoming/.codex/worktrees/1488/pentest-agent
+
+ ❯ tests/contract/d-artifact-handoff.test.ts (5 tests | 5 failed) 61ms
+   × D artifact handoff: trusted snapshots, not candidate verification > H1/H3 fixes exact binary bytes, retains old version and separates equal-content provenance 4ms
+     → denied: no managed tools
+   × D artifact handoff: trusted snapshots, not candidate verification > H4 denies source forgery, cross challenge/run, sibling, symlinks and direct published writes 1ms
+     → denied: no managed tools
+   × D artifact handoff: trusted snapshots, not candidate verification > H2/H6 binds real settled job bytes, preserves truncation and original execution 45ms
+     → denied: no managed tools
+   × D artifact handoff: trusted snapshots, not candidate verification > H2/H6 takes HTTP from original adapter bytes even if editable work copy changes 8ms
+     → denied: no managed tools
+   × D artifact handoff: trusted snapshots, not candidate verification > H7 rejects modified published content through artifact and G workspace reads 1ms
+     → denied: no managed tools
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 5 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/contract/d-artifact-handoff.test.ts > D artifact handoff: trusted snapshots, not candidate verification > H1/H3 fixes exact binary bytes, retains old version and separates equal-content provenance
+ FAIL  tests/contract/d-artifact-handoff.test.ts > D artifact handoff: trusted snapshots, not candidate verification > H4 denies source forgery, cross challenge/run, sibling, symlinks and direct published writes
+ FAIL  tests/contract/d-artifact-handoff.test.ts > D artifact handoff: trusted snapshots, not candidate verification > H2/H6 takes HTTP from original adapter bytes even if editable work copy changes
+ FAIL  tests/contract/d-artifact-handoff.test.ts > D artifact handoff: trusted snapshots, not candidate verification > H7 rejects modified published content through artifact and G workspace reads
+Error: denied: no managed tools
+ ❯ ControlService.executeManaged apps/launcher/src/control-service.ts:504:45
+    502|     }
+    503|     if (SOLVER_TOOLS.includes(name)) return this.prepareSolver(binding…
+    504|     if (!INTAKE_TOOLS.includes(name)) throw new ControlDenied('no mana…
+       |                                             ^
+    505|     const args = this.checkIntake(binding, name, body.args);
+    506|     const challenges = this.options.challenges ?? [];
+ ❯ apps/launcher/src/control-service.ts:195:32
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/5]⎯
+
+ FAIL  tests/contract/d-artifact-handoff.test.ts > D artifact handoff: trusted snapshots, not candidate verification > H2/H6 binds real settled job bytes, preserves truncation and original execution
+Error: denied: no managed tools
+ ❯ ControlService.executeManaged apps/launcher/src/control-service.ts:504:45
+    502|     }
+    503|     if (SOLVER_TOOLS.includes(name)) return this.prepareSolver(binding…
+    504|     if (!INTAKE_TOOLS.includes(name)) throw new ControlDenied('no mana…
+       |                                             ^
+    505|     const args = this.checkIntake(binding, name, body.args);
+    506|     const challenges = this.options.challenges ?? [];
+ ❯ apps/launcher/src/control-service.ts:195:32
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/5]⎯
+
+ Test Files  1 failed (1)
+      Tests  5 failed (5)
+   Start at  01:13:43
+   Duration  319ms (transform 44ms, setup 0ms, collect 50ms, tests 61ms, environment 0ms, prepare 33ms)
+

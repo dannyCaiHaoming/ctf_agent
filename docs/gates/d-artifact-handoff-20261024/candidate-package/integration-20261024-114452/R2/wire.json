@@ -1,0 +1,63 @@
+[
+  {
+    "at": 1792809903925,
+    "request": {
+      "sessionID": "ses_e9433da17ffd0fYPYBGe0FEC2V",
+      "operation": "tool.execute",
+      "input": {
+        "tool": "package.publish",
+        "args": {
+          "candidate": {
+            "ref": "3051922c-2b45-4a47-b5f6-c888da2652fe",
+            "start": 0,
+            "end": 9
+          },
+          "files": [
+            {
+              "kind": "artifact",
+              "ref": "067d097e-0c09-4e89-85dc-5adb3abc4848",
+              "path": "extract.cjs",
+              "purpose": "script"
+            },
+            {
+              "kind": "artifact",
+              "ref": "d1d6c88d-ae80-4fd3-9382-afc8208514f3",
+              "path": "source.cjs",
+              "purpose": "script"
+            },
+            {
+              "kind": "artifact",
+              "ref": "33d0ecae-168a-4731-ab74-f4ec13fae4b9",
+              "path": "raw.bin",
+              "purpose": "input"
+            },
+            {
+              "kind": "material",
+              "name": "input.txt",
+              "path": "data/input.txt",
+              "purpose": "input"
+            },
+            {
+              "kind": "artifact",
+              "ref": "a546be89-6712-455b-b661-978a115c50dc",
+              "path": "evidence/solver.cjs",
+              "purpose": "evidence"
+            }
+          ],
+          "argv": [
+            "/opt/homebrew/Cellar/node/26.3.0/bin/node",
+            "extract.cjs"
+          ],
+          "extraction": "Engineer local extract.cjs reads raw.bin [5,14) after checking fixed E input; stdout is candidate bytes without normalization",
+          "premises": [
+            "CTF_MATERIALS must expose fixed input.txt; raw.bin relative to proposed working directory",
+            "External state unknown; binary candidate fixture; no verifier/oracle"
+          ]
+        },
+        "callID": "call_28_0"
+      }
+    },
+    "status": 403,
+    "response": "{\"error\":\"denied: cancelled\"}"
+  }
+]

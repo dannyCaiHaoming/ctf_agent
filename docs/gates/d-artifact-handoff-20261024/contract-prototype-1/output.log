@@ -1,0 +1,99 @@
+
+ RUN  v2.1.8 /Users/caihaoming/.codex/worktrees/1488/pentest-agent
+
+ ❯ tests/contract/d-artifact-handoff.test.ts (5 tests | 5 failed) 547ms
+   × D artifact handoff: trusted snapshots, not candidate verification > H1/H3 fixes exact binary bytes, retains old version and separates equal-content provenance 9ms
+     → denied: artifact execution
+   × D artifact handoff: trusted snapshots, not candidate verification > H4 denies source forgery, cross challenge/run, sibling, symlinks and direct published writes 2ms
+     → denied: artifact execution
+   × D artifact handoff: trusted snapshots, not candidate verification > H2/H6 binds real settled job bytes, preserves truncation and original execution 2ms
+     → denied: artifact execution
+   × D artifact handoff: trusted snapshots, not candidate verification > H2/H6 takes HTTP from original adapter bytes even if editable work copy changes 9ms
+     → denied: artifact execution
+   × D artifact handoff: trusted snapshots, not candidate verification > H7 rejects modified published content through artifact and G workspace reads 2ms
+     → denied: artifact execution
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 5 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/contract/d-artifact-handoff.test.ts > D artifact handoff: trusted snapshots, not candidate verification > H1/H3 fixes exact binary bytes, retains old version and separates equal-content provenance
+Error: denied: artifact execution
+ ❯ ControlService.source apps/launcher/src/control-service.ts:143:18
+    141|   private source(binding: Binding, kind: ArtifactSource['kind'], resou…
+    142|     const e=execution ?? [...this.executions.values()].find(e=>e.child…
+    143|     if(!e) throw new ControlDenied('artifact execution');
+       |                  ^
+    144|     return {kind, run:this.options.runId ?? 'run', challenge:binding.c…
+    145|   }
+ ❯ apps/launcher/src/control-service.ts:602:31
+ ❯ ControlService.handle apps/launcher/src/control-service.ts:209:90
+ ❯ tests/contract/d-artifact-handoff.test.ts:34:17
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/5]⎯
+
+ FAIL  tests/contract/d-artifact-handoff.test.ts > D artifact handoff: trusted snapshots, not candidate verification > H4 denies source forgery, cross challenge/run, sibling, symlinks and direct published writes
+Error: denied: artifact execution
+ ❯ ControlService.source apps/launcher/src/control-service.ts:143:18
+    141|   private source(binding: Binding, kind: ArtifactSource['kind'], resou…
+    142|     const e=execution ?? [...this.executions.values()].find(e=>e.child…
+    143|     if(!e) throw new ControlDenied('artifact execution');
+       |                  ^
+    144|     return {kind, run:this.options.runId ?? 'run', challenge:binding.c…
+    145|   }
+ ❯ apps/launcher/src/control-service.ts:602:31
+ ❯ ControlService.handle apps/launcher/src/control-service.ts:209:90
+ ❯ tests/contract/d-artifact-handoff.test.ts:51:13
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/5]⎯
+
+ FAIL  tests/contract/d-artifact-handoff.test.ts > D artifact handoff: trusted snapshots, not candidate verification > H2/H6 binds real settled job bytes, preserves truncation and original execution
+Error: denied: artifact execution
+ ❯ ControlService.source apps/launcher/src/control-service.ts:143:18
+    141|   private source(binding: Binding, kind: ArtifactSource['kind'], resou…
+    142|     const e=execution ?? [...this.executions.values()].find(e=>e.child…
+    143|     if(!e) throw new ControlDenied('artifact execution');
+       |                  ^
+    144|     return {kind, run:this.options.runId ?? 'run', challenge:binding.c…
+    145|   }
+ ❯ Object.onRegistered apps/launcher/src/control-service.ts:589:217
+ ❯ JobManager.run apps/launcher/src/job-tools.ts:100:16
+ ❯ apps/launcher/src/control-service.ts:589:38
+ ❯ ControlService.handle apps/launcher/src/control-service.ts:209:90
+ ❯ tests/contract/d-artifact-handoff.test.ts:70:13
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/5]⎯
+
+ FAIL  tests/contract/d-artifact-handoff.test.ts > D artifact handoff: trusted snapshots, not candidate verification > H2/H6 takes HTTP from original adapter bytes even if editable work copy changes
+Error: denied: artifact execution
+ ❯ ControlService.source apps/launcher/src/control-service.ts:143:18
+    141|   private source(binding: Binding, kind: ArtifactSource['kind'], resou…
+    142|     const e=execution ?? [...this.executions.values()].find(e=>e.child…
+    143|     if(!e) throw new ControlDenied('artifact execution');
+       |                  ^
+    144|     return {kind, run:this.options.runId ?? 'run', challenge:binding.c…
+    145|   }
+ ❯ apps/launcher/src/control-service.ts:585:62
+ ❯ ControlService.handle apps/launcher/src/control-service.ts:209:90
+ ❯ tests/contract/d-artifact-handoff.test.ts:92:15
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[4/5]⎯
+
+ FAIL  tests/contract/d-artifact-handoff.test.ts > D artifact handoff: trusted snapshots, not candidate verification > H7 rejects modified published content through artifact and G workspace reads
+Error: denied: artifact execution
+ ❯ ControlService.source apps/launcher/src/control-service.ts:143:18
+    141|   private source(binding: Binding, kind: ArtifactSource['kind'], resou…
+    142|     const e=execution ?? [...this.executions.values()].find(e=>e.child…
+    143|     if(!e) throw new ControlDenied('artifact execution');
+       |                  ^
+    144|     return {kind, run:this.options.runId ?? 'run', challenge:binding.c…
+    145|   }
+ ❯ apps/launcher/src/control-service.ts:602:31
+ ❯ ControlService.handle apps/launcher/src/control-service.ts:209:90
+ ❯ tests/contract/d-artifact-handoff.test.ts:103:13
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[5/5]⎯
+
+ Test Files  1 failed (1)
+      Tests  5 failed (5)
+   Start at  01:15:35
+   Duration  861ms (transform 69ms, setup 0ms, collect 88ms, tests 547ms, environment 0ms, prepare 53ms)
+

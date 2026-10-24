@@ -1,0 +1,29 @@
+[
+  {
+    "command": "npx --no-install tsx tests/manual/d-h7-rpc-stop.ts initial",
+    "exitCode": 0
+  },
+  {
+    "command": "npx --no-install tsx tests/manual/d-h7-rpc-stop.ts final",
+    "exitCode": 0
+  },
+  {
+    "command": "npx --no-install vitest run tests/contract/d-h7-rpc-stop.test.ts tests/contract/d-artifact-handoff.test.ts tests/contract/control-service.test.ts",
+    "exitCode": 0,
+    "tests": 56
+  },
+  {
+    "command": "npm run typecheck",
+    "exitCode": 0,
+    "runs": 2
+  },
+  {
+    "command": "npm run build",
+    "exitCode": 0
+  },
+  {
+    "command": "npm test",
+    "exitCode": 0,
+    "tests": 348
+  }
+]

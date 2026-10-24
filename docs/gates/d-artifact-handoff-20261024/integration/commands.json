@@ -1,0 +1,49 @@
+[
+  {
+    "command": "npx --no-install vitest run tests/contract/d-artifact-handoff.test.ts tests/contract/d-h7-rpc-stop.test.ts tests/contract/workspace-tools.test.ts tests/contract/job-tools.test.ts tests/contract/http-tools.test.ts tests/contract/control-service.test.ts tests/contract/opencode-config.test.ts",
+    "exitCode": 0,
+    "log": "targeted.log"
+  },
+  {
+    "command": "npm run typecheck",
+    "exitCode": 0
+  },
+  {
+    "command": "npm run build",
+    "exitCode": 0
+  },
+  {
+    "command": "npm test",
+    "exitCode": 0
+  },
+  {
+    "command": "npm run typecheck",
+    "log": "typecheck-final.log",
+    "exitCode": 0
+  },
+  {
+    "command": "npm run build",
+    "log": "build-final.log",
+    "exitCode": 0
+  },
+  {
+    "command": "npm test",
+    "log": "test-final.log",
+    "exitCode": 0
+  },
+  {
+    "command": "npx --no-install tsx tests/manual/d-artifact-handoff.ts integration-20261024-0955",
+    "exitCode": 0,
+    "log": "docs/gates/d-artifact-handoff-20261024/integration/runtime-20261024-0955.log"
+  },
+  {
+    "command": "npx --no-install tsx tests/manual/d-artifact-handoff.ts integration-20261024-1000",
+    "exitCode": 0,
+    "log": "docs/gates/d-artifact-handoff-20261024/integration/runtime-20261024-1000.log"
+  },
+  {
+    "command": "npx --no-install tsx tests/manual/d-h7-rpc-stop.ts integration-20261024-0958",
+    "exitCode": 0,
+    "log": "docs/gates/d-h7-rpc-stop-20261024/integration/runtime-20261024-0958.log"
+  }
+]

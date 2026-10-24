@@ -1,0 +1,63 @@
+[
+  {
+    "at": 1792808349400,
+    "request": {
+      "sessionID": "ses_e944b9230ffe87C6GN5qgfvgmT",
+      "operation": "tool.execute",
+      "input": {
+        "tool": "package.publish",
+        "args": {
+          "candidate": {
+            "ref": "4e8da0a2-1c53-4989-b4f2-d832d8bd098b",
+            "start": 0,
+            "end": 9
+          },
+          "files": [
+            {
+              "kind": "artifact",
+              "ref": "a604b638-f0ac-4186-877c-da55e1bb680d",
+              "path": "extract.cjs",
+              "purpose": "script"
+            },
+            {
+              "kind": "artifact",
+              "ref": "3f63736a-df97-4577-8b9f-4b0f9a3ec1aa",
+              "path": "source.cjs",
+              "purpose": "script"
+            },
+            {
+              "kind": "artifact",
+              "ref": "3742d270-6ca4-4e81-bf8f-4046bb1561dc",
+              "path": "raw.bin",
+              "purpose": "input"
+            },
+            {
+              "kind": "material",
+              "name": "input.txt",
+              "path": "data/input.txt",
+              "purpose": "input"
+            },
+            {
+              "kind": "artifact",
+              "ref": "a225cbea-c9b0-4dc9-ab94-2c6a51b0b867",
+              "path": "evidence/solver.cjs",
+              "purpose": "evidence"
+            }
+          ],
+          "argv": [
+            "/opt/homebrew/Cellar/node/26.3.0/bin/node",
+            "extract.cjs"
+          ],
+          "extraction": "Engineer local extract.cjs reads raw.bin [5,14) after checking fixed E input; stdout is candidate bytes without normalization",
+          "premises": [
+            "CTF_MATERIALS must expose fixed input.txt; raw.bin relative to proposed working directory",
+            "External state unknown; binary candidate fixture; no verifier/oracle"
+          ]
+        },
+        "callID": "call_26_0"
+      }
+    },
+    "status": 200,
+    "response": "{\"result\":{\"version\":\"29feca98-0bad-48f0-bb42-51119baf05fb\",\"manifestSha256\":\"f405de21b1c3a1ef2ed553f9d153b8d41a1cf074fd401b078a1f099593cd5a22\",\"manifestSize\":4068,\"snapshotFixed\":true,\"candidateSize\":9,\"candidateSha256\":\"4527432703d179e8d8f48f8ec1b39f5688c37d5e374dc13f6e72aba2224f59b0\"}}"
+  }
+]

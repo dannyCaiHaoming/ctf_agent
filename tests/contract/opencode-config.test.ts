@@ -19,15 +19,16 @@ describe('OpenCode solve configuration admission', () => {
   });
 });
 
-it('product grants exactly the G tools for each existing role and keeps retired/D tools unavailable', async () => {
+it('grants package tools only to Engineer and keeps verification/submission unavailable', async () => {
   const { readFile } = await import('node:fs/promises');
   const config = JSON.parse(await readFile(new URL('../../product/opencode/opencode.json', import.meta.url), 'utf8'));
   const workspace = ['ctf_workspace_list', 'ctf_workspace_read', 'ctf_workspace_search', 'ctf_workspace_write'];
   const jobs = ['ctf_job_run', 'ctf_job_read', 'ctf_job_cancel'];
+  const artifacts = ['ctf_artifact_publish', 'ctf_artifact_read'];
   const allowed: Record<string, string[]> = {
     coordinator: ['ctf_challenge_assign', 'ctf_challenge_unassign', 'ctf_task_stop'], intake: ['ctf_challenge_list', 'ctf_challenge_read'],
-    recon: [...workspace, ...jobs, 'ctf_http_request'], 'domain-solver': [...workspace, ...jobs, 'ctf_http_request'],
-    engineer: [...workspace, ...jobs], verifier: [...workspace, ...jobs], reference: [], strategy: [], 'recovery-critic': []
+    recon: [...workspace, ...jobs, ...artifacts, 'ctf_http_request'], 'domain-solver': [...workspace, ...jobs, ...artifacts, 'ctf_http_request'],
+    engineer: [...workspace, ...jobs, ...artifacts, 'ctf_package_publish', 'ctf_package_read'], verifier: [...workspace, ...jobs, 'ctf_artifact_read'], reference: [], strategy: [], 'recovery-critic': []
   };
   for (const [role, tools] of Object.entries(allowed)) {
     const permission = config.agent[role].permission;

@@ -1,0 +1,990 @@
+{
+  "head": "c652e95fc050e1c795dd55c80e6b7d95b3c6dd5b",
+  "status": "child implemented and verified; parent review pending; not merged",
+  "sources": [
+    {
+      "path": "AGENTS.md",
+      "sha256": "18e66730d5c40207e00704fb3fb760785ee547e66c23e97e5adfb897030dc83c"
+    },
+    {
+      "path": "apps/launcher/src/artifact-tools.ts",
+      "sha256": "70382ad8639ba572d6dc742c6bb7438de9222077dd7dc1a7c64a67f2aa82fe02"
+    },
+    {
+      "path": "apps/launcher/src/blocked.ts",
+      "sha256": "0034f32201f40de9c563515cab67ae5b9892b2970fe44a45df5158032bf76092"
+    },
+    {
+      "path": "apps/launcher/src/challenges.ts",
+      "sha256": "9f3d232e444150540bd3c62aa54a457a12deac5108f7aabdd6232cdc3f99c839"
+    },
+    {
+      "path": "apps/launcher/src/control-rpc.ts",
+      "sha256": "369a44e40aeeb4c2d2b7748155d73afe57965a9368fef63edf30d8ae5b510f35"
+    },
+    {
+      "path": "apps/launcher/src/control-service.ts",
+      "sha256": "bf01606fd5bc89e37e96fd6d7ff25ed347fde8aa315513c032b77372cba214cd"
+    },
+    {
+      "path": "apps/launcher/src/file-page.ts",
+      "sha256": "10b4dc6b7f0c6fdcebbaa1e845e088b71b31e1e220d02ffbf0af1a5304d81a94"
+    },
+    {
+      "path": "apps/launcher/src/http-tools.ts",
+      "sha256": "6061dac7f852b60cf5570d2b299f5e3730978265c6aed99c0d5adc01b3b599fe"
+    },
+    {
+      "path": "apps/launcher/src/intake-tools.ts",
+      "sha256": "61f3c0bee4a033f73b6cab51418ba17dd7fe08931bbc19afcb830af28472d54d"
+    },
+    {
+      "path": "apps/launcher/src/job-tools.ts",
+      "sha256": "508e4701b39660c46fc066631658089dc4dc5d89d8d170b1f2eed3e034dfc38e"
+    },
+    {
+      "path": "apps/launcher/src/launch.ts",
+      "sha256": "45d4ef7442a3924a74cae44f7fd812738c9c08166eb28d636ed3793428cb75a2"
+    },
+    {
+      "path": "apps/launcher/src/run-prep.ts",
+      "sha256": "2ba94cba81d40fc1c4f77004f9081c13a2bbdf475c331673b451a538bb5bced5"
+    },
+    {
+      "path": "apps/launcher/src/workspace-tools.ts",
+      "sha256": "e9d3764cff20bfdbfe89c407a48b062a4c80657e523db4acff05fea895c84e5c"
+    },
+    {
+      "path": "apps/opencode-plugin/src/entry.ts",
+      "sha256": "d326e264fba4846fa620445379cb87d6373e11410bdd1df1c7ee0260218926af"
+    },
+    {
+      "path": "apps/opencode-plugin/src/index.ts",
+      "sha256": "2c06eb51eea18fe5a557362eebf7791462bd3780554d391e3e84a1c57539d90f"
+    },
+    {
+      "path": "docs/superpowers/README.md",
+      "sha256": "630acdc0dd06e8708fd10101876644bba15cdd6da2a377ad30b0725e6f112fe3"
+    },
+    {
+      "path": "docs/superpowers/plans/2026-10-24-d-artifact-handoff-integration.md",
+      "sha256": "da7e1502ef30227c5d2bbd0c949f0d4dc661c2b1a64443653f1d3593b115a085"
+    },
+    {
+      "path": "docs/superpowers/specs/2026-10-22-ctf-agent-design-v1.md",
+      "sha256": "07701905551eb36f6fb256ecf695084615420665c476003afa729f7643f80e64"
+    },
+    {
+      "path": "docs/superpowers/specs/2026-10-24-design-v1-d-candidate-verification-minimal.md",
+      "sha256": "5001195cb8082be1376ae0ca609553f78073ae96e545f8c4f76381063d5e25bd"
+    },
+    {
+      "path": "package-lock.json",
+      "sha256": "55c28fc6613b5686367ebee8e83e40e8e67cf236eb9ad70507618fac61bf4e66"
+    },
+    {
+      "path": "product/opencode/agents/coordinator.md",
+      "sha256": "c71815f1de856aa5c232575d2c1431f7bc0bc4fc45a6291abf0693a852df53c8"
+    },
+    {
+      "path": "product/opencode/agents/domain-solver.md",
+      "sha256": "65c60a8a7b37241c84a29b284574dfae13e7fe5b66865b5bd6d2eae9018ac278"
+    },
+    {
+      "path": "product/opencode/agents/engineer.md",
+      "sha256": "6fe7880e415e5e0994781b728fe946a08504bbae8b40a512aaad69e84966f97e"
+    },
+    {
+      "path": "product/opencode/agents/intake.md",
+      "sha256": "734e451b5f972972b84e4556d341b0b261a166e11f14a68e7f05e5590cc190a2"
+    },
+    {
+      "path": "product/opencode/agents/recon.md",
+      "sha256": "682f2787f45d7fc2ad351568690ec7852c1a571e22a3b200d57ef33fae8c2caa"
+    },
+    {
+      "path": "product/opencode/agents/recovery-critic.md",
+      "sha256": "67bf054ea937d945108ebfd6ee681d9bea623abea98f69c631613387cf4ce4c2"
+    },
+    {
+      "path": "product/opencode/agents/reference.md",
+      "sha256": "15c84eb6f9a2725a0cfcf0aaf2d8aa9cc1928dfef0245954dfcbb71f4e1e9f30"
+    },
+    {
+      "path": "product/opencode/agents/strategy.md",
+      "sha256": "12245d29368f9a57784fa4cb2407047763c55eb305433a404fed08a435c58297"
+    },
+    {
+      "path": "product/opencode/agents/verifier.md",
+      "sha256": "d908eac26b4caccc5616eb53bb28150eb0f525bbaf2e7eac6600c71091fae13b"
+    },
+    {
+      "path": "product/opencode/opencode.json",
+      "sha256": "7f1a7c8a278573003f19ebb667483f66709ef4b06125c24b8ef1e14ded21b59a"
+    },
+    {
+      "path": "tests/contract/d-artifact-handoff.test.ts",
+      "sha256": "80d495d857376b33d6c00864a0b4a2cda19c4b188a96328e2e540ddfa17c2fbe"
+    },
+    {
+      "path": "tests/contract/d-h7-rpc-stop.test.ts",
+      "sha256": "64a6afae5525094026ef87d13ae7636ef50c98a6cb5601e8e64f7ab5832bac88"
+    },
+    {
+      "path": "tests/contract/opencode-config.test.ts",
+      "sha256": "2a0eec976a2891c028c8c6ee30d66d84fe9262385598f6d87bf7fb6737c012dd"
+    },
+    {
+      "path": "tests/manual/d-artifact-handoff.ts",
+      "sha256": "592e819d0ef46ed26379646649ed495ea79c321dac844496219be8911d312f55"
+    },
+    {
+      "path": "tests/manual/d-h7-rpc-stop.ts",
+      "sha256": "307f698ae18a8b53af63fd2a56fee77f8c01572d8ca20d0c73cb806f9fe0427d"
+    },
+    {
+      "path": "tests/manual/g-joint-lifecycle.ts",
+      "sha256": "29c1027843df98d16323bb5d45e84e816cc80858801e5890f292d16d3b4176a1"
+    },
+    {
+      "path": "tests/manual/g-team-integration.ts",
+      "sha256": "47c4587db4f57a224d5b83041887f8bcc3d6f2a34b053f1e5695fcbe9e2acb1c"
+    }
+  ],
+  "documentationOnlyPostRunDrift": [
+    {
+      "batch": "docs/gates/d-artifact-handoff-20261024/integration/integration-20261024-1000",
+      "path": "docs/superpowers/specs/2026-10-24-design-v1-d-candidate-verification-minimal.md",
+      "runtime": "0ea289640f5d141b3b9570dce3ca7695ac038baa5df9a7d4ae86538d1d51e171",
+      "final": "5001195cb8082be1376ae0ca609553f78073ae96e545f8c4f76381063d5e25bd"
+    },
+    {
+      "batch": "docs/gates/d-h7-rpc-stop-20261024/integration/integration-20261024-0958",
+      "path": "docs/superpowers/specs/2026-10-24-design-v1-d-candidate-verification-minimal.md",
+      "runtime": "0ea289640f5d141b3b9570dce3ca7695ac038baa5df9a7d4ae86538d1d51e171",
+      "final": "5001195cb8082be1376ae0ca609553f78073ae96e545f8c4f76381063d5e25bd"
+    }
+  ],
+  "evidence": [
+    {
+      "path": "docs/gates/d-artifact-handoff-20261024/integration/2026-10-22-ctf-agent-design-v1.md.diff",
+      "sha256": "296d85a2eaa9d56a486ca165bb2fa2f85aa1c707c550613e52752208d4d6c6bc"
+    },
+    {
+      "path": "docs/gates/d-artifact-handoff-20261024/integration/2026-10-24-design-v1-d-candidate-verification-minimal.md.before",
+      "sha256": "aed7828a1d6c6518f718bb3b55267803e298a47326ac85b6acfb4c650d812223"
+    },
+    {
+      "path": "docs/gates/d-artifact-handoff-20261024/integration/README.md",
+      "sha256": "2ffce20ece92dfb43c9ea01d26758b47f6b1ed341e773da2d1910754a972e2ba"
+    },
+    {
+      "path": "docs/gates/d-artifact-handoff-20261024/integration/README.md.diff",
+      "sha256": "7cd37144a8669c05f79702fd997b1341b116bb86ebeeec358c40d7f93524da53"
+    },
+    {
+      "path": "docs/gates/d-artifact-handoff-20261024/integration/baseline-hash-check.json",
+      "sha256": "f9c35e934d5b8e420fc873f8c9d4ffdb05ebcebe9dc8c6f0f2cbc2800cc6c894"
+    },
+    {
+      "path": "docs/gates/d-artifact-handoff-20261024/integration/build-exit-code",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "path": "docs/gates/d-artifact-handoff-20261024/integration/build-final-exit-code",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "path": "docs/gates/d-artifact-handoff-20261024/integration/build-final.log",
+      "sha256": "bd9f5e56d35265112de6f32c662b6643974c6aa4337d7ec05a149da00d82a84f"
+    },
+    {
+      "path": "docs/gates/d-artifact-handoff-20261024/integration/build.log",
+      "sha256": "bd9f5e56d35265112de6f32c662b6643974c6aa4337d7ec05a149da00d82a84f"
+    },
+    {
+      "path": "docs/gates/d-artifact-handoff-20261024/integration/commands.json",
+      "sha256": "8b46ca7905d361723c1ccf1ad0aee7ccbf26f1de4bb15f4018e89fbf2f4a9936"
+    },
+    {
+      "path": "docs/gates/d-artifact-handoff-20261024/integration/crosscheck.json",
+      "sha256": "281f8195b7f422fa6f276a3faba149c7bce7d648f8c16a77413d7c92e7726453"
+    },
+    {
+      "path": "docs/gates/d-artifact-handoff-20261024/integration/document-sync.json",
+      "sha256": "83faa9c97da879e01c6d3fa096e73052c2efdf93a0adf3c20e826d8501143f90"
+    },
+    {
+      "path": "docs/gates/d-artifact-handoff-20261024/integration/integration-20261024-0955/events.json",
+      "sha256": "82e5d4e5b827bc9555c5b7c4f825b7e6c763bf055af06a00f3cab73a3e5026c7"
+    },
+    {
+      "path": "docs/gates/d-artifact-handoff-20261024/integration/integration-20261024-0955/evidence/admissions.json",
+      "sha256": "627d3f8a28879f46d6dc19a899590dd86077f50d6c2b4664d233a7f564fb7bad"
+    },
+    {
+      "path": "docs/gates/d-artifact-handoff-20261024/integration/integration-20261024-0955/evidence/assets.json",
+      "sha256": "1c284ce6643cd8524af18eec19750b15d36dcba225a6b0c0f74105c8bce7dabd"
+    },
+    {
+      "path": "docs/gates/d-artifact-handoff-20261024/integration/integration-20261024-0955/evidence/bindings.json",
+      "sha256": "597e18639bf8296f2588418e912eebbcf25572f4ac4c5f535d829fd74fb4888b"
+    },
+    {
+      "path": "docs/gates/d-artifact-handoff-20261024/integration/integration-20261024-0955/evidence/challenges.json",
+      "sha256": "c7bf8a0c6d03325082e460e95723d24ff77184c237facd4cdacbe85698e321c7"
+    },
+    {
+      "path": "docs/gates/d-artifact-handoff-20261024/integration/integration-20261024-0955/evidence/control-audit.json",
+      "sha256": "51cb026acfdd703a09329cd00983c869eabf8f7d33c21c8c7d6b1410af5be3ce"
+    },
+    {
+      "path": "docs/gates/d-artifact-handoff-20261024/integration/integration-20261024-0955/evidence/inventory.json",
+      "sha256": "5868c845396d59183998ff3538ecf0811ced0b8d228305d70ca3df5510095e36"
+    },
+    {
+      "path": "docs/gates/d-artifact-handoff-20261024/integration/integration-20261024-0955/evidence/messages-ses_e949bc213ffe2nlqh4ye7pRipl.json",
+      "sha256": "e9deeb72365d30ac4401b053fcef34f86c455b32fa682341c66eda32e38bb124"
+    },
+    {
+      "path": "docs/gates/d-artifact-handoff-20261024/integration/integration-20261024-0955/evidence/messages-ses_e949bc322ffeDxvXbiIKE9xDkf.json",
+      "sha256": "5adfef2b70f17c74932767af415b0e408e867885735bcbdd345503ca9a4cc9d4"
+    },
+    {
+      "path": "docs/gates/d-artifact-handoff-20261024/integration/integration-20261024-0955/evidence/messages-ses_e949bc3b4ffeWzAR4YWWzphUm1.json",
+      "sha256": "a03c6ca5897a69fa93e92ae288ea88ee9c93fb291792fa9e6b52de298345516a"
+    },
+    {
+      "path": "docs/gates/d-artifact-handoff-20261024/integration/integration-20261024-0955/evidence/messages-ses_e949bc675ffe75hAhtXWwwJIvT.json",
+      "sha256": "1cd1e886b743003a74ee5fa4273aa6546466957854f02ba4728aca19f641054e"
+    },
+    {
+      "path": "docs/gates/d-artifact-handoff-20261024/integration/integration-20261024-0955/evidence/publications.json",
+      "sha256": "0845fa46a73e6f4c5de3567c8be8ae3add638d1ddb53155fd03064c80bfff662"
+    },
+    {
+      "path": "docs/gates/d-artifact-handoff-20261024/integration/integration-20261024-0955/evidence/sessions.json",
+      "sha256": "bb48536f770ddf909646ee693110688472d827553b5f9ab08e13994a70c3b644"
+    },
+    {
+      "path": "docs/gates/d-artifact-handoff-20261024/integration/integration-20261024-0955/evidence/task-executions.json",
+      "sha256": "6a282f1e82ca0ff7ed277646f58f98dc03ead83789e793d911c2d9c9bd698620"
+    },
+    {
+      "path": "docs/gates/d-artifact-handoff-20261024/integration/integration-20261024-0955/evidence/tool-resources.json",
+      "sha256": "f4852274016b68bf90ca95c38c5a50693b74e3a02817d0aee8fb97f366f62a49"
+    },
+    {
+      "path": "docs/gates/d-artifact-handoff-20261024/integration/integration-20261024-0955/provider-config.json",
+      "sha256": "9a65c5159b5608c329f07337c95a00c11c53cc81003d4862635a77b05e7bda41"
+    },
+    {
+      "path": "docs/gates/d-artifact-handoff-20261024/integration/integration-20261024-0955/provider.json",
+      "sha256": "f16adec80b0289acffff76a496909b3a83b1ed888545f4556abe209c9f2d8a43"
+    },
+    {
+      "path": "docs/gates/d-artifact-handoff-20261024/integration/integration-20261024-0955/result.json",
+      "sha256": "9e01a298dd359b1ca9750a07e8c518f8c3010063d974933ada124c24f2a27854"
+    },
+    {
+      "path": "docs/gates/d-artifact-handoff-20261024/integration/integration-20261024-0955/source-hashes.json",
+      "sha256": "06425f8cda8d73601ce93f03d0fb54b816420ce11ce5b580d07f644a97c03f66"
+    },
+    {
+      "path": "docs/gates/d-artifact-handoff-20261024/integration/integration-20261024-0955/state/jobs/ses_e949bc322ffeDxvXbiIKE9xDkf/828d2045-f5eb-4adb-863b-974bbd60abd5/stderr.bin",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "docs/gates/d-artifact-handoff-20261024/integration/integration-20261024-0955/state/jobs/ses_e949bc322ffeDxvXbiIKE9xDkf/828d2045-f5eb-4adb-863b-974bbd60abd5/stdout.bin",
+      "sha256": "fcc519a0f951d62dceec9b25dba5dc3846af659d05237ef76ad3dfd2077e963b"
+    },
+    {
+      "path": "docs/gates/d-artifact-handoff-20261024/integration/integration-20261024-0955/state/run.json",
+      "sha256": "ace9916b18cfa28171c4ef930bca1a1fe16e3682eaf794b01c85ae2fd3c891bd"
+    },
+    {
+      "path": "docs/gates/d-artifact-handoff-20261024/integration/integration-20261024-0955/summary.json",
+      "sha256": "491ccdd94deddbb4a70455ad62b7a83a43ffbbe67cd1662092acf703aef38928"
+    },
+    {
+      "path": "docs/gates/d-artifact-handoff-20261024/integration/integration-20261024-0955/versions.json",
+      "sha256": "5b4b1242b62d4ab698ba77cb2953cf4f70d67b82d01102d717f0b5e73f9b4c30"
+    },
+    {
+      "path": "docs/gates/d-artifact-handoff-20261024/integration/integration-20261024-0955/workspace/X/materials/input.txt",
+      "sha256": "900a3fe1b470fdb4df1c7dc8b742c6294ee8acc406b1faefa2dfb37d5ba6a63a"
+    },
+    {
+      "path": "docs/gates/d-artifact-handoff-20261024/integration/integration-20261024-0955/workspace/X/materials/statement.md",
+      "sha256": "0ac8e8ae987505fce1e1d437f2b2f0dc22572d7113de70bd9a1b43d701b00a49"
+    },
+    {
+      "path": "docs/gates/d-artifact-handoff-20261024/integration/integration-20261024-0955/workspace/X/published/1856a9fd-94e4-476e-a11f-4338913ab902.bin",
+      "sha256": "fcc519a0f951d62dceec9b25dba5dc3846af659d05237ef76ad3dfd2077e963b"
+    },
+    {
+      "path": "docs/gates/d-artifact-handoff-20261024/integration/integration-20261024-0955/workspace/X/published/530dc666-f4eb-44af-bce3-91d7872da286.bin",
+      "sha256": "7989444cff5349311a4c4416500a5c3c31a9299cc032aeacc08f7e13bf7ceb30"
+    },
+    {
+      "path": "docs/gates/d-artifact-handoff-20261024/integration/integration-20261024-0955/workspace/X/published/5afaea85-0302-4f22-90dc-0f464e3da3be.bin",
+      "sha256": "5a494c188bea1bc868396f495691f0a7daee56e6baae9524ab014b3ba5ce8e77"
+    },
+    {
+      "path": "docs/gates/d-artifact-handoff-20261024/integration/integration-20261024-0955/workspace/X/published/e24bbe4e-9089-4ab3-9205-2ec594b1d0ea.bin",
+      "sha256": "3d1f57c984978ef98a18378c8166c1cb8ede02c03eeb6aee7e2f121dfeee3e56"
+    },
+    {
+      "path": "docs/gates/d-artifact-handoff-20261024/integration/integration-20261024-0955/workspace/X/work/ses_e949bc322ffeDxvXbiIKE9xDkf/http/1.bin",
+      "sha256": "5a494c188bea1bc868396f495691f0a7daee56e6baae9524ab014b3ba5ce8e77"
+    },
+    {
+      "path": "docs/gates/d-artifact-handoff-20261024/integration/integration-20261024-0955/workspace/X/work/ses_e949bc322ffeDxvXbiIKE9xDkf/solve.cjs",
+      "sha256": "7989444cff5349311a4c4416500a5c3c31a9299cc032aeacc08f7e13bf7ceb30"
+    },
+    {
+      "path": "docs/gates/d-artifact-handoff-20261024/integration/integration-20261024-0955/workspace/X/work/ses_e949bc322ffeDxvXbiIKE9xDkf/source.bin",
+      "sha256": "3d1f57c984978ef98a18378c8166c1cb8ede02c03eeb6aee7e2f121dfeee3e56"
+    },
+    {
+      "path": "docs/gates/d-artifact-handoff-20261024/integration/integration-20261024-1000/events.json",
+      "sha256": "f3cfe389a64cd2566260d48dbd02e1a57f15c3246a5157bef59962b4198090fe"
+    },
+    {
+      "path": "docs/gates/d-artifact-handoff-20261024/integration/integration-20261024-1000/evidence/admissions.json",
+      "sha256": "04860562a671de308b516bf2da0b284c7fb9409f7bf865e2c272102d8ca38e3b"
+    },
+    {
+      "path": "docs/gates/d-artifact-handoff-20261024/integration/integration-20261024-1000/evidence/assets.json",
+      "sha256": "c4bbba7116b27cd9fb6027e41159f14dcbe98674a8618ff925b0e8b2aa7a06b2"
+    },
+    {
+      "path": "docs/gates/d-artifact-handoff-20261024/integration/integration-20261024-1000/evidence/bindings.json",
+      "sha256": "a6d26a078e6a25d95cd278d77979eb243311888f1d47012722b26b11974ecaf7"
+    },
+    {
+      "path": "docs/gates/d-artifact-handoff-20261024/integration/integration-20261024-1000/evidence/challenges.json",
+      "sha256": "c44236e4438bf02539043bb2b9941f82573e60c7ff2f3f69eb233809010e927e"
+    },
+    {
+      "path": "docs/gates/d-artifact-handoff-20261024/integration/integration-20261024-1000/evidence/control-audit.json",
+      "sha256": "cb7d4c4c737ca9b7c7d901f1e028ba6da6461fe8b7569af711a71b2d04a3a09f"
+    },
+    {
+      "path": "docs/gates/d-artifact-handoff-20261024/integration/integration-20261024-1000/evidence/inventory.json",
+      "sha256": "16f378495d33ee626b3d73e3bd8e2abed5a87d84a4d4d389cdb7b6dd11d020c1"
+    },
+    {
+      "path": "docs/gates/d-artifact-handoff-20261024/integration/integration-20261024-1000/evidence/messages-ses_e949ac0d2ffdYEPRFGxzxTqkqO.json",
+      "sha256": "6193210aa05de16187fe0f224629ffe320c9990f9a09f4fb347af2b5a81d388f"
+    },
+    {
+      "path": "docs/gates/d-artifact-handoff-20261024/integration/integration-20261024-1000/evidence/messages-ses_e949ac1d9ffev8ivkXbwcf2fLq.json",
+      "sha256": "481527d59cc0f879885d1cba156f8383cfc99bf02de1de1208e041484f62a5ba"
+    },
+    {
+      "path": "docs/gates/d-artifact-handoff-20261024/integration/integration-20261024-1000/evidence/messages-ses_e949ac263ffeuKuMzM9QW6ksDR.json",
+      "sha256": "79c36f38e7bb432fcac56d5b01f321ddfccc974ffe3f43299920dd39a126bfb1"
+    },
+    {
+      "path": "docs/gates/d-artifact-handoff-20261024/integration/integration-20261024-1000/evidence/messages-ses_e949ac4e0ffeaW81pLmosjqenm.json",
+      "sha256": "d0f5777ad6bf92d938e1184cf6f29c16ee983efedd6fbd05cbc45eaca5e9c447"
+    },
+    {
+      "path": "docs/gates/d-artifact-handoff-20261024/integration/integration-20261024-1000/evidence/publications.json",
+      "sha256": "e6ec28fee39498d57539d4b83f083bcb910a29843984144a4c6e650b864ff357"
+    },
+    {
+      "path": "docs/gates/d-artifact-handoff-20261024/integration/integration-20261024-1000/evidence/sessions.json",
+      "sha256": "1703cb35e300e011af2dc545b3a256a66222b0af8ed9cbeff2041e58c5269884"
+    },
+    {
+      "path": "docs/gates/d-artifact-handoff-20261024/integration/integration-20261024-1000/evidence/task-executions.json",
+      "sha256": "fba9ef65cf724bae4017ae693ebb402fc4c568cf93cb09ea4508efafc5f8ede9"
+    },
+    {
+      "path": "docs/gates/d-artifact-handoff-20261024/integration/integration-20261024-1000/evidence/tool-resources.json",
+      "sha256": "016b5f2560cb9251e09c2e87c348e672ef5aef43eca0e49177ba20a5bcbd7bd4"
+    },
+    {
+      "path": "docs/gates/d-artifact-handoff-20261024/integration/integration-20261024-1000/provider-config.json",
+      "sha256": "9e641788f8c3a988886dd1efdceffc1d69630b6cb4fb9cfc81d1c8d1679c061d"
+    },
+    {
+      "path": "docs/gates/d-artifact-handoff-20261024/integration/integration-20261024-1000/provider.json",
+      "sha256": "bc6f00e8540a70d2c2df2a7e7970701d400a4820850dfc7a60edbed6a52179f3"
+    },
+    {
+      "path": "docs/gates/d-artifact-handoff-20261024/integration/integration-20261024-1000/result.json",
+      "sha256": "ee2ef5e5a641faa15da7be8f1027c211c09758772b844cae0d0362788feb4da2"
+    },
+    {
+      "path": "docs/gates/d-artifact-handoff-20261024/integration/integration-20261024-1000/source-hashes.json",
+      "sha256": "709dfb3d27d4ab66e1c6d6c89e60d805f2fff29ca4843b0474bb5baf9433b00c"
+    },
+    {
+      "path": "docs/gates/d-artifact-handoff-20261024/integration/integration-20261024-1000/state/jobs/ses_e949ac1d9ffev8ivkXbwcf2fLq/74bf6584-b194-44e8-bad6-7e9e70b542dd/stderr.bin",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "docs/gates/d-artifact-handoff-20261024/integration/integration-20261024-1000/state/jobs/ses_e949ac1d9ffev8ivkXbwcf2fLq/74bf6584-b194-44e8-bad6-7e9e70b542dd/stdout.bin",
+      "sha256": "fcc519a0f951d62dceec9b25dba5dc3846af659d05237ef76ad3dfd2077e963b"
+    },
+    {
+      "path": "docs/gates/d-artifact-handoff-20261024/integration/integration-20261024-1000/state/run.json",
+      "sha256": "f529e1be7ff577836c746e1a8184ee9053e70ccd1a1542d973cc1c87fe1ebb46"
+    },
+    {
+      "path": "docs/gates/d-artifact-handoff-20261024/integration/integration-20261024-1000/summary.json",
+      "sha256": "8973b3660f15aad5b9990b8146bc303a019a8c1cd6bb833aa35972b2412dae10"
+    },
+    {
+      "path": "docs/gates/d-artifact-handoff-20261024/integration/integration-20261024-1000/versions.json",
+      "sha256": "5b4b1242b62d4ab698ba77cb2953cf4f70d67b82d01102d717f0b5e73f9b4c30"
+    },
+    {
+      "path": "docs/gates/d-artifact-handoff-20261024/integration/integration-20261024-1000/workspace/X/materials/input.txt",
+      "sha256": "900a3fe1b470fdb4df1c7dc8b742c6294ee8acc406b1faefa2dfb37d5ba6a63a"
+    },
+    {
+      "path": "docs/gates/d-artifact-handoff-20261024/integration/integration-20261024-1000/workspace/X/materials/statement.md",
+      "sha256": "0ac8e8ae987505fce1e1d437f2b2f0dc22572d7113de70bd9a1b43d701b00a49"
+    },
+    {
+      "path": "docs/gates/d-artifact-handoff-20261024/integration/integration-20261024-1000/workspace/X/published/3962c99e-23e7-44bd-ac95-e197743a12a3.bin",
+      "sha256": "7989444cff5349311a4c4416500a5c3c31a9299cc032aeacc08f7e13bf7ceb30"
+    },
+    {
+      "path": "docs/gates/d-artifact-handoff-20261024/integration/integration-20261024-1000/workspace/X/published/6da3bc07-b09d-4f2f-875b-c3606559c188.bin",
+      "sha256": "5a494c188bea1bc868396f495691f0a7daee56e6baae9524ab014b3ba5ce8e77"
+    },
+    {
+      "path": "docs/gates/d-artifact-handoff-20261024/integration/integration-20261024-1000/workspace/X/published/ecf60d79-54f8-4d56-84c1-a09c6418d13a.bin",
+      "sha256": "fcc519a0f951d62dceec9b25dba5dc3846af659d05237ef76ad3dfd2077e963b"
+    },
+    {
+      "path": "docs/gates/d-artifact-handoff-20261024/integration/integration-20261024-1000/workspace/X/published/eded2626-9df9-44c6-bccb-40c9596eb8e7.bin",
+      "sha256": "3d1f57c984978ef98a18378c8166c1cb8ede02c03eeb6aee7e2f121dfeee3e56"
+    },
+    {
+      "path": "docs/gates/d-artifact-handoff-20261024/integration/integration-20261024-1000/workspace/X/work/ses_e949ac1d9ffev8ivkXbwcf2fLq/http/1.bin",
+      "sha256": "5a494c188bea1bc868396f495691f0a7daee56e6baae9524ab014b3ba5ce8e77"
+    },
+    {
+      "path": "docs/gates/d-artifact-handoff-20261024/integration/integration-20261024-1000/workspace/X/work/ses_e949ac1d9ffev8ivkXbwcf2fLq/solve.cjs",
+      "sha256": "7989444cff5349311a4c4416500a5c3c31a9299cc032aeacc08f7e13bf7ceb30"
+    },
+    {
+      "path": "docs/gates/d-artifact-handoff-20261024/integration/integration-20261024-1000/workspace/X/work/ses_e949ac1d9ffev8ivkXbwcf2fLq/source.bin",
+      "sha256": "3d1f57c984978ef98a18378c8166c1cb8ede02c03eeb6aee7e2f121dfeee3e56"
+    },
+    {
+      "path": "docs/gates/d-artifact-handoff-20261024/integration/main-readonly-comparison.json",
+      "sha256": "40de0eb68121c960670e5b02c073e0ddc29893c6c94edac5103d98976ee021f8"
+    },
+    {
+      "path": "docs/gates/d-artifact-handoff-20261024/integration/runtime-20261024-0955-exit-code",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "path": "docs/gates/d-artifact-handoff-20261024/integration/runtime-20261024-0955.log",
+      "sha256": "94afeb4dcd3f769b2497e09a8b897084446c829c913fbc8cdeaf8fa59d627d01"
+    },
+    {
+      "path": "docs/gates/d-artifact-handoff-20261024/integration/runtime-20261024-1000-exit-code",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "path": "docs/gates/d-artifact-handoff-20261024/integration/runtime-20261024-1000.log",
+      "sha256": "8fb352c5caf9483e5a14e31991d14e408773e04aa6a55d275ecc02598de628fa"
+    },
+    {
+      "path": "docs/gates/d-artifact-handoff-20261024/integration/starting-status.txt",
+      "sha256": "213dc43d35eb413d1667592f0af23242e3e1de7e1e4ec5773d58c4cb4128b968"
+    },
+    {
+      "path": "docs/gates/d-artifact-handoff-20261024/integration/starting.patch",
+      "sha256": "2ed2a4f7411730865adcf4b3be8fb6ae967eaf9a7bd1a955e54cba7bae3ca90e"
+    },
+    {
+      "path": "docs/gates/d-artifact-handoff-20261024/integration/targeted-exit-code",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "path": "docs/gates/d-artifact-handoff-20261024/integration/targeted.log",
+      "sha256": "cf452fe099332b88170036905b728b795ccb3ec6b14d240759f82617d8bfc288"
+    },
+    {
+      "path": "docs/gates/d-artifact-handoff-20261024/integration/test-exit-code",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "path": "docs/gates/d-artifact-handoff-20261024/integration/test-final-exit-code",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "path": "docs/gates/d-artifact-handoff-20261024/integration/test-final.log",
+      "sha256": "07f6c97f9acfbfecfec21aab017a76e23831a5c4e03c4ea158e266a92684f3bc"
+    },
+    {
+      "path": "docs/gates/d-artifact-handoff-20261024/integration/test.log",
+      "sha256": "88b9030836fe9f738f1e273d09ff6653a04f9784e0cd342bf3d8a3461ad0d53e"
+    },
+    {
+      "path": "docs/gates/d-artifact-handoff-20261024/integration/typecheck-exit-code",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "path": "docs/gates/d-artifact-handoff-20261024/integration/typecheck-final-exit-code",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "path": "docs/gates/d-artifact-handoff-20261024/integration/typecheck-final.log",
+      "sha256": "1cf3ce9ba6e566547dc787be131babdc3122cd936a5d7b096153cce532634f49"
+    },
+    {
+      "path": "docs/gates/d-artifact-handoff-20261024/integration/typecheck.log",
+      "sha256": "1cf3ce9ba6e566547dc787be131babdc3122cd936a5d7b096153cce532634f49"
+    },
+    {
+      "path": "docs/gates/d-h7-rpc-stop-20261024/integration/README.md",
+      "sha256": "3540394c4745278eb0eed536372450b0178432765551c29ee352b1dc7f861335"
+    },
+    {
+      "path": "docs/gates/d-h7-rpc-stop-20261024/integration/integration-20261024-0958/R1/events.json",
+      "sha256": "90683235b10dd112b98d5878f484b6474e66c32b274ffef112cb97394a9ac448"
+    },
+    {
+      "path": "docs/gates/d-h7-rpc-stop-20261024/integration/integration-20261024-0958/R1/evidence/admissions.json",
+      "sha256": "aa11611929c65416271b249d20aca807312d5a23c6052e6af314c932e527a6b7"
+    },
+    {
+      "path": "docs/gates/d-h7-rpc-stop-20261024/integration/integration-20261024-0958/R1/evidence/assets.json",
+      "sha256": "d8e3cc6372c66451eb06de3bf7d0b9d043f282e422709e08bf31900f2eaf77b1"
+    },
+    {
+      "path": "docs/gates/d-h7-rpc-stop-20261024/integration/integration-20261024-0958/R1/evidence/bindings.json",
+      "sha256": "d1bac98906ca9310afc8bcbd42b3e2f536183fb1faf81c4af55eeae0944e912d"
+    },
+    {
+      "path": "docs/gates/d-h7-rpc-stop-20261024/integration/integration-20261024-0958/R1/evidence/challenges.json",
+      "sha256": "ab7d9fc9e6ffa27e0650c1976129332560afb1fae402454675d6735d5119eb50"
+    },
+    {
+      "path": "docs/gates/d-h7-rpc-stop-20261024/integration/integration-20261024-0958/R1/evidence/control-audit.json",
+      "sha256": "3f02e697155e1b78fe32eb948b93dcaf90ee1f97d01a7bf4ae6e63b018312d18"
+    },
+    {
+      "path": "docs/gates/d-h7-rpc-stop-20261024/integration/integration-20261024-0958/R1/evidence/inventory.json",
+      "sha256": "94253e9c9829ab9c061d21359ed81579c8dc54a27a8afabfc3aa63380654fbaa"
+    },
+    {
+      "path": "docs/gates/d-h7-rpc-stop-20261024/integration/integration-20261024-0958/R1/evidence/messages-ses_e949b59d9ffdQlJ6zNRpkzp6lE.json",
+      "sha256": "faade2a2ff36423fe71ffbbcb286e2bb276f6fde6f0222f6a06a2fd859264dd0"
+    },
+    {
+      "path": "docs/gates/d-h7-rpc-stop-20261024/integration/integration-20261024-0958/R1/evidence/messages-ses_e949b5a54ffeUgEZgMuqiuHYVl.json",
+      "sha256": "b1f07609689a5e10d3110f59f7dfe584143be6e6791a96d7bcd70d8f776d8f8b"
+    },
+    {
+      "path": "docs/gates/d-h7-rpc-stop-20261024/integration/integration-20261024-0958/R1/evidence/messages-ses_e949b5cc4ffeSGR4m9qx2AYnrz.json",
+      "sha256": "4680a364e916f3c63b891dc8dce7db6a9eab6b228ca714404efa8b171e772015"
+    },
+    {
+      "path": "docs/gates/d-h7-rpc-stop-20261024/integration/integration-20261024-0958/R1/evidence/publications.json",
+      "sha256": "53fc05727cec51c27ea4e3967a8d6870e64b8341251d52e8372544f93423031b"
+    },
+    {
+      "path": "docs/gates/d-h7-rpc-stop-20261024/integration/integration-20261024-0958/R1/evidence/sessions.json",
+      "sha256": "7c7bd0eda08175b6240d5caabb2ddd6d2d5162cef3b5aa304c2c458e4bafa85a"
+    },
+    {
+      "path": "docs/gates/d-h7-rpc-stop-20261024/integration/integration-20261024-0958/R1/evidence/task-executions.json",
+      "sha256": "e6990eabda67a189c08806b9cd06e22c6d192b2ddd5267d02b4c99ba51c76332"
+    },
+    {
+      "path": "docs/gates/d-h7-rpc-stop-20261024/integration/integration-20261024-0958/R1/evidence/tool-resources.json",
+      "sha256": "86bff5465fb8a4758cd0ea2a591ab40398ba2e7e82c97eb7c73c893cc2c7a3ee"
+    },
+    {
+      "path": "docs/gates/d-h7-rpc-stop-20261024/integration/integration-20261024-0958/R1/observations.json",
+      "sha256": "b248580c9e3010a32c2b9023af4216358874a4a3979b23ad76895c883526f655"
+    },
+    {
+      "path": "docs/gates/d-h7-rpc-stop-20261024/integration/integration-20261024-0958/R1/provider-config.json",
+      "sha256": "4c67b37745db813d87a7af2cf5b745367aa6c0f9d6eb1108d241890dd7b519c6"
+    },
+    {
+      "path": "docs/gates/d-h7-rpc-stop-20261024/integration/integration-20261024-0958/R1/provider.json",
+      "sha256": "db8342bcced2df1f77ec7c5b867e4f3a2d78501ea37f51c4b6383d552280569f"
+    },
+    {
+      "path": "docs/gates/d-h7-rpc-stop-20261024/integration/integration-20261024-0958/R1/result.json",
+      "sha256": "dbe57b4a6357f51561380f1994a2c6359efe4715ae4996057817353b537a764a"
+    },
+    {
+      "path": "docs/gates/d-h7-rpc-stop-20261024/integration/integration-20261024-0958/R1/state/jobs/ses_e949b59d9ffdQlJ6zNRpkzp6lE/e9619403-f944-4551-ad23-53b77b536c5f/stderr.bin",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "docs/gates/d-h7-rpc-stop-20261024/integration/integration-20261024-0958/R1/state/jobs/ses_e949b59d9ffdQlJ6zNRpkzp6lE/e9619403-f944-4551-ad23-53b77b536c5f/stdout.bin",
+      "sha256": "02c256b568b5b791268f9898d2c40915deac70394b655f805cd11d99cedb33b9"
+    },
+    {
+      "path": "docs/gates/d-h7-rpc-stop-20261024/integration/integration-20261024-0958/R1/state/run.json",
+      "sha256": "983037299226a19a08222e607b46d801c19bc7f96fe6f5821324af597e6d9fa2"
+    },
+    {
+      "path": "docs/gates/d-h7-rpc-stop-20261024/integration/integration-20261024-0958/R1/summary.json",
+      "sha256": "e0ef6df7b4f99c018ba90edb4d77ecaaad31a9dae4e99ff5cb7edaf445be3419"
+    },
+    {
+      "path": "docs/gates/d-h7-rpc-stop-20261024/integration/integration-20261024-0958/R1/versions.json",
+      "sha256": "5b4b1242b62d4ab698ba77cb2953cf4f70d67b82d01102d717f0b5e73f9b4c30"
+    },
+    {
+      "path": "docs/gates/d-h7-rpc-stop-20261024/integration/integration-20261024-0958/R1/wire.json",
+      "sha256": "57aaa6556bcf441174cf6f3eff6e9435cbfe3cda47f47c3fa12514c0f4208dad"
+    },
+    {
+      "path": "docs/gates/d-h7-rpc-stop-20261024/integration/integration-20261024-0958/R1/workspace/X/materials/statement.md",
+      "sha256": "baedfcedb6ba01353c6e3248274c8561e4ce1452f85514e2c45290a2b48eb430"
+    },
+    {
+      "path": "docs/gates/d-h7-rpc-stop-20261024/integration/integration-20261024-0958/R1/workspace/X/published/aa809d03-d63b-4045-b829-0eda3efdb5e1.bin",
+      "sha256": "02c256b568b5b791268f9898d2c40915deac70394b655f805cd11d99cedb33b9"
+    },
+    {
+      "path": "docs/gates/d-h7-rpc-stop-20261024/integration/integration-20261024-0958/R2/events.json",
+      "sha256": "4bb62be7a13ce9bf7fe78cc4dd2113905db1b66bfe24872a9da002e8fd23843e"
+    },
+    {
+      "path": "docs/gates/d-h7-rpc-stop-20261024/integration/integration-20261024-0958/R2/evidence/admissions.json",
+      "sha256": "f59178762d9527c0965d334628be4f8776caa3e99ff5014ef0152430ac29092e"
+    },
+    {
+      "path": "docs/gates/d-h7-rpc-stop-20261024/integration/integration-20261024-0958/R2/evidence/assets.json",
+      "sha256": "97d14f17f3d27ca252989e3aa6d80cc77204c7d262d7afeeaced747ccff8d185"
+    },
+    {
+      "path": "docs/gates/d-h7-rpc-stop-20261024/integration/integration-20261024-0958/R2/evidence/bindings.json",
+      "sha256": "fac7693d0ca330ff326896861a02f7f2aa55419c69be778c0633b7a8169e75cd"
+    },
+    {
+      "path": "docs/gates/d-h7-rpc-stop-20261024/integration/integration-20261024-0958/R2/evidence/challenges.json",
+      "sha256": "d147dddb8644ffb36a3123bcd80969f752b471a34f94a3d94a1a67c80d4477b3"
+    },
+    {
+      "path": "docs/gates/d-h7-rpc-stop-20261024/integration/integration-20261024-0958/R2/evidence/control-audit.json",
+      "sha256": "fba4b9a6dd8294907b884d2d3f6c29c98c2f62945f9fecd4eb11008d14b25ea1"
+    },
+    {
+      "path": "docs/gates/d-h7-rpc-stop-20261024/integration/integration-20261024-0958/R2/evidence/inventory.json",
+      "sha256": "cd4635ee0cd459d1dbbbc012c7accd87356bc7f24e6d60105495a1b344d87878"
+    },
+    {
+      "path": "docs/gates/d-h7-rpc-stop-20261024/integration/integration-20261024-0958/R2/evidence/messages-ses_e949b4f6affe68gerXwnbqMu72.json",
+      "sha256": "42b2b572c0159d93fa53ab36f16375d8cc337873def92bf03460b046530fa66b"
+    },
+    {
+      "path": "docs/gates/d-h7-rpc-stop-20261024/integration/integration-20261024-0958/R2/evidence/messages-ses_e949b4f98ffdByo1bbki9xfjB2.json",
+      "sha256": "0d842d039349ede4e01420f6030e988a063dd85e3f0e708376eaf79b847283e3"
+    },
+    {
+      "path": "docs/gates/d-h7-rpc-stop-20261024/integration/integration-20261024-0958/R2/evidence/messages-ses_e949b5015ffe4wgbrmetBk6R80.json",
+      "sha256": "3ed267c8a1657dc7fddd849ae7ec67133a3048227ab768d7165a847e761afbce"
+    },
+    {
+      "path": "docs/gates/d-h7-rpc-stop-20261024/integration/integration-20261024-0958/R2/evidence/messages-ses_e949b52a5ffeYBBJMr4gG1pZkb.json",
+      "sha256": "8ccb0ccf592f4ff92ae2766439b12047e6cc932b61e24f09e240c603e783f537"
+    },
+    {
+      "path": "docs/gates/d-h7-rpc-stop-20261024/integration/integration-20261024-0958/R2/evidence/publications.json",
+      "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    {
+      "path": "docs/gates/d-h7-rpc-stop-20261024/integration/integration-20261024-0958/R2/evidence/sessions.json",
+      "sha256": "7af41d9ccc253a1de3c2bd3512728227792603e5e277af5bcce75d8d701ce324"
+    },
+    {
+      "path": "docs/gates/d-h7-rpc-stop-20261024/integration/integration-20261024-0958/R2/evidence/task-executions.json",
+      "sha256": "433a5b40a5b0e2757ce050e29599d23b7007ee59f5827ae0a2a4432cfbd2d29a"
+    },
+    {
+      "path": "docs/gates/d-h7-rpc-stop-20261024/integration/integration-20261024-0958/R2/evidence/tool-resources.json",
+      "sha256": "077d4eec2a86630282b411d116762b559bc0faa917531b1dd3c0e9959b3ae8ac"
+    },
+    {
+      "path": "docs/gates/d-h7-rpc-stop-20261024/integration/integration-20261024-0958/R2/observations.json",
+      "sha256": "a0eea13b4f24821524a6df3464c43dde5538487806f4dbaf8b3427d3d18c7502"
+    },
+    {
+      "path": "docs/gates/d-h7-rpc-stop-20261024/integration/integration-20261024-0958/R2/provider-config.json",
+      "sha256": "ac2a0fc8aa786665b928ab0839abac160713026cb62b6b10dfa2e1e4c1a2f21c"
+    },
+    {
+      "path": "docs/gates/d-h7-rpc-stop-20261024/integration/integration-20261024-0958/R2/provider.json",
+      "sha256": "138b0dfcc41633ff57264a959d2f5bcf9fe4ed9c259cbc5879e8bf75d182dbce"
+    },
+    {
+      "path": "docs/gates/d-h7-rpc-stop-20261024/integration/integration-20261024-0958/R2/result.json",
+      "sha256": "279c4f2d8206d47ae68c1f3fd4f10ad94a2fba9c5d7cb7d6ed52a86249955085"
+    },
+    {
+      "path": "docs/gates/d-h7-rpc-stop-20261024/integration/integration-20261024-0958/R2/state/jobs/ses_e949b4f98ffdByo1bbki9xfjB2/8a320dd8-95ab-4a41-8a33-436b0b5dc658/stderr.bin",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "docs/gates/d-h7-rpc-stop-20261024/integration/integration-20261024-0958/R2/state/jobs/ses_e949b4f98ffdByo1bbki9xfjB2/8a320dd8-95ab-4a41-8a33-436b0b5dc658/stdout.bin",
+      "sha256": "02c256b568b5b791268f9898d2c40915deac70394b655f805cd11d99cedb33b9"
+    },
+    {
+      "path": "docs/gates/d-h7-rpc-stop-20261024/integration/integration-20261024-0958/R2/state/run.json",
+      "sha256": "b4d61f17a43f7ca907d5c67041d984ac1fb514353cc256f17cd7dd14f36d262d"
+    },
+    {
+      "path": "docs/gates/d-h7-rpc-stop-20261024/integration/integration-20261024-0958/R2/summary.json",
+      "sha256": "dfd4592f7f806f8688bce7beb4f68047898411685dd50213a0787932ca0836d7"
+    },
+    {
+      "path": "docs/gates/d-h7-rpc-stop-20261024/integration/integration-20261024-0958/R2/versions.json",
+      "sha256": "5b4b1242b62d4ab698ba77cb2953cf4f70d67b82d01102d717f0b5e73f9b4c30"
+    },
+    {
+      "path": "docs/gates/d-h7-rpc-stop-20261024/integration/integration-20261024-0958/R2/wire.json",
+      "sha256": "5895a5e286e57f29ef7087ac16f73a4f44f2fb99e4f9144c526b8172de80d381"
+    },
+    {
+      "path": "docs/gates/d-h7-rpc-stop-20261024/integration/integration-20261024-0958/R2/workspace/X/materials/statement.md",
+      "sha256": "baedfcedb6ba01353c6e3248274c8561e4ce1452f85514e2c45290a2b48eb430"
+    },
+    {
+      "path": "docs/gates/d-h7-rpc-stop-20261024/integration/integration-20261024-0958/R3/events.json",
+      "sha256": "8b9178b2a315f645a9d8426f2bcd2e981bca3049264c497a7c03b83dd8e838bf"
+    },
+    {
+      "path": "docs/gates/d-h7-rpc-stop-20261024/integration/integration-20261024-0958/R3/evidence/admissions.json",
+      "sha256": "579c2046473b26c5d26a9a2f38d194cbe53574990d685fef7c9e249519f162c7"
+    },
+    {
+      "path": "docs/gates/d-h7-rpc-stop-20261024/integration/integration-20261024-0958/R3/evidence/assets.json",
+      "sha256": "53864eb3bfcf26d525b3da621d065873e70f2d118448618816e790087b5c9f30"
+    },
+    {
+      "path": "docs/gates/d-h7-rpc-stop-20261024/integration/integration-20261024-0958/R3/evidence/bindings.json",
+      "sha256": "5b45b847babc7382829af40d23dfec88d4a76b1764e5098ccfc35002ac345a1b"
+    },
+    {
+      "path": "docs/gates/d-h7-rpc-stop-20261024/integration/integration-20261024-0958/R3/evidence/challenges.json",
+      "sha256": "2ab327b084ee86ed7291cbe17d1afd7be06659503256e103928e96947393b4d0"
+    },
+    {
+      "path": "docs/gates/d-h7-rpc-stop-20261024/integration/integration-20261024-0958/R3/evidence/control-audit.json",
+      "sha256": "15952ebac856b44eb115329642f332e4d6202d056954828c0beb664b50c74ce0"
+    },
+    {
+      "path": "docs/gates/d-h7-rpc-stop-20261024/integration/integration-20261024-0958/R3/evidence/inventory.json",
+      "sha256": "969af31c383013e7248faf873600c1a5be0549dc20f2baa8508dfd97c717fb97"
+    },
+    {
+      "path": "docs/gates/d-h7-rpc-stop-20261024/integration/integration-20261024-0958/R3/evidence/messages-ses_e949b4597ffdmdjveLCxA0I4Oo.json",
+      "sha256": "22c5aebcb99adaa159ce5d88e983a81bc228df1c4dd94a877174a3898f9888b5"
+    },
+    {
+      "path": "docs/gates/d-h7-rpc-stop-20261024/integration/integration-20261024-0958/R3/evidence/messages-ses_e949b45c4ffe6rg007Hsi4KihJ.json",
+      "sha256": "f0a8a8b2556ab6feb8875a5a8a6cb0312470e6c844bb6a46a07b74aed20b9e49"
+    },
+    {
+      "path": "docs/gates/d-h7-rpc-stop-20261024/integration/integration-20261024-0958/R3/evidence/messages-ses_e949b4644ffeLyn1mk4A4qdcZL.json",
+      "sha256": "cfa7dc88fe689ed56f3c1ddaf20f35b87ae950290a3e4902d9e79a9dbb69ef94"
+    },
+    {
+      "path": "docs/gates/d-h7-rpc-stop-20261024/integration/integration-20261024-0958/R3/evidence/messages-ses_e949b48bcffeWAH93e6K4O2hva.json",
+      "sha256": "7fcf4a63a5092ac6ea3788bac0867de3d9b0250f425472d0cb852baa817f9595"
+    },
+    {
+      "path": "docs/gates/d-h7-rpc-stop-20261024/integration/integration-20261024-0958/R3/evidence/publications.json",
+      "sha256": "2a5c52f0206bfb1028a41ed810aa51da68e108bf73edd9381b0d2ae4324aad75"
+    },
+    {
+      "path": "docs/gates/d-h7-rpc-stop-20261024/integration/integration-20261024-0958/R3/evidence/sessions.json",
+      "sha256": "146b0af39fe11271cbfda8a5f3991910b20c203e16bf39f58a5a66beb79328dd"
+    },
+    {
+      "path": "docs/gates/d-h7-rpc-stop-20261024/integration/integration-20261024-0958/R3/evidence/task-executions.json",
+      "sha256": "c151b7376d01283ccfc86ae4b2854a5a228e052a10261a3edb109b80548c8e85"
+    },
+    {
+      "path": "docs/gates/d-h7-rpc-stop-20261024/integration/integration-20261024-0958/R3/evidence/tool-resources.json",
+      "sha256": "4e5e9b7a6625f33b157a73b91d29aab9574992cf4383ada6f602dec5c950e5c0"
+    },
+    {
+      "path": "docs/gates/d-h7-rpc-stop-20261024/integration/integration-20261024-0958/R3/observations.json",
+      "sha256": "eba29ef286dca2316954b99dc304e2a1b16d7d95022c05dc4ed3265fc13ca2e7"
+    },
+    {
+      "path": "docs/gates/d-h7-rpc-stop-20261024/integration/integration-20261024-0958/R3/provider-config.json",
+      "sha256": "aa3e68508356b267cdd39673e139fb3dc27a972b0f218d20acb2232688a5e73b"
+    },
+    {
+      "path": "docs/gates/d-h7-rpc-stop-20261024/integration/integration-20261024-0958/R3/provider.json",
+      "sha256": "968640a6bd598e236fba57be234e389301c2d2ce9745877ec696e6ba48415960"
+    },
+    {
+      "path": "docs/gates/d-h7-rpc-stop-20261024/integration/integration-20261024-0958/R3/result.json",
+      "sha256": "be1d0b652a0f5acbccc74dc20872b0808897fb06ac73c4b147122c0c946d9cfc"
+    },
+    {
+      "path": "docs/gates/d-h7-rpc-stop-20261024/integration/integration-20261024-0958/R3/state/jobs/ses_e949b45c4ffe6rg007Hsi4KihJ/bc0f3b60-b8c6-4a9c-9712-82ff6a9b27e8/stderr.bin",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "docs/gates/d-h7-rpc-stop-20261024/integration/integration-20261024-0958/R3/state/jobs/ses_e949b45c4ffe6rg007Hsi4KihJ/bc0f3b60-b8c6-4a9c-9712-82ff6a9b27e8/stdout.bin",
+      "sha256": "02c256b568b5b791268f9898d2c40915deac70394b655f805cd11d99cedb33b9"
+    },
+    {
+      "path": "docs/gates/d-h7-rpc-stop-20261024/integration/integration-20261024-0958/R3/state/run.json",
+      "sha256": "c1b0c15b1a53f6f0902d28e23d09f6e16e6f9e8eed7d828e330510ec22de057e"
+    },
+    {
+      "path": "docs/gates/d-h7-rpc-stop-20261024/integration/integration-20261024-0958/R3/summary.json",
+      "sha256": "42e2fd843f2302790b8ff4e41f699655cf70b8e3bee58f519f0d030743f20b08"
+    },
+    {
+      "path": "docs/gates/d-h7-rpc-stop-20261024/integration/integration-20261024-0958/R3/versions.json",
+      "sha256": "5b4b1242b62d4ab698ba77cb2953cf4f70d67b82d01102d717f0b5e73f9b4c30"
+    },
+    {
+      "path": "docs/gates/d-h7-rpc-stop-20261024/integration/integration-20261024-0958/R3/wire.json",
+      "sha256": "91e25f5e0ce71c359660f8b687c9dc52897f9ce58e3422aedb5a157d3ec0fb3f"
+    },
+    {
+      "path": "docs/gates/d-h7-rpc-stop-20261024/integration/integration-20261024-0958/R3/workspace/X/materials/statement.md",
+      "sha256": "baedfcedb6ba01353c6e3248274c8561e4ce1452f85514e2c45290a2b48eb430"
+    },
+    {
+      "path": "docs/gates/d-h7-rpc-stop-20261024/integration/integration-20261024-0958/R3/workspace/X/published/7e88ce94-88e4-4987-a7f6-a3141b08839f.bin",
+      "sha256": "02c256b568b5b791268f9898d2c40915deac70394b655f805cd11d99cedb33b9"
+    },
+    {
+      "path": "docs/gates/d-h7-rpc-stop-20261024/integration/integration-20261024-0958/control/events.json",
+      "sha256": "18922957b9494d4cef298d6bbb4b1e80ea26234c82076189e982cf194e68b2d8"
+    },
+    {
+      "path": "docs/gates/d-h7-rpc-stop-20261024/integration/integration-20261024-0958/control/evidence/admissions.json",
+      "sha256": "23d77906296844d37f941379f186073c8a406bd746e8ea7d6bb771ea95ec1864"
+    },
+    {
+      "path": "docs/gates/d-h7-rpc-stop-20261024/integration/integration-20261024-0958/control/evidence/assets.json",
+      "sha256": "9455f5f92bb7ca61bc9de0e0a5083cc0d27aaac9800fb855b6a295bd7c61dfff"
+    },
+    {
+      "path": "docs/gates/d-h7-rpc-stop-20261024/integration/integration-20261024-0958/control/evidence/bindings.json",
+      "sha256": "d62db93ab78d9fa536695248feb64be5f25452d89d97aede40adb2a3d604f55d"
+    },
+    {
+      "path": "docs/gates/d-h7-rpc-stop-20261024/integration/integration-20261024-0958/control/evidence/challenges.json",
+      "sha256": "7f9cabbecdedea8f16063952e2a72de76caa531b76feed6e858759866d7f2d9c"
+    },
+    {
+      "path": "docs/gates/d-h7-rpc-stop-20261024/integration/integration-20261024-0958/control/evidence/control-audit.json",
+      "sha256": "482023d65fe446e158a91fed753d0a2d7d365560f06fbfd3b13f106c5f712d72"
+    },
+    {
+      "path": "docs/gates/d-h7-rpc-stop-20261024/integration/integration-20261024-0958/control/evidence/inventory.json",
+      "sha256": "61adb561fe86f12b00b75e9fb87cb60b7414eacde3ec4c2d532d612d9fca1a35"
+    },
+    {
+      "path": "docs/gates/d-h7-rpc-stop-20261024/integration/integration-20261024-0958/control/evidence/messages-ses_e949b6372ffeCC912jkjOmgLQK.json",
+      "sha256": "b5c6c559b3673a24c9c1bf4bf6fc3545d43551d866ab145200bc26fac4dd0260"
+    },
+    {
+      "path": "docs/gates/d-h7-rpc-stop-20261024/integration/integration-20261024-0958/control/evidence/messages-ses_e949b63fbffe6L3LbGDzAl0LXJ.json",
+      "sha256": "12b08ecf333fddcfd87cb3e29093b9df4a85368ccb96c953a191adcfc913b8dd"
+    },
+    {
+      "path": "docs/gates/d-h7-rpc-stop-20261024/integration/integration-20261024-0958/control/evidence/messages-ses_e949b6474ffe7fPlc0MTMsWnAk.json",
+      "sha256": "7419f09af6cd475700190b90e41b695e46b26d651a78026f9b38d89a1d24d8bb"
+    },
+    {
+      "path": "docs/gates/d-h7-rpc-stop-20261024/integration/integration-20261024-0958/control/evidence/messages-ses_e949b66c1ffeqOLcmcItcaxjpt.json",
+      "sha256": "c31985bac95a4c3f31fc3951d02dfaa788c8ce7caea7456a847837efe5538511"
+    },
+    {
+      "path": "docs/gates/d-h7-rpc-stop-20261024/integration/integration-20261024-0958/control/evidence/publications.json",
+      "sha256": "220c41de563681cfb41f8b4586fab547745637a4aa5280204cb458bfcefbe586"
+    },
+    {
+      "path": "docs/gates/d-h7-rpc-stop-20261024/integration/integration-20261024-0958/control/evidence/sessions.json",
+      "sha256": "499c41da2418ed194af5c31e0936437eac0aec937142281a8477f1a637c4f78c"
+    },
+    {
+      "path": "docs/gates/d-h7-rpc-stop-20261024/integration/integration-20261024-0958/control/evidence/task-executions.json",
+      "sha256": "c2834afda1a6ca64aed4ade68efec7cbfdbe9ef9970ebafaa54b6fd3560ad25a"
+    },
+    {
+      "path": "docs/gates/d-h7-rpc-stop-20261024/integration/integration-20261024-0958/control/evidence/tool-resources.json",
+      "sha256": "2c5951f1548b0cd0bfdd5ab229b891396023d55490913b9be776f49d526414f6"
+    },
+    {
+      "path": "docs/gates/d-h7-rpc-stop-20261024/integration/integration-20261024-0958/control/observations.json",
+      "sha256": "3266660ea3773148b925c586685d27ea5da8f22811853dcd83bb8b64fc233051"
+    },
+    {
+      "path": "docs/gates/d-h7-rpc-stop-20261024/integration/integration-20261024-0958/control/provider-config.json",
+      "sha256": "3a386772e45296bb4c7015e6db2596847b27930f7349ef61c6d684a4e82ed69b"
+    },
+    {
+      "path": "docs/gates/d-h7-rpc-stop-20261024/integration/integration-20261024-0958/control/provider.json",
+      "sha256": "9627af3dbecdf08a310fb5f506fa7547f1053bb8c4f2dc5fb58a1faa0bc3fdda"
+    },
+    {
+      "path": "docs/gates/d-h7-rpc-stop-20261024/integration/integration-20261024-0958/control/result.json",
+      "sha256": "0d9fc3941b559ed005e71f5a895a2c129ba83a8d81e8f1c5d5a4a2a246efdb5c"
+    },
+    {
+      "path": "docs/gates/d-h7-rpc-stop-20261024/integration/integration-20261024-0958/control/state/jobs/ses_e949b63fbffe6L3LbGDzAl0LXJ/bfa34bbf-c491-412c-a75a-7f0c935ad891/stderr.bin",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "docs/gates/d-h7-rpc-stop-20261024/integration/integration-20261024-0958/control/state/jobs/ses_e949b63fbffe6L3LbGDzAl0LXJ/bfa34bbf-c491-412c-a75a-7f0c935ad891/stdout.bin",
+      "sha256": "02c256b568b5b791268f9898d2c40915deac70394b655f805cd11d99cedb33b9"
+    },
+    {
+      "path": "docs/gates/d-h7-rpc-stop-20261024/integration/integration-20261024-0958/control/state/run.json",
+      "sha256": "729243ee7568451b893c25b6a41699ab499bdc4558626a03f23a1a9df4cfc2fe"
+    },
+    {
+      "path": "docs/gates/d-h7-rpc-stop-20261024/integration/integration-20261024-0958/control/summary.json",
+      "sha256": "9cd652587f2f8bc409a5ebc6500f9834855a3f7ab1cd610492b91899e66bcaaf"
+    },
+    {
+      "path": "docs/gates/d-h7-rpc-stop-20261024/integration/integration-20261024-0958/control/versions.json",
+      "sha256": "5b4b1242b62d4ab698ba77cb2953cf4f70d67b82d01102d717f0b5e73f9b4c30"
+    },
+    {
+      "path": "docs/gates/d-h7-rpc-stop-20261024/integration/integration-20261024-0958/control/wire.json",
+      "sha256": "28e3af2a7854f8049e192cd6f5e6fabd15accd13e05d3595e68ac852331b6275"
+    },
+    {
+      "path": "docs/gates/d-h7-rpc-stop-20261024/integration/integration-20261024-0958/control/workspace/X/materials/statement.md",
+      "sha256": "baedfcedb6ba01353c6e3248274c8561e4ce1452f85514e2c45290a2b48eb430"
+    },
+    {
+      "path": "docs/gates/d-h7-rpc-stop-20261024/integration/integration-20261024-0958/control/workspace/X/published/aa6c55b8-2535-43a0-9cf8-1e8f3f85b2ea.bin",
+      "sha256": "02c256b568b5b791268f9898d2c40915deac70394b655f805cd11d99cedb33b9"
+    },
+    {
+      "path": "docs/gates/d-h7-rpc-stop-20261024/integration/integration-20261024-0958/source-hashes.json",
+      "sha256": "dc0f1fe7dd1efe4dd1e529a308d3f879e4b9df7b24e2f09032a55a291cac4841"
+    },
+    {
+      "path": "docs/gates/d-h7-rpc-stop-20261024/integration/runtime-20261024-0958-exit-code",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "path": "docs/gates/d-h7-rpc-stop-20261024/integration/runtime-20261024-0958.log",
+      "sha256": "5e94bd9823e4f675828fcfd0d4155425d761656e02e3f67ef8dc8431979ff1ec"
+    }
+  ]
+}

@@ -1,0 +1,63 @@
+[
+  {
+    "at": 1792808018125,
+    "request": {
+      "sessionID": "ses_e9450a040ffemvH1Yxf5gOeJB0",
+      "operation": "tool.execute",
+      "input": {
+        "tool": "package.publish",
+        "args": {
+          "candidate": {
+            "ref": "9fffe472-7418-4519-bbe6-fb60369e3bf8",
+            "start": 0,
+            "end": 9
+          },
+          "files": [
+            {
+              "kind": "artifact",
+              "ref": "c3d4fcfc-2b87-46ed-acae-44f0b3d689fc",
+              "path": "extract.cjs",
+              "purpose": "script"
+            },
+            {
+              "kind": "artifact",
+              "ref": "09293004-95a8-4ca3-a40e-514dd1fd9042",
+              "path": "source.cjs",
+              "purpose": "script"
+            },
+            {
+              "kind": "artifact",
+              "ref": "5cef892e-b206-426e-8ae6-981c5857a2a4",
+              "path": "raw.bin",
+              "purpose": "input"
+            },
+            {
+              "kind": "material",
+              "name": "input.txt",
+              "path": "data/input.txt",
+              "purpose": "input"
+            },
+            {
+              "kind": "artifact",
+              "ref": "ebe5c3f1-bba9-4e2f-ba6b-26a39df60bd0",
+              "path": "evidence/solver.cjs",
+              "purpose": "evidence"
+            }
+          ],
+          "argv": [
+            "/opt/homebrew/Cellar/node/26.3.0/bin/node",
+            "extract.cjs"
+          ],
+          "extraction": "Engineer local extract.cjs reads raw.bin [5,14) after checking fixed E input; stdout is candidate bytes without normalization",
+          "premises": [
+            "CTF_MATERIALS must expose fixed input.txt; raw.bin relative to proposed working directory",
+            "External state unknown; binary candidate fixture; no verifier/oracle"
+          ]
+        },
+        "callID": "call_26_0"
+      }
+    },
+    "status": 200,
+    "response": "{\"result\":{\"version\":\"f43ced67-e6dd-4d6f-aa20-c3ef7c6d66a0\",\"manifestSha256\":\"877c46de0e7afefc7e49f45c03f0601d52b5041ab9dcf69009930f6dd003a9b7\",\"manifestSize\":4038,\"snapshotFixed\":true,\"candidateSize\":9,\"candidateSha256\":\"4527432703d179e8d8f48f8ec1b39f5688c37d5e374dc13f6e72aba2224f59b0\"}}"
+  }
+]

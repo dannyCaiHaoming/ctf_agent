@@ -1,0 +1,1 @@
+D package public nonsecret fixture; no oracle

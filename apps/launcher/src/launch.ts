@@ -330,6 +330,7 @@ async function runLaunch(options: LaunchOptions, rpc: { url: string; token: stri
   await save(join(real.evidence, 'admissions.json'), control.audit.filter(r => r.op === 'model.call'));
   await save(join(real.evidence, 'control-audit.json'), control.audit);
   await save(join(real.evidence, 'tool-resources.json'), control.resourceSnapshot());
+  await save(join(real.evidence, 'publications.json'), control.publicationSnapshot());
   await save(join(real.evidence, 'assets.json'), { productRevision, copies });
   await save(join(real.state, 'run.json'), { runId, status, rootSessionId: rootId || null, sessions: [...sessionIds],
     deadlineMs, opencodeVersion: engine.version, model: loaded.config.model, configSha256: sha256(JSON.stringify({ ...config, plugin: undefined })), productRevision,

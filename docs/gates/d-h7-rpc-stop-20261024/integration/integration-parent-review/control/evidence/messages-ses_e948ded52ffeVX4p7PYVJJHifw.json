@@ -1,0 +1,720 @@
+[
+  {
+    "info": {
+      "id": "msg_16b7212b70012Ulm6s57WVZkbC",
+      "sessionID": "ses_e948ded52ffeVX4p7PYVJJHifw",
+      "role": "user",
+      "time": {
+        "created": 1792804000439
+      },
+      "agent": "coordinator",
+      "model": {
+        "providerID": "stub",
+        "modelID": "scripted"
+      }
+    },
+    "parts": [
+      {
+        "id": "prt_16b7212b90016V6AvO7Gkk7v5X",
+        "sessionID": "ses_e948ded52ffeVX4p7PYVJJHifw",
+        "messageID": "msg_16b7212b70012Ulm6s57WVZkbC",
+        "type": "text",
+        "text": "開始運行。按產品運行約定，由 Coordinator 組織各角色並經 Intake 取得題目。"
+      }
+    ]
+  },
+  {
+    "info": {
+      "id": "msg_16b72138f001RGOuva6cn4cHnY",
+      "sessionID": "ses_e948ded52ffeVX4p7PYVJJHifw",
+      "role": "assistant",
+      "time": {
+        "created": 1792804000655,
+        "completed": 1792804001140
+      },
+      "parentID": "msg_16b7212b70012Ulm6s57WVZkbC",
+      "modelID": "scripted",
+      "providerID": "stub",
+      "mode": "coordinator",
+      "agent": "coordinator",
+      "path": {
+        "cwd": "/private/var/folders/tn/x1hbkfy17sx0w1lb8kjzzr340000gn/T/d-h7-IMzE9t/runs/control/opencode",
+        "root": "/"
+      },
+      "cost": 0,
+      "tokens": {
+        "total": 0,
+        "input": 0,
+        "output": 0,
+        "reasoning": 0,
+        "cache": {
+          "read": 0,
+          "write": 0
+        }
+      },
+      "finish": "tool-calls"
+    },
+    "parts": [
+      {
+        "id": "prt_16b7214ff001NUiZEZPGJ8Gd7r",
+        "sessionID": "ses_e948ded52ffeVX4p7PYVJJHifw",
+        "messageID": "msg_16b72138f001RGOuva6cn4cHnY",
+        "type": "step-start"
+      },
+      {
+        "id": "prt_16b721500001fyFDH35huwWI5M",
+        "sessionID": "ses_e948ded52ffeVX4p7PYVJJHifw",
+        "messageID": "msg_16b72138f001RGOuva6cn4cHnY",
+        "type": "tool",
+        "callID": "call_1_0",
+        "tool": "task",
+        "state": {
+          "status": "completed",
+          "input": {
+            "subagent_type": "intake",
+            "description": "H7 intake",
+            "prompt": "H7_ROLE_intake "
+          },
+          "output": "<task id=\"ses_e948deafaffextUjJDd6LrUl9y\" state=\"completed\">\n<task_result>\nINTAKE_READY\n</task_result>\n</task>",
+          "title": "H7 intake",
+          "metadata": {
+            "parentSessionId": "ses_e948ded52ffeVX4p7PYVJJHifw",
+            "sessionId": "ses_e948deafaffextUjJDd6LrUl9y",
+            "model": {
+              "modelID": "scripted",
+              "providerID": "stub"
+            },
+            "truncated": false
+          },
+          "time": {
+            "start": 1792804001027,
+            "end": 1792804001138
+          }
+        }
+      },
+      {
+        "id": "prt_16b721573001016t985nSymVf3",
+        "sessionID": "ses_e948ded52ffeVX4p7PYVJJHifw",
+        "messageID": "msg_16b72138f001RGOuva6cn4cHnY",
+        "type": "step-finish",
+        "reason": "tool-calls",
+        "cost": 0,
+        "tokens": {
+          "total": 0,
+          "input": 0,
+          "output": 0,
+          "reasoning": 0,
+          "cache": {
+            "read": 0,
+            "write": 0
+          }
+        }
+      }
+    ]
+  },
+  {
+    "info": {
+      "id": "msg_16b721575001FFP9KmL3B4Zbfi",
+      "sessionID": "ses_e948ded52ffeVX4p7PYVJJHifw",
+      "role": "assistant",
+      "time": {
+        "created": 1792804001141,
+        "completed": 1792804001152
+      },
+      "parentID": "msg_16b7212b70012Ulm6s57WVZkbC",
+      "modelID": "scripted",
+      "providerID": "stub",
+      "mode": "coordinator",
+      "agent": "coordinator",
+      "path": {
+        "cwd": "/private/var/folders/tn/x1hbkfy17sx0w1lb8kjzzr340000gn/T/d-h7-IMzE9t/runs/control/opencode",
+        "root": "/"
+      },
+      "cost": 0,
+      "tokens": {
+        "total": 0,
+        "input": 0,
+        "output": 0,
+        "reasoning": 0,
+        "cache": {
+          "read": 0,
+          "write": 0
+        }
+      },
+      "finish": "tool-calls"
+    },
+    "parts": [
+      {
+        "id": "prt_16b72157c001fz4pxdGNsjPWp9",
+        "sessionID": "ses_e948ded52ffeVX4p7PYVJJHifw",
+        "messageID": "msg_16b721575001FFP9KmL3B4Zbfi",
+        "type": "step-start"
+      },
+      {
+        "id": "prt_16b72157c002Gnxr7zzEEUsFb2",
+        "sessionID": "ses_e948ded52ffeVX4p7PYVJJHifw",
+        "messageID": "msg_16b721575001FFP9KmL3B4Zbfi",
+        "type": "tool",
+        "callID": "call_4_0",
+        "tool": "ctf_challenge_assign",
+        "state": {
+          "status": "completed",
+          "input": {
+            "role": "domain-solver",
+            "challenge": "X"
+          },
+          "output": "{\"challenge\":\"X\"}",
+          "title": "challenge.assign",
+          "metadata": {
+            "truncated": false
+          },
+          "time": {
+            "start": 1792804001149,
+            "end": 1792804001151
+          }
+        }
+      },
+      {
+        "id": "prt_16b72157f001V3kxN7Y5tMvE2C",
+        "sessionID": "ses_e948ded52ffeVX4p7PYVJJHifw",
+        "messageID": "msg_16b721575001FFP9KmL3B4Zbfi",
+        "type": "step-finish",
+        "reason": "tool-calls",
+        "cost": 0,
+        "tokens": {
+          "total": 0,
+          "input": 0,
+          "output": 0,
+          "reasoning": 0,
+          "cache": {
+            "read": 0,
+            "write": 0
+          }
+        }
+      }
+    ]
+  },
+  {
+    "info": {
+      "id": "msg_16b721581001hte1Ua325qTDFZ",
+      "sessionID": "ses_e948ded52ffeVX4p7PYVJJHifw",
+      "role": "assistant",
+      "time": {
+        "created": 1792804001153,
+        "completed": 1792804001173
+      },
+      "parentID": "msg_16b7212b70012Ulm6s57WVZkbC",
+      "modelID": "scripted",
+      "providerID": "stub",
+      "mode": "coordinator",
+      "agent": "coordinator",
+      "path": {
+        "cwd": "/private/var/folders/tn/x1hbkfy17sx0w1lb8kjzzr340000gn/T/d-h7-IMzE9t/runs/control/opencode",
+        "root": "/"
+      },
+      "cost": 0,
+      "tokens": {
+        "total": 0,
+        "input": 0,
+        "output": 0,
+        "reasoning": 0,
+        "cache": {
+          "read": 0,
+          "write": 0
+        }
+      },
+      "finish": "tool-calls"
+    },
+    "parts": [
+      {
+        "id": "prt_16b72158d001CG4V6mrMVlF7QX",
+        "sessionID": "ses_e948ded52ffeVX4p7PYVJJHifw",
+        "messageID": "msg_16b721581001hte1Ua325qTDFZ",
+        "type": "step-start"
+      },
+      {
+        "id": "prt_16b72158e001WdCq0ZcaPrhOTU",
+        "sessionID": "ses_e948ded52ffeVX4p7PYVJJHifw",
+        "messageID": "msg_16b721581001hte1Ua325qTDFZ",
+        "type": "tool",
+        "callID": "call_5_0",
+        "tool": "task",
+        "state": {
+          "status": "completed",
+          "input": {
+            "subagent_type": "domain-solver",
+            "description": "[ctf:d4d60331-24bd-46d7-9350-0fda74b47275]",
+            "prompt": "H7_ROLE_domain-solver ",
+            "background": true
+          },
+          "output": "<task id=\"ses_e948dea6fffePNj9pzFiwMbfam\" state=\"running\">\n<summary>Background task started</summary>\n<task_result>\nThe task is working in the background. You will be notified automatically when it finishes.\nDO NOT sleep, poll for progress, ask the task for status, or duplicate this task's work — avoid working with the same files or topics it is using.\nWork on non-overlapping tasks, or briefly tell the user what you launched and end your response.\n</task_result>\n</task>",
+          "title": "[ctf:d4d60331-24bd-46d7-9350-0fda74b47275]",
+          "metadata": {
+            "parentSessionId": "ses_e948ded52ffeVX4p7PYVJJHifw",
+            "sessionId": "ses_e948dea6fffePNj9pzFiwMbfam",
+            "model": {
+              "modelID": "scripted",
+              "providerID": "stub"
+            },
+            "background": true,
+            "jobId": "ses_e948dea6fffePNj9pzFiwMbfam",
+            "truncated": false
+          },
+          "time": {
+            "start": 1792804001167,
+            "end": 1792804001172
+          }
+        }
+      },
+      {
+        "id": "prt_16b721594001JLNqeHeHgz11rl",
+        "sessionID": "ses_e948ded52ffeVX4p7PYVJJHifw",
+        "messageID": "msg_16b721581001hte1Ua325qTDFZ",
+        "type": "step-finish",
+        "reason": "tool-calls",
+        "cost": 0,
+        "tokens": {
+          "total": 0,
+          "input": 0,
+          "output": 0,
+          "reasoning": 0,
+          "cache": {
+            "read": 0,
+            "write": 0
+          }
+        }
+      }
+    ]
+  },
+  {
+    "info": {
+      "id": "msg_16b7215960013WAx2yjA4VC3bv",
+      "sessionID": "ses_e948ded52ffeVX4p7PYVJJHifw",
+      "role": "assistant",
+      "time": {
+        "created": 1792804001174,
+        "completed": 1792804001195
+      },
+      "parentID": "msg_16b7212b70012Ulm6s57WVZkbC",
+      "modelID": "scripted",
+      "providerID": "stub",
+      "mode": "coordinator",
+      "agent": "coordinator",
+      "path": {
+        "cwd": "/private/var/folders/tn/x1hbkfy17sx0w1lb8kjzzr340000gn/T/d-h7-IMzE9t/runs/control/opencode",
+        "root": "/"
+      },
+      "cost": 0,
+      "tokens": {
+        "total": 0,
+        "input": 0,
+        "output": 0,
+        "reasoning": 0,
+        "cache": {
+          "read": 0,
+          "write": 0
+        }
+      },
+      "finish": "stop"
+    },
+    "parts": [
+      {
+        "id": "prt_16b7215a8001T9ZMBmXgxKr4t9",
+        "sessionID": "ses_e948ded52ffeVX4p7PYVJJHifw",
+        "messageID": "msg_16b7215960013WAx2yjA4VC3bv",
+        "type": "step-start"
+      },
+      {
+        "id": "prt_16b7215a9001xK6NFQtRJ57QWR",
+        "sessionID": "ses_e948ded52ffeVX4p7PYVJJHifw",
+        "messageID": "msg_16b7215960013WAx2yjA4VC3bv",
+        "type": "text",
+        "text": "WAIT_FOR_NATIVE_TASK",
+        "time": {
+          "start": 1792804001193,
+          "end": 1792804001193
+        }
+      },
+      {
+        "id": "prt_16b7215aa001pt3Bteb296wXmk",
+        "sessionID": "ses_e948ded52ffeVX4p7PYVJJHifw",
+        "messageID": "msg_16b7215960013WAx2yjA4VC3bv",
+        "type": "step-finish",
+        "reason": "stop",
+        "cost": 0,
+        "tokens": {
+          "total": 0,
+          "input": 0,
+          "output": 0,
+          "reasoning": 0,
+          "cache": {
+            "read": 0,
+            "write": 0
+          }
+        }
+      }
+    ]
+  },
+  {
+    "info": {
+      "id": "msg_16b72160c001pC2UnkaPRoXOSd",
+      "sessionID": "ses_e948ded52ffeVX4p7PYVJJHifw",
+      "role": "user",
+      "time": {
+        "created": 1792804001292
+      },
+      "agent": "coordinator",
+      "model": {
+        "providerID": "stub",
+        "modelID": "scripted"
+      }
+    },
+    "parts": [
+      {
+        "id": "prt_16b72160c002PcxSe4bjllaeop",
+        "sessionID": "ses_e948ded52ffeVX4p7PYVJJHifw",
+        "messageID": "msg_16b72160c001pC2UnkaPRoXOSd",
+        "type": "text",
+        "text": "<task id=\"ses_e948dea6fffePNj9pzFiwMbfam\" state=\"completed\">\n<summary>Background task completed: [ctf:d4d60331-24bd-46d7-9350-0fda74b47275]</summary>\n<task_result>\nSOURCE_RESULT:{\"ref\":\"a242a4d6-b517-4ccf-803b-ab1f58245246\",\"path\":\"published/a242a4d6-b517-4ccf-803b-ab1f58245246.bin\",\"sha256\":\"02c256b568b5b791268f9898d2c40915deac70394b655f805cd11d99cedb33b9\",\"size\":18,\"start\":0,\"end\":18,\"originalBytes\":18,\"originalComplete\":true,\"rangeComplete\":true,\"snapshotFixed\":true}\n</task_result>\n</task>",
+        "synthetic": true
+      }
+    ]
+  },
+  {
+    "info": {
+      "id": "msg_16b721614001oor1Q5m5F26F6g",
+      "sessionID": "ses_e948ded52ffeVX4p7PYVJJHifw",
+      "role": "assistant",
+      "time": {
+        "created": 1792804001300,
+        "completed": 1792804001312
+      },
+      "parentID": "msg_16b72160c001pC2UnkaPRoXOSd",
+      "modelID": "scripted",
+      "providerID": "stub",
+      "mode": "coordinator",
+      "agent": "coordinator",
+      "path": {
+        "cwd": "/private/var/folders/tn/x1hbkfy17sx0w1lb8kjzzr340000gn/T/d-h7-IMzE9t/runs/control/opencode",
+        "root": "/"
+      },
+      "cost": 0,
+      "tokens": {
+        "total": 0,
+        "input": 0,
+        "output": 0,
+        "reasoning": 0,
+        "cache": {
+          "read": 0,
+          "write": 0
+        }
+      },
+      "finish": "tool-calls"
+    },
+    "parts": [
+      {
+        "id": "prt_16b72161c001DoJRVGPV3M9zgd",
+        "sessionID": "ses_e948ded52ffeVX4p7PYVJJHifw",
+        "messageID": "msg_16b721614001oor1Q5m5F26F6g",
+        "type": "step-start"
+      },
+      {
+        "id": "prt_16b72161d001XigmmyHk6Zf8HO",
+        "sessionID": "ses_e948ded52ffeVX4p7PYVJJHifw",
+        "messageID": "msg_16b721614001oor1Q5m5F26F6g",
+        "type": "tool",
+        "callID": "call_10_0",
+        "tool": "ctf_challenge_assign",
+        "state": {
+          "status": "completed",
+          "input": {
+            "role": "engineer",
+            "challenge": "X"
+          },
+          "output": "{\"challenge\":\"X\"}",
+          "title": "challenge.assign",
+          "metadata": {
+            "truncated": false
+          },
+          "time": {
+            "start": 1792804001309,
+            "end": 1792804001311
+          }
+        }
+      },
+      {
+        "id": "prt_16b72161f001DjImr3CLiPw7pR",
+        "sessionID": "ses_e948ded52ffeVX4p7PYVJJHifw",
+        "messageID": "msg_16b721614001oor1Q5m5F26F6g",
+        "type": "step-finish",
+        "reason": "tool-calls",
+        "cost": 0,
+        "tokens": {
+          "total": 0,
+          "input": 0,
+          "output": 0,
+          "reasoning": 0,
+          "cache": {
+            "read": 0,
+            "write": 0
+          }
+        }
+      }
+    ]
+  },
+  {
+    "info": {
+      "id": "msg_16b721620001JS7rucpSQF3Zd7",
+      "sessionID": "ses_e948ded52ffeVX4p7PYVJJHifw",
+      "role": "assistant",
+      "time": {
+        "created": 1792804001312,
+        "completed": 1792804001342
+      },
+      "parentID": "msg_16b72160c001pC2UnkaPRoXOSd",
+      "modelID": "scripted",
+      "providerID": "stub",
+      "mode": "coordinator",
+      "agent": "coordinator",
+      "path": {
+        "cwd": "/private/var/folders/tn/x1hbkfy17sx0w1lb8kjzzr340000gn/T/d-h7-IMzE9t/runs/control/opencode",
+        "root": "/"
+      },
+      "cost": 0,
+      "tokens": {
+        "total": 0,
+        "input": 0,
+        "output": 0,
+        "reasoning": 0,
+        "cache": {
+          "read": 0,
+          "write": 0
+        }
+      },
+      "finish": "tool-calls"
+    },
+    "parts": [
+      {
+        "id": "prt_16b72162d001C32i17TML3OVi0",
+        "sessionID": "ses_e948ded52ffeVX4p7PYVJJHifw",
+        "messageID": "msg_16b721620001JS7rucpSQF3Zd7",
+        "type": "step-start"
+      },
+      {
+        "id": "prt_16b72162d002whJgOVdxGdW70X",
+        "sessionID": "ses_e948ded52ffeVX4p7PYVJJHifw",
+        "messageID": "msg_16b721620001JS7rucpSQF3Zd7",
+        "type": "tool",
+        "callID": "call_11_0",
+        "tool": "task",
+        "state": {
+          "status": "completed",
+          "input": {
+            "subagent_type": "engineer",
+            "description": "[ctf:f6f9e85d-8c67-41d7-a588-132e5d01d020]",
+            "prompt": "H7_ROLE_engineer HANDOFF:{\"ref\":\"a242a4d6-b517-4ccf-803b-ab1f58245246\",\"path\":\"published/a242a4d6-b517-4ccf-803b-ab1f58245246.bin\",\"sha256\":\"02c256b568b5b791268f9898d2c40915deac70394b655f805cd11d99cedb33b9\",\"size\":18,\"start\":0,\"end\":18,\"originalBytes\":18,\"originalComplete\":true,\"rangeComplete\":true,\"snapshotFixed\":true}",
+            "background": true
+          },
+          "output": "<task id=\"ses_e948de9d0ffeH9URUhyT0G8k2o\" state=\"running\">\n<summary>Background task started</summary>\n<task_result>\nThe task is working in the background. You will be notified automatically when it finishes.\nDO NOT sleep, poll for progress, ask the task for status, or duplicate this task's work — avoid working with the same files or topics it is using.\nWork on non-overlapping tasks, or briefly tell the user what you launched and end your response.\n</task_result>\n</task>",
+          "title": "[ctf:f6f9e85d-8c67-41d7-a588-132e5d01d020]",
+          "metadata": {
+            "parentSessionId": "ses_e948ded52ffeVX4p7PYVJJHifw",
+            "sessionId": "ses_e948de9d0ffeH9URUhyT0G8k2o",
+            "model": {
+              "modelID": "scripted",
+              "providerID": "stub"
+            },
+            "background": true,
+            "jobId": "ses_e948de9d0ffeH9URUhyT0G8k2o",
+            "truncated": false
+          },
+          "time": {
+            "start": 1792804001326,
+            "end": 1792804001338
+          }
+        }
+      },
+      {
+        "id": "prt_16b72163d001dDAk1cfzBeJanK",
+        "sessionID": "ses_e948ded52ffeVX4p7PYVJJHifw",
+        "messageID": "msg_16b721620001JS7rucpSQF3Zd7",
+        "type": "step-finish",
+        "reason": "tool-calls",
+        "cost": 0,
+        "tokens": {
+          "total": 0,
+          "input": 0,
+          "output": 0,
+          "reasoning": 0,
+          "cache": {
+            "read": 0,
+            "write": 0
+          }
+        }
+      }
+    ]
+  },
+  {
+    "info": {
+      "id": "msg_16b72163e001DaCyWMGnrLdOr1",
+      "sessionID": "ses_e948ded52ffeVX4p7PYVJJHifw",
+      "role": "assistant",
+      "time": {
+        "created": 1792804001342,
+        "completed": 1792804001364
+      },
+      "parentID": "msg_16b72160c001pC2UnkaPRoXOSd",
+      "modelID": "scripted",
+      "providerID": "stub",
+      "mode": "coordinator",
+      "agent": "coordinator",
+      "path": {
+        "cwd": "/private/var/folders/tn/x1hbkfy17sx0w1lb8kjzzr340000gn/T/d-h7-IMzE9t/runs/control/opencode",
+        "root": "/"
+      },
+      "cost": 0,
+      "tokens": {
+        "total": 0,
+        "input": 0,
+        "output": 0,
+        "reasoning": 0,
+        "cache": {
+          "read": 0,
+          "write": 0
+        }
+      },
+      "finish": "stop"
+    },
+    "parts": [
+      {
+        "id": "prt_16b721651001hXAQVXT8V2msSb",
+        "sessionID": "ses_e948ded52ffeVX4p7PYVJJHifw",
+        "messageID": "msg_16b72163e001DaCyWMGnrLdOr1",
+        "type": "step-start"
+      },
+      {
+        "id": "prt_16b721652001ty0JGTvUHRaKX7",
+        "sessionID": "ses_e948ded52ffeVX4p7PYVJJHifw",
+        "messageID": "msg_16b72163e001DaCyWMGnrLdOr1",
+        "type": "text",
+        "text": "WAIT_FOR_NATIVE_TASK",
+        "time": {
+          "start": 1792804001362,
+          "end": 1792804001362
+        }
+      },
+      {
+        "id": "prt_16b7216530015TA1ujkBeYzKOe",
+        "sessionID": "ses_e948ded52ffeVX4p7PYVJJHifw",
+        "messageID": "msg_16b72163e001DaCyWMGnrLdOr1",
+        "type": "step-finish",
+        "reason": "stop",
+        "cost": 0,
+        "tokens": {
+          "total": 0,
+          "input": 0,
+          "output": 0,
+          "reasoning": 0,
+          "cache": {
+            "read": 0,
+            "write": 0
+          }
+        }
+      }
+    ]
+  },
+  {
+    "info": {
+      "id": "msg_16b72166f001FA3pcjo2nl5W5c",
+      "sessionID": "ses_e948ded52ffeVX4p7PYVJJHifw",
+      "role": "user",
+      "time": {
+        "created": 1792804001391
+      },
+      "agent": "coordinator",
+      "model": {
+        "providerID": "stub",
+        "modelID": "scripted"
+      }
+    },
+    "parts": [
+      {
+        "id": "prt_16b72166f002xLlI92ZqtnltKX",
+        "sessionID": "ses_e948ded52ffeVX4p7PYVJJHifw",
+        "messageID": "msg_16b72166f001FA3pcjo2nl5W5c",
+        "type": "text",
+        "text": "<task id=\"ses_e948de9d0ffeH9URUhyT0G8k2o\" state=\"completed\">\n<summary>Background task completed: [ctf:f6f9e85d-8c67-41d7-a588-132e5d01d020]</summary>\n<task_result>\nENGINEER_READ_OK\n</task_result>\n</task>",
+        "synthetic": true
+      }
+    ]
+  },
+  {
+    "info": {
+      "id": "msg_16b721677001g3kRnATDivDK0R",
+      "sessionID": "ses_e948ded52ffeVX4p7PYVJJHifw",
+      "role": "assistant",
+      "time": {
+        "created": 1792804001399,
+        "completed": 1792804001411
+      },
+      "parentID": "msg_16b72166f001FA3pcjo2nl5W5c",
+      "modelID": "scripted",
+      "providerID": "stub",
+      "mode": "coordinator",
+      "agent": "coordinator",
+      "path": {
+        "cwd": "/private/var/folders/tn/x1hbkfy17sx0w1lb8kjzzr340000gn/T/d-h7-IMzE9t/runs/control/opencode",
+        "root": "/"
+      },
+      "cost": 0,
+      "tokens": {
+        "total": 0,
+        "input": 0,
+        "output": 0,
+        "reasoning": 0,
+        "cache": {
+          "read": 0,
+          "write": 0
+        }
+      },
+      "finish": "stop"
+    },
+    "parts": [
+      {
+        "id": "prt_16b721681001LcrxOM1jaTiwiR",
+        "sessionID": "ses_e948ded52ffeVX4p7PYVJJHifw",
+        "messageID": "msg_16b721677001g3kRnATDivDK0R",
+        "type": "step-start"
+      },
+      {
+        "id": "prt_16b721681002Wk6Ej1Qj8fOZVe",
+        "sessionID": "ses_e948ded52ffeVX4p7PYVJJHifw",
+        "messageID": "msg_16b721677001g3kRnATDivDK0R",
+        "type": "text",
+        "text": "CONTROL_WIRING_COMPLETE",
+        "time": {
+          "start": 1792804001409,
+          "end": 1792804001409
+        }
+      },
+      {
+        "id": "prt_16b721682001Bbk2QmVVzFjlOd",
+        "sessionID": "ses_e948ded52ffeVX4p7PYVJJHifw",
+        "messageID": "msg_16b721677001g3kRnATDivDK0R",
+        "type": "step-finish",
+        "reason": "stop",
+        "cost": 0,
+        "tokens": {
+          "total": 0,
+          "input": 0,
+          "output": 0,
+          "reasoning": 0,
+          "cache": {
+            "read": 0,
+            "write": 0
+          }
+        }
+      }
+    ]
+  }
+]

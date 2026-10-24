@@ -1,0 +1,165 @@
+[
+  {
+    "label": "contract-concurrent-audit-red",
+    "command": "npx --no-install vitest run tests/contract/d-artifact-handoff.test.ts",
+    "exitCode": 1,
+    "output": "contract-concurrent-audit-red/output.log"
+  },
+  {
+    "label": "contract-file-provenance-green",
+    "command": "npx --no-install vitest run tests/contract/d-artifact-handoff.test.ts",
+    "exitCode": 0,
+    "output": "contract-file-provenance-green/output.log"
+  },
+  {
+    "label": "contract-file-provenance-red",
+    "command": "npx --no-install vitest run tests/contract/d-artifact-handoff.test.ts",
+    "exitCode": 1,
+    "output": "contract-file-provenance-red/output.log"
+  },
+  {
+    "label": "contract-initial",
+    "command": "npx --no-install vitest run tests/contract/d-artifact-handoff.test.ts",
+    "exitCode": 1,
+    "output": "contract-initial/output.log"
+  },
+  {
+    "label": "contract-prototype-1",
+    "command": "npx --no-install vitest run tests/contract/d-artifact-handoff.test.ts",
+    "exitCode": 1,
+    "output": "contract-prototype-1/output.log"
+  },
+  {
+    "label": "contract-prototype-2",
+    "command": "npx --no-install vitest run tests/contract/d-artifact-handoff.test.ts",
+    "exitCode": 0,
+    "output": "contract-prototype-2/output.log"
+  },
+  {
+    "label": "contract-races-1",
+    "command": "npx --no-install vitest run tests/contract/d-artifact-handoff.test.ts",
+    "exitCode": 0,
+    "output": "contract-races-1/output.log"
+  },
+  {
+    "label": "contract-search-green",
+    "command": "npx --no-install vitest run tests/contract/d-artifact-handoff.test.ts",
+    "exitCode": 0,
+    "output": "contract-search-green/output.log"
+  },
+  {
+    "label": "contract-search-red",
+    "command": "npx --no-install vitest run tests/contract/d-artifact-handoff.test.ts",
+    "exitCode": 1,
+    "output": "contract-search-red/output.log"
+  },
+  {
+    "label": "regression-1",
+    "command": "npx --no-install vitest run tests/contract/d-artifact-handoff.test.ts tests/contract/workspace-tools.test.ts tests/contract/job-tools.test.ts tests/contract/http-tools.test.ts tests/contract/opencode-config.test.ts tests/contract/control-service.test.ts",
+    "exitCode": 1,
+    "output": "regression-1/output.log"
+  },
+  {
+    "label": "regression-2",
+    "command": "npx --no-install vitest run tests/contract/d-artifact-handoff.test.ts tests/contract/workspace-tools.test.ts tests/contract/job-tools.test.ts tests/contract/http-tools.test.ts tests/contract/opencode-config.test.ts tests/contract/control-service.test.ts",
+    "exitCode": 0,
+    "output": "regression-2/output.log"
+  },
+  {
+    "label": "checks-1/typecheck",
+    "command": "npm run typecheck",
+    "exitCode": 0,
+    "output": "checks-1/typecheck.log"
+  },
+  {
+    "label": "checks-final/typecheck",
+    "command": "npm run typecheck",
+    "exitCode": 0,
+    "output": "checks-final/typecheck.log"
+  },
+  {
+    "label": "checks-final/test",
+    "command": "npm test",
+    "exitCode": 0,
+    "output": "checks-final/test.log"
+  },
+  {
+    "label": "checks-final/build",
+    "command": "npm run build",
+    "exitCode": 0,
+    "output": "checks-final/build.log"
+  },
+  {
+    "label": "verification-final/typecheck",
+    "command": "npm run typecheck",
+    "exitCode": 0,
+    "output": "verification-final/typecheck.log"
+  },
+  {
+    "label": "verification-final/targeted",
+    "command": "npx --no-install vitest run tests/contract/d-artifact-handoff.test.ts tests/contract/workspace-tools.test.ts tests/contract/job-tools.test.ts tests/contract/http-tools.test.ts tests/contract/opencode-config.test.ts tests/contract/control-service.test.ts",
+    "exitCode": 0,
+    "output": "verification-final/targeted.log"
+  },
+  {
+    "label": "verification-final/test",
+    "command": "npm test",
+    "exitCode": 0,
+    "output": "verification-final/test.log"
+  },
+  {
+    "label": "verification-final/build",
+    "command": "npm run build",
+    "exitCode": 0,
+    "output": "verification-final/build.log"
+  },
+  {
+    "label": "verification-final/manual-summary-typecheck",
+    "command": "npm run typecheck",
+    "exitCode": 0,
+    "output": "verification-final/manual-summary-typecheck.log"
+  },
+  {
+    "label": "runtime-1",
+    "command": "npx --no-install tsx tests/manual/d-artifact-handoff.ts runtime-1",
+    "exitCode": 1,
+    "output": "runtime-1-command.log"
+  },
+  {
+    "label": "runtime-2",
+    "command": "npx --no-install tsx tests/manual/d-artifact-handoff.ts runtime-2",
+    "exitCode": 0,
+    "output": "runtime-2-command.log"
+  },
+  {
+    "label": "runtime-final",
+    "command": "npx --no-install tsx tests/manual/d-artifact-handoff.ts runtime-final",
+    "exitCode": 0,
+    "output": "runtime-final-command.log"
+  },
+  {
+    "label": "runtime-final-2",
+    "command": "npx --no-install tsx tests/manual/d-artifact-handoff.ts runtime-final-2",
+    "exitCode": 0,
+    "output": "runtime-final-2-command.log"
+  },
+  {
+    "label": "duplicate-batch",
+    "command": "npx --no-install tsx tests/manual/d-artifact-handoff.ts runtime-final-2",
+    "exitCode": 1,
+    "output": "duplicate-batch-refusal.log",
+    "expected": "EEXIST; before any new server/run"
+  },
+  {
+    "label": "dependency-preparation",
+    "command": "npm ci",
+    "exitCode": 0,
+    "output": "tool transcript only; 82 packages installed, package-lock unchanged"
+  },
+  {
+    "label": "exploratory-typecheck",
+    "command": "npm run typecheck",
+    "exitCode": 2,
+    "output": "tool transcript only; three artifact-tools.ts unknown-to-number diagnostics before numeric range fix"
+  }
+]

@@ -85,6 +85,7 @@ export interface HttpOperation {
   readonly callID: string;
   readonly signal: AbortSignal;
   readonly deadline: number;
+  capture?: (bytes: Buffer, complete: boolean) => void;
 }
 
 export function createHttpTools(options: HttpToolOptions) {
@@ -162,6 +163,7 @@ export function createHttpTools(options: HttpToolOptions) {
           persistence = finish(response, chain, lifetime.signal);
           const result = await Promise.race([persistence, stopped]);
           check();
+          operation.capture?.(Buffer.from(response.body), !response.bodyTruncated);
           return result;
         }
         if (response.statusCode === 303 || (currentMethod === 'POST' && (response.statusCode === 301 || response.statusCode === 302))) {

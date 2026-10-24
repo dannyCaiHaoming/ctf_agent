@@ -1,0 +1,228 @@
+--- prototype/apps/launcher/src/control-service.ts
++++ integrated/apps/launcher/src/control-service.ts
+@@ -526,7 +526,7 @@
+     if (!binding.challengeId || !CHALLENGE_ROLES.includes(binding.role) ||
+       (name === 'http.request' && !['recon', 'domain-solver'].includes(binding.role)) ||
+       (name === 'artifact.publish' && binding.role === 'verifier') ||
+-      (name === 'package.publish' && binding.role !== 'engineer')) throw new ControlDenied('tool not permitted');
++      (name.startsWith('package.') && binding.role !== 'engineer')) throw new ControlDenied('tool not permitted');
+     if (!this.options.challenges?.some(c => c.id === binding.challengeId)) throw new ControlDenied('challenge outside run');
+   }
+ 
+--- prototype/apps/launcher/src/candidate-package-tools.ts
++++ integrated/apps/launcher/src/candidate-package-tools.ts
+@@ -1,4 +1,4 @@
+-// D interface-two disposable prototype. One existing ArtifactPublisher commit fixes the whole package.
++// D interface two: immutable candidate and solution package. One existing ArtifactPublisher commit fixes the whole package.
+ import {createHash} from 'node:crypto';
+ import {z} from 'zod';
+ import {ArtifactPublisher,snapshotFile,type ArtifactSource,type Publication} from './artifact-tools.js';
+--- prototype/apps/opencode-plugin/src/index.ts
++++ integrated/apps/opencode-plugin/src/index.ts
+@@ -33,8 +33,8 @@
+   'challenge.read': { id: tool.schema.string().min(1), path: tool.schema.string().min(1), cursor: tool.schema.string().regex(/^\d{1,15}$/).optional() }
+ };
+ const descriptions: Record<string, string> = {
+-  'package.publish': 'Disposable D interface-two prototype, Engineer only. Fix a whole package once: candidate is a published ref and exact nonempty half-open byte range; files select published refs or E material names, each with an unambiguous relative path and script/input/evidence purpose. Supply proposed argv (optional), extraction explanation and premises. No text normalization or automatic execution. Returned version refers to the whole package. Incomplete/unknown provenance stays incomplete/unknown. Not verified or solved. Transport failure can follow commit: pause unconfirmed handoff; never blindly republish or rerun source. No unknown lock or recovery.',
+-  'package.read': 'Read one explicit whole-package version from this run/challenge. component manifest or candidate, or file with exact manifest path. Base64 pages (32768 bytes); follow nextCursor until null. Rechecks immutable package and every dependency. No latest alias. No validation/solved claim.',
++  'package.publish': 'Engineer only: fix a candidate and solution package. Fix a whole package once: candidate is a published ref and exact nonempty half-open byte range; files select published refs or E material names, each with an unambiguous relative path and script/input/evidence purpose. Supply proposed argv (optional), extraction explanation and premises. At most 32 files; the serialized envelope, including base64 and metadata, is bounded to 1 MiB. No text normalization or automatic execution. Returned version refers to the whole package; hand off that actual version through native task completion. Incomplete/unknown provenance stays incomplete/unknown. Not verified or solved. Transport failure can follow commit: pause unconfirmed handoff; never blindly republish or rerun source. No unknown lock or recovery.',
++  'package.read': 'Engineer only: read one explicit whole-package version from this run/challenge. component manifest or candidate, or file with exact manifest path. Base64 pages (32768 bytes); follow nextCursor until null. Rechecks immutable package and every dependency. No latest alias. No validation/solved claim.',
+   'artifact.publish': 'Fix an immutable snapshot from your own completed source in a native background task. Use exactly one source: {source:"file",path:"work/..."} after all writes/jobs finish; {source:"job",job,stream:"stdout"|"stderr"} after job cleanup; or {source:"http",resource} from the HTTP reply. Optional start/end select a half-open byte range [start,end), default all captured bytes. Files/streams are bounded to 1 MiB. The host returns ref/path/sha256/size and snapshotFixed (fixed bytes), rangeComplete (selected captured range), originalComplete (source completeness; null means unknown). A fixed range does not prove complete original output; unknown file producers are not inferred. Hand off the actual returned ref and necessary explanation through native task completion, never a private work path or invented identity/hash. Publication is not Engineer receipt, candidate registration, verified or solved. A transport error may follow a committed publication: keep this handoff unconfirmed and paused; do not rerun the source job/HTTP or blindly republish. There is no recovery or automatic unknown lock.',
+   'artifact.read': 'Read a host-issued ref from the same run and challenge: {ref,cursor?}. Decode data as base64; pages contain at most 32768 bytes. Pass the previous nextCursor unchanged until it is null for all bytes you need. Check snapshotFixed, rangeComplete and originalComplete separately; fixed bytes or a complete selected range do not prove the original source was complete. Confirm receipt only after actually reading the required bytes and completeness markers. No sibling work access. Edit in your own work and publish a new ref for changes; publication/read alone do not register a candidate or set verified/solved.',
+   'job.run': 'Start one managed job and wait in this call until terminal cleanup. Output remains bounded and readable after completion. Host timeout and lifetime bound execution.',
+--- prototype/product/opencode/agents/engineer.md
++++ integrated/product/opencode/agents/engineer.md
+@@ -15,13 +15,13 @@
+ 
+ ## 已接入能力與 D 邊界
+ 從原生 task 取得真實 ref 後，用 `ctf_artifact_read({ref,cursor?})` 讀取同 run 同題材料。data 是 base64，每頁最多 32768 bytes；沿 nextCursor 讀取所需頁，null 為末頁。核對實際內容與 snapshotFixed／rangeComplete／originalComplete，取得所需 bytes 及完整性後才確認已收到；缺頁、截斷或未知來源完整性不能自行補成完整解法。
+-不能讀 Solver 私有 work。將內容整理到自己 work，使用 job 本地重算；改寫後發布新引用，不覆寫已發布版本。主區尚未接入候選／解法包固定；本隔離區的接口二原型見下節。Verifier 任務綁定與結果、oracle 尚未接入，不能稱完整驗證鏈已完成。
++不能讀 Solver 私有 work。將內容整理到自己 work，使用 job 本地重算；改寫後發布新引用，不覆寫已發布版本。候選／解法包固定見下節。Verifier 任務綁定與結果、oracle 尚未接入，不能稱完整驗證鏈已完成。
+ 
+ ## 固定產物交接
+ 在原生背景任務內完成自己的相關 job 與文件寫入後，用 `ctf_artifact_publish` 固定自己的材料；發布來源限本會話自己的文件或已收束 job：文件用 `{source:"file",path:"work/..."}`；job 用 `{source:"job",job,stream:"stdout"}`（或 stderr）。Solver 的 HTTP 產物須由 Solver 發布後交回 ref，Engineer 用 `ctf_artifact_read` 讀取；Engineer 沒有普通 HTTP 權限，不得用他人的 HTTP resource 嘗試發布。可選 start/end 是半開 byte 區間，省略則取已捕獲的全部 bytes。文件／流上限 1 MiB。
+ 交回工具實際返回的 ref 與必要說明，經原生 task 完成通知交接；不以私有 work 路徑、自填身份或 hash 代替。snapshotFixed 表示快照固定，rangeComplete 表示選定已捕獲區間完整，originalComplete 才描述原來源完整性（null 為未知）；截斷不因發布而消失，未知文件 producer 不猜。
+ 傳輸錯誤可能發生在宿主已提交之後。保持受影響交接未確認並暫停，不猜來源未執行，不因缺 ref 重跑 job／HTTP 或盲目重發發布。這是角色使用規則，宿主尚無 unknown 強制鎖定或恢復入口。
+-發布成功不等於 Engineer 已讀、verified 或 solved。接口二原型只固定整包；Verifier 綁定及可信結果、oracle 接線仍未接入。
++發布成功不等於 Engineer 已讀、verified 或 solved。整包固定只確認內容及版本；Verifier 綁定及可信結果、oracle 接線仍未接入。
+ 
+-## 隔離區接口二驗證原型（主區未接入）
+-本 worktree 的 `ctf_package_publish` 一次固定整包：candidate 選已發布 ref 的非空半開 byte 區間；files 選 artifact ref 或 E material name，指定不衝突的相對 path 與 purpose（script/input/evidence）；填 extraction、premises 及可選建議 argv。返回 version 後以 `ctf_package_read({version,component:"manifest"|"candidate"|"file",path?,cursor?})` 明確讀回，每頁 32768 bytes。沿 nextCursor 讀完；不使用 latest。截斷與未知保留，argv 只是提議。需要轉換時先執行自己的本地 job、發布結果，再固定整包。沒有腳本時 files 可空，不捏造可重放性。任何傳輸失敗保持交接未確認並暫停，不重發或重跑來源。這是無模型原型，Verifier 後三接口仍未接入。
++## 固定候選與解法包
++整理完成後用 `ctf_package_publish` 一次固定整包：candidate 選已發布 ref 的非空半開 byte 區間；files 選 artifact ref 或 E material name，指定不衝突的相對 path 與 purpose（script/input/evidence）；填 extraction、premises 及可選建議 argv。最多 32 files；序列化整包（含 base64／metadata）上限 1 MiB，超限拒絕且不截斷。返回 version 後以 `ctf_package_read({version,component:"manifest"|"candidate"|"file",path?,cursor?})` 明確讀回，每頁 32768 bytes。沿 nextCursor 讀完；不使用 latest。截斷與未知保留，argv 只是提議。需要轉換時先執行自己的本地 job、發布結果，再固定整包。沒有腳本時 files 可空，不捏造可重放性。任何傳輸失敗保持交接未確認並暫停，不重發或重跑來源。經原生 task 完成通知交回工具實際返回的 version 與必要說明；固定不等於 verified／solved。Verifier 版本任務綁定、結果登記與可信提交仍未接入。
+--- prototype/tests/contract/opencode-config.test.ts
++++ integrated/tests/contract/opencode-config.test.ts
+@@ -19,7 +19,7 @@
+   });
+ });
+ 
+-it('isolated prototype grants package tools only to Engineer and keeps verification/submission unavailable', async () => {
++it('grants package tools only to Engineer and keeps verification/submission unavailable', async () => {
+   const { readFile } = await import('node:fs/promises');
+   const config = JSON.parse(await readFile(new URL('../../product/opencode/opencode.json', import.meta.url), 'utf8'));
+   const workspace = ['ctf_workspace_list', 'ctf_workspace_read', 'ctf_workspace_search', 'ctf_workspace_write'];
+--- prototype/tests/contract/d-candidate-package.test.ts
++++ integrated/tests/contract/d-candidate-package.test.ts
+@@ -1,4 +1,4 @@
+-// Candidate-package prototype: C integration with real files/jobs; SDK identity only is a deterministic fixture.
++// Candidate-package contract: C integration with real files/jobs; SDK identity only is a deterministic fixture.
+ import {afterAll,describe,it,expect} from 'vitest';
+ import {mkdtemp,mkdir,writeFile,readFile,readdir} from 'node:fs/promises';
+ import {join} from 'node:path';
+@@ -21,7 +21,7 @@
+  const packages=()=>s.publicationSnapshot().filter(p=>p.source.kind as string==='package');
+  return {root,s,exec,bind,publish,source,script,args,packages,read:async(version:string,component='candidate',path?:string)=>exec('engineer','package.read',{version,component,...(path?{path}:{})})};
+ }
+-describe('D interface two minimal package prototype',()=>{
++describe('D interface two minimal package',()=>{
+  // Missing dispatch or text normalization loses CRLF/UTF-8/binary candidate bytes.
+  it('P1 publishes exact selected bytes and whole manifest binding',async()=>{
+   const f=await fixture();const p=await f.exec('engineer','package.publish',f.args);expect(p.version).toBeTypeOf('string');expect(p.snapshotFixed).toBe(true);
+@@ -64,4 +64,37 @@
+  it('P4 a failed dependency publishes no whole or half package',async()=>{
+   const f=await fixture();const before=await readdir(join(f.root,'X/published'));await expect(f.exec('engineer','package.publish',{...f.args,files:[...f.args.files,{kind:'artifact',ref:'missing-last',path:'last',purpose:'input'}]})).rejects.toThrow('denied');expect(await readdir(join(f.root,'X/published'))).toEqual(before);expect(f.packages()).toHaveLength(0);expect(f.s.resourceSnapshot().at(-1)?.result).not.toBe('completed');
+  });
++ // A page offset bug or text decoding would lose bytes across the 32 KiB boundary.
++ it('P1 reconstructs multi-page manifest, candidate and file with exact bytes and hashes',async()=>{
++  const f=await fixture();const bytes=Buffer.alloc(100003);for(let i=0;i<bytes.length;i++)bytes[i]=i%256;
++  const a=await f.publish('engineer','work/large.bin',bytes);
++  const p=await f.exec('engineer','package.publish',{candidate:{ref:a.ref,start:0,end:bytes.length},files:[{kind:'artifact',ref:a.ref,path:'large.bin',purpose:'input'}],extraction:'all bytes',premises:[]});
++  async function pages(component:string,path?:string){let cursor: string|undefined;const chunks:Buffer[]=[];let total=0;let last:any;
++   do{const r=await f.exec('engineer','package.read',{version:p.version,component,...(path?{path}:{}),...(cursor?{cursor}:{})});const chunk=Buffer.from(r.data,'base64');expect(r.offset).toBe(total);expect(chunk.length).toBeLessThanOrEqual(32768);expect(r.manifestSha256).toBe(p.manifestSha256);chunks.push(chunk);total+=chunk.length;expect(r.done).toBe(r.nextCursor===null);if(r.nextCursor!==null)expect(Number(r.nextCursor)).toBe(total);cursor=r.nextCursor??undefined;last=r;}while(cursor!==undefined);
++   expect(chunks.length).toBeGreaterThan(1);const all=Buffer.concat(chunks);expect(all.length).toBe(last.size);expect(createHash('sha256').update(all).digest('hex')).toBe(last.sha256);return all;}
++  expect(await pages('candidate')).toEqual(bytes);expect(await pages('file','large.bin')).toEqual(bytes);
++  const manifestBytes=await pages('manifest');expect(manifestBytes.length).toBe(p.manifestSize);expect(createHash('sha256').update(manifestBytes).digest('hex')).toBe(p.manifestSha256);const m=JSON.parse(manifestBytes.toString());expect(Buffer.from(m.candidate.data,'base64')).toEqual(bytes);
++ });
++ // Envelope base64 overhead must count, and neither rejected input may create a half package.
++ it('P2 rejects over-1-MiB serialized envelope and file 33 without new publication',async()=>{
++  const f=await fixture();const a=await f.publish('engineer','work/oversize.bin',Buffer.alloc(800000,255));const before=await readdir(join(f.root,'X/published'));
++  await expect(f.exec('engineer','package.publish',{candidate:{ref:a.ref,start:0,end:800000},files:[],extraction:'all',premises:[]})).rejects.toThrow('denied');
++  await expect(f.exec('engineer','package.publish',{...f.args,files:Array.from({length:33},(_,i)=>({kind:'artifact',ref:f.script.ref,path:`file-${i}`,purpose:'script'}))})).rejects.toThrow('denied');
++  expect(await readdir(join(f.root,'X/published'))).toEqual(before);expect(f.packages()).toHaveLength(0);
++ });
++ it('P2 refuses NFC aliases and parent-child paths in either order',async()=>{
++  const f=await fixture();for(const paths of [['café','cafe\u0301'],['a','a/b'],['a/b','a']]){
++   await expect(f.exec('engineer','package.publish',{...f.args,files:paths.map(path=>({kind:'artifact',ref:f.script.ref,path,purpose:'script'}))})).rejects.toThrow('denied');
++  }expect(f.packages()).toHaveLength(0);
++ });
++ // The C admission boundary must match the role whitelist even for direct managed calls.
++ it('P2 limits package publish and read to Engineer at hook and execution admission',async()=>{
++  const f=await fixture();const p=await f.exec('engineer','package.publish',f.args);
++  await f.bind('recon','recon');await f.bind('verifier','verifier');
++  for(const role of ['domain-solver','recon','verifier'])for(const [tool,args] of [['publish',f.args],['read',{version:p.version,component:'manifest'}]] as const){
++   await expect(f.exec(role,`package.${tool}`,args)).rejects.toThrow('denied');
++   await expect(f.s.handle(role,'tool.before',{tool:`ctf_package_${tool}`,args,callID:`role-${role}-${tool}`})).rejects.toThrow('denied');
++  }expect(f.packages()).toHaveLength(1);
++ });
++
+ });
+--- prototype/tests/manual/d-candidate-package.ts
++++ integrated/tests/manual/d-candidate-package.ts
+@@ -7,15 +7,19 @@
+ import {join,resolve} from 'node:path';
+ import {execFileSync} from 'node:child_process';
+ import {tmpdir} from 'node:os';
+-import {ControlService} from '../../apps/launcher/src/control-service.js';
++import {createCtfAgentHooks} from '../../apps/opencode-plugin/src/index.js';
++import {ControlService,MANAGED_TOOLS} from '../../apps/launcher/src/control-service.js';
+ import {launch} from '../../apps/launcher/src/launch.js';
+ const label=process.argv[2];assert(label&&/^[\w-]+$/.test(label),'fresh label required');
+ const base=resolve('docs/gates/d-artifact-handoff-20261024/candidate-package',label);await fs.mkdir(base);
+ const scenarios=process.argv[3]?[process.argv[3]]:['control','R1','R2','R3'];
+ const hash=(b:Buffer)=>createHash('sha256').update(b).digest('hex');
+-const sourceFiles=['AGENTS.md','package.json','package-lock.json','apps/launcher/src/artifact-tools.ts','apps/launcher/src/candidate-package-tools.ts','apps/launcher/src/control-service.ts','apps/launcher/src/control-rpc.ts','apps/launcher/src/run-prep.ts','apps/launcher/src/launch.ts','apps/launcher/src/workspace-tools.ts','apps/launcher/src/job-tools.ts','apps/opencode-plugin/src/index.ts','product/opencode/opencode.json','tests/manual/d-candidate-package.ts','tests/contract/d-candidate-package.test.ts',...['coordinator','intake','domain-solver','engineer','recon'].map(r=>`product/opencode/agents/${r}.md`)];
++const sourceFiles=['AGENTS.md','package.json','package-lock.json','apps/launcher/src/artifact-tools.ts','apps/launcher/src/candidate-package-tools.ts','apps/launcher/src/control-service.ts','apps/launcher/src/control-rpc.ts','apps/launcher/src/run-prep.ts','apps/launcher/src/launch.ts','apps/launcher/src/workspace-tools.ts','apps/launcher/src/job-tools.ts','apps/launcher/src/http-tools.ts','apps/opencode-plugin/src/index.ts','product/opencode/opencode.json','tests/manual/d-candidate-package.ts','tests/contract/d-candidate-package.test.ts','tests/contract/opencode-config.test.ts',...['coordinator','intake','domain-solver','engineer','recon','verifier'].map(r=>`product/opencode/agents/${r}.md`)];
+ await fs.mkdir(join(base,'source'));for(const path of sourceFiles){const destination=join(base,'source',path);await fs.mkdir(resolve(destination,'..'),{recursive:true});await fs.copyFile(path,destination);}
+ await fs.writeFile(join(base,'source-hashes.json'),JSON.stringify(await Promise.all(sourceFiles.map(async path=>({path,sha256:hash(await fs.readFile(path))}))),null,2));
++const roleBodies=Object.fromEntries(await Promise.all(['coordinator','intake','domain-solver','engineer','recon'].map(async role=>[role,(await fs.readFile(`product/opencode/agents/${role}.md`,'utf8')).replace(/^---\r?\n[\s\S]*?\r?\n---(?:\r?\n|$)/,'').trim()])));
++const productConfig=JSON.parse(await fs.readFile('product/opencode/opencode.json','utf8'));
++const expectedTools=createCtfAgentHooks({controlUrl:'http://127.0.0.1:9/control',controlToken:'nonsecret-context-check-token-00000',tools:MANAGED_TOOLS}).tool!;
+ const expected=Buffer.from([0xe6,0x97,0x97,0x7b,0xc3,0xa9,0x7d,0,255]);
+ const raw=Buffer.concat([Buffer.from('log\r\n'),expected,Buffer.from('\r\nTAIL')]);
+ const eMaterial='E_NONSECRET\r\n';
+@@ -23,7 +27,7 @@
+ const extractionScript="const f=require('node:fs'); const p=require('node:path'); if(f.readFileSync(p.join(process.env.CTF_MATERIALS,'input.txt'),'utf8')!=='E_NONSECRET\\r\\n')throw new Error('wrong E material'); const b=f.readFileSync('raw.bin').subarray(5,14); f.writeFileSync('candidate.bin',b); process.stdout.write(b);";
+ for(const scenario of scenarios){
+  assert(['control','R1','R2','R3'].includes(scenario));const out=join(base,scenario);await fs.mkdir(out);
+- const root=await fs.mkdtemp(join(tmpdir(),'d-package-runtime-'));const provider:any[]=[],events:any[]=[],wire:any[]=[],observations:any[]=[];
++ const root=await fs.mkdtemp(join(tmpdir(),'d-package-runtime-'));const provider:any[]=[],events:any[]=[],wire:any[]=[],observations:any[]=[],loadedContext:any[]=[];
+  let releaseReady!:()=>void,releaseIO!:()=>void;const ready=new Promise<void>(r=>releaseReady=r),io=new Promise<void>(r=>releaseIO=r);
+  let barrier=false,stopped=false,packagePending=false,seq=0,phase=0,result:any,failure:string|undefined;const steps=new Map<string,number>();
+  const mark=(event:string,detail:unknown={})=>{const row={index:observations.length,at:Date.now(),event,detail};observations.push(row);return row;};
+@@ -45,7 +49,16 @@
+  const stub=originalCreate((q,r)=>{let request:any;void(async()=>{
+   const chunks:Buffer[]=[];for await(const c of q)chunks.push(Buffer.from(c));assert(q.url?.endsWith('/chat/completions'));
+   const body=JSON.parse(Buffer.concat(chunks).toString());request=body;const first=String(body.messages.find((m:any)=>m.role==='user')?.content??'');
+-  const who=/PK_ROLE_(intake|domain-solver|engineer|recon)/.exec(first)?.[1]??'coordinator';const step=steps.get(who)??0;steps.set(who,step+1);
++  const who=/PK_ROLE_(intake|domain-solver|engineer|recon)/.exec(first)?.[1]??'coordinator';
++  if(!loadedContext.some(c=>c.role===who)){
++   const system=body.messages.filter((m:any)=>m.role==='system').map((m:any)=>typeof m.content==='string'?m.content:JSON.stringify(m.content)).join('\n');
++   const tools=body.tools.filter((t:any)=>t.function.name.startsWith('ctf_')).map((t:any)=>({name:t.function.name,description:t.function.description}));
++   loadedContext.push({role:who,system,expectedRoleBody:roleBodies[who],roleBodySha256:hash(Buffer.from(roleBodies[who]!)),tools});
++   assert(system.includes(roleBodies[who]!),`actual runtime must load final ${who} body`);
++   assert.deepEqual(tools.map((t:any)=>t.name).sort(),Object.entries(productConfig.agent[who].permission).filter(([name,permission])=>name.startsWith('ctf_')&&permission==='allow').map(([name])=>name).sort());
++   for(const t of tools)assert.equal(t.description,expectedTools[t.name]!.description,`final description ${t.name}`);
++  }
++  const step=steps.get(who)??0;steps.set(who,step+1);
+   const results=body.messages.filter((m:any)=>m.role==='tool').map((m:any)=>String(m.content));const decoded=results.flatMap((s:string)=>{try{return [JSON.parse(s)];}catch{return [];}});const all=body.messages.map((m:any)=>typeof m.content==='string'?m.content:JSON.stringify(m.content)).join('\n');
+   const calls:any[]=[];const call=(name:string,args:object={})=>calls.push({name,args});let content='WAIT_FOR_NATIVE_TASK';
+   const task=(role:string,extra='')=>call('task',{subagent_type:role,description:`package ${role}`,prompt:`PK_ROLE_${role} ${extra}`,...(role==='intake'?{}:{background:true})});
+@@ -106,6 +119,7 @@
+  try{
+   result=await launch({profile:join(root,'profile.json'),runsRoot:join(root,'runs'),runId:scenario,onStarted:async({client})=>{const s=await client.event.subscribe({},{signal:abort.signal,throwOnError:true});void(async()=>{try{for await(const e of s.stream)events.push({at:Date.now(),...e});}catch{}})();}});
+   assert.equal(failure,undefined);assert.equal(result.status,'completed');assert.equal(phase,9);
++  for(const role of ['coordinator','domain-solver','engineer'])assert(loadedContext.some(c=>c.role===role),`loaded ${role} context`);
+   const ev=join(result.runDir,'evidence');const load=async(n:string)=>JSON.parse(await fs.readFile(join(ev,n),'utf8'));const pubs=await load('publications.json'),resources=await load('tool-resources.json'),executions=await load('task-executions.json'),audit=await load('control-audit.json');
+   const packages=pubs.filter((p:any)=>p.source.kind==='package');assert.equal(packages.length,scenario==='R2'?0:1);const sourceExecution=executions.find((e:any)=>e.role==='domain-solver'),engineerExecution=executions.find((e:any)=>e.role==='engineer');assert.notEqual(sourceExecution.childID,engineerExecution.childID);
+   const calls=provider.flatMap(p=>p.calls);assert.equal(calls.filter(c=>c.name==='ctf_job_run').length,2);assert.equal(calls.filter(c=>c.name==='ctf_artifact_publish').length,5);assert.equal(calls.filter(c=>c.name==='ctf_package_publish').length,1);assert(resources.every((r:any)=>r.state==='settled'));
+@@ -119,10 +133,10 @@
+   if(['R2','R3'].includes(scenario)){assert(barrier&&stopped);assert(audit.some((a:any)=>a.op==='task.cancel'));assert.equal(engineerExecution.state,'cancelled');assert.equal(engineerExecution.delivery,'stop_reply');assert.equal(calls.filter(c=>c.name==='ctf_task_stop').length,1);assert(!provider.some(p=>p.who==='engineer'&&p.step>10));const nativeStop=observations.find(o=>o.event==='parent.native.stop.handle');assert.equal(nativeStop.detail.taskID,engineerExecution.childID);}
+   if(scenario==='R2'){order('rename.barrier','C.revoke','barrier.release.after.revoke','rename.resume','C.stop.result');assert(!observations.some(o=>o.event==='C.commit'));assert.equal((await fs.readdir(join(result.runDir,'workspace/X/published'))).length,5);assert.equal(packageResource.result,'cancelled');}
+   if(scenario==='R3'){order('C.commit','response.barrier','C.revoke','rpc.response.close','C.stop.result','response.release.after.stop','response.late.attempt');assert.equal(part.state.status,'error');assert.equal(part.state.error,'Tool execution aborted');assert.equal(packageResource.result,'completed');}
+-  await fs.writeFile(join(out,'summary.json'),JSON.stringify({scenario,verdict:'passed',result,packageCount:packages.length,sourceJobs:2,artifactCalls:5,packageCalls:1,sourceExecution,engineerExecution,packageResource,packageToolState:part.state,realModelCalls:0,realUsage:'unavailable',scriptedUsage:'zero only',solved:false,scope:'disposable D interface-two prototype only'},null,2));
++  await fs.writeFile(join(out,'summary.json'),JSON.stringify({scenario,verdict:'passed',result,packageCount:packages.length,sourceJobs:2,artifactCalls:5,packageCalls:1,sourceExecution,engineerExecution,packageResource,packageToolState:part.state,realModelCalls:0,realUsage:'unavailable',scriptedUsage:'zero only',solved:false,scope:'D interface two integrated in isolated 9b7d worktree; no model/verification/solved claim'},null,2));
+  }catch(e){failure=failure??String(e);process.exitCode=1;console.error(e);}finally{
+   releaseReady();releaseIO();abort.abort();(http as any).createServer=originalCreate;fs.rename=originalRename;(ControlService.prototype as any).record=originalRecord;syncBuiltinESMExports();
+   if(result?.runDir)for(const dir of ['evidence','workspace','state'])await fs.cp(join(result.runDir,dir),join(out,dir),{recursive:true});
+-  for(const [n,v]of Object.entries({provider,failedRequests,events,wire,observations,result:{result,failure,scenario,root,realModelCalls:0}}))await fs.writeFile(join(out,n+'.json'),JSON.stringify(v,null,2));await fs.writeFile(join(out,'expected-raw.bin'),raw);await fs.writeFile(join(out,'expected-candidate.bin'),expected);await new Promise<void>(r=>{stub.close(()=>r());stub.closeAllConnections();});
++  for(const [n,v]of Object.entries({provider,failedRequests,events,wire,observations,loadedContext,result:{result,failure,scenario,root,realModelCalls:0}}))await fs.writeFile(join(out,n+'.json'),JSON.stringify(v,null,2));await fs.writeFile(join(out,'expected-raw.bin'),raw);await fs.writeFile(join(out,'expected-candidate.bin'),expected);await new Promise<void>(r=>{stub.close(()=>r());stub.closeAllConnections();});
+  }console.log(JSON.stringify({scenario,result,failure,out}));
+ }
+--- prototype/product/opencode/agents/coordinator.md
++++ integrated/product/opencode/agents/coordinator.md
+@@ -20,9 +20,9 @@
+ - 先以 `ctf_challenge_assign(challenge, role)` 宣告 recon／domain-solver／engineer／verifier 的題目，成功後用原生 `task(background=true)` 分派。不要從自由文字指定可信題目；未消費宣告跨輪保留，放棄時用 `ctf_challenge_unassign(role)`。
+ - 原生 task 的早期引用表示任務已啟動，不是完成。後續原生完成通知交回同一任務；依工具終態、證據與未解問題決定繼續或換路，不靠輪詢等待。
+ - 恢復使用原生已交付的 task_id，保持同題；每次執行的可信引用由宿主固定。停止直接分派的任務用 `ctf_task_stop(task_id)`，讀取回覆中實際終態及 unknown，不把初始工具回覆改寫為成功。
+-- 按問題需要使用 Reference／Strategy；普通腳本失敗交原 Solver 修正，持續停滯才觸發 Recovery Critic。Engineer 整理與 Verifier 獨立驗證責任保留；產物交接用下節，候選／獨立驗證／oracle 接口仍未接入，不稱完整流程已完成。
++- 按問題需要使用 Reference／Strategy；普通腳本失敗交原 Solver 修正，持續停滯才觸發 Recovery Critic。Engineer 整理與 Verifier 獨立驗證責任保留；產物交接用下節，Engineer 候選整包固定已接入，獨立驗證／oracle 接口仍未接入，不稱完整流程已完成。
+ 
+ ## 產物交給 Engineer
+ 來源角色完成後，將工具實際返回的 ref 和下一步必要說明放入同題 Engineer 的原生 `task(background=true)`，沿用先 assign 再分派；不要傳 sibling work 路徑或自填可信身份／hash。Coordinator 沒有直接發布權限。
+ 來源未返回確認引用、回報拒絕／損壞／傳輸錯誤時，標記未確認並暫停受影響交接；傳輸錯誤可能已提交，不猜來源未執行，不因缺 ref 重跑 job／HTTP 或盲目重發發布。這是使用規則，尚無對活躍模型新調用的 unknown 強制鎖定或恢復系統。
+-發布成功、Engineer 實際讀取及候選／verified／solved 分開認定。等待 Engineer 讀取所需頁和完整性標記後才記已取得材料；改寫要新 ref。此處只接入固定產物，後四接口仍待驗。
++發布成功、Engineer 實際讀取及候選／verified／solved 分開認定。等待 Engineer 讀取所需頁和完整性標記後才記已取得材料；改寫要新 ref。Engineer 整理完成後接收其工具實際返回的整包 version 與必要說明；version 表示固定內容，不是獨立驗證。Verifier 尚無 package 工具權限，版本任務綁定、驗證結果與可信提交仍未接入，不把明確 version 視為已送驗或 verified。
+--- prototype/product/opencode/agents/domain-solver.md
++++ integrated/product/opencode/agents/domain-solver.md
+@@ -21,4 +21,4 @@
+ 在原生背景任務內完成相關 job 與文件寫入後，用 `ctf_artifact_publish` 固定材料：文件用 `{source:"file",path:"work/..."}`；已收束 job 用 `{source:"job",job,stream:"stdout"}`（或 stderr）；HTTP 用 `{source:"http",resource}`（HTTP 真實回覆的 resource）。可選 start/end 是半開 byte 區間，省略則取已捕獲的全部 bytes。文件／流上限 1 MiB。
+ 交回工具實際返回的 ref 與必要說明，經原生 task 完成通知交接；不以私有 work 路徑、自填身份或 hash 代替。snapshotFixed 表示快照固定，rangeComplete 表示選定已捕獲區間完整，originalComplete 才描述原來源完整性（null 為未知）；截斷不因發布而消失，未知文件 producer 不猜。
+ 傳輸錯誤可能發生在宿主已提交之後。保持受影響交接未確認並暫停，不猜來源未執行，不因缺 ref 重跑 job／HTTP 或盲目重發發布。這是角色使用規則，宿主尚無 unknown 強制鎖定或恢復入口。
+-發布成功不等於 Engineer 已讀、候選已登記、verified 或 solved；候選／解法包、Verifier 綁定及可信結果、oracle 接線仍未接入。
++發布成功不等於 Engineer 已讀、候選已登記、verified 或 solved；將實際 ref、候選 byte 區間和必要依賴／提取說明交給 Engineer 整理固定整包；本角色沒有 package 工具權限。Verifier 版本任務綁定及可信結果、oracle 接線仍未接入。
+--- prototype/product/opencode/agents/recon.md
++++ integrated/product/opencode/agents/recon.md
+@@ -21,4 +21,4 @@
+ 在原生背景任務內完成相關 job 與文件寫入後，用 `ctf_artifact_publish` 固定材料：文件用 `{source:"file",path:"work/..."}`；已收束 job 用 `{source:"job",job,stream:"stdout"}`（或 stderr）；HTTP 用 `{source:"http",resource}`（HTTP 真實回覆的 resource）。可選 start/end 是半開 byte 區間，省略則取已捕獲的全部 bytes。文件／流上限 1 MiB。
+ 交回工具實際返回的 ref 與必要說明，經原生 task 完成通知交接；不以私有 work 路徑、自填身份或 hash 代替。snapshotFixed 表示快照固定，rangeComplete 表示選定已捕獲區間完整，originalComplete 才描述原來源完整性（null 為未知）；截斷不因發布而消失，未知文件 producer 不猜。
+ 傳輸錯誤可能發生在宿主已提交之後。保持受影響交接未確認並暫停，不猜來源未執行，不因缺 ref 重跑 job／HTTP 或盲目重發發布。這是角色使用規則，宿主尚無 unknown 強制鎖定或恢復入口。
+-發布成功不等於 Engineer 已讀、候選已登記、verified 或 solved；候選／解法包、Verifier 綁定及可信結果、oracle 接線仍未接入。
++發布成功不等於 Engineer 已讀、候選已登記、verified 或 solved；將實際 ref、候選 byte 區間和必要依賴／提取說明交給 Engineer 整理固定整包；本角色沒有 package 工具權限。Verifier 版本任務綁定及可信結果、oracle 接線仍未接入。
+--- prototype/product/opencode/agents/verifier.md
++++ integrated/product/opencode/agents/verifier.md
+@@ -15,4 +15,4 @@
+ - 不繼承 Solver 的私有推理，不改原候選或其證據，不做平台提示、實例管理或提交。
+ 
+ ## 已接入能力與 D 邊界
+-在獨立會話讀 materials／published，可用 `ctf_artifact_read({ref,cursor?})` 只讀同題固定引用（base64 分頁，nextCursor 為 null 才到末頁；分開檢查 snapshotFixed／rangeComplete／originalComplete），無發布權限；在自己 work 用 job 本地重算；不能讀 sibling work，沒有普通 HTTP。材料重算只證明該計算，不自動驗證 Solver 候選；缺少 D 固定候選、依賴版本或安全重放能力時保持 inconclusive。角色報告不能直接登記 verified 或更改 solved。
++在獨立會話讀 materials／published，可用 `ctf_artifact_read({ref,cursor?})` 只讀同題固定引用（base64 分頁，nextCursor 為 null 才到末頁；分開檢查 snapshotFixed／rangeComplete／originalComplete），無發布權限；在自己 work 用 job 本地重算；不能讀 sibling work，沒有普通 HTTP。材料重算只證明該計算，不自動驗證 Solver 候選；Engineer 已可固定候選及解法包，但本角色尚無 package 工具權限，正式版本任務綁定與驗證結果登記未接入；缺少明確候選、依賴版本或安全重放能力時保持 inconclusive。角色報告不能直接登記 verified 或更改 solved。

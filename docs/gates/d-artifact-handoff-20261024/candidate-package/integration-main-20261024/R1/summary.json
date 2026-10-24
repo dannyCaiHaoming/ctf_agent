@@ -1,0 +1,115 @@
+{
+  "scenario": "R1",
+  "verdict": "passed",
+  "result": {
+    "code": 0,
+    "status": "completed",
+    "runDir": "/private/var/folders/tn/x1hbkfy17sx0w1lb8kjzzr340000gn/T/d-package-runtime-O6VZch/runs/R1"
+  },
+  "packageCount": 1,
+  "sourceJobs": 2,
+  "artifactCalls": 5,
+  "packageCalls": 1,
+  "sourceExecution": {
+    "ref": "5b30a7e5-9423-49ee-9f77-510f41abcb4d",
+    "run": "R1",
+    "parent": "ses_e942806f2ffeCSYUNzXhEk2Roz",
+    "callID": "call_6_0",
+    "role": "domain-solver",
+    "challengeId": "X",
+    "childID": "ses_e94280410ffe76G6uGb3SiaM35",
+    "state": "completed",
+    "delivered": true,
+    "initialOutput": "<task id=\"ses_e94280410ffe76G6uGb3SiaM35\" state=\"running\">\n<summary>Background task started</summary>\n<task_result>\nThe task is working in the background. You will be notified automatically when it finishes.\nDO NOT sleep, poll for progress, ask the task for status, or duplicate this task's work — avoid working with the same files or topics it is using.\nWork on non-overlapping tasks, or briefly tell the user what you launched and end your response.\n</task_result>\n</task>",
+    "result": "<task id=\"ses_e94280410ffe76G6uGb3SiaM35\" state=\"completed\">\n<summary>Background task completed: [ctf:5b30a7e5-9423-49ee-9f77-510f41abcb4d]</summary>\n<task_result>\nSOLVER_HANDOFF:[{\"ref\":\"46b05cb1-4e5c-4163-ae95-a3ee745564e9\",\"path\":\"published/46b05cb1-4e5c-4163-ae95-a3ee745564e9.bin\",\"sha256\":\"27ddedb8bc0775ffffacf7f65607afa8b1a4fa31181bf37e8b4f03e05c74dcb9\",\"size\":20},{\"ref\":\"da856264-471d-43ed-aa57-1b3ee8fb26fb\",\"path\":\"published/da856264-471d-43ed-aa57-1b3ee8fb26fb.bin\",\"sha256\":\"77778162f10a8d4194a28af0b1afcb6540894a0f527d65a910d2194c3fd1e147\",\"size\":74}]\n</task_result>\n</task>",
+    "noticeMessageID": "msg_16bd7fc8f001gYuPE1lSePZxXh",
+    "delivery": "consumed"
+  },
+  "engineerExecution": {
+    "ref": "7ce112a5-da26-40df-8e12-5182501b175f",
+    "run": "R1",
+    "parent": "ses_e942806f2ffeCSYUNzXhEk2Roz",
+    "callID": "call_14_0",
+    "role": "engineer",
+    "challengeId": "X",
+    "childID": "ses_e9428034bffeIqiEakzcpTLZdv",
+    "state": "completed",
+    "delivered": true,
+    "initialOutput": "<task id=\"ses_e9428034bffeIqiEakzcpTLZdv\" state=\"running\">\n<summary>Background task started</summary>\n<task_result>\nThe task is working in the background. You will be notified automatically when it finishes.\nDO NOT sleep, poll for progress, ask the task for status, or duplicate this task's work — avoid working with the same files or topics it is using.\nWork on non-overlapping tasks, or briefly tell the user what you launched and end your response.\n</task_result>\n</task>",
+    "result": "<task id=\"ses_e9428034bffeIqiEakzcpTLZdv\" state=\"completed\">\n<summary>Background task completed: [ctf:7ce112a5-da26-40df-8e12-5182501b175f]</summary>\n<task_result>\nENGINEER_RESULT:UNKNOWN pause affected handoff; no blind resend\n</task_result>\n</task>",
+    "noticeMessageID": "msg_16bd7fdd90014o5jBKgqJvWnQd",
+    "delivery": "consumed"
+  },
+  "packageResource": {
+    "run": "R1",
+    "sessionID": "ses_e9428034bffeIqiEakzcpTLZdv",
+    "challengeId": "X",
+    "callID": "call_26_0",
+    "tool": "package.publish",
+    "execution": "7ce112a5-da26-40df-8e12-5182501b175f",
+    "state": "settled",
+    "deadline": 1792810694748,
+    "result": "completed"
+  },
+  "packageToolState": {
+    "status": "error",
+    "input": {
+      "candidate": {
+        "ref": "aba637ce-75c6-4550-bd61-40b63a153785",
+        "start": 0,
+        "end": 9
+      },
+      "files": [
+        {
+          "kind": "artifact",
+          "ref": "ad49936e-cd5e-407a-a034-e1559db71b21",
+          "path": "extract.cjs",
+          "purpose": "script"
+        },
+        {
+          "kind": "artifact",
+          "ref": "18e74520-8325-4bb1-acbd-abc21a963a8a",
+          "path": "source.cjs",
+          "purpose": "script"
+        },
+        {
+          "kind": "artifact",
+          "ref": "46b05cb1-4e5c-4163-ae95-a3ee745564e9",
+          "path": "raw.bin",
+          "purpose": "input"
+        },
+        {
+          "kind": "material",
+          "name": "input.txt",
+          "path": "data/input.txt",
+          "purpose": "input"
+        },
+        {
+          "kind": "artifact",
+          "ref": "da856264-471d-43ed-aa57-1b3ee8fb26fb",
+          "path": "evidence/solver.cjs",
+          "purpose": "evidence"
+        }
+      ],
+      "argv": [
+        "/opt/homebrew/Cellar/node/26.3.0/bin/node",
+        "extract.cjs"
+      ],
+      "extraction": "Engineer local extract.cjs reads raw.bin [5,14) after checking fixed E input; stdout is candidate bytes without normalization",
+      "premises": [
+        "CTF_MATERIALS must expose fixed input.txt; raw.bin relative to proposed working directory",
+        "External state unknown; binary candidate fixture; no verifier/oracle"
+      ]
+    },
+    "error": "denied: control unavailable",
+    "time": {
+      "start": 1792810679747,
+      "end": 1792810679750
+    }
+  },
+  "realModelCalls": 0,
+  "realUsage": "unavailable",
+  "scriptedUsage": "zero only",
+  "solved": false,
+  "scope": "D interface two integrated in isolated 9b7d worktree; no model/verification/solved claim"
+}

@@ -1,0 +1,136 @@
+{
+  "independentMainReview": true,
+  "mainBaselineAllFilesUnchanged": 3311,
+  "sourceHashesMatched": true,
+  "targetedTests": "35/35",
+  "parentRuntimeExit": "0",
+  "scenarios": [
+    {
+      "run": "runtime-final",
+      "case": "control",
+      "packageCount": 1,
+      "candidateBytesVerified": true,
+      "eventOrder": [
+        "C.commit",
+        "rpc.reply.ready",
+        "rpc.response.close"
+      ],
+      "toolState": "completed",
+      "resourceResult": "completed"
+    },
+    {
+      "run": "runtime-final",
+      "case": "R1",
+      "packageCount": 1,
+      "candidateBytesVerified": true,
+      "eventOrder": [
+        "C.commit",
+        "rpc.reply.ready",
+        "socket.destroy.after.commit",
+        "rpc.response.close"
+      ],
+      "toolState": "error",
+      "resourceResult": "completed"
+    },
+    {
+      "run": "runtime-final",
+      "case": "R2",
+      "packageCount": 0,
+      "candidateBytesVerified": false,
+      "eventOrder": [
+        "rename.barrier",
+        "sibling.native.completion.ready",
+        "parent.native.stop.handle",
+        "C.revoke",
+        "rename.resume",
+        "C.stop.result"
+      ],
+      "toolState": "error",
+      "resourceResult": "cancelled"
+    },
+    {
+      "run": "runtime-final",
+      "case": "R3",
+      "packageCount": 1,
+      "candidateBytesVerified": true,
+      "eventOrder": [
+        "C.commit",
+        "response.barrier",
+        "sibling.native.completion.ready",
+        "parent.native.stop.handle",
+        "C.revoke",
+        "rpc.response.close",
+        "C.stop.result",
+        "response.late.attempt"
+      ],
+      "toolState": "error",
+      "resourceResult": "completed"
+    },
+    {
+      "run": "parent-review-20261024",
+      "case": "control",
+      "packageCount": 1,
+      "candidateBytesVerified": true,
+      "eventOrder": [
+        "C.commit",
+        "rpc.reply.ready",
+        "rpc.response.close"
+      ],
+      "toolState": "completed",
+      "resourceResult": "completed"
+    },
+    {
+      "run": "parent-review-20261024",
+      "case": "R1",
+      "packageCount": 1,
+      "candidateBytesVerified": true,
+      "eventOrder": [
+        "C.commit",
+        "rpc.reply.ready",
+        "socket.destroy.after.commit",
+        "rpc.response.close"
+      ],
+      "toolState": "error",
+      "resourceResult": "completed"
+    },
+    {
+      "run": "parent-review-20261024",
+      "case": "R2",
+      "packageCount": 0,
+      "candidateBytesVerified": false,
+      "eventOrder": [
+        "rename.barrier",
+        "sibling.native.completion.ready",
+        "parent.native.stop.handle",
+        "C.revoke",
+        "rename.resume",
+        "C.stop.result"
+      ],
+      "toolState": "error",
+      "resourceResult": "cancelled"
+    },
+    {
+      "run": "parent-review-20261024",
+      "case": "R3",
+      "packageCount": 1,
+      "candidateBytesVerified": true,
+      "eventOrder": [
+        "C.commit",
+        "response.barrier",
+        "sibling.native.completion.ready",
+        "parent.native.stop.handle",
+        "C.revoke",
+        "rpc.response.close",
+        "C.stop.result",
+        "response.late.attempt"
+      ],
+      "toolState": "error",
+      "resourceResult": "completed"
+    }
+  ],
+  "limits": [
+    "scripted local provider only",
+    "no actual packaged replay or Verifier/oracle",
+    "prototype not merged"
+  ]
+}

@@ -1,0 +1,101 @@
+{
+  "roles": {
+    "coordinator": {
+      "fullBodyLoaded": true,
+      "requests": 8
+    },
+    "domain-solver": {
+      "fullBodyLoaded": true,
+      "requests": 9
+    },
+    "engineer": {
+      "fullBodyLoaded": true,
+      "requests": 7
+    }
+  },
+  "artifacts": [
+    {
+      "ref": "89b6f5d0-9d20-4659-86dc-e484ea561c25",
+      "bytes": 4,
+      "sha256": "3d1f57c984978ef98a18378c8166c1cb8ede02c03eeb6aee7e2f121dfeee3e56",
+      "engineerBytesMatch": true
+    },
+    {
+      "ref": "c8f1b4f6-f16c-4c52-8be0-885a83a90710",
+      "bytes": 41,
+      "sha256": "7989444cff5349311a4c4416500a5c3c31a9299cc032aeacc08f7e13bf7ceb30",
+      "engineerBytesMatch": true
+    },
+    {
+      "ref": "d83fa3b2-fac9-4796-b710-d700fe3cd0f5",
+      "bytes": 16,
+      "sha256": "fcc519a0f951d62dceec9b25dba5dc3846af659d05237ef76ad3dfd2077e963b",
+      "engineerBytesMatch": true
+    },
+    {
+      "ref": "30421b37-67cd-4791-a2c9-568d6dd8045f",
+      "bytes": 14,
+      "sha256": "5a494c188bea1bc868396f495691f0a7daee56e6baae9524ab014b3ba5ce8e77",
+      "engineerBytesMatch": true
+    }
+  ],
+  "H7": {
+    "control": {
+      "publications": 1,
+      "sourceJobs": 1,
+      "publishCalls": 1,
+      "resourcesSettled": true,
+      "order": [
+        "C.commit",
+        "rpc.reply.ready",
+        "rpc.response.close"
+      ]
+    },
+    "R1": {
+      "publications": 1,
+      "sourceJobs": 1,
+      "publishCalls": 1,
+      "resourcesSettled": true,
+      "order": [
+        "C.commit",
+        "rpc.reply.ready",
+        "socket.destroy.after.commit",
+        "rpc.response.close"
+      ]
+    },
+    "R2": {
+      "publications": 0,
+      "sourceJobs": 1,
+      "publishCalls": 1,
+      "resourcesSettled": true,
+      "order": [
+        "rename.barrier",
+        "sibling.native.completion.ready",
+        "C.revoke",
+        "barrier.release.after.revoke",
+        "rename.resume",
+        "rpc.reply.ready",
+        "rpc.response.close",
+        "C.stop.result"
+      ]
+    },
+    "R3": {
+      "publications": 1,
+      "sourceJobs": 1,
+      "publishCalls": 1,
+      "resourcesSettled": true,
+      "order": [
+        "C.commit",
+        "rpc.reply.ready",
+        "response.barrier",
+        "sibling.native.completion.ready",
+        "C.revoke",
+        "rpc.response.close",
+        "C.stop.result",
+        "response.release.after.stop",
+        "response.late.attempt"
+      ]
+    }
+  },
+  "toolsDescriptionsLoaded": true
+}

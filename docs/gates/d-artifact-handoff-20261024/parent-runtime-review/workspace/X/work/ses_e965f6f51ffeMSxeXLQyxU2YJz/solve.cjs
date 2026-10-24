@@ -1,0 +1,1 @@
+process.stdout.write('real-job-output\n')

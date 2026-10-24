@@ -155,11 +155,15 @@ function decodeText(bytes: Buffer): string | undefined {
 }
 
 /** Literal, line-based matching: `needle` never becomes a regular expression. A needle containing a newline cannot match. */
-export async function searchWorkspace(root: WorkspaceRoots, args: Record<string, unknown>) {
+export async function searchWorkspace(root: WorkspaceRoots, args: Record<string, unknown>, published?: Array<{path:string;bytes:Buffer}>) {
   if (typeof args.needle !== 'string' || args.needle === '') refuse('needle');
   const needle = args.needle;
   const files: string[] = [];
   const virtualFiles = new Map<string, string>();
+  const fixedBytes = new Map<string, Buffer>();
+  function collectPublished(scope: string) {
+    for(const p of published ?? []) if(scope==='published' || p.path===scope) { files.push(p.path); virtualFiles.set(p.path,p.path); fixedBytes.set(p.path,p.bytes); }
+  }
   async function collectRoot(name: string, abs: string, realRoot: string) {
     const found: string[] = []; await collectFiles(abs, found);
     for (const file of found) { files.push(file); virtualFiles.set(file, [name, relative(realRoot, file).split(sep).join('/')].filter(Boolean).join('/')); }
@@ -167,23 +171,27 @@ export async function searchWorkspace(root: WorkspaceRoots, args: Record<string,
   let scope: string;
   if (args.path === undefined || args.path === null) {
     scope = '';
-    for (const name of [...WORKSPACE_ROOTS].sort()) { const realRoot = await realRootOf(root, name); await collectRoot(name, realRoot, realRoot); }
+    for (const name of [...WORKSPACE_ROOTS].sort()) { if(name==='published' && published) {collectPublished('published');continue;} const realRoot = await realRootOf(root, name); await collectRoot(name, realRoot, realRoot); }
   } else {
     const segments = splitWorkspacePath(args.path);
-    const realRoot = await realRootOf(root, segments[0]!);
-  const { abs, details } = await walk(realRoot, segments.slice(1), false);
-    if (!details) refuse('workspace path');
-    await assertInside(realRoot, abs);
     scope = segments.join('/');
-    await collectRoot(segments[0]!, abs, realRoot);
+    if(segments[0]==='published' && published) { collectPublished(scope); }
+    else {
+      const realRoot = await realRootOf(root, segments[0]!);
+      const { abs, details } = await walk(realRoot, segments.slice(1), false);
+      if (!details) refuse('workspace path');
+      await assertInside(realRoot, abs);
+      await collectRoot(segments[0]!, abs, realRoot);
+    }
   }
 
   const matches: { path: string; line: number; snippet: string }[] = [];
   let outputBytes = 0;
   let truncated = false;
   search: for (const file of files) {
-    if ((await lstat(file)).size > SEARCH_FILE_LIMIT) continue;
-    const text = decodeText(await readFile(file));
+    const bytes=fixedBytes.get(file);
+    if ((bytes?.length ?? (await lstat(file)).size) > SEARCH_FILE_LIMIT) continue;
+    const text = decodeText(bytes ?? await readFile(file));
     if (text === undefined) continue;
     const lines = text.split('\n');
     for (const [index, line] of lines.entries()) {

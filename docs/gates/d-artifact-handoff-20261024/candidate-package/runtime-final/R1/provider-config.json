@@ -1,0 +1,29 @@
+{
+  "model": "stub/scripted",
+  "enabled_providers": [
+    "stub"
+  ],
+  "provider": {
+    "stub": {
+      "npm": "@ai-sdk/openai-compatible",
+      "options": {
+        "baseURL": "http://127.0.0.1:52022/v1",
+        "apiKey": "{env:PK_STUB_KEY}"
+      },
+      "models": {
+        "scripted": {
+          "limit": {
+            "context": 65536,
+            "output": 2048
+          }
+        }
+      }
+    }
+  },
+  "proxy": {
+    "HTTP_PROXY": "http://127.0.0.1:9",
+    "HTTPS_PROXY": "http://127.0.0.1:9",
+    "ALL_PROXY": "http://127.0.0.1:9",
+    "NO_PROXY": "127.0.0.1,localhost"
+  }
+}

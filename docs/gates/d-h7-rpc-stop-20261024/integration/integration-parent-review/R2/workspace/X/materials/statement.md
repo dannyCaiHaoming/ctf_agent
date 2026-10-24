@@ -1,0 +1,1 @@
+H7 public nonsecret fixture; no oracle

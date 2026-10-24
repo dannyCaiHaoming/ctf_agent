@@ -1,0 +1,11 @@
+--- engineer.before.md
++++ product/opencode/agents/engineer.md
+@@ -18,7 +18,7 @@
+ 不能讀 Solver 私有 work。將內容整理到自己 work，使用 job 本地重算；改寫後發布新引用，不覆寫已發布版本。候選／解法包固定、Verifier 任務綁定與結果、oracle 尚未接入，不能稱 Verifier 已取得正式固定候選或完整驗證鏈已完成。
+ 
+ ## 固定產物交接
+-在原生背景任務內完成相關 job 與文件寫入後，用 `ctf_artifact_publish` 固定材料：文件用 `{source:"file",path:"work/..."}`；已收束 job 用 `{source:"job",job,stream:"stdout"}`（或 stderr）；HTTP 用 `{source:"http",resource}`（HTTP 真實回覆的 resource）。可選 start/end 是半開 byte 區間，省略則取已捕獲的全部 bytes。文件／流上限 1 MiB。
++在原生背景任務內完成自己的相關 job 與文件寫入後，用 `ctf_artifact_publish` 固定自己的材料；發布來源限本會話自己的文件或已收束 job：文件用 `{source:"file",path:"work/..."}`；job 用 `{source:"job",job,stream:"stdout"}`（或 stderr）。Solver 的 HTTP 產物須由 Solver 發布後交回 ref，Engineer 用 `ctf_artifact_read` 讀取；Engineer 沒有普通 HTTP 權限，不得用他人的 HTTP resource 嘗試發布。可選 start/end 是半開 byte 區間，省略則取已捕獲的全部 bytes。文件／流上限 1 MiB。
+ 交回工具實際返回的 ref 與必要說明，經原生 task 完成通知交接；不以私有 work 路徑、自填身份或 hash 代替。snapshotFixed 表示快照固定，rangeComplete 表示選定已捕獲區間完整，originalComplete 才描述原來源完整性（null 為未知）；截斷不因發布而消失，未知文件 producer 不猜。
+ 傳輸錯誤可能發生在宿主已提交之後。保持受影響交接未確認並暫停，不猜來源未執行，不因缺 ref 重跑 job／HTTP 或盲目重發發布。這是角色使用規則，宿主尚無 unknown 強制鎖定或恢復入口。
+ 發布成功不等於 Engineer 已讀、候選已登記、verified 或 solved；候選／解法包、Verifier 綁定及可信結果、oracle 接線仍未接入。

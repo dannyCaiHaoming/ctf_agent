@@ -36,7 +36,7 @@ export interface JobBinding {
 /** Thrown for any refusal; the control service turns `code` into a fixed denial message. */
 export class JobRefused extends Error { constructor(readonly code: string) { super(code); } }
 
-interface Stream { path: string; fd: number; bytes: number; truncated: boolean }
+interface Stream { path: string; fd: number; bytes: number; truncated: boolean; chunks: Buffer[] }
 interface Deferred { promise: Promise<void>; resolve: () => void }
 
 interface Job {
@@ -139,6 +139,15 @@ export class JobManager {
       nextCursor: done ? null : String(end),
       done
     };
+  }
+
+  /** Fixed host-memory output from the real stream, never an editable work file. D prototype. */
+  outputSnapshot(binding: JobBinding, handle: unknown, which: unknown) {
+    const job=this.own(binding,handle);
+    if(!job.settled || job.reapIncomplete) throw new JobRefused('job not settled');
+    const stream=which==='stdout'?job.stdout:which==='stderr'?job.stderr:undefined;
+    if(!stream) throw new JobRefused('stream');
+    return {bytes:Buffer.concat(stream.chunks),complete:!stream.truncated && job.state==='exited',state:job.state};
   }
 
   /** Ends the job's process group and returns the final state once the job has settled. */
@@ -286,7 +295,7 @@ function groupAlive(pid: number): boolean {
 }
 
 function openStream(path: string): Stream {
-  return { path, fd: openSync(path, 'w'), bytes: 0, truncated: false };
+  return { path, fd: openSync(path, 'w'), bytes: 0, truncated: false, chunks: [] };
 }
 
 function writeStream(stream: Stream, chunk: Buffer) {
@@ -296,6 +305,7 @@ function writeStream(stream: Stream, chunk: Buffer) {
   const part = chunk.subarray(0, Math.min(room, chunk.length));
   if (part.length > 0) {
     writeSync(stream.fd, part);
+    stream.chunks.push(Buffer.from(part));
     stream.bytes += part.length;
   }
 }

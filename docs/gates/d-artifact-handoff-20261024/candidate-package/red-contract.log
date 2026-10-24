@@ -1,0 +1,45 @@
+
+ RUN  v2.1.8 /Users/caihaoming/.codex/worktrees/ae52/pentest-agent
+
+ ❯ tests/contract/d-candidate-package.test.ts (8 tests | 5 failed) 79ms
+   × D interface two minimal package prototype > P1 publishes exact selected bytes and whole manifest binding 7ms
+     → denied: no managed tools
+   × D interface two minimal package prototype > P2 retains truncated and unknown provenance without upgrading it 53ms
+     → denied: no managed tools
+   × D interface two minimal package prototype > P3 old versions survive unrelated/work/material changes and concurrent new versions 2ms
+     → denied: no managed tools
+   × D interface two minimal package prototype > P3 rejects corruption of manifest, candidate and required script at explicit old version 2ms
+     → denied: no managed tools
+   × D interface two minimal package prototype > P4 a failed dependency publishes no whole or half package 3ms
+     → expected 'completed' not to be 'completed' // Object.is equality
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 5 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/contract/d-candidate-package.test.ts > D interface two minimal package prototype > P1 publishes exact selected bytes and whole manifest binding
+ FAIL  tests/contract/d-candidate-package.test.ts > D interface two minimal package prototype > P2 retains truncated and unknown provenance without upgrading it
+ FAIL  tests/contract/d-candidate-package.test.ts > D interface two minimal package prototype > P3 old versions survive unrelated/work/material changes and concurrent new versions
+ FAIL  tests/contract/d-candidate-package.test.ts > D interface two minimal package prototype > P3 rejects corruption of manifest, candidate and required script at explicit old version
+Error: denied: no managed tools
+ ❯ ControlService.executeManaged apps/launcher/src/control-service.ts:516:45
+    514|     }
+    515|     if (SOLVER_TOOLS.includes(name)) return this.prepareSolver(binding…
+    516|     if (!INTAKE_TOOLS.includes(name)) throw new ControlDenied('no mana…
+       |                                             ^
+    517|     const args = this.checkIntake(binding, name, body.args);
+    518|     const challenges = this.options.challenges ?? [];
+ ❯ apps/launcher/src/control-service.ts:207:32
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/5]⎯
+
+ FAIL  tests/contract/d-candidate-package.test.ts > D interface two minimal package prototype > P4 a failed dependency publishes no whole or half package
+AssertionError: expected 'completed' not to be 'completed' // Object.is equality
+ ❯ tests/contract/d-candidate-package.test.ts:61:413
+
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/5]⎯
+
+ Test Files  1 failed (1)
+      Tests  5 failed | 3 passed (8)
+   Start at  11:05:14
+   Duration  326ms (transform 51ms, setup 0ms, collect 60ms, tests 79ms, environment 0ms, prepare 37ms)
+

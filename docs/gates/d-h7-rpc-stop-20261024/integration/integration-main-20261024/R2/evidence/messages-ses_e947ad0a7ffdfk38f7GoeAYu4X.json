@@ -1,0 +1,180 @@
+[
+  {
+    "info": {
+      "id": "msg_16b852f5a001lwktR82ZMrl9Gk",
+      "sessionID": "ses_e947ad0a7ffdfk38f7GoeAYu4X",
+      "role": "user",
+      "time": {
+        "created": 1792805252954
+      },
+      "agent": "domain-solver",
+      "model": {
+        "providerID": "stub",
+        "modelID": "scripted"
+      }
+    },
+    "parts": [
+      {
+        "id": "prt_16b852f5a002JYjreHFTYfH1xC",
+        "sessionID": "ses_e947ad0a7ffdfk38f7GoeAYu4X",
+        "messageID": "msg_16b852f5a001lwktR82ZMrl9Gk",
+        "type": "text",
+        "text": "H7_ROLE_domain-solver "
+      }
+    ]
+  },
+  {
+    "info": {
+      "id": "msg_16b852f68001IquRnWkCTeEawm",
+      "sessionID": "ses_e947ad0a7ffdfk38f7GoeAYu4X",
+      "role": "assistant",
+      "time": {
+        "created": 1792805252968,
+        "completed": 1792805253038
+      },
+      "parentID": "msg_16b852f5a001lwktR82ZMrl9Gk",
+      "modelID": "scripted",
+      "providerID": "stub",
+      "mode": "domain-solver",
+      "agent": "domain-solver",
+      "path": {
+        "cwd": "/private/var/folders/tn/x1hbkfy17sx0w1lb8kjzzr340000gn/T/d-h7-9NGCel/runs/R2/opencode",
+        "root": "/"
+      },
+      "cost": 0,
+      "tokens": {
+        "total": 0,
+        "input": 0,
+        "output": 0,
+        "reasoning": 0,
+        "cache": {
+          "read": 0,
+          "write": 0
+        }
+      },
+      "finish": "tool-calls"
+    },
+    "parts": [
+      {
+        "id": "prt_16b852f76001tdCNWyv7XUdqkH",
+        "sessionID": "ses_e947ad0a7ffdfk38f7GoeAYu4X",
+        "messageID": "msg_16b852f68001IquRnWkCTeEawm",
+        "type": "step-start"
+      },
+      {
+        "id": "prt_16b852f77001tKsu7OWAFIMY4r",
+        "sessionID": "ses_e947ad0a7ffdfk38f7GoeAYu4X",
+        "messageID": "msg_16b852f68001IquRnWkCTeEawm",
+        "type": "tool",
+        "callID": "call_7_0",
+        "tool": "ctf_job_run",
+        "state": {
+          "status": "completed",
+          "input": {
+            "argv": [
+              "/opt/homebrew/Cellar/node/26.3.0/bin/node",
+              "-e",
+              "process.stdout.write('H7-real-job-bytes\\n')"
+            ],
+            "timeout_ms": 5000
+          },
+          "output": "{\"job\":\"ee4b3dca-8a8c-403c-b847-e71b91a098a7\",\"state\":\"exited\",\"exitCode\":0,\"signal\":null,\"reapIncomplete\":false}",
+          "title": "job.run",
+          "metadata": {
+            "truncated": false
+          },
+          "time": {
+            "start": 1792805252984,
+            "end": 1792805253036
+          }
+        }
+      },
+      {
+        "id": "prt_16b852fad001DsGtMbuP2kDlyV",
+        "sessionID": "ses_e947ad0a7ffdfk38f7GoeAYu4X",
+        "messageID": "msg_16b852f68001IquRnWkCTeEawm",
+        "type": "step-finish",
+        "reason": "tool-calls",
+        "cost": 0,
+        "tokens": {
+          "total": 0,
+          "input": 0,
+          "output": 0,
+          "reasoning": 0,
+          "cache": {
+            "read": 0,
+            "write": 0
+          }
+        }
+      }
+    ]
+  },
+  {
+    "info": {
+      "id": "msg_16b852faf0013aQdSRUQTrqexe",
+      "sessionID": "ses_e947ad0a7ffdfk38f7GoeAYu4X",
+      "role": "assistant",
+      "time": {
+        "created": 1792805253039,
+        "completed": 1792805253340
+      },
+      "error": {
+        "name": "MessageAbortedError",
+        "data": {
+          "message": "Aborted"
+        }
+      },
+      "parentID": "msg_16b852f5a001lwktR82ZMrl9Gk",
+      "modelID": "scripted",
+      "providerID": "stub",
+      "mode": "domain-solver",
+      "agent": "domain-solver",
+      "path": {
+        "cwd": "/private/var/folders/tn/x1hbkfy17sx0w1lb8kjzzr340000gn/T/d-h7-9NGCel/runs/R2/opencode",
+        "root": "/"
+      },
+      "cost": 0,
+      "tokens": {
+        "input": 0,
+        "output": 0,
+        "reasoning": 0,
+        "cache": {
+          "read": 0,
+          "write": 0
+        }
+      }
+    },
+    "parts": [
+      {
+        "id": "prt_16b852fb7001kzwBcP31Cv09Jy",
+        "sessionID": "ses_e947ad0a7ffdfk38f7GoeAYu4X",
+        "messageID": "msg_16b852faf0013aQdSRUQTrqexe",
+        "type": "step-start"
+      },
+      {
+        "id": "prt_16b852fb8001w38JfbXpMnuKz9",
+        "sessionID": "ses_e947ad0a7ffdfk38f7GoeAYu4X",
+        "messageID": "msg_16b852faf0013aQdSRUQTrqexe",
+        "type": "tool",
+        "callID": "call_10_0",
+        "tool": "ctf_artifact_publish",
+        "state": {
+          "status": "error",
+          "input": {
+            "source": "job",
+            "job": "ee4b3dca-8a8c-403c-b847-e71b91a098a7",
+            "stream": "stdout"
+          },
+          "error": "Tool execution aborted",
+          "metadata": {
+            "interrupted": true
+          },
+          "time": {
+            "start": 1792805253049,
+            "end": 1792805253339
+          }
+        }
+      }
+    ]
+  }
+]

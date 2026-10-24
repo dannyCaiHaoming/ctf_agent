@@ -17,16 +17,17 @@
 | [核心设计 v1](specs/2026-10-22-ctf-agent-design-v1.md) | 已定稿 | — | 第 3 节仍列 4 项待决：接口的原生／受管映射、工具套件与 ARM64、产品网络隔离、成功率门槛；G 异步绑定／交付的固定原生路径已验证并接入主区 |
 | [A／B 产品资产与 Skill](specs/2026-10-22-design-v1-ab-product-assets.md) | 已定稿；第 6 节列 7 项未定稿 | `product/` 两层布局、白名单复制到每次 run 的配置目录、副本 hash 与来源版本、Skill frontmatter 检查、同名目标拒绝；原生 `skill` 按需载入与附属 Reference 的 `read` 已在开发机实测可用（第 5 节） | 插件按角色放行 `skill`／`read`（待 C）；共用 `references/` 内容 |
 | [入口与本地调试](specs/2026-10-22-design-v1-entry-local-debug.md) | 已定稿（两项未知数已由探针验证） | 启动脚本 `apps/launcher/src/launch.ts`：运行资料目录分区（仓库外、realpath）、工作目录边界检查、`opencode serve` 加一次 SDK 启动讯息、时限 abort 与结果保存；旧 `solveM1` 单一 Solver 入口已退场（第 1 节） | 把 ripgrep 作为开发机前置条件记入开发文档（第 4 节；本机已安装）。控制服务与 token 预算停止已由 C 实作 |
-| [C 控制服务与会话绑定](specs/2026-10-23-design-v1-c-control-service.md) | 前台及 G 原生背景路径已定 | 根／子会话绑定、跨轮 pending、逐次准入、资源结算与预算停止、受管工具、异步结果交付及 task.stop 已接入；见 G §9.2 | D 工具、通用进度及共用知识目录 read 授权不由本次完成 |
+| [C 控制服务与会话绑定](specs/2026-10-23-design-v1-c-control-service.md) | 前台及 G 原生背景路径已定 | 根／子会话绑定、跨轮 pending、逐次准入、资源结算与预算停止、受管工具、异步结果交付及 task.stop 已接入；见 G §9.2 | D 前兩接口已接入；其餘 D 工具、通用进度及共用知识目录 read 授权仍待完成 |
+| [D 最小版：產物、候選與獨立驗證](specs/2026-10-24-design-v1-d-candidate-verification-minimal.md) | 接口一已接入；接口二已接入主區並完成無模型回歸；後三接口待驗 | 接口一發布／讀取、角色說明與主區回歸已完成；H1 路徑條件未通過，H5 有條件、H7 真實 RPC／停止最小邊界已主核對；詳見 D §3；第二接口一次固定整包已接入主區並通過回歸，見 §4 | 獨立 Verifier 綁定、有效驗證結果與可信判定接線；不展開通用平台或 G 延後工程 |
 | [E 最小版：题目来源与 Intake 接入](specs/2026-10-23-design-v1-e-intake-minimal.md) | 已定稿（最小版：只解决题目进得来；平台 API 与靶场部署不在范围，为 G、D 服务的部分列为延后项，第 6 节） | 全部（第 7 节）：release profile 的 `challenges` 栏位与题目清单（`apps/launcher/src/challenges.ts`，范例 `config/challenges.example.json`）、启动前凭据扫描、可达性检查与材料固定（`run-prep.ts`）、Intake 的 `challenge.list`／`challenge.read`（`intake-tools.ts`） | 第 6 节延后项（待 G、D）；真实模型冒烟已验证取题链（第 7 节，gate `e-intake-smoke-20261023`） |
-| [G 最小版：解題工具與綁定](specs/2026-10-23-design-v1-g-solver-minimal.md) | 當前已定接入部分完成；整體延後項仍未定 | 題目綁定、三根工具、HTTP/job、RPC、原生背景交付／恢復／停止、角色權限及可信收束已接入主區；驗收見 G §9.2 | D 產物／候選／可信驗證仍是完整做題流程的直接依賴；隔離部署等按 G §10 延後，不擴回前置研究清單 |
+| [G 最小版：解題工具與綁定](specs/2026-10-23-design-v1-g-solver-minimal.md) | 當前已定接入部分完成；整體延後項仍未定 | 題目綁定、三根工具、HTTP/job、RPC、原生背景交付／恢復／停止、角色權限及可信收束已接入主區；驗收見 G §9.2 | D 產物交接已接入；候選／可信驗證仍是完整做題流程的直接依賴；隔離部署等按 G §10 延後，不擴回前置研究清單 |
 | [现状、教训与迁移记录](specs/2026-10-22-ctf-agent-current-state-and-migration.md) | 大部分已过期：§1 清理方向已执行完、§2 静态对照已被真实探针取代、§5 指令收敛已完成；§4 教训仍有效，§3 偏离部分已解决 | — | 待精简为「教训与未解偏离」 |
 
 **当前推进起点**：E 的取题、Intake 读题及 Coordinator 分派已通过带真实题目的冒烟；现在承接读题后的解题编排与工具执行，不重新研究题目接入。G §10.2／10.3 是延后工程及按需能力，不是下一轮三项研究任务。
 
-**尚未接通的能力**：D 产物发布、固定候选、独立验证结果及平台／oracle 完成判定。G 已定工具与任务生命周期已接入；隔离部署、通用网络、完整配额及恢复按 G §10 延后，运行边界不据此豁免。
+**尚未接通的能力**：D 独立 Verifier 版本绑定、验证结果及平台／oracle 完成判定。G 已定工具与任务生命周期已接入；隔离部署、通用网络、完整配额及恢复按 G §10 延后，运行边界不据此豁免。
 
-**唯一入口：** `apps/launcher`。旧 `solveM1`／`openCodeTask` 不恢复。当前可在无模型场景串起 E 读题、既定团队工具操作、结果交回与 Coordinator 后续决策；D 尚缺，因此不能声称完整做题流程或 solved 已成立。
+**唯一入口：** `apps/launcher`。旧 `solveM1`／`openCodeTask` 不恢复。当前可在无模型场景串起 E 读题、既定团队工具操作、结果交回、产物发布及 Engineer 读取、固定候选与解法包；D 后三接口尚缺，因此不能声称完整做题流程或 solved 已成立。
 
 **真实模型：** 2026-10-23 首次真实模型冒烟通过（火山方舟 Coding Plan、`deepseek-v4-1-flash-261017`，8 次模型调用、约 1.1 万 token，Coordinator 自行结束，无 provider 错误）；只确认接线，不代表解题能力。每批真实调用仍须另行授权。
 

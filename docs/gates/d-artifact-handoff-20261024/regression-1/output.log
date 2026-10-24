@@ -1,0 +1,83 @@
+
+ RUN  v2.1.8 /Users/caihaoming/.codex/worktrees/1488/pentest-agent
+
+ ❯ tests/contract/opencode-config.test.ts (2 tests | 1 failed) 15ms
+   × product grants exactly the G tools for each existing role and keeps retired/D tools unavailable 7ms
+     → expected [ 'ctf_artifact_publish', …(9) ] to deeply equal [ 'ctf_http_request', …(7) ]
+ ✓ tests/contract/workspace-tools.test.ts (9 tests) 59ms
+ ✓ tests/contract/http-tools.test.ts (10 tests) 69ms
+stdout | tests/contract/d-artifact-handoff.test.ts > D deterministic phase-controlled races and failures (not runtime) > H5 same-length-in-place rejects modified or out-of-root source with exact phase order
+{"criterion":"H5","kind":"same-length-in-place","order":["ancestry-validated","descriptor-validated","source-mutated-before-read","read-chunk","read-chunk"],"result":"refused","timing":"explicit awaited phase, no sleep"}
+
+stdout | tests/contract/d-artifact-handoff.test.ts > D deterministic phase-controlled races and failures (not runtime) > H5 rename-file rejects modified or out-of-root source with exact phase order
+{"criterion":"H5","kind":"rename-file","order":["ancestry-validated","descriptor-validated","source-mutated-before-read","read-chunk","read-chunk"],"result":"refused","timing":"explicit awaited phase, no sleep"}
+
+stdout | tests/contract/d-artifact-handoff.test.ts > D deterministic phase-controlled races and failures (not runtime) > H5 replace-parent rejects modified or out-of-root source with exact phase order
+{"criterion":"H5","kind":"replace-parent","order":["ancestry-validated","parent-swapped"],"result":"refused","timing":"explicit awaited phase, no sleep"}
+
+stdout | tests/contract/d-artifact-handoff.test.ts > D deterministic phase-controlled races and failures (not runtime) > H5 symlink-parent rejects modified or out-of-root source with exact phase order
+{"criterion":"H5","kind":"symlink-parent","order":["ancestry-validated","parent-swapped"],"result":"refused","timing":"explicit awaited phase, no sleep"}
+
+stdout | tests/contract/d-artifact-handoff.test.ts > D deterministic phase-controlled races and failures (not runtime) > H5 symlink-leaf rejects modified or out-of-root source with exact phase order
+{"criterion":"H5","kind":"symlink-leaf","order":["ancestry-validated","leaf-swapped"],"result":"refused","timing":"explicit awaited phase, no sleep"}
+
+stdout | tests/contract/d-artifact-handoff.test.ts > D deterministic phase-controlled races and failures (not runtime) > H5 quiescent atomic rename selects a whole version; hash does not stop same-uid writes
+{"criterion":"H5","osCounterexample":"same uid directly rewrote published bytes; managed read detects but cannot prevent","isolation":false}
+
+stdout | tests/contract/d-artifact-handoff.test.ts > D deterministic phase-controlled races and failures (not runtime) > H7 write-failure leaves no half ref or implicit source replay
+{"criterion":"H7","kind":"write-failure","order":["check-live","write"],"commits":0,"visibleRefs":0,"sourceReplay":0}
+
+stdout | tests/contract/d-artifact-handoff.test.ts > D deterministic phase-controlled races and failures (not runtime) > H7 cancel-before-write leaves no half ref or implicit source replay
+{"criterion":"H7","kind":"cancel-before-write","order":["check-live"],"commits":0,"visibleRefs":0,"sourceReplay":0}
+
+stdout | tests/contract/d-artifact-handoff.test.ts > D deterministic phase-controlled races and failures (not runtime) > H7 cancel-after-rename leaves no half ref or implicit source replay
+{"criterion":"H7","kind":"cancel-after-rename","order":["check-live","write","check-live","rename","check-live"],"commits":1,"visibleRefs":0,"sourceReplay":0}
+
+stdout | tests/contract/d-artifact-handoff.test.ts > D deterministic phase-controlled races and failures (not runtime) > H7 deadline-after-rename leaves no half ref or implicit source replay
+{"criterion":"H7","kind":"deadline-after-rename","order":["check-live","write","check-live","rename","check-live"],"commits":1,"visibleRefs":0,"sourceReplay":0}
+
+stdout | tests/contract/d-artifact-handoff.test.ts > D deterministic phase-controlled races and failures (not runtime) > H7 reply-lost leaves no half ref or implicit source replay
+{"criterion":"H7","kind":"reply-lost","order":["check-live","write","check-live","rename","check-live"],"commits":1,"visibleRefs":1,"sourceReplay":0}
+
+ ✓ tests/contract/d-artifact-handoff.test.ts (18 tests) 196ms
+ ✓ tests/contract/control-service.test.ts (31 tests) 473ms
+   ✓ plugin denies when the control service cannot answer > rejects when the service never replies, is unreachable, or replies with something unusable 411ms
+ ✓ tests/contract/job-tools.test.ts (9 tests) 2033ms
+   ✓ G-V5 managed jobs > kills the grandchild with the process group on timeout 1542ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/contract/opencode-config.test.ts > product grants exactly the G tools for each existing role and keeps retired/D tools unavailable
+AssertionError: expected [ 'ctf_artifact_publish', …(9) ] to deeply equal [ 'ctf_http_request', …(7) ]
+
+- Expected
++ Received
+
+  Array [
++   "ctf_artifact_publish",
++   "ctf_artifact_read",
+    "ctf_http_request",
+    "ctf_job_cancel",
+    "ctf_job_read",
+    "ctf_job_run",
+    "ctf_workspace_list",
+    "ctf_workspace_read",
+    "ctf_workspace_search",
+    "ctf_workspace_write",
+  ]
+
+ ❯ tests/contract/opencode-config.test.ts:35:107
+     33|     const permission = config.agent[role].permission;
+     34|     expect(permission['*']).toBe('deny');
+     35|     expect(Object.keys(permission).filter(k => k.startsWith('ctf_') &&…
+       |                                                                                                           ^
+     36|     expect(permission.task ?? permission['*']).toBe(role === 'coordina…
+     37|   }
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+ Test Files  1 failed | 5 passed (6)
+      Tests  1 failed | 78 passed (79)
+   Start at  01:21:04
+   Duration  2.29s (transform 190ms, setup 0ms, collect 413ms, tests 2.85s, environment 0ms, prepare 215ms)
+

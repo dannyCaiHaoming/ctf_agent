@@ -1,0 +1,63 @@
+[
+  {
+    "at": 1792809907011,
+    "request": {
+      "sessionID": "ses_e9433cdf6ffeOsa9IDlvm6oJxS",
+      "operation": "tool.execute",
+      "input": {
+        "tool": "package.publish",
+        "args": {
+          "candidate": {
+            "ref": "b10d44a7-c413-43ac-beab-12451924029b",
+            "start": 0,
+            "end": 9
+          },
+          "files": [
+            {
+              "kind": "artifact",
+              "ref": "54805d60-85fb-4cb6-9e26-e7005b7ec84a",
+              "path": "extract.cjs",
+              "purpose": "script"
+            },
+            {
+              "kind": "artifact",
+              "ref": "94649859-3ec9-4e45-afe6-25e5cc23e26d",
+              "path": "source.cjs",
+              "purpose": "script"
+            },
+            {
+              "kind": "artifact",
+              "ref": "bfa2e548-9d57-491e-babe-bf3cde1b7917",
+              "path": "raw.bin",
+              "purpose": "input"
+            },
+            {
+              "kind": "material",
+              "name": "input.txt",
+              "path": "data/input.txt",
+              "purpose": "input"
+            },
+            {
+              "kind": "artifact",
+              "ref": "8d35439f-a805-4e36-866b-ccdb5c292924",
+              "path": "evidence/solver.cjs",
+              "purpose": "evidence"
+            }
+          ],
+          "argv": [
+            "/opt/homebrew/Cellar/node/26.3.0/bin/node",
+            "extract.cjs"
+          ],
+          "extraction": "Engineer local extract.cjs reads raw.bin [5,14) after checking fixed E input; stdout is candidate bytes without normalization",
+          "premises": [
+            "CTF_MATERIALS must expose fixed input.txt; raw.bin relative to proposed working directory",
+            "External state unknown; binary candidate fixture; no verifier/oracle"
+          ]
+        },
+        "callID": "call_28_0"
+      }
+    },
+    "status": 200,
+    "response": "{\"result\":{\"version\":\"e3d81569-68ef-4178-a0e7-5948eacf2442\",\"manifestSha256\":\"03cb570a50084b6d04aac84a06b0a569e9d2d990de576c2501c45f62077062ab\",\"manifestSize\":4038,\"snapshotFixed\":true,\"candidateSize\":9,\"candidateSha256\":\"4527432703d179e8d8f48f8ec1b39f5688c37d5e374dc13f6e72aba2224f59b0\"}}"
+  }
+]

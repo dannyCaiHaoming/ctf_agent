@@ -1,0 +1,228 @@
+[
+  {
+    "info": {
+      "id": "msg_169b677c1001WTACOc2B03WD3Z",
+      "sessionID": "ses_e9649883fffeTIp2eYfE76tyl2",
+      "role": "user",
+      "time": {
+        "created": 1792774928321
+      },
+      "agent": "domain-solver",
+      "model": {
+        "providerID": "stub",
+        "modelID": "scripted"
+      }
+    },
+    "parts": [
+      {
+        "id": "prt_169b677c200124Pf5N0TxJTY96",
+        "sessionID": "ses_e9649883fffeTIp2eYfE76tyl2",
+        "messageID": "msg_169b677c1001WTACOc2B03WD3Z",
+        "type": "text",
+        "text": "H7_ROLE_domain-solver "
+      }
+    ]
+  },
+  {
+    "info": {
+      "id": "msg_169b677ce001zjdMJxetbMAP27",
+      "sessionID": "ses_e9649883fffeTIp2eYfE76tyl2",
+      "role": "assistant",
+      "time": {
+        "created": 1792774928334,
+        "completed": 1792774928399
+      },
+      "parentID": "msg_169b677c1001WTACOc2B03WD3Z",
+      "modelID": "scripted",
+      "providerID": "stub",
+      "mode": "domain-solver",
+      "agent": "domain-solver",
+      "path": {
+        "cwd": "/private/var/folders/tn/x1hbkfy17sx0w1lb8kjzzr340000gn/T/d-h7-8tQUxI/runs/R2/opencode",
+        "root": "/"
+      },
+      "cost": 0,
+      "tokens": {
+        "total": 0,
+        "input": 0,
+        "output": 0,
+        "reasoning": 0,
+        "cache": {
+          "read": 0,
+          "write": 0
+        }
+      },
+      "finish": "tool-calls"
+    },
+    "parts": [
+      {
+        "id": "prt_169b677d9001MzvAT9kBvjzt58",
+        "sessionID": "ses_e9649883fffeTIp2eYfE76tyl2",
+        "messageID": "msg_169b677ce001zjdMJxetbMAP27",
+        "type": "step-start"
+      },
+      {
+        "id": "prt_169b677da001NulRMVMkHGsT4g",
+        "sessionID": "ses_e9649883fffeTIp2eYfE76tyl2",
+        "messageID": "msg_169b677ce001zjdMJxetbMAP27",
+        "type": "tool",
+        "callID": "call_7_0",
+        "tool": "ctf_job_run",
+        "state": {
+          "status": "completed",
+          "input": {
+            "argv": [
+              "/opt/homebrew/Cellar/node/26.3.0/bin/node",
+              "-e",
+              "process.stdout.write('H7-real-job-bytes\\n')"
+            ],
+            "timeout_ms": 5000
+          },
+          "output": "{\"job\":\"102b5628-e447-4e97-b21b-2b9963fb2eef\",\"state\":\"exited\",\"exitCode\":0,\"signal\":null,\"reapIncomplete\":false}",
+          "title": "job.run",
+          "metadata": {
+            "truncated": false
+          },
+          "time": {
+            "start": 1792774928347,
+            "end": 1792774928398
+          }
+        }
+      },
+      {
+        "id": "prt_169b6780f0010xjnG18ZKQrtwM",
+        "sessionID": "ses_e9649883fffeTIp2eYfE76tyl2",
+        "messageID": "msg_169b677ce001zjdMJxetbMAP27",
+        "type": "step-finish",
+        "reason": "tool-calls",
+        "cost": 0,
+        "tokens": {
+          "total": 0,
+          "input": 0,
+          "output": 0,
+          "reasoning": 0,
+          "cache": {
+            "read": 0,
+            "write": 0
+          }
+        }
+      }
+    ]
+  },
+  {
+    "info": {
+      "id": "msg_169b67810001YxhXUHMcPmHQNS",
+      "sessionID": "ses_e9649883fffeTIp2eYfE76tyl2",
+      "role": "assistant",
+      "time": {
+        "created": 1792774928400,
+        "completed": 1792774928444
+      },
+      "parentID": "msg_169b677c1001WTACOc2B03WD3Z",
+      "modelID": "scripted",
+      "providerID": "stub",
+      "mode": "domain-solver",
+      "agent": "domain-solver",
+      "path": {
+        "cwd": "/private/var/folders/tn/x1hbkfy17sx0w1lb8kjzzr340000gn/T/d-h7-8tQUxI/runs/R2/opencode",
+        "root": "/"
+      },
+      "cost": 0,
+      "tokens": {
+        "total": 0,
+        "input": 0,
+        "output": 0,
+        "reasoning": 0,
+        "cache": {
+          "read": 0,
+          "write": 0
+        }
+      },
+      "finish": "tool-calls"
+    },
+    "parts": [
+      {
+        "id": "prt_169b6781e0019tUwYzhoiDxUJd",
+        "sessionID": "ses_e9649883fffeTIp2eYfE76tyl2",
+        "messageID": "msg_169b67810001YxhXUHMcPmHQNS",
+        "type": "step-start"
+      },
+      {
+        "id": "prt_169b6781e002rNcBcOp8yV3HzY",
+        "sessionID": "ses_e9649883fffeTIp2eYfE76tyl2",
+        "messageID": "msg_169b67810001YxhXUHMcPmHQNS",
+        "type": "tool",
+        "callID": "call_10_0",
+        "tool": "ctf_artifact_publish",
+        "state": {
+          "status": "error",
+          "input": {
+            "source": "job",
+            "job": "102b5628-e447-4e97-b21b-2b9963fb2eef",
+            "stream": "stdout"
+          },
+          "error": "denied: cancelled",
+          "time": {
+            "start": 1792774928415,
+            "end": 1792774928443
+          }
+        }
+      },
+      {
+        "id": "prt_169b6783b001U4lRjaQfNI5in6",
+        "sessionID": "ses_e9649883fffeTIp2eYfE76tyl2",
+        "messageID": "msg_169b67810001YxhXUHMcPmHQNS",
+        "type": "step-finish",
+        "reason": "tool-calls",
+        "cost": 0,
+        "tokens": {
+          "total": 0,
+          "input": 0,
+          "output": 0,
+          "reasoning": 0,
+          "cache": {
+            "read": 0,
+            "write": 0
+          }
+        }
+      }
+    ]
+  },
+  {
+    "info": {
+      "id": "msg_169b6783d001xYOlrBnqpW7RpD",
+      "sessionID": "ses_e9649883fffeTIp2eYfE76tyl2",
+      "role": "assistant",
+      "time": {
+        "created": 1792774928445,
+        "completed": 1792774928448
+      },
+      "error": {
+        "name": "MessageAbortedError",
+        "data": {
+          "message": "Aborted"
+        }
+      },
+      "parentID": "msg_169b677c1001WTACOc2B03WD3Z",
+      "modelID": "scripted",
+      "providerID": "stub",
+      "mode": "domain-solver",
+      "agent": "domain-solver",
+      "path": {
+        "cwd": "/private/var/folders/tn/x1hbkfy17sx0w1lb8kjzzr340000gn/T/d-h7-8tQUxI/runs/R2/opencode",
+        "root": "/"
+      },
+      "cost": 0,
+      "tokens": {
+        "input": 0,
+        "output": 0,
+        "reasoning": 0,
+        "cache": {
+          "read": 0,
+          "write": 0
+        }
+      }
+    },
+    "parts": []
+  }
+]

@@ -1,0 +1,62 @@
+[
+  {
+    "command": "npx vitest run tests/contract/d-candidate-package.test.ts tests/contract/opencode-config.test.ts",
+    "exit": 1,
+    "log": "01-before-integration.log"
+  },
+  {
+    "command": "npx vitest run tests/contract/d-candidate-package.test.ts tests/contract/opencode-config.test.ts",
+    "exit": 1,
+    "log": "02-prototype-boundaries.log"
+  },
+  {
+    "command": "npx vitest run tests/contract/d-candidate-package.test.ts tests/contract/d-artifact-handoff.test.ts tests/contract/d-h7-rpc-stop.test.ts tests/contract/opencode-config.test.ts",
+    "exit": 0,
+    "log": "03-targeted-green.log"
+  },
+  {
+    "command": "npx vitest run tests/contract/d-candidate-package.test.ts tests/contract/d-artifact-handoff.test.ts tests/contract/d-h7-rpc-stop.test.ts tests/contract/opencode-config.test.ts",
+    "exit": 0,
+    "log": "04-targeted-final.log"
+  },
+  {
+    "command": [
+      "npm",
+      "run",
+      "typecheck"
+    ],
+    "exit": 0,
+    "started": "2026-10-24T11:44:52.159129+09:00",
+    "log": "05-typecheck.log"
+  },
+  {
+    "command": [
+      "npm",
+      "run",
+      "build"
+    ],
+    "exit": 0,
+    "started": "2026-10-24T11:44:53.850805+09:00",
+    "log": "06-build.log"
+  },
+  {
+    "command": [
+      "npm",
+      "test"
+    ],
+    "exit": 0,
+    "started": "2026-10-24T11:44:55.134834+09:00",
+    "log": "07-full-tests.log"
+  },
+  {
+    "command": [
+      "npx",
+      "tsx",
+      "tests/manual/d-candidate-package.ts",
+      "integration-20261024-114452"
+    ],
+    "exit": 0,
+    "log": "08-runtime.log",
+    "runtime": "docs/gates/d-artifact-handoff-20261024/candidate-package/integration-20261024-114452"
+  }
+]
