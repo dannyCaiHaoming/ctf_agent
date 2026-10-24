@@ -1,0 +1,1 @@
+require('node:fs').readFileSync('data/input.bin');process.stdout.write(Buffer.from([0xe6,0x97,0x97,0x7b,0xc3,0xa9,0x7d,0,255]))

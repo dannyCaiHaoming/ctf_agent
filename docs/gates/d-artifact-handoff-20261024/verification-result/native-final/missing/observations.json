@@ -1,0 +1,148 @@
+[
+  {
+    "index": 0,
+    "at": 1792820661993,
+    "event": "provider.package.call",
+    "detail": {}
+  },
+  {
+    "index": 1,
+    "at": 1792820662282,
+    "event": "C.job.terminal",
+    "detail": [
+      "ses_e938fb09fffeP5XrpAyqE4VK8P",
+      "verification.job.terminal",
+      true,
+      null,
+      {
+        "version": "71b386ea-5730-4e96-a6fb-1c644e9f4a69",
+        "preparation": "b222841c-05b1-48ae-bf4f-ac4810987465",
+        "execution": "33681609-4a0c-44dd-8ef3-c25240035486",
+        "argv": [
+          "/opt/homebrew/Cellar/node/26.3.0/bin/node",
+          "extract.cjs"
+        ],
+        "files": [
+          {
+            "path": "extract.cjs",
+            "sha256": "44a74af79001c99ff10ffd0e7efbf104430bda4d1c7bc61fa737be34696393a1",
+            "size": 278
+          },
+          {
+            "path": "source.cjs",
+            "sha256": "77778162f10a8d4194a28af0b1afcb6540894a0f527d65a910d2194c3fd1e147",
+            "size": 74
+          },
+          {
+            "path": "raw.bin",
+            "sha256": "27ddedb8bc0775ffffacf7f65607afa8b1a4fa31181bf37e8b4f03e05c74dcb9",
+            "size": 20
+          },
+          {
+            "path": "data/input.txt",
+            "sha256": "b5681bcc5994e57fbe5f04669900f5d2e7b1c78d40cec989c8f0a2a54b44e7b4",
+            "size": 13
+          },
+          {
+            "path": "evidence/solver.cjs",
+            "sha256": "77778162f10a8d4194a28af0b1afcb6540894a0f527d65a910d2194c3fd1e147",
+            "size": 74
+          }
+        ],
+        "metadata": [
+          {
+            "path": "verify-b222841c-05b1-48ae-bf4f-ac4810987465/manifest.json",
+            "sha256": "80d44b1ea6576193604abf50719775caed4082f73f549af1f23c9b9991376258",
+            "size": 4068
+          },
+          {
+            "path": "verify-b222841c-05b1-48ae-bf4f-ac4810987465/candidate.bin",
+            "sha256": "4527432703d179e8d8f48f8ec1b39f5688c37d5e374dc13f6e72aba2224f59b0",
+            "size": 9
+          }
+        ],
+        "before": "matched",
+        "after": "matched",
+        "continuousIntegrity": "unknown",
+        "undeclaredDependencies": "unknown",
+        "job": "5046e7ea-7422-4c9e-8809-779c309e0c72",
+        "terminal": {
+          "job": "5046e7ea-7422-4c9e-8809-779c309e0c72",
+          "state": "exited",
+          "exitCode": 0,
+          "signal": null,
+          "reapIncomplete": false
+        }
+      }
+    ]
+  },
+  {
+    "index": 2,
+    "at": 1792820662321,
+    "event": "C.registered",
+    "detail": [
+      "ses_e938fb09fffeP5XrpAyqE4VK8P",
+      "verification.registered",
+      true,
+      null,
+      {
+        "run": "missing",
+        "challenge": "X",
+        "version": "71b386ea-5730-4e96-a6fb-1c644e9f4a69",
+        "sessionID": "ses_e938fb09fffeP5XrpAyqE4VK8P",
+        "execution": "33681609-4a0c-44dd-8ef3-c25240035486",
+        "result": "0ee5f3c6-ceba-49b4-b562-2f253f622207",
+        "original": {
+          "judgment": "verified",
+          "mode": "recompute",
+          "rationale": "Scripted fixture source/dataflow checked under explicit trusted local assumption",
+          "sourceFlow": "Fixed E material check, raw.bin [5,14) and extract.cjs stdout; no semantic model claim",
+          "premises": [
+            {
+              "statement": "Trusted stable local fixture execution; semantic choice predefined by stub",
+              "status": "assumed"
+            }
+          ],
+          "issues": [],
+          "requirements": {
+            "continuousIntegrity": false,
+            "declaredDependenciesOnly": false
+          },
+          "evidence": []
+        },
+        "effectiveJudgment": "inconclusive",
+        "evidence": [],
+        "hostChecks": {
+          "blockers": [
+            "no necessary evidence",
+            "recompute requires own version-bound job",
+            "missing candidate comparison"
+          ],
+          "candidateEqual": null,
+          "semanticAssessment": "verifier_assertion_not_host_proven"
+        },
+        "createdAt": 1792820662321
+      }
+    ]
+  },
+  {
+    "index": 3,
+    "at": 1792820662321,
+    "event": "rpc.reply.ready",
+    "detail": {
+      "sessionID": "ses_e938fb09fffeP5XrpAyqE4VK8P",
+      "callID": "call_40_0",
+      "status": 200,
+      "response": "{\"result\":{\"result\":\"0ee5f3c6-ceba-49b4-b562-2f253f622207\",\"duplicate\":false,\"effectiveJudgment\":\"inconclusive\"}}"
+    }
+  },
+  {
+    "index": 4,
+    "at": 1792820662321,
+    "event": "rpc.response.close",
+    "detail": {
+      "finished": true,
+      "destroyed": true
+    }
+  }
+]

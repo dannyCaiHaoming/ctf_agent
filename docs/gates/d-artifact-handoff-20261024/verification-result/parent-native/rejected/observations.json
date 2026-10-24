@@ -1,0 +1,240 @@
+[
+  {
+    "index": 0,
+    "at": 1792822053192,
+    "event": "provider.package.call",
+    "detail": {}
+  },
+  {
+    "index": 1,
+    "at": 1792822053464,
+    "event": "C.job.terminal",
+    "detail": [
+      "ses_e937a764fffeODNtLUyQgpJpce",
+      "verification.job.terminal",
+      true,
+      null,
+      {
+        "version": "8d1af2a4-1d31-4e6e-ac6d-f18a49a405fe",
+        "preparation": "ad608619-7bae-4762-b40f-7135a079038d",
+        "execution": "cf2dafda-54ca-4ade-87f9-73c0e9e39cd7",
+        "argv": [
+          "/opt/homebrew/Cellar/node/26.3.0/bin/node",
+          "-e",
+          "const f=require('node:fs'); const p=require('node:path'); if(f.readFileSync(p.join('data','input.txt'),'utf8')!=='E_NONSECRET\\r\\n')throw new Error('wrong E material'); const b=f.readFileSync('raw.bin').subarray(5,14); f.writeFileSync('candidate.bin',b); process.stdout.write(b);"
+        ],
+        "files": [
+          {
+            "path": "extract.cjs",
+            "sha256": "e2b6a9282c5bad23e147f80621ff3f7957c956a0b3f6009e893aa1d62a6794c2",
+            "size": 288
+          },
+          {
+            "path": "source.cjs",
+            "sha256": "77778162f10a8d4194a28af0b1afcb6540894a0f527d65a910d2194c3fd1e147",
+            "size": 74
+          },
+          {
+            "path": "raw.bin",
+            "sha256": "27ddedb8bc0775ffffacf7f65607afa8b1a4fa31181bf37e8b4f03e05c74dcb9",
+            "size": 20
+          },
+          {
+            "path": "data/input.txt",
+            "sha256": "b5681bcc5994e57fbe5f04669900f5d2e7b1c78d40cec989c8f0a2a54b44e7b4",
+            "size": 13
+          },
+          {
+            "path": "evidence/solver.cjs",
+            "sha256": "77778162f10a8d4194a28af0b1afcb6540894a0f527d65a910d2194c3fd1e147",
+            "size": 74
+          }
+        ],
+        "metadata": [
+          {
+            "path": "verify-ad608619-7bae-4762-b40f-7135a079038d/manifest.json",
+            "sha256": "817fe6f9a124f5d8dab455509dafa98752f7f7463b505faca03d81a303a8f3b6",
+            "size": 4074
+          },
+          {
+            "path": "verify-ad608619-7bae-4762-b40f-7135a079038d/candidate.bin",
+            "sha256": "dcb5e79778425c09b1fb74d870807addfa80b2c25ce9b4029f9e7777777ae101",
+            "size": 9
+          }
+        ],
+        "before": "matched",
+        "after": "matched",
+        "continuousIntegrity": "unknown",
+        "undeclaredDependencies": "unknown",
+        "job": "ef07f8ef-bf97-49dd-be8b-3eacf30a4681",
+        "terminal": {
+          "job": "ef07f8ef-bf97-49dd-be8b-3eacf30a4681",
+          "state": "exited",
+          "exitCode": 0,
+          "signal": null,
+          "reapIncomplete": false
+        }
+      }
+    ]
+  },
+  {
+    "index": 2,
+    "at": 1792822053500,
+    "event": "C.registered",
+    "detail": [
+      "ses_e937a764fffeODNtLUyQgpJpce",
+      "verification.registered",
+      true,
+      null,
+      {
+        "run": "rejected",
+        "challenge": "X",
+        "version": "8d1af2a4-1d31-4e6e-ac6d-f18a49a405fe",
+        "sessionID": "ses_e937a764fffeODNtLUyQgpJpce",
+        "execution": "cf2dafda-54ca-4ade-87f9-73c0e9e39cd7",
+        "result": "f19e491c-ed6d-48a0-8acf-b5f8d1e4eaaa",
+        "original": {
+          "judgment": "rejected",
+          "mode": "recompute",
+          "rationale": "Scripted fixture counterexample: expected candidate differs from inspected stdout",
+          "sourceFlow": "Fixed E material check, raw.bin [5,14) and extract.cjs stdout; no semantic model claim",
+          "premises": [
+            {
+              "statement": "Trusted stable local fixture execution; semantic choice predefined by stub",
+              "status": "assumed"
+            }
+          ],
+          "issues": [],
+          "requirements": {
+            "continuousIntegrity": false,
+            "declaredDependenciesOnly": false
+          },
+          "evidence": [
+            {
+              "kind": "job",
+              "job": "ef07f8ef-bf97-49dd-be8b-3eacf30a4681",
+              "stream": "stdout",
+              "necessary": true,
+              "context": "Whole stdout of prepared local fixture calculation"
+            }
+          ],
+          "comparison": {
+            "evidence": 0,
+            "start": 0,
+            "end": 9
+          }
+        },
+        "effectiveJudgment": "rejected",
+        "evidence": [
+          {
+            "kind": "job",
+            "source": {
+              "kind": "job",
+              "run": "rejected",
+              "challenge": "X",
+              "sessionID": "ses_e937a764fffeODNtLUyQgpJpce",
+              "execution": "cf2dafda-54ca-4ade-87f9-73c0e9e39cd7",
+              "resource": "ef07f8ef-bf97-49dd-be8b-3eacf30a4681",
+              "callID": "call_38_0",
+              "stream": "stdout"
+            },
+            "originalComplete": true,
+            "association": {
+              "version": "8d1af2a4-1d31-4e6e-ac6d-f18a49a405fe",
+              "preparation": "ad608619-7bae-4762-b40f-7135a079038d",
+              "execution": "cf2dafda-54ca-4ade-87f9-73c0e9e39cd7",
+              "argv": [
+                "/opt/homebrew/Cellar/node/26.3.0/bin/node",
+                "-e",
+                "const f=require('node:fs'); const p=require('node:path'); if(f.readFileSync(p.join('data','input.txt'),'utf8')!=='E_NONSECRET\\r\\n')throw new Error('wrong E material'); const b=f.readFileSync('raw.bin').subarray(5,14); f.writeFileSync('candidate.bin',b); process.stdout.write(b);"
+              ],
+              "files": [
+                {
+                  "path": "extract.cjs",
+                  "sha256": "e2b6a9282c5bad23e147f80621ff3f7957c956a0b3f6009e893aa1d62a6794c2",
+                  "size": 288
+                },
+                {
+                  "path": "source.cjs",
+                  "sha256": "77778162f10a8d4194a28af0b1afcb6540894a0f527d65a910d2194c3fd1e147",
+                  "size": 74
+                },
+                {
+                  "path": "raw.bin",
+                  "sha256": "27ddedb8bc0775ffffacf7f65607afa8b1a4fa31181bf37e8b4f03e05c74dcb9",
+                  "size": 20
+                },
+                {
+                  "path": "data/input.txt",
+                  "sha256": "b5681bcc5994e57fbe5f04669900f5d2e7b1c78d40cec989c8f0a2a54b44e7b4",
+                  "size": 13
+                },
+                {
+                  "path": "evidence/solver.cjs",
+                  "sha256": "77778162f10a8d4194a28af0b1afcb6540894a0f527d65a910d2194c3fd1e147",
+                  "size": 74
+                }
+              ],
+              "metadata": [
+                {
+                  "path": "verify-ad608619-7bae-4762-b40f-7135a079038d/manifest.json",
+                  "sha256": "817fe6f9a124f5d8dab455509dafa98752f7f7463b505faca03d81a303a8f3b6",
+                  "size": 4074
+                },
+                {
+                  "path": "verify-ad608619-7bae-4762-b40f-7135a079038d/candidate.bin",
+                  "sha256": "dcb5e79778425c09b1fb74d870807addfa80b2c25ce9b4029f9e7777777ae101",
+                  "size": 9
+                }
+              ],
+              "before": "matched",
+              "after": "matched",
+              "continuousIntegrity": "unknown",
+              "undeclaredDependencies": "unknown"
+            },
+            "terminal": {
+              "state": "exited",
+              "exitCode": 0
+            },
+            "preparation": "ad608619-7bae-4762-b40f-7135a079038d",
+            "start": 0,
+            "end": 9,
+            "size": 9,
+            "sha256": "4527432703d179e8d8f48f8ec1b39f5688c37d5e374dc13f6e72aba2224f59b0",
+            "encoding": "base64",
+            "data": "5peXe8OpfQD/",
+            "rangeComplete": true,
+            "necessary": true,
+            "context": "Whole stdout of prepared local fixture calculation"
+          }
+        ],
+        "hostChecks": {
+          "blockers": [],
+          "candidateEqual": false,
+          "semanticAssessment": "verifier_assertion_not_host_proven"
+        },
+        "createdAt": 1792822053500
+      }
+    ]
+  },
+  {
+    "index": 3,
+    "at": 1792822053500,
+    "event": "rpc.reply.ready",
+    "detail": {
+      "sessionID": "ses_e937a764fffeODNtLUyQgpJpce",
+      "callID": "call_40_0",
+      "status": 200,
+      "response": "{\"result\":{\"result\":\"f19e491c-ed6d-48a0-8acf-b5f8d1e4eaaa\",\"duplicate\":false,\"effectiveJudgment\":\"rejected\"}}"
+    }
+  },
+  {
+    "index": 4,
+    "at": 1792822053500,
+    "event": "rpc.response.close",
+    "detail": {
+      "finished": true,
+      "destroyed": true
+    }
+  }
+]

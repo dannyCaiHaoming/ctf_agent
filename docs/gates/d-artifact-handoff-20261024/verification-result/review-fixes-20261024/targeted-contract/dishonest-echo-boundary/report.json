@@ -1,0 +1,130 @@
+{
+  "run": "D-package",
+  "challenge": "X",
+  "version": "1b530c67-16d2-4329-be8f-3a69faf61c5f",
+  "sessionID": "verifier",
+  "execution": "0ac5afd0-cd8d-47fc-996f-5c9e0f1ad0ea",
+  "result": "2126e514-da22-4558-8f2e-9e1db6e978b9",
+  "original": {
+    "judgment": "verified",
+    "mode": "recompute",
+    "rationale": "Local fixture recomputation under explicit trusted local execution premise",
+    "sourceFlow": "Inspect script and fixed input; compare stdout exact bytes to candidate",
+    "premises": [
+      {
+        "statement": "Trusted stable local execution, no untrusted concurrent writers",
+        "status": "assumed"
+      }
+    ],
+    "issues": [],
+    "requirements": {
+      "continuousIntegrity": false,
+      "declaredDependenciesOnly": false
+    },
+    "evidence": [
+      {
+        "kind": "job",
+        "job": "bb9d850a-677b-4ffa-8218-d3bb12e427b4",
+        "stream": "stdout",
+        "necessary": true,
+        "context": "Whole local stdout answers fixture; stderr irrelevant"
+      }
+    ],
+    "comparison": {
+      "evidence": 0,
+      "start": 0,
+      "end": 9
+    }
+  },
+  "effectiveJudgment": "verified",
+  "evidence": [
+    {
+      "kind": "job",
+      "source": {
+        "kind": "job",
+        "run": "D-package",
+        "challenge": "X",
+        "sessionID": "verifier",
+        "execution": "0ac5afd0-cd8d-47fc-996f-5c9e0f1ad0ea",
+        "resource": "bb9d850a-677b-4ffa-8218-d3bb12e427b4",
+        "callID": "p15",
+        "stream": "stdout"
+      },
+      "originalComplete": true,
+      "association": {
+        "version": "1b530c67-16d2-4329-be8f-3a69faf61c5f",
+        "preparation": "7596d181-1d54-47aa-ae5e-c09ab1e98e0c",
+        "execution": "0ac5afd0-cd8d-47fc-996f-5c9e0f1ad0ea",
+        "argv": [
+          "/opt/homebrew/Cellar/node/26.3.0/bin/node",
+          "check.cjs"
+        ],
+        "files": [
+          {
+            "path": "solve.cjs",
+            "sha256": "9ae4336264e4c21d65169d453ebe26dab742b0fa62e44c72198ced00c4d4bac3",
+            "size": 33
+          },
+          {
+            "path": "data/input.bin",
+            "sha256": "e9489f37fb3051e9efa1dc916004d7274e7b63975e3209708947267f2393a9be",
+            "size": 4
+          },
+          {
+            "path": "evidence/raw.bin",
+            "sha256": "8af1702498192f6c0ac605c33a0f2deb4ec738ff6a5e84992c7af4a9ea068917",
+            "size": 16
+          },
+          {
+            "path": "check.cjs",
+            "sha256": "25bc2c7034d0c11b3f0d07c3be79153cfb92f5c2c39b8b107293d35d134239e1",
+            "size": 73
+          }
+        ],
+        "metadata": [
+          {
+            "path": "verify-7596d181-1d54-47aa-ae5e-c09ab1e98e0c/manifest.json",
+            "sha256": "c973a9aed6059ecb66917351018777b25da125bb4ac2d96edab145d649a245db",
+            "size": 3108
+          },
+          {
+            "path": "verify-7596d181-1d54-47aa-ae5e-c09ab1e98e0c/candidate.bin",
+            "sha256": "4527432703d179e8d8f48f8ec1b39f5688c37d5e374dc13f6e72aba2224f59b0",
+            "size": 9
+          }
+        ],
+        "before": "matched",
+        "after": "matched",
+        "continuousIntegrity": "unknown",
+        "undeclaredDependencies": "unknown"
+      },
+      "terminal": {
+        "state": "exited",
+        "exitCode": 0
+      },
+      "preparation": "7596d181-1d54-47aa-ae5e-c09ab1e98e0c",
+      "start": 0,
+      "end": 9,
+      "size": 9,
+      "sha256": "4527432703d179e8d8f48f8ec1b39f5688c37d5e374dc13f6e72aba2224f59b0",
+      "encoding": "base64",
+      "data": "5peXe8OpfQD/",
+      "rangeComplete": true,
+      "necessary": true,
+      "context": "Whole local stdout answers fixture; stderr irrelevant"
+    }
+  ],
+  "hostChecks": {
+    "blockers": [],
+    "candidateEqual": true,
+    "semanticAssessment": "verifier_assertion_not_host_proven"
+  },
+  "createdAt": 1792821475475,
+  "currentAvailability": {
+    "usable": true,
+    "reasons": [],
+    "warnings": [],
+    "checkedAt": 1792821475476,
+    "premises": "see fixed report; assumptions are not host proofs"
+  }
+}

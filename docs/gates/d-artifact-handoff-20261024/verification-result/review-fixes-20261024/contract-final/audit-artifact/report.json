@@ -1,0 +1,73 @@
+{
+  "run": "D-package",
+  "challenge": "X",
+  "version": "ad6c1382-a942-46f3-a6cc-4fbf8dc6eb7f",
+  "sessionID": "verifier",
+  "execution": "1e2c6810-fba9-4716-99e9-49d57af49bb1",
+  "result": "13cab24e-7f2b-472c-92a8-4cf669b40bb1",
+  "original": {
+    "judgment": "verified",
+    "mode": "evidence_audit",
+    "rationale": "Scripted public fixture operation audit; semantic sufficiency not model-tested",
+    "sourceFlow": "Inspect source operation and ordering under fixture assumptions; no safe replay capability",
+    "premises": [
+      {
+        "statement": "Trusted stable local execution, no untrusted concurrent writers",
+        "status": "assumed"
+      }
+    ],
+    "issues": [],
+    "requirements": {
+      "continuousIntegrity": false,
+      "declaredDependenciesOnly": false
+    },
+    "evidence": [
+      {
+        "kind": "artifact",
+        "ref": "57b76761-52ea-4157-a65b-110676b7fb5b",
+        "necessary": true,
+        "context": "Whole trusted operation output, safety condition asserted by Verifier"
+      }
+    ]
+  },
+  "effectiveJudgment": "verified",
+  "evidence": [
+    {
+      "kind": "artifact",
+      "source": {
+        "kind": "job",
+        "run": "D-package",
+        "challenge": "X",
+        "sessionID": "domain-solver",
+        "execution": "14d4d828-60cb-4de9-9e41-8f3d53579e35",
+        "resource": "e02e7a44-e896-40d6-8078-02f3bc122670",
+        "callID": "p16",
+        "stream": "stdout",
+        "ref": "57b76761-52ea-4157-a65b-110676b7fb5b"
+      },
+      "originalComplete": true,
+      "start": 0,
+      "end": 27,
+      "size": 27,
+      "sha256": "411b80e5bb87e053794e5992bea8e5908fc80cfb1b37db9e5200124546ec3e0a",
+      "encoding": "base64",
+      "data": "T0JTRVJWRURfU0VRVUVOQ0VfQ0FORElEQVRF",
+      "rangeComplete": true,
+      "necessary": true,
+      "context": "Whole trusted operation output, safety condition asserted by Verifier"
+    }
+  ],
+  "hostChecks": {
+    "blockers": [],
+    "candidateEqual": null,
+    "semanticAssessment": "verifier_assertion_not_host_proven"
+  },
+  "createdAt": 1792821519528,
+  "currentAvailability": {
+    "usable": true,
+    "reasons": [],
+    "warnings": [],
+    "checkedAt": 1792821519529,
+    "premises": "see fixed report; assumptions are not host proofs"
+  }
+}

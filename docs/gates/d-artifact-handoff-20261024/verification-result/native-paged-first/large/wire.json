@@ -1,0 +1,53 @@
+[
+  {
+    "at": 1792821420879,
+    "request": {
+      "sessionID": "ses_e93841d79ffdQJz4diajlDog2o",
+      "operation": "tool.execute",
+      "input": {
+        "tool": "verification.report",
+        "args": {
+          "judgment": "verified",
+          "mode": "recompute",
+          "rationale": "Scripted fixture source/dataflow checked under explicit trusted local assumption",
+          "sourceFlow": "Fixed E material check, raw.bin [5,14) and extract.cjs stdout; no semantic model claim",
+          "premises": [
+            {
+              "statement": "Trusted stable local fixture execution; semantic choice predefined by stub",
+              "status": "assumed"
+            }
+          ],
+          "issues": [],
+          "requirements": {
+            "continuousIntegrity": false,
+            "declaredDependenciesOnly": false
+          },
+          "evidence": [
+            {
+              "kind": "job",
+              "job": "10b001af-8c63-41da-9127-7514971c06b0",
+              "stream": "stdout",
+              "necessary": true,
+              "context": "Whole stdout of prepared local fixture calculation"
+            },
+            {
+              "kind": "job",
+              "job": "10b001af-8c63-41da-9127-7514971c06b0",
+              "stream": "stderr",
+              "necessary": false,
+              "context": "Independent diagnostic padding; candidate depends only on complete stdout"
+            }
+          ],
+          "comparison": {
+            "evidence": 0,
+            "start": 0,
+            "end": 9
+          }
+        },
+        "callID": "call_40_0"
+      }
+    },
+    "status": 200,
+    "response": "{\"result\":{\"result\":\"169d7f43-bea1-4942-88c4-cae0bd60daa5\",\"duplicate\":false,\"effectiveJudgment\":\"verified\"}}"
+  }
+]

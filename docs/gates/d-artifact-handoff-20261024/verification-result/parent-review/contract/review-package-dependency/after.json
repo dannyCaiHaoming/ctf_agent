@@ -1,0 +1,168 @@
+{
+  "run": "D-package",
+  "challenge": "X",
+  "version": "e46dfd85-784a-4fc4-b417-9335e1b93cd1",
+  "sessionID": "verifier",
+  "execution": "20ebab11-5cc9-4874-9ee1-062e31e40269",
+  "result": "019d98da-9960-4686-af8b-1785dc2d6175",
+  "original": {
+    "judgment": "verified",
+    "mode": "recompute",
+    "rationale": "Local fixture recomputation under explicit trusted local execution premise",
+    "sourceFlow": "Inspect script and fixed input; compare stdout exact bytes to candidate",
+    "premises": [
+      {
+        "statement": "Trusted stable local execution, no untrusted concurrent writers",
+        "status": "assumed"
+      }
+    ],
+    "issues": [],
+    "requirements": {
+      "continuousIntegrity": false,
+      "declaredDependenciesOnly": false
+    },
+    "evidence": [
+      {
+        "kind": "job",
+        "job": "1f6ae454-4074-4971-a6f2-af9fd42aaf0c",
+        "stream": "stdout",
+        "necessary": true,
+        "context": "Whole local stdout answers fixture; stderr irrelevant"
+      },
+      {
+        "kind": "artifact",
+        "ref": "5ed15aa4-99b7-42df-bede-0a63bb96da41",
+        "necessary": false,
+        "context": "Ancillary view of an artifact that is also a fixed package input"
+      }
+    ],
+    "comparison": {
+      "evidence": 0,
+      "start": 0,
+      "end": 9
+    }
+  },
+  "effectiveJudgment": "verified",
+  "evidence": [
+    {
+      "kind": "job",
+      "source": {
+        "kind": "job",
+        "run": "D-package",
+        "challenge": "X",
+        "sessionID": "verifier",
+        "execution": "20ebab11-5cc9-4874-9ee1-062e31e40269",
+        "resource": "1f6ae454-4074-4971-a6f2-af9fd42aaf0c",
+        "callID": "p15",
+        "stream": "stdout"
+      },
+      "originalComplete": true,
+      "association": {
+        "version": "e46dfd85-784a-4fc4-b417-9335e1b93cd1",
+        "preparation": "7b6fdc06-2b46-49bc-a533-0ad833b65ec4",
+        "execution": "20ebab11-5cc9-4874-9ee1-062e31e40269",
+        "argv": [
+          "/opt/homebrew/Cellar/node/26.3.0/bin/node",
+          "check.cjs"
+        ],
+        "files": [
+          {
+            "path": "solve.cjs",
+            "sha256": "9ae4336264e4c21d65169d453ebe26dab742b0fa62e44c72198ced00c4d4bac3",
+            "size": 33
+          },
+          {
+            "path": "data/input.bin",
+            "sha256": "e9489f37fb3051e9efa1dc916004d7274e7b63975e3209708947267f2393a9be",
+            "size": 4
+          },
+          {
+            "path": "evidence/raw.bin",
+            "sha256": "8af1702498192f6c0ac605c33a0f2deb4ec738ff6a5e84992c7af4a9ea068917",
+            "size": 16
+          },
+          {
+            "path": "check.cjs",
+            "sha256": "da03a62a9551937813ca8072024b68274fb4aea8beb3b9c43607fe58ecf86a39",
+            "size": 135
+          }
+        ],
+        "metadata": [
+          {
+            "path": "verify-7b6fdc06-2b46-49bc-a533-0ad833b65ec4/manifest.json",
+            "sha256": "41522a17740773a590977d9d75cc3585f47f29366fa7711442a758109333df2f",
+            "size": 3111
+          },
+          {
+            "path": "verify-7b6fdc06-2b46-49bc-a533-0ad833b65ec4/candidate.bin",
+            "sha256": "4527432703d179e8d8f48f8ec1b39f5688c37d5e374dc13f6e72aba2224f59b0",
+            "size": 9
+          }
+        ],
+        "before": "matched",
+        "after": "matched",
+        "continuousIntegrity": "unknown",
+        "undeclaredDependencies": "unknown"
+      },
+      "terminal": {
+        "state": "exited",
+        "exitCode": 0
+      },
+      "preparation": "7b6fdc06-2b46-49bc-a533-0ad833b65ec4",
+      "start": 0,
+      "end": 9,
+      "size": 9,
+      "sha256": "4527432703d179e8d8f48f8ec1b39f5688c37d5e374dc13f6e72aba2224f59b0",
+      "encoding": "base64",
+      "data": "5peXe8OpfQD/",
+      "rangeComplete": true,
+      "necessary": true,
+      "context": "Whole local stdout answers fixture; stderr irrelevant"
+    },
+    {
+      "kind": "artifact",
+      "source": {
+        "kind": "file",
+        "run": "D-package",
+        "challenge": "X",
+        "sessionID": "domain-solver",
+        "execution": "e6e2da3c-4da8-4edd-a341-4b5ff7bf69e9",
+        "resource": "p5",
+        "path": "work/mixed.bin",
+        "callID": "p5",
+        "selectedExecution": "e6e2da3c-4da8-4edd-a341-4b5ff7bf69e9",
+        "ref": "5ed15aa4-99b7-42df-bede-0a63bb96da41"
+      },
+      "originalComplete": null,
+      "start": 0,
+      "end": 16,
+      "size": 16,
+      "sha256": "8af1702498192f6c0ac605c33a0f2deb4ec738ff6a5e84992c7af4a9ea068917",
+      "encoding": "base64",
+      "data": "bG9nDQrml5d7w6l9AP8NCg==",
+      "rangeComplete": true,
+      "necessary": false,
+      "context": "Ancillary view of an artifact that is also a fixed package input"
+    }
+  ],
+  "hostChecks": {
+    "blockers": [],
+    "candidateEqual": true,
+    "semanticAssessment": "verifier_assertion_not_host_proven"
+  },
+  "createdAt": 1792822047039,
+  "currentAvailability": {
+    "usable": false,
+    "reasons": [
+      "fixed package or dependency unavailable"
+    ],
+    "warnings": [
+      {
+        "evidenceIndex": 1,
+        "reason": "fixed evidence unavailable"
+      }
+    ],
+    "checkedAt": 1792822047041,
+    "premises": "see fixed report; assumptions are not host proofs"
+  }
+}

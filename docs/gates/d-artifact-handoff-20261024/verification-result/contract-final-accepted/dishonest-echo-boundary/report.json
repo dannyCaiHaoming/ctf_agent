@@ -1,0 +1,134 @@
+{
+  "run": "D-package",
+  "challenge": "X",
+  "version": "60770d1e-cc6a-45be-be27-e6e04eb40dfa",
+  "sessionID": "verifier",
+  "execution": "07c28ea9-1bf2-4183-af1e-c5ee03b389a1",
+  "result": "721cbcd8-077f-40de-94c3-c54d74ebb7e7",
+  "original": {
+    "judgment": "verified",
+    "mode": "recompute",
+    "rationale": "Local fixture recomputation under explicit trusted local execution premise",
+    "sourceFlow": "Inspect script and fixed input; compare stdout exact bytes to candidate",
+    "premises": [
+      {
+        "statement": "Trusted stable local execution, no untrusted concurrent writers",
+        "status": "assumed"
+      }
+    ],
+    "issues": [],
+    "requirements": {
+      "continuousIntegrity": false,
+      "declaredDependenciesOnly": false
+    },
+    "evidence": [
+      {
+        "kind": "job",
+        "job": "707c5bac-3b7c-4d6b-af2e-d666cd3c1381",
+        "stream": "stdout",
+        "necessary": true,
+        "context": "Whole local stdout answers fixture; stderr irrelevant"
+      }
+    ],
+    "comparison": {
+      "evidence": 0,
+      "start": 0,
+      "end": 9
+    }
+  },
+  "effectiveJudgment": "verified",
+  "evidence": [
+    {
+      "kind": "job",
+      "source": {
+        "kind": "job",
+        "run": "D-package",
+        "challenge": "X",
+        "sessionID": "verifier",
+        "execution": "07c28ea9-1bf2-4183-af1e-c5ee03b389a1",
+        "resource": "707c5bac-3b7c-4d6b-af2e-d666cd3c1381",
+        "callID": "p15",
+        "stream": "stdout"
+      },
+      "originalComplete": true,
+      "association": {
+        "version": "60770d1e-cc6a-45be-be27-e6e04eb40dfa",
+        "preparation": "926f6e71-2206-450d-9f56-13524405e0a6",
+        "execution": "07c28ea9-1bf2-4183-af1e-c5ee03b389a1",
+        "argv": [
+          "/opt/homebrew/Cellar/node/26.3.0/bin/node",
+          "check.cjs"
+        ],
+        "files": [
+          {
+            "path": "solve.cjs",
+            "sha256": "9ae4336264e4c21d65169d453ebe26dab742b0fa62e44c72198ced00c4d4bac3",
+            "size": 33
+          },
+          {
+            "path": "data/input.bin",
+            "sha256": "e9489f37fb3051e9efa1dc916004d7274e7b63975e3209708947267f2393a9be",
+            "size": 4
+          },
+          {
+            "path": "evidence/raw.bin",
+            "sha256": "8af1702498192f6c0ac605c33a0f2deb4ec738ff6a5e84992c7af4a9ea068917",
+            "size": 16
+          },
+          {
+            "path": "check.cjs",
+            "sha256": "25bc2c7034d0c11b3f0d07c3be79153cfb92f5c2c39b8b107293d35d134239e1",
+            "size": 73
+          }
+        ],
+        "metadata": [
+          {
+            "path": "verify-926f6e71-2206-450d-9f56-13524405e0a6/manifest.json",
+            "sha256": "7a5b6bfa002d6bce8f4d78a0eedf042ab527f07c22ddd89012af5b2cd255b9a3",
+            "size": 3108
+          },
+          {
+            "path": "verify-926f6e71-2206-450d-9f56-13524405e0a6/candidate.bin",
+            "sha256": "4527432703d179e8d8f48f8ec1b39f5688c37d5e374dc13f6e72aba2224f59b0",
+            "size": 9
+          }
+        ],
+        "before": "matched",
+        "after": "matched",
+        "continuousIntegrity": "unknown",
+        "undeclaredDependencies": "unknown"
+      },
+      "terminal": {
+        "state": "exited",
+        "exitCode": 0
+      },
+      "preparation": "926f6e71-2206-450d-9f56-13524405e0a6",
+      "start": 0,
+      "end": 9,
+      "size": 9,
+      "sha256": "4527432703d179e8d8f48f8ec1b39f5688c37d5e374dc13f6e72aba2224f59b0",
+      "encoding": "base64",
+      "data": "5peXe8OpfQD/",
+      "rangeComplete": true,
+      "necessary": true,
+      "context": "Whole local stdout answers fixture; stderr irrelevant"
+    }
+  ],
+  "hostChecks": {
+    "blockers": [],
+    "candidateEqual": true,
+    "semanticAssessment": "verifier_assertion_not_host_proven"
+  },
+  "createdAt": 1792820719815,
+  "currentAvailability": {
+    "usable": true,
+    "reasons": [],
+    "conditionalOn": [
+      {
+        "statement": "Trusted stable local execution, no untrusted concurrent writers",
+        "status": "assumed"
+      }
+    ],
+    "semanticAssessment": "verifier_assertion_not_host_proven"
+  }
+}

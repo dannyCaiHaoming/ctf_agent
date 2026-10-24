@@ -1,0 +1,131 @@
+[
+  {
+    "run": "rejected",
+    "challenge": "X",
+    "version": "29656036-1c5d-4deb-9985-0ba5ef76946f",
+    "sessionID": "ses_e938fbcf1ffdUJGVXJyXoESPZ1",
+    "execution": "caf82ebe-bc4b-4d9f-910e-83a69424656a",
+    "result": "fa2949e0-f7ac-443b-853f-7af2beec43f0",
+    "original": {
+      "judgment": "rejected",
+      "mode": "recompute",
+      "rationale": "Scripted fixture counterexample: expected candidate differs from inspected stdout",
+      "sourceFlow": "Fixed E material check, raw.bin [5,14) and extract.cjs stdout; no semantic model claim",
+      "premises": [
+        {
+          "statement": "Trusted stable local fixture execution; semantic choice predefined by stub",
+          "status": "assumed"
+        }
+      ],
+      "issues": [],
+      "requirements": {
+        "continuousIntegrity": false,
+        "declaredDependenciesOnly": false
+      },
+      "evidence": [
+        {
+          "kind": "job",
+          "job": "59cce237-e8e0-4787-a09d-6d2a2f0f7056",
+          "stream": "stdout",
+          "necessary": true,
+          "context": "Whole stdout of prepared local fixture calculation"
+        }
+      ],
+      "comparison": {
+        "evidence": 0,
+        "start": 0,
+        "end": 5
+      }
+    },
+    "effectiveJudgment": "rejected",
+    "evidence": [
+      {
+        "kind": "job",
+        "source": {
+          "kind": "job",
+          "run": "rejected",
+          "challenge": "X",
+          "sessionID": "ses_e938fbcf1ffdUJGVXJyXoESPZ1",
+          "execution": "caf82ebe-bc4b-4d9f-910e-83a69424656a",
+          "resource": "59cce237-e8e0-4787-a09d-6d2a2f0f7056",
+          "callID": "call_38_0",
+          "stream": "stdout"
+        },
+        "originalComplete": true,
+        "association": {
+          "version": "29656036-1c5d-4deb-9985-0ba5ef76946f",
+          "preparation": "cf6e1b13-2b4e-4d4b-92af-95c65e6dd993",
+          "execution": "caf82ebe-bc4b-4d9f-910e-83a69424656a",
+          "argv": [
+            "/opt/homebrew/Cellar/node/26.3.0/bin/node",
+            "-e",
+            "process.stdout.write('WRONG')"
+          ],
+          "files": [
+            {
+              "path": "extract.cjs",
+              "sha256": "44a74af79001c99ff10ffd0e7efbf104430bda4d1c7bc61fa737be34696393a1",
+              "size": 278
+            },
+            {
+              "path": "source.cjs",
+              "sha256": "77778162f10a8d4194a28af0b1afcb6540894a0f527d65a910d2194c3fd1e147",
+              "size": 74
+            },
+            {
+              "path": "raw.bin",
+              "sha256": "27ddedb8bc0775ffffacf7f65607afa8b1a4fa31181bf37e8b4f03e05c74dcb9",
+              "size": 20
+            },
+            {
+              "path": "data/input.txt",
+              "sha256": "b5681bcc5994e57fbe5f04669900f5d2e7b1c78d40cec989c8f0a2a54b44e7b4",
+              "size": 13
+            },
+            {
+              "path": "evidence/solver.cjs",
+              "sha256": "77778162f10a8d4194a28af0b1afcb6540894a0f527d65a910d2194c3fd1e147",
+              "size": 74
+            }
+          ],
+          "metadata": [
+            {
+              "path": "verify-cf6e1b13-2b4e-4d4b-92af-95c65e6dd993/manifest.json",
+              "sha256": "f28d8befef2736ce8cf74c04630c6836fd9b787b83be6deac660a58f3c5cea92",
+              "size": 4074
+            },
+            {
+              "path": "verify-cf6e1b13-2b4e-4d4b-92af-95c65e6dd993/candidate.bin",
+              "sha256": "4527432703d179e8d8f48f8ec1b39f5688c37d5e374dc13f6e72aba2224f59b0",
+              "size": 9
+            }
+          ],
+          "before": "matched",
+          "after": "matched",
+          "continuousIntegrity": "unknown",
+          "undeclaredDependencies": "unknown"
+        },
+        "terminal": {
+          "state": "exited",
+          "exitCode": 0
+        },
+        "preparation": "cf6e1b13-2b4e-4d4b-92af-95c65e6dd993",
+        "start": 0,
+        "end": 5,
+        "size": 5,
+        "sha256": "02b60b3b9ed309b730abc7006e62bf07ad5b911bc8ae57c4cf001bad35819e7a",
+        "encoding": "base64",
+        "data": "V1JPTkc=",
+        "rangeComplete": true,
+        "necessary": true,
+        "context": "Whole stdout of prepared local fixture calculation"
+      }
+    ],
+    "hostChecks": {
+      "blockers": [],
+      "candidateEqual": false,
+      "semanticAssessment": "verifier_assertion_not_host_proven"
+    },
+    "createdAt": 1792820659166
+  }
+]

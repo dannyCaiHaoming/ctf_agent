@@ -1,0 +1,162 @@
+{
+  "run": "D-package",
+  "challenge": "X",
+  "version": "cede34e0-56df-4b5c-a9e3-bd95e5da5818",
+  "sessionID": "verifier",
+  "execution": "0f074de8-70cd-4398-a788-0dfb94d18150",
+  "result": "87fc41ce-236f-44a7-9f8d-579886a07219",
+  "original": {
+    "judgment": "verified",
+    "mode": "recompute",
+    "rationale": "Local fixture recomputation under explicit trusted local execution premise",
+    "sourceFlow": "Inspect script and fixed input; compare stdout exact bytes to candidate",
+    "premises": [
+      {
+        "statement": "Trusted stable local execution, no untrusted concurrent writers",
+        "status": "assumed"
+      }
+    ],
+    "issues": [],
+    "requirements": {
+      "continuousIntegrity": false,
+      "declaredDependenciesOnly": false
+    },
+    "evidence": [
+      {
+        "kind": "job",
+        "job": "8a605a9d-8a51-481a-a56a-5c39564af068",
+        "stream": "stdout",
+        "necessary": true,
+        "context": "Whole local stdout answers fixture; stderr irrelevant"
+      },
+      {
+        "kind": "artifact",
+        "ref": "1370dc6e-fa04-44bd-93a0-5eb4e33dd6bc",
+        "necessary": true,
+        "context": "Supplementary operation observation required by this judgment"
+      }
+    ],
+    "comparison": {
+      "evidence": 0,
+      "start": 0,
+      "end": 9
+    }
+  },
+  "effectiveJudgment": "verified",
+  "evidence": [
+    {
+      "kind": "job",
+      "source": {
+        "kind": "job",
+        "run": "D-package",
+        "challenge": "X",
+        "sessionID": "verifier",
+        "execution": "0f074de8-70cd-4398-a788-0dfb94d18150",
+        "resource": "8a605a9d-8a51-481a-a56a-5c39564af068",
+        "callID": "p15",
+        "stream": "stdout"
+      },
+      "originalComplete": true,
+      "association": {
+        "version": "cede34e0-56df-4b5c-a9e3-bd95e5da5818",
+        "preparation": "8ef6071b-5c87-4669-b5fb-3bcc18245edf",
+        "execution": "0f074de8-70cd-4398-a788-0dfb94d18150",
+        "argv": [
+          "/opt/homebrew/Cellar/node/26.3.0/bin/node",
+          "check.cjs"
+        ],
+        "files": [
+          {
+            "path": "solve.cjs",
+            "sha256": "9ae4336264e4c21d65169d453ebe26dab742b0fa62e44c72198ced00c4d4bac3",
+            "size": 33
+          },
+          {
+            "path": "data/input.bin",
+            "sha256": "e9489f37fb3051e9efa1dc916004d7274e7b63975e3209708947267f2393a9be",
+            "size": 4
+          },
+          {
+            "path": "evidence/raw.bin",
+            "sha256": "8af1702498192f6c0ac605c33a0f2deb4ec738ff6a5e84992c7af4a9ea068917",
+            "size": 16
+          },
+          {
+            "path": "check.cjs",
+            "sha256": "da03a62a9551937813ca8072024b68274fb4aea8beb3b9c43607fe58ecf86a39",
+            "size": 135
+          }
+        ],
+        "metadata": [
+          {
+            "path": "verify-8ef6071b-5c87-4669-b5fb-3bcc18245edf/manifest.json",
+            "sha256": "7a666d58daa50c153f5916a511685a999cbf819835cb28a59bdff3e14cd308eb",
+            "size": 3111
+          },
+          {
+            "path": "verify-8ef6071b-5c87-4669-b5fb-3bcc18245edf/candidate.bin",
+            "sha256": "4527432703d179e8d8f48f8ec1b39f5688c37d5e374dc13f6e72aba2224f59b0",
+            "size": 9
+          }
+        ],
+        "before": "matched",
+        "after": "matched",
+        "continuousIntegrity": "unknown",
+        "undeclaredDependencies": "unknown"
+      },
+      "terminal": {
+        "state": "exited",
+        "exitCode": 0
+      },
+      "preparation": "8ef6071b-5c87-4669-b5fb-3bcc18245edf",
+      "start": 0,
+      "end": 9,
+      "size": 9,
+      "sha256": "4527432703d179e8d8f48f8ec1b39f5688c37d5e374dc13f6e72aba2224f59b0",
+      "encoding": "base64",
+      "data": "5peXe8OpfQD/",
+      "rangeComplete": true,
+      "necessary": true,
+      "context": "Whole local stdout answers fixture; stderr irrelevant"
+    },
+    {
+      "kind": "artifact",
+      "source": {
+        "kind": "job",
+        "run": "D-package",
+        "challenge": "X",
+        "sessionID": "domain-solver",
+        "execution": "ab5b3c17-0e3f-439a-8a26-88a171a1f600",
+        "resource": "a95a6b7c-7b69-49c6-b9e2-046d6fcd65a6",
+        "callID": "p16",
+        "stream": "stdout",
+        "ref": "1370dc6e-fa04-44bd-93a0-5eb4e33dd6bc"
+      },
+      "originalComplete": true,
+      "start": 0,
+      "end": 34,
+      "size": 34,
+      "sha256": "4fde0c7c8afb2a90f6aef3269bdd8ecfc60b8a8067478f3cea486f8d7036c1ee",
+      "encoding": "base64",
+      "data": "bmVjZXNzYXJ5IHN1cHBsZW1lbnRhbCBvYnNlcnZhdGlvbg==",
+      "rangeComplete": true,
+      "necessary": true,
+      "context": "Supplementary operation observation required by this judgment"
+    }
+  ],
+  "hostChecks": {
+    "blockers": [],
+    "candidateEqual": true,
+    "semanticAssessment": "verifier_assertion_not_host_proven"
+  },
+  "createdAt": 1792821477599,
+  "currentAvailability": {
+    "usable": false,
+    "reasons": [
+      "fixed evidence unavailable"
+    ],
+    "warnings": [],
+    "checkedAt": 1792821477602,
+    "premises": "see fixed report; assumptions are not host proofs"
+  }
+}

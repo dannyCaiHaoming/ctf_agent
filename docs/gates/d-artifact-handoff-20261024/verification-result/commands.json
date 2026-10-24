@@ -1,0 +1,151 @@
+[
+  {
+    "command": "npm ci",
+    "exitCode": 0,
+    "note": "dependency preparation only; terminal output retained in session"
+  },
+  {
+    "command": "npx vitest run tests/contract/d-verification-result.test.ts (initial RED)",
+    "exitCode": 1,
+    "log": "baseline/RED.log",
+    "note": "9 missing-entry failures; no immediate new-test source snapshot"
+  },
+  {
+    "command": "npm run typecheck (initial)",
+    "exitCode": 2,
+    "log": "typecheck-initial.log"
+  },
+  {
+    "command": "npm run typecheck (second)",
+    "exitCode": 0,
+    "log": "typecheck-second.log"
+  },
+  {
+    "command": "npx vitest run tests/contract/d-verification-result.test.ts (initial implementation)",
+    "exitCode": 1,
+    "log": "contract-initial.log",
+    "note": "8 pass, one expectation referred to verifier.execution rather than host execution"
+  },
+  {
+    "command": "npx vitest run tests/contract/d-verification-result.test.ts (second)",
+    "exitCode": 0,
+    "log": "contract-second.log"
+  },
+  {
+    "command": "targeted 9 contract files (full command in README)",
+    "exitCode": 0,
+    "log": "targeted.log",
+    "tests": 106
+  },
+  {
+    "command": "npx tsx tests/manual/d-verification-result.ts native-first",
+    "exitCode": 0,
+    "log": "native-first.log",
+    "note": "early rejected checker invalid as semantic counterevidence"
+  },
+  {
+    "command": "npx tsx tests/manual/d-verification-result.ts native-final",
+    "exitCode": 0,
+    "log": "native-final.log",
+    "note": "early rejected checker invalid as semantic counterevidence"
+  },
+  {
+    "command": "npx tsx tests/manual/d-verification-result.ts native-accepted",
+    "exitCode": 0,
+    "log": "native-accepted.log",
+    "note": "final same-batch seven cases; inner budget run code 1 expected"
+  },
+  {
+    "command": "npx vitest run --root docs/gates/d-artifact-handoff-20261024/verification-result/red-replay/source",
+    "exitCode": 1,
+    "log": "red-replay/RED.log",
+    "note": "supplemental baseline replay; 12 failures include missing-entry race timeout; not original instant snapshot"
+  },
+  {
+    "record": "accepted-build-exit.json",
+    "command": [
+      "npm",
+      "run",
+      "build"
+    ],
+    "exitCode": 0,
+    "elapsedSeconds": 2.8847289085388184
+  },
+  {
+    "record": "accepted-test-exit.json",
+    "command": [
+      "npm",
+      "test"
+    ],
+    "exitCode": 0,
+    "elapsedSeconds": 15.31343674659729
+  },
+  {
+    "record": "accepted-typecheck-exit.json",
+    "command": [
+      "npm",
+      "run",
+      "typecheck"
+    ],
+    "exitCode": 0,
+    "elapsedSeconds": 3.0803730487823486
+  },
+  {
+    "record": "delivery-build-exit.json",
+    "command": [
+      "npm",
+      "run",
+      "build"
+    ],
+    "exitCode": 0,
+    "elapsedSeconds": 3.0771000385284424
+  },
+  {
+    "record": "delivery-test-exit.json",
+    "command": [
+      "npm",
+      "test"
+    ],
+    "exitCode": 0,
+    "elapsedSeconds": 15.267861127853394
+  },
+  {
+    "record": "delivery-typecheck-exit.json",
+    "command": [
+      "npm",
+      "run",
+      "typecheck"
+    ],
+    "exitCode": 0,
+    "elapsedSeconds": 3.511681079864502
+  },
+  {
+    "record": "final-build-exit.json",
+    "command": [
+      "npm",
+      "run",
+      "build"
+    ],
+    "exitCode": 1,
+    "elapsedSeconds": 2.585693836212158
+  },
+  {
+    "record": "final-test-exit.json",
+    "command": [
+      "npm",
+      "test"
+    ],
+    "exitCode": 0,
+    "elapsedSeconds": 15.314489126205444
+  },
+  {
+    "record": "final-typecheck-exit.json",
+    "command": [
+      "npm",
+      "run",
+      "typecheck"
+    ],
+    "exitCode": 0,
+    "elapsedSeconds": 2.7664380073547363
+  }
+]

@@ -1,0 +1,1285 @@
+[
+  {
+    "seq": 1,
+    "t": 0,
+    "at": 1792820697033,
+    "sessionID": "root",
+    "op": "bind",
+    "allow": true,
+    "detail": {
+      "role": "coordinator",
+      "via": "root"
+    }
+  },
+  {
+    "seq": 2,
+    "t": 0,
+    "at": 1792820697033,
+    "sessionID": "root",
+    "op": "assign",
+    "allow": true,
+    "detail": {
+      "role": "domain-solver",
+      "challenge": "X"
+    }
+  },
+  {
+    "seq": 3,
+    "t": 0,
+    "at": 1792820697033,
+    "sessionID": "root",
+    "op": "tool.execute",
+    "allow": true,
+    "detail": {
+      "tool": "challenge.assign",
+      "callID": "p1",
+      "result": "returned"
+    }
+  },
+  {
+    "seq": 4,
+    "t": 0,
+    "at": 1792820697033,
+    "sessionID": "root",
+    "op": "dispatch.register",
+    "allow": true,
+    "detail": {
+      "role": "domain-solver",
+      "callID": "t2",
+      "challengeId": "X"
+    }
+  },
+  {
+    "seq": 5,
+    "t": 0,
+    "at": 1792820697033,
+    "sessionID": "root",
+    "op": "task.execution",
+    "allow": true,
+    "detail": {
+      "ref": "4a395b06-82af-4aeb-8741-0f3804ffff50",
+      "run": "D-package",
+      "parent": "root",
+      "callID": "t2",
+      "role": "domain-solver",
+      "challengeId": "X",
+      "state": "starting",
+      "delivered": false
+    }
+  },
+  {
+    "seq": 6,
+    "t": 0,
+    "at": 1792820697033,
+    "sessionID": "root",
+    "op": "tool.before",
+    "allow": true,
+    "detail": {
+      "tool": "task",
+      "callID": "t2",
+      "result": "returned"
+    }
+  },
+  {
+    "seq": 7,
+    "t": 0,
+    "at": 1792820697033,
+    "sessionID": "root",
+    "op": "task.correlate",
+    "allow": true,
+    "detail": {
+      "callID": "t2",
+      "childSessionID": "domain-solver",
+      "childBoundToCaller": false
+    }
+  },
+  {
+    "seq": 8,
+    "t": 0,
+    "at": 1792820697033,
+    "sessionID": "root",
+    "op": "tool.after",
+    "allow": true,
+    "detail": {
+      "tool": "task",
+      "callID": "t2",
+      "result": "returned"
+    }
+  },
+  {
+    "seq": 9,
+    "t": 0,
+    "at": 1792820697033,
+    "sessionID": "domain-solver",
+    "op": "bind",
+    "allow": true,
+    "detail": {
+      "role": "domain-solver",
+      "via": "dispatch",
+      "sdkParentID": "root",
+      "sdkAgent": "domain-solver",
+      "callID": "t2",
+      "challengeId": "X",
+      "sdkMs": 0
+    }
+  },
+  {
+    "seq": 10,
+    "t": 0,
+    "at": 1792820697033,
+    "sessionID": "domain-solver",
+    "op": "chat.message",
+    "allow": true,
+    "detail": {
+      "result": "returned"
+    }
+  },
+  {
+    "seq": 11,
+    "t": 0,
+    "at": 1792820697033,
+    "sessionID": "root",
+    "op": "assign",
+    "allow": true,
+    "detail": {
+      "role": "engineer",
+      "challenge": "X"
+    }
+  },
+  {
+    "seq": 12,
+    "t": 0,
+    "at": 1792820697033,
+    "sessionID": "root",
+    "op": "tool.execute",
+    "allow": true,
+    "detail": {
+      "tool": "challenge.assign",
+      "callID": "p3",
+      "result": "returned"
+    }
+  },
+  {
+    "seq": 13,
+    "t": 1,
+    "at": 1792820697034,
+    "sessionID": "root",
+    "op": "dispatch.register",
+    "allow": true,
+    "detail": {
+      "role": "engineer",
+      "callID": "t4",
+      "challengeId": "X"
+    }
+  },
+  {
+    "seq": 14,
+    "t": 1,
+    "at": 1792820697034,
+    "sessionID": "root",
+    "op": "task.execution",
+    "allow": true,
+    "detail": {
+      "ref": "b600b35e-dc71-4aa9-9c81-9a2a7e666799",
+      "run": "D-package",
+      "parent": "root",
+      "callID": "t4",
+      "role": "engineer",
+      "challengeId": "X",
+      "state": "starting",
+      "delivered": false
+    }
+  },
+  {
+    "seq": 15,
+    "t": 1,
+    "at": 1792820697034,
+    "sessionID": "root",
+    "op": "tool.before",
+    "allow": true,
+    "detail": {
+      "tool": "task",
+      "callID": "t4",
+      "result": "returned"
+    }
+  },
+  {
+    "seq": 16,
+    "t": 1,
+    "at": 1792820697034,
+    "sessionID": "root",
+    "op": "task.correlate",
+    "allow": true,
+    "detail": {
+      "callID": "t4",
+      "childSessionID": "engineer",
+      "childBoundToCaller": false
+    }
+  },
+  {
+    "seq": 17,
+    "t": 1,
+    "at": 1792820697034,
+    "sessionID": "root",
+    "op": "tool.after",
+    "allow": true,
+    "detail": {
+      "tool": "task",
+      "callID": "t4",
+      "result": "returned"
+    }
+  },
+  {
+    "seq": 18,
+    "t": 1,
+    "at": 1792820697034,
+    "sessionID": "engineer",
+    "op": "bind",
+    "allow": true,
+    "detail": {
+      "role": "engineer",
+      "via": "dispatch",
+      "sdkParentID": "root",
+      "sdkAgent": "engineer",
+      "callID": "t4",
+      "challengeId": "X",
+      "sdkMs": 0
+    }
+  },
+  {
+    "seq": 19,
+    "t": 1,
+    "at": 1792820697034,
+    "sessionID": "engineer",
+    "op": "chat.message",
+    "allow": true,
+    "detail": {
+      "result": "returned"
+    }
+  },
+  {
+    "seq": 20,
+    "t": 1,
+    "at": 1792820697034,
+    "sessionID": "domain-solver",
+    "op": "tool.registered",
+    "allow": true,
+    "detail": {
+      "callID": "p5",
+      "tool": "workspace.write",
+      "challengeId": "X",
+      "deadline": 1792820712034
+    }
+  },
+  {
+    "seq": 21,
+    "t": 1,
+    "at": 1792820697034,
+    "sessionID": "domain-solver",
+    "op": "tool.settled",
+    "allow": true,
+    "detail": {
+      "callID": "p5",
+      "tool": "workspace.write",
+      "result": "completed"
+    }
+  },
+  {
+    "seq": 22,
+    "t": 1,
+    "at": 1792820697034,
+    "sessionID": "domain-solver",
+    "op": "tool.execute",
+    "allow": true,
+    "detail": {
+      "tool": "workspace.write",
+      "callID": "p5",
+      "result": "returned"
+    }
+  },
+  {
+    "seq": 23,
+    "t": 1,
+    "at": 1792820697034,
+    "sessionID": "domain-solver",
+    "op": "tool.registered",
+    "allow": true,
+    "detail": {
+      "callID": "p6",
+      "tool": "artifact.publish",
+      "challengeId": "X",
+      "deadline": 1792820712034
+    }
+  },
+  {
+    "seq": 24,
+    "t": 1,
+    "at": 1792820697034,
+    "sessionID": "domain-solver",
+    "op": "artifact.published",
+    "allow": true,
+    "detail": {
+      "ref": "5b61534d-c710-448c-bb3b-bd2c2e1562a3",
+      "path": "published/5b61534d-c710-448c-bb3b-bd2c2e1562a3.bin",
+      "sha256": "8af1702498192f6c0ac605c33a0f2deb4ec738ff6a5e84992c7af4a9ea068917",
+      "size": 16,
+      "source": {
+        "kind": "file",
+        "run": "D-package",
+        "challenge": "X",
+        "sessionID": "domain-solver",
+        "execution": "4a395b06-82af-4aeb-8741-0f3804ffff50",
+        "resource": "p5",
+        "path": "work/mixed.bin",
+        "callID": "p5",
+        "selectedExecution": "4a395b06-82af-4aeb-8741-0f3804ffff50"
+      },
+      "start": 0,
+      "end": 16,
+      "originalBytes": 16,
+      "originalComplete": null,
+      "rangeComplete": true,
+      "snapshotFixed": true
+    }
+  },
+  {
+    "seq": 25,
+    "t": 1,
+    "at": 1792820697034,
+    "sessionID": "domain-solver",
+    "op": "tool.settled",
+    "allow": true,
+    "detail": {
+      "callID": "p6",
+      "tool": "artifact.publish",
+      "result": "completed"
+    }
+  },
+  {
+    "seq": 26,
+    "t": 1,
+    "at": 1792820697034,
+    "sessionID": "domain-solver",
+    "op": "tool.execute",
+    "allow": true,
+    "detail": {
+      "tool": "artifact.publish",
+      "callID": "p6",
+      "result": "returned"
+    }
+  },
+  {
+    "seq": 27,
+    "t": 1,
+    "at": 1792820697034,
+    "sessionID": "engineer",
+    "op": "tool.registered",
+    "allow": true,
+    "detail": {
+      "callID": "p7",
+      "tool": "workspace.write",
+      "challengeId": "X",
+      "deadline": 1792820712034
+    }
+  },
+  {
+    "seq": 28,
+    "t": 2,
+    "at": 1792820697035,
+    "sessionID": "engineer",
+    "op": "tool.settled",
+    "allow": true,
+    "detail": {
+      "callID": "p7",
+      "tool": "workspace.write",
+      "result": "completed"
+    }
+  },
+  {
+    "seq": 29,
+    "t": 2,
+    "at": 1792820697035,
+    "sessionID": "engineer",
+    "op": "tool.execute",
+    "allow": true,
+    "detail": {
+      "tool": "workspace.write",
+      "callID": "p7",
+      "result": "returned"
+    }
+  },
+  {
+    "seq": 30,
+    "t": 2,
+    "at": 1792820697035,
+    "sessionID": "engineer",
+    "op": "tool.registered",
+    "allow": true,
+    "detail": {
+      "callID": "p8",
+      "tool": "artifact.publish",
+      "challengeId": "X",
+      "deadline": 1792820712035
+    }
+  },
+  {
+    "seq": 31,
+    "t": 2,
+    "at": 1792820697035,
+    "sessionID": "engineer",
+    "op": "artifact.published",
+    "allow": true,
+    "detail": {
+      "ref": "1ab481e1-9ad7-496c-9552-41be8621c3fa",
+      "path": "published/1ab481e1-9ad7-496c-9552-41be8621c3fa.bin",
+      "sha256": "9ae4336264e4c21d65169d453ebe26dab742b0fa62e44c72198ced00c4d4bac3",
+      "size": 33,
+      "source": {
+        "kind": "file",
+        "run": "D-package",
+        "challenge": "X",
+        "sessionID": "engineer",
+        "execution": "b600b35e-dc71-4aa9-9c81-9a2a7e666799",
+        "resource": "p7",
+        "path": "work/solve.cjs",
+        "callID": "p7",
+        "selectedExecution": "b600b35e-dc71-4aa9-9c81-9a2a7e666799"
+      },
+      "start": 0,
+      "end": 33,
+      "originalBytes": 33,
+      "originalComplete": null,
+      "rangeComplete": true,
+      "snapshotFixed": true
+    }
+  },
+  {
+    "seq": 32,
+    "t": 2,
+    "at": 1792820697035,
+    "sessionID": "engineer",
+    "op": "tool.settled",
+    "allow": true,
+    "detail": {
+      "callID": "p8",
+      "tool": "artifact.publish",
+      "result": "completed"
+    }
+  },
+  {
+    "seq": 33,
+    "t": 2,
+    "at": 1792820697035,
+    "sessionID": "engineer",
+    "op": "tool.execute",
+    "allow": true,
+    "detail": {
+      "tool": "artifact.publish",
+      "callID": "p8",
+      "result": "returned"
+    }
+  },
+  {
+    "seq": 34,
+    "t": 2,
+    "at": 1792820697035,
+    "sessionID": "engineer",
+    "op": "tool.registered",
+    "allow": true,
+    "detail": {
+      "callID": "p9",
+      "tool": "workspace.write",
+      "challengeId": "X",
+      "deadline": 1792820712035
+    }
+  },
+  {
+    "seq": 35,
+    "t": 2,
+    "at": 1792820697035,
+    "sessionID": "engineer",
+    "op": "tool.settled",
+    "allow": true,
+    "detail": {
+      "callID": "p9",
+      "tool": "workspace.write",
+      "result": "completed"
+    }
+  },
+  {
+    "seq": 36,
+    "t": 2,
+    "at": 1792820697035,
+    "sessionID": "engineer",
+    "op": "tool.execute",
+    "allow": true,
+    "detail": {
+      "tool": "workspace.write",
+      "callID": "p9",
+      "result": "returned"
+    }
+  },
+  {
+    "seq": 37,
+    "t": 2,
+    "at": 1792820697035,
+    "sessionID": "engineer",
+    "op": "tool.registered",
+    "allow": true,
+    "detail": {
+      "callID": "p10",
+      "tool": "artifact.publish",
+      "challengeId": "X",
+      "deadline": 1792820712035
+    }
+  },
+  {
+    "seq": 38,
+    "t": 3,
+    "at": 1792820697036,
+    "sessionID": "engineer",
+    "op": "artifact.published",
+    "allow": true,
+    "detail": {
+      "ref": "dadb83f7-c74e-4cb7-b3ab-d557f969b3d5",
+      "path": "published/dadb83f7-c74e-4cb7-b3ab-d557f969b3d5.bin",
+      "sha256": "da03a62a9551937813ca8072024b68274fb4aea8beb3b9c43607fe58ecf86a39",
+      "size": 135,
+      "source": {
+        "kind": "file",
+        "run": "D-package",
+        "challenge": "X",
+        "sessionID": "engineer",
+        "execution": "b600b35e-dc71-4aa9-9c81-9a2a7e666799",
+        "resource": "p9",
+        "path": "work/check.cjs",
+        "callID": "p9",
+        "selectedExecution": "b600b35e-dc71-4aa9-9c81-9a2a7e666799"
+      },
+      "start": 0,
+      "end": 135,
+      "originalBytes": 135,
+      "originalComplete": null,
+      "rangeComplete": true,
+      "snapshotFixed": true
+    }
+  },
+  {
+    "seq": 39,
+    "t": 3,
+    "at": 1792820697036,
+    "sessionID": "engineer",
+    "op": "tool.settled",
+    "allow": true,
+    "detail": {
+      "callID": "p10",
+      "tool": "artifact.publish",
+      "result": "completed"
+    }
+  },
+  {
+    "seq": 40,
+    "t": 3,
+    "at": 1792820697036,
+    "sessionID": "engineer",
+    "op": "tool.execute",
+    "allow": true,
+    "detail": {
+      "tool": "artifact.publish",
+      "callID": "p10",
+      "result": "returned"
+    }
+  },
+  {
+    "seq": 41,
+    "t": 3,
+    "at": 1792820697036,
+    "sessionID": "engineer",
+    "op": "tool.registered",
+    "allow": true,
+    "detail": {
+      "callID": "p11",
+      "tool": "package.publish",
+      "challengeId": "X",
+      "deadline": 1792820712036
+    }
+  },
+  {
+    "seq": 42,
+    "t": 4,
+    "at": 1792820697037,
+    "sessionID": "engineer",
+    "op": "package.published",
+    "allow": true,
+    "detail": {
+      "ref": "0d299208-0225-453d-8bd8-0760fce9be63",
+      "path": "published/0d299208-0225-453d-8bd8-0760fce9be63.bin",
+      "sha256": "8a03c182b38bf4b4ae88ba7493286fbe4b81e279c4b09d00660ef26876c5366a",
+      "size": 3111,
+      "source": {
+        "kind": "package",
+        "run": "D-package",
+        "challenge": "X",
+        "sessionID": "engineer",
+        "execution": "b600b35e-dc71-4aa9-9c81-9a2a7e666799",
+        "resource": "p11"
+      },
+      "start": 0,
+      "end": 3111,
+      "originalBytes": 3111,
+      "originalComplete": true,
+      "rangeComplete": true,
+      "snapshotFixed": true
+    }
+  },
+  {
+    "seq": 43,
+    "t": 4,
+    "at": 1792820697037,
+    "sessionID": "engineer",
+    "op": "tool.settled",
+    "allow": true,
+    "detail": {
+      "callID": "p11",
+      "tool": "package.publish",
+      "result": "completed"
+    }
+  },
+  {
+    "seq": 44,
+    "t": 4,
+    "at": 1792820697037,
+    "sessionID": "engineer",
+    "op": "tool.execute",
+    "allow": true,
+    "detail": {
+      "tool": "package.publish",
+      "callID": "p11",
+      "result": "returned"
+    }
+  },
+  {
+    "seq": 45,
+    "t": 4,
+    "at": 1792820697037,
+    "sessionID": "root",
+    "op": "assign",
+    "allow": true,
+    "detail": {
+      "role": "verifier",
+      "challenge": "X",
+      "version": "0d299208-0225-453d-8bd8-0760fce9be63"
+    }
+  },
+  {
+    "seq": 46,
+    "t": 4,
+    "at": 1792820697037,
+    "sessionID": "root",
+    "op": "tool.execute",
+    "allow": true,
+    "detail": {
+      "tool": "challenge.assign",
+      "callID": "p12",
+      "result": "returned"
+    }
+  },
+  {
+    "seq": 47,
+    "t": 4,
+    "at": 1792820697037,
+    "sessionID": "root",
+    "op": "dispatch.register",
+    "allow": true,
+    "detail": {
+      "role": "verifier",
+      "callID": "t13",
+      "challengeId": "X"
+    }
+  },
+  {
+    "seq": 48,
+    "t": 4,
+    "at": 1792820697037,
+    "sessionID": "root",
+    "op": "task.execution",
+    "allow": true,
+    "detail": {
+      "ref": "fc1a9143-cee5-4b30-8d16-0a493237ada3",
+      "run": "D-package",
+      "parent": "root",
+      "callID": "t13",
+      "role": "verifier",
+      "version": "0d299208-0225-453d-8bd8-0760fce9be63",
+      "challengeId": "X",
+      "state": "starting",
+      "delivered": false
+    }
+  },
+  {
+    "seq": 49,
+    "t": 4,
+    "at": 1792820697037,
+    "sessionID": "root",
+    "op": "tool.before",
+    "allow": true,
+    "detail": {
+      "tool": "task",
+      "callID": "t13",
+      "result": "returned"
+    }
+  },
+  {
+    "seq": 50,
+    "t": 4,
+    "at": 1792820697037,
+    "sessionID": "root",
+    "op": "task.correlate",
+    "allow": true,
+    "detail": {
+      "callID": "t13",
+      "childSessionID": "verifier",
+      "childBoundToCaller": false
+    }
+  },
+  {
+    "seq": 51,
+    "t": 4,
+    "at": 1792820697037,
+    "sessionID": "root",
+    "op": "tool.after",
+    "allow": true,
+    "detail": {
+      "tool": "task",
+      "callID": "t13",
+      "result": "returned"
+    }
+  },
+  {
+    "seq": 52,
+    "t": 4,
+    "at": 1792820697037,
+    "sessionID": "verifier",
+    "op": "bind",
+    "allow": true,
+    "detail": {
+      "role": "verifier",
+      "via": "dispatch",
+      "sdkParentID": "root",
+      "sdkAgent": "verifier",
+      "callID": "t13",
+      "challengeId": "X",
+      "sdkMs": 0
+    }
+  },
+  {
+    "seq": 53,
+    "t": 4,
+    "at": 1792820697037,
+    "sessionID": "verifier",
+    "op": "chat.message",
+    "allow": true,
+    "detail": {
+      "result": "returned"
+    }
+  },
+  {
+    "seq": 54,
+    "t": 4,
+    "at": 1792820697037,
+    "sessionID": "verifier",
+    "op": "tool.registered",
+    "allow": true,
+    "detail": {
+      "callID": "p14",
+      "tool": "package.prepare",
+      "challengeId": "X",
+      "deadline": 1792820712037
+    }
+  },
+  {
+    "seq": 55,
+    "t": 9,
+    "at": 1792820697042,
+    "sessionID": "verifier",
+    "op": "package.prepared",
+    "allow": true,
+    "detail": {
+      "ready": true,
+      "preparation": "9c16646f-14d0-4dfa-b575-7386d8a78e9c",
+      "directory": "verify-9c16646f-14d0-4dfa-b575-7386d8a78e9c/inputs",
+      "manifestPath": "verify-9c16646f-14d0-4dfa-b575-7386d8a78e9c/manifest.json",
+      "candidatePath": "verify-9c16646f-14d0-4dfa-b575-7386d8a78e9c/candidate.bin",
+      "manifestSha256": "8a03c182b38bf4b4ae88ba7493286fbe4b81e279c4b09d00660ef26876c5366a",
+      "metadata": [
+        {
+          "path": "verify-9c16646f-14d0-4dfa-b575-7386d8a78e9c/manifest.json",
+          "sha256": "8a03c182b38bf4b4ae88ba7493286fbe4b81e279c4b09d00660ef26876c5366a",
+          "size": 3111
+        },
+        {
+          "path": "verify-9c16646f-14d0-4dfa-b575-7386d8a78e9c/candidate.bin",
+          "sha256": "4527432703d179e8d8f48f8ec1b39f5688c37d5e374dc13f6e72aba2224f59b0",
+          "size": 9
+        }
+      ],
+      "files": [
+        {
+          "path": "solve.cjs",
+          "sha256": "9ae4336264e4c21d65169d453ebe26dab742b0fa62e44c72198ced00c4d4bac3",
+          "size": 33
+        },
+        {
+          "path": "data/input.bin",
+          "sha256": "e9489f37fb3051e9efa1dc916004d7274e7b63975e3209708947267f2393a9be",
+          "size": 4
+        },
+        {
+          "path": "evidence/raw.bin",
+          "sha256": "8af1702498192f6c0ac605c33a0f2deb4ec738ff6a5e84992c7af4a9ea068917",
+          "size": 16
+        },
+        {
+          "path": "check.cjs",
+          "sha256": "da03a62a9551937813ca8072024b68274fb4aea8beb3b9c43607fe58ecf86a39",
+          "size": 135
+        }
+      ],
+      "execution": "fc1a9143-cee5-4b30-8d16-0a493237ada3",
+      "version": "0d299208-0225-453d-8bd8-0760fce9be63"
+    }
+  },
+  {
+    "seq": 56,
+    "t": 9,
+    "at": 1792820697042,
+    "sessionID": "verifier",
+    "op": "tool.settled",
+    "allow": true,
+    "detail": {
+      "callID": "p14",
+      "tool": "package.prepare",
+      "result": "completed"
+    }
+  },
+  {
+    "seq": 57,
+    "t": 9,
+    "at": 1792820697042,
+    "sessionID": "verifier",
+    "op": "tool.execute",
+    "allow": true,
+    "detail": {
+      "tool": "package.prepare",
+      "callID": "p14",
+      "result": "returned"
+    }
+  },
+  {
+    "seq": 58,
+    "t": 9,
+    "at": 1792820697042,
+    "sessionID": "verifier",
+    "op": "tool.registered",
+    "allow": true,
+    "detail": {
+      "callID": "p15",
+      "tool": "job.run",
+      "challengeId": "X",
+      "deadline": 1792820702042
+    }
+  },
+  {
+    "seq": 59,
+    "t": 10,
+    "at": 1792820697043,
+    "sessionID": "verifier",
+    "op": "verification.job.input",
+    "allow": true,
+    "detail": {
+      "version": "0d299208-0225-453d-8bd8-0760fce9be63",
+      "preparation": "9c16646f-14d0-4dfa-b575-7386d8a78e9c",
+      "execution": "fc1a9143-cee5-4b30-8d16-0a493237ada3",
+      "argv": [
+        "/opt/homebrew/Cellar/node/26.3.0/bin/node",
+        "check.cjs"
+      ],
+      "files": [
+        {
+          "path": "solve.cjs",
+          "sha256": "9ae4336264e4c21d65169d453ebe26dab742b0fa62e44c72198ced00c4d4bac3",
+          "size": 33
+        },
+        {
+          "path": "data/input.bin",
+          "sha256": "e9489f37fb3051e9efa1dc916004d7274e7b63975e3209708947267f2393a9be",
+          "size": 4
+        },
+        {
+          "path": "evidence/raw.bin",
+          "sha256": "8af1702498192f6c0ac605c33a0f2deb4ec738ff6a5e84992c7af4a9ea068917",
+          "size": 16
+        },
+        {
+          "path": "check.cjs",
+          "sha256": "da03a62a9551937813ca8072024b68274fb4aea8beb3b9c43607fe58ecf86a39",
+          "size": 135
+        }
+      ],
+      "metadata": [
+        {
+          "path": "verify-9c16646f-14d0-4dfa-b575-7386d8a78e9c/manifest.json",
+          "sha256": "8a03c182b38bf4b4ae88ba7493286fbe4b81e279c4b09d00660ef26876c5366a",
+          "size": 3111
+        },
+        {
+          "path": "verify-9c16646f-14d0-4dfa-b575-7386d8a78e9c/candidate.bin",
+          "sha256": "4527432703d179e8d8f48f8ec1b39f5688c37d5e374dc13f6e72aba2224f59b0",
+          "size": 9
+        }
+      ],
+      "before": "matched",
+      "after": "pending",
+      "continuousIntegrity": "unknown",
+      "undeclaredDependencies": "unknown"
+    }
+  },
+  {
+    "seq": 60,
+    "t": 53,
+    "at": 1792820697086,
+    "sessionID": "verifier",
+    "op": "verification.job.terminal",
+    "allow": true,
+    "detail": {
+      "version": "0d299208-0225-453d-8bd8-0760fce9be63",
+      "preparation": "9c16646f-14d0-4dfa-b575-7386d8a78e9c",
+      "execution": "fc1a9143-cee5-4b30-8d16-0a493237ada3",
+      "argv": [
+        "/opt/homebrew/Cellar/node/26.3.0/bin/node",
+        "check.cjs"
+      ],
+      "files": [
+        {
+          "path": "solve.cjs",
+          "sha256": "9ae4336264e4c21d65169d453ebe26dab742b0fa62e44c72198ced00c4d4bac3",
+          "size": 33
+        },
+        {
+          "path": "data/input.bin",
+          "sha256": "e9489f37fb3051e9efa1dc916004d7274e7b63975e3209708947267f2393a9be",
+          "size": 4
+        },
+        {
+          "path": "evidence/raw.bin",
+          "sha256": "8af1702498192f6c0ac605c33a0f2deb4ec738ff6a5e84992c7af4a9ea068917",
+          "size": 16
+        },
+        {
+          "path": "check.cjs",
+          "sha256": "da03a62a9551937813ca8072024b68274fb4aea8beb3b9c43607fe58ecf86a39",
+          "size": 135
+        }
+      ],
+      "metadata": [
+        {
+          "path": "verify-9c16646f-14d0-4dfa-b575-7386d8a78e9c/manifest.json",
+          "sha256": "8a03c182b38bf4b4ae88ba7493286fbe4b81e279c4b09d00660ef26876c5366a",
+          "size": 3111
+        },
+        {
+          "path": "verify-9c16646f-14d0-4dfa-b575-7386d8a78e9c/candidate.bin",
+          "sha256": "4527432703d179e8d8f48f8ec1b39f5688c37d5e374dc13f6e72aba2224f59b0",
+          "size": 9
+        }
+      ],
+      "before": "matched",
+      "after": "matched",
+      "continuousIntegrity": "unknown",
+      "undeclaredDependencies": "unknown",
+      "job": "81ee6cc6-a204-48f6-9d4a-f73219a9dd52",
+      "terminal": {
+        "job": "81ee6cc6-a204-48f6-9d4a-f73219a9dd52",
+        "state": "exited",
+        "exitCode": 0,
+        "signal": null,
+        "reapIncomplete": false
+      }
+    }
+  },
+  {
+    "seq": 61,
+    "t": 53,
+    "at": 1792820697086,
+    "sessionID": "verifier",
+    "op": "tool.settled",
+    "allow": true,
+    "detail": {
+      "callID": "p15",
+      "tool": "job.run",
+      "job": "81ee6cc6-a204-48f6-9d4a-f73219a9dd52",
+      "result": "exited"
+    }
+  },
+  {
+    "seq": 62,
+    "t": 53,
+    "at": 1792820697086,
+    "sessionID": "verifier",
+    "op": "tool.execute",
+    "allow": true,
+    "detail": {
+      "tool": "job.run",
+      "callID": "p15",
+      "result": "returned"
+    }
+  },
+  {
+    "seq": 63,
+    "t": 53,
+    "at": 1792820697086,
+    "sessionID": "verifier",
+    "op": "tool.registered",
+    "allow": true,
+    "detail": {
+      "callID": "p16",
+      "tool": "verification.report",
+      "challengeId": "X",
+      "deadline": 1792820712086
+    }
+  },
+  {
+    "seq": 64,
+    "t": 54,
+    "at": 1792820697087,
+    "sessionID": "root",
+    "op": "task.completion",
+    "allow": true,
+    "detail": {
+      "ref": "fc1a9143-cee5-4b30-8d16-0a493237ada3",
+      "childID": "verifier",
+      "callID": "t13",
+      "state": "completed",
+      "messageID": "done",
+      "wake": true
+    }
+  },
+  {
+    "seq": 65,
+    "t": 54,
+    "at": 1792820697087,
+    "sessionID": "root",
+    "op": "chat.message",
+    "allow": true,
+    "detail": {
+      "result": "returned"
+    }
+  },
+  {
+    "seq": 66,
+    "t": 54,
+    "at": 1792820697087,
+    "sessionID": "engineer",
+    "op": "tool.registered",
+    "allow": true,
+    "detail": {
+      "callID": "p17",
+      "tool": "package.publish",
+      "challengeId": "X",
+      "deadline": 1792820712087
+    }
+  },
+  {
+    "seq": 67,
+    "t": 54,
+    "at": 1792820697087,
+    "sessionID": "engineer",
+    "op": "package.published",
+    "allow": true,
+    "detail": {
+      "ref": "fc3b0f70-98de-4a24-955e-eadf39562cc0",
+      "path": "published/fc3b0f70-98de-4a24-955e-eadf39562cc0.bin",
+      "sha256": "ea051e3de38d17599ad9c6ddae36ab916bd89732e87b1d16267f16d377a4daf9",
+      "size": 2493,
+      "source": {
+        "kind": "package",
+        "run": "D-package",
+        "challenge": "X",
+        "sessionID": "engineer",
+        "execution": "b600b35e-dc71-4aa9-9c81-9a2a7e666799",
+        "resource": "p17"
+      },
+      "start": 0,
+      "end": 2493,
+      "originalBytes": 2493,
+      "originalComplete": true,
+      "rangeComplete": true,
+      "snapshotFixed": true
+    }
+  },
+  {
+    "seq": 68,
+    "t": 54,
+    "at": 1792820697087,
+    "sessionID": "engineer",
+    "op": "tool.settled",
+    "allow": true,
+    "detail": {
+      "callID": "p17",
+      "tool": "package.publish",
+      "result": "completed"
+    }
+  },
+  {
+    "seq": 69,
+    "t": 54,
+    "at": 1792820697087,
+    "sessionID": "engineer",
+    "op": "tool.execute",
+    "allow": true,
+    "detail": {
+      "tool": "package.publish",
+      "callID": "p17",
+      "result": "returned"
+    }
+  },
+  {
+    "seq": 70,
+    "t": 55,
+    "at": 1792820697088,
+    "sessionID": "root",
+    "op": "assign",
+    "allow": true,
+    "detail": {
+      "role": "verifier",
+      "challenge": "X",
+      "version": "fc3b0f70-98de-4a24-955e-eadf39562cc0"
+    }
+  },
+  {
+    "seq": 71,
+    "t": 55,
+    "at": 1792820697088,
+    "sessionID": "root",
+    "op": "tool.execute",
+    "allow": true,
+    "detail": {
+      "tool": "challenge.assign",
+      "callID": "p18",
+      "result": "returned"
+    }
+  },
+  {
+    "seq": 72,
+    "t": 55,
+    "at": 1792820697088,
+    "sessionID": "root",
+    "op": "dispatch.resume",
+    "allow": true,
+    "detail": {
+      "role": "verifier",
+      "taskId": "verifier",
+      "challengeId": "X",
+      "declarationConsumed": true
+    }
+  },
+  {
+    "seq": 73,
+    "t": 55,
+    "at": 1792820697088,
+    "sessionID": "root",
+    "op": "task.execution",
+    "allow": true,
+    "detail": {
+      "ref": "c3630b93-e6bf-45ad-9119-75855c18060f",
+      "run": "D-package",
+      "parent": "root",
+      "callID": "rebind-report",
+      "role": "verifier",
+      "version": "fc3b0f70-98de-4a24-955e-eadf39562cc0",
+      "challengeId": "X",
+      "childID": "verifier",
+      "state": "running",
+      "delivered": false
+    }
+  },
+  {
+    "seq": 74,
+    "t": 55,
+    "at": 1792820697088,
+    "sessionID": "root",
+    "op": "tool.before",
+    "allow": true,
+    "detail": {
+      "tool": "task",
+      "callID": "rebind-report",
+      "result": "returned"
+    }
+  },
+  {
+    "seq": 75,
+    "t": 55,
+    "at": 1792820697088,
+    "sessionID": "verifier",
+    "op": "tool.settled",
+    "allow": true,
+    "detail": {
+      "callID": "p16",
+      "tool": "verification.report",
+      "result": "failed"
+    }
+  },
+  {
+    "seq": 76,
+    "t": 55,
+    "at": 1792820697088,
+    "sessionID": "verifier",
+    "op": "tool.execute",
+    "allow": false,
+    "reason": "denied: verification execution",
+    "detail": {
+      "tool": "verification.report",
+      "callID": "p16"
+    }
+  },
+  {
+    "seq": 77,
+    "t": 56,
+    "at": 1792820697089,
+    "sessionID": "verifier",
+    "op": "tool.registered",
+    "allow": true,
+    "detail": {
+      "callID": "p19",
+      "tool": "verification.report",
+      "challengeId": "X",
+      "deadline": 1792820712089
+    }
+  },
+  {
+    "seq": 78,
+    "t": 57,
+    "at": 1792820697090,
+    "sessionID": "verifier",
+    "op": "tool.settled",
+    "allow": true,
+    "detail": {
+      "callID": "p19",
+      "tool": "verification.report",
+      "result": "failed"
+    }
+  },
+  {
+    "seq": 79,
+    "t": 57,
+    "at": 1792820697090,
+    "sessionID": "verifier",
+    "op": "tool.execute",
+    "allow": false,
+    "reason": "denied: verification job",
+    "detail": {
+      "tool": "verification.report",
+      "callID": "p19"
+    }
+  }
+]

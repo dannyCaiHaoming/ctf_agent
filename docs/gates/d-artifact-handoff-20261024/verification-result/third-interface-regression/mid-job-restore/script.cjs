@@ -1,0 +1,1 @@
+const f=require('node:fs');const old=f.readFileSync('data/input.bin');f.writeFileSync('data/input.bin','CHANGED');process.stdout.write(f.readFileSync('data/input.bin'));f.writeFileSync('data/input.bin',old);process.stdout.write(f.readFileSync('../unlisted','utf8'));

@@ -1,0 +1,45 @@
+import {it,expect,afterEach} from 'vitest';
+import {mkdtemp,mkdir,rm} from 'node:fs/promises';import{tmpdir}from'node:os';import{join}from'node:path';
+import{ControlService}from'../../apps/launcher/src/control-service.js';
+const clean:Array<()=>Promise<unknown>>=[];afterEach(async()=>{for(const f of clean.splice(0).reverse())await f();});
+async function fixture(){const dir=await mkdtemp(join(tmpdir(),'g-async-'));clean.push(()=>rm(dir,{recursive:true,force:true}));const materials=join(dir,'X/materials');await mkdir(materials,{recursive:true});const identities:Record<string,unknown>={a:{parentID:'root',agent:'recon'},late:{parentID:'root',agent:'recon'}};const c=new ControlService({client:{session:{get:async({sessionID}:{sessionID:string})=>({data:identities[sessionID]}),messages:async()=>({data:[{info:{id:'user-1',role:'user'},parts:[{type:'tool',tool:'task',callID:'dispatch-1',state:{metadata:{sessionId:'a'}}}]}]}),children:async()=>({data:[]}),abort:async()=>({data:true})}}as never,budget:{maxModelCalls:20,maxObservableTokens:1000},expiresAt:Date.now()+60000,workdir:join(dir,'opencode'),skillRoot:dir,challenges:[{id:'X',title:null,target:null,materialsDir:materials,materials:[],reachability:null}]});c.bindRoot('root');clean.push(()=>c.stopAll('cleanup'));await c.handle('root','tool.execute',{tool:'challenge.assign',args:{role:'recon',challenge:'X'}});await c.handle('root','tool.before',{tool:'task',callID:'dispatch-1',args:{subagent_type:'recon',background:true}});return c;}
+it('parent next admission preserves starting async dispatch and delayed child binding',async()=>{const c=await fixture();await c.handle('root','model.call',{});await expect(c.handle('a','chat.message',{agent:'recon'})).resolves.toEqual({bound:true});expect(c.bindings.get('a')?.dispatchCallID).toBe('dispatch-1');});
+it('early task after with trusted child metadata keeps exact child pending across admission',async()=>{const c=await fixture();await c.handle('root','tool.after',{tool:'task',callID:'dispatch-1',metadata:{sessionId:'a',background:true}});await c.handle('root','model.call',{});await expect(c.handle('late','chat.message',{agent:'recon'})).rejects.toThrow('unbound session');await expect(c.handle('a','chat.message',{agent:'recon'})).resolves.toEqual({bound:true});});
+it('unknown dispatch outcome cannot free pending and rematch a late child',async()=>{const c=await fixture();await c.handle('root','tool.after',{tool:'task',callID:'dispatch-1',metadata:{}});await c.handle('root','model.call',{});await expect(c.handle('root','tool.execute',{tool:'challenge.assign',args:{role:'recon',challenge:'X'}})).rejects.toThrow('dispatch');});
+it('default job.run returns terminal without wait/completion modes',async()=>{const c=await fixture();await c.handle('a','chat.message',{agent:'recon'});const result=await c.handle('a','tool.execute',{tool:'job.run',callID:'job-default',args:{argv:[process.execPath,'-e',"setTimeout(()=>console.log('done'),5500)"],timeout_ms:7000}});expect(result).toMatchObject({state:'exited',exitCode:0});},10000);
+it('host execution tags distinguish generations; duplicate/late notifications never wake twice',async()=>{
+ const c=await fixture();
+ const approval=await c.handle('root','tool.before',{tool:'task',callID:'dispatch-2',args:{subagent_type:'recon',task_id:'a',background:true}}).catch(()=>null) as any;
+ // Fresh dispatch's host tag is recorded independently of model text and exported for audit.
+ const exec=(c as any).executionSnapshot?.()[0];expect(exec?.ref).toBeTypeOf('string');
+ await c.handle('a','chat.message',{agent:'recon'});
+ const event={agent:'coordinator',messageID:'notice-1',parts:[{type:'text',synthetic:true,text:`<task id="a" state="completed">\n<summary>Background task completed: [ctf:${exec.ref}]</summary>\n<task_result>A_DONE</task_result>\n</task>`}]};
+ await expect(c.handle('root','chat.message',event)).resolves.toMatchObject({bound:true});
+ await expect(c.handle('root','chat.message',{...event,messageID:'notice-duplicate'})).rejects.toThrow('duplicate completion');
+ const next=await c.handle('root','tool.before',{tool:'task',callID:'resume-1',args:{subagent_type:'recon',task_id:'a',background:true}}) as any;expect(next.taskDescription).not.toContain(exec.ref);
+ await expect(c.handle('root','chat.message',{...event,messageID:'notice-late'})).rejects.toThrow('duplicate completion');
+ expect((c as any).executionSnapshot().filter((e:any)=>e.state==='running')).toHaveLength(1);
+});
+it('outstanding unbound dispatch prevents idle completion; stopped notifications cannot restart the run',async()=>{const c=await fixture();expect(c.hasOutstandingWork({root:{type:'idle'}})).toBe(true);await c.stopAll('budget');const admitted=c.admitted;await expect(c.handle('root','chat.message',{agent:'coordinator',parts:[]})).rejects.toThrow('run stopped');expect(c.admitted).toBe(admitted);});
+it('trusted startup error releases only its call; late child cannot consume a later same-role dispatch',async()=>{
+ const c=await fixture();await c.handle('root','task.event',{callID:'dispatch-1',state:'error',error:'fixture creation failed'});
+ await c.handle('root','tool.execute',{tool:'challenge.assign',args:{role:'recon',challenge:'X'}});await c.handle('root','tool.before',{tool:'task',callID:'dispatch-2',args:{subagent_type:'recon',background:true}});
+ await expect(c.handle('late','chat.message',{agent:'recon'})).rejects.toThrow('unbound session');expect(c.bindings.has('late')).toBe(false);expect(c.executionSnapshot()[0]?.state).toBe('failed');
+});
+it('parent can stop a trusted early child reference before its first hook; delayed hook stays denied',async()=>{
+ const c=await fixture();await c.handle('root','tool.after',{tool:'task',callID:'dispatch-1',metadata:{sessionId:'a',background:true}});
+ await c.handle('root','tool.before',{tool:'ctf_task_stop',callID:'stop-early',args:{task_id:'a'}});
+ await c.handle('root','tool.execute',{tool:'task.stop',callID:'stop-early',args:{task_id:'a'}});
+ await expect(c.handle('a','model.call',{agent:'recon'})).rejects.toThrow('session revoked');expect(c.admitted).toBe(0);
+});
+it('global stop reuses confirmed/unknown child stop instead of issuing another SDK abort',async()=>{
+ const c=await fixture();await c.handle('a','chat.message',{agent:'recon'});await c.handle('root','tool.execute',{tool:'task.stop',args:{task_id:'a'}});await c.stopAll('global');expect(c.audit.filter(r=>r.sessionID==='a'&&r.op==='aborted')).toHaveLength(1);
+});
+it('completion wake is queued then re-admitted; budget rejection keeps result and usage incomplete',async()=>{
+ const c=await fixture();await c.handle('a','chat.message',{agent:'recon'});const e=c.executionSnapshot()[0]!;const notice={messageID:'completion-budget',parts:[{type:'text',synthetic:true,text:`<task id="a" state="completed">\n<summary>Background task completed: [ctf:${e.ref}]</summary>\n<task_result>retained</task_result>\n</task>`}]};
+ await c.handle('root','chat.message',notice);(c as any).options.budget.maxModelCalls=0;await expect(c.handle('root','model.call',{messageID:'completion-budget'})).rejects.toThrow('budget');expect(c.admitted).toBe(0);expect(c.executionSnapshot()[0]).toMatchObject({state:'completed',delivery:'suppressed',result:expect.stringContaining('retained')});expect(c.usageSnapshot().total.incomplete).toBe(true);
+});
+
+it('stop after natural completion reports original terminal without revoking or rewriting first reply',async()=>{const c=await fixture();await c.handle('a','chat.message',{agent:'recon'});const e=c.executionSnapshot()[0]!;await c.handle('root','chat.message',{messageID:'done',parts:[{type:'text',synthetic:true,text:`<task id="a" state="completed">\n<summary>Background task completed: [ctf:${e.ref}]</summary>\n<task_result>done</task_result>\n</task>`}]});await expect(c.handle('root','tool.execute',{tool:'task.stop',args:{task_id:'a'}})).resolves.toMatchObject({state:'completed',sessionAbort:'not_required'});expect(c.bindings.get('a')?.state).toBe('active');});
+it('initial task reply is immutable and another child cannot overwrite its execution mapping',async()=>{const c=await fixture();await c.handle('root','tool.after',{tool:'task',callID:'dispatch-1',metadata:{sessionId:'a'},output:'original-running'});await expect(c.handle('root','tool.after',{tool:'task',callID:'dispatch-1',metadata:{sessionId:'late'},output:'different'})).rejects.toThrow('completion correlation');expect(c.executionSnapshot()[0]).toMatchObject({childID:'a',initialOutput:'original-running'});});
+it('host revoke still revokes a naturally completed child session',async()=>{const c=await fixture();await c.handle('a','chat.message',{agent:'recon'});const e=c.executionSnapshot()[0]!;await c.handle('root','chat.message',{parts:[{type:'text',synthetic:true,text:`<task id="a" state="completed">\n<summary>Background task completed: [ctf:${e.ref}]</summary>\n<task_result>done</task_result>\n</task>`}]});await c.revoke('a');await expect(c.handle('a','model.call',{agent:'recon'})).rejects.toThrow('session revoked');expect(c.executionSnapshot()[0]?.state).toBe('completed');});

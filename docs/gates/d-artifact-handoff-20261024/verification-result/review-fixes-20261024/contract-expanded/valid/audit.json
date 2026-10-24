@@ -1,0 +1,1221 @@
+[
+  {
+    "seq": 1,
+    "t": 0,
+    "at": 1792821385744,
+    "sessionID": "root",
+    "op": "bind",
+    "allow": true,
+    "detail": {
+      "role": "coordinator",
+      "via": "root"
+    }
+  },
+  {
+    "seq": 2,
+    "t": 0,
+    "at": 1792821385744,
+    "sessionID": "root",
+    "op": "assign",
+    "allow": true,
+    "detail": {
+      "role": "domain-solver",
+      "challenge": "X"
+    }
+  },
+  {
+    "seq": 3,
+    "t": 0,
+    "at": 1792821385744,
+    "sessionID": "root",
+    "op": "tool.execute",
+    "allow": true,
+    "detail": {
+      "tool": "challenge.assign",
+      "callID": "p1",
+      "result": "returned"
+    }
+  },
+  {
+    "seq": 4,
+    "t": 0,
+    "at": 1792821385744,
+    "sessionID": "root",
+    "op": "dispatch.register",
+    "allow": true,
+    "detail": {
+      "role": "domain-solver",
+      "callID": "t2",
+      "challengeId": "X"
+    }
+  },
+  {
+    "seq": 5,
+    "t": 1,
+    "at": 1792821385745,
+    "sessionID": "root",
+    "op": "task.execution",
+    "allow": true,
+    "detail": {
+      "ref": "1bbd86fb-54a8-45b3-853f-ace0e9a7f44d",
+      "run": "D-package",
+      "parent": "root",
+      "callID": "t2",
+      "role": "domain-solver",
+      "challengeId": "X",
+      "state": "starting",
+      "delivered": false
+    }
+  },
+  {
+    "seq": 6,
+    "t": 1,
+    "at": 1792821385745,
+    "sessionID": "root",
+    "op": "tool.before",
+    "allow": true,
+    "detail": {
+      "tool": "task",
+      "callID": "t2",
+      "result": "returned"
+    }
+  },
+  {
+    "seq": 7,
+    "t": 1,
+    "at": 1792821385745,
+    "sessionID": "root",
+    "op": "task.correlate",
+    "allow": true,
+    "detail": {
+      "callID": "t2",
+      "childSessionID": "domain-solver",
+      "childBoundToCaller": false
+    }
+  },
+  {
+    "seq": 8,
+    "t": 1,
+    "at": 1792821385745,
+    "sessionID": "root",
+    "op": "tool.after",
+    "allow": true,
+    "detail": {
+      "tool": "task",
+      "callID": "t2",
+      "result": "returned"
+    }
+  },
+  {
+    "seq": 9,
+    "t": 1,
+    "at": 1792821385745,
+    "sessionID": "domain-solver",
+    "op": "bind",
+    "allow": true,
+    "detail": {
+      "role": "domain-solver",
+      "via": "dispatch",
+      "sdkParentID": "root",
+      "sdkAgent": "domain-solver",
+      "callID": "t2",
+      "challengeId": "X",
+      "sdkMs": 0
+    }
+  },
+  {
+    "seq": 10,
+    "t": 1,
+    "at": 1792821385745,
+    "sessionID": "domain-solver",
+    "op": "chat.message",
+    "allow": true,
+    "detail": {
+      "result": "returned"
+    }
+  },
+  {
+    "seq": 11,
+    "t": 1,
+    "at": 1792821385745,
+    "sessionID": "root",
+    "op": "assign",
+    "allow": true,
+    "detail": {
+      "role": "engineer",
+      "challenge": "X"
+    }
+  },
+  {
+    "seq": 12,
+    "t": 1,
+    "at": 1792821385745,
+    "sessionID": "root",
+    "op": "tool.execute",
+    "allow": true,
+    "detail": {
+      "tool": "challenge.assign",
+      "callID": "p3",
+      "result": "returned"
+    }
+  },
+  {
+    "seq": 13,
+    "t": 1,
+    "at": 1792821385745,
+    "sessionID": "root",
+    "op": "dispatch.register",
+    "allow": true,
+    "detail": {
+      "role": "engineer",
+      "callID": "t4",
+      "challengeId": "X"
+    }
+  },
+  {
+    "seq": 14,
+    "t": 1,
+    "at": 1792821385745,
+    "sessionID": "root",
+    "op": "task.execution",
+    "allow": true,
+    "detail": {
+      "ref": "536d13ea-6718-4bd2-8642-fa0fa4b7015f",
+      "run": "D-package",
+      "parent": "root",
+      "callID": "t4",
+      "role": "engineer",
+      "challengeId": "X",
+      "state": "starting",
+      "delivered": false
+    }
+  },
+  {
+    "seq": 15,
+    "t": 1,
+    "at": 1792821385745,
+    "sessionID": "root",
+    "op": "tool.before",
+    "allow": true,
+    "detail": {
+      "tool": "task",
+      "callID": "t4",
+      "result": "returned"
+    }
+  },
+  {
+    "seq": 16,
+    "t": 1,
+    "at": 1792821385745,
+    "sessionID": "root",
+    "op": "task.correlate",
+    "allow": true,
+    "detail": {
+      "callID": "t4",
+      "childSessionID": "engineer",
+      "childBoundToCaller": false
+    }
+  },
+  {
+    "seq": 17,
+    "t": 1,
+    "at": 1792821385745,
+    "sessionID": "root",
+    "op": "tool.after",
+    "allow": true,
+    "detail": {
+      "tool": "task",
+      "callID": "t4",
+      "result": "returned"
+    }
+  },
+  {
+    "seq": 18,
+    "t": 1,
+    "at": 1792821385745,
+    "sessionID": "engineer",
+    "op": "bind",
+    "allow": true,
+    "detail": {
+      "role": "engineer",
+      "via": "dispatch",
+      "sdkParentID": "root",
+      "sdkAgent": "engineer",
+      "callID": "t4",
+      "challengeId": "X",
+      "sdkMs": 0
+    }
+  },
+  {
+    "seq": 19,
+    "t": 1,
+    "at": 1792821385745,
+    "sessionID": "engineer",
+    "op": "chat.message",
+    "allow": true,
+    "detail": {
+      "result": "returned"
+    }
+  },
+  {
+    "seq": 20,
+    "t": 1,
+    "at": 1792821385745,
+    "sessionID": "domain-solver",
+    "op": "tool.registered",
+    "allow": true,
+    "detail": {
+      "callID": "p5",
+      "tool": "workspace.write",
+      "challengeId": "X",
+      "deadline": 1792821400745
+    }
+  },
+  {
+    "seq": 21,
+    "t": 2,
+    "at": 1792821385746,
+    "sessionID": "domain-solver",
+    "op": "tool.settled",
+    "allow": true,
+    "detail": {
+      "callID": "p5",
+      "tool": "workspace.write",
+      "result": "completed"
+    }
+  },
+  {
+    "seq": 22,
+    "t": 2,
+    "at": 1792821385746,
+    "sessionID": "domain-solver",
+    "op": "tool.execute",
+    "allow": true,
+    "detail": {
+      "tool": "workspace.write",
+      "callID": "p5",
+      "result": "returned"
+    }
+  },
+  {
+    "seq": 23,
+    "t": 2,
+    "at": 1792821385746,
+    "sessionID": "domain-solver",
+    "op": "tool.registered",
+    "allow": true,
+    "detail": {
+      "callID": "p6",
+      "tool": "artifact.publish",
+      "challengeId": "X",
+      "deadline": 1792821400746
+    }
+  },
+  {
+    "seq": 24,
+    "t": 3,
+    "at": 1792821385747,
+    "sessionID": "domain-solver",
+    "op": "artifact.published",
+    "allow": true,
+    "detail": {
+      "ref": "9ea9f666-ab5a-467e-86ec-3b2d82a8b7d8",
+      "path": "published/9ea9f666-ab5a-467e-86ec-3b2d82a8b7d8.bin",
+      "sha256": "8af1702498192f6c0ac605c33a0f2deb4ec738ff6a5e84992c7af4a9ea068917",
+      "size": 16,
+      "source": {
+        "kind": "file",
+        "run": "D-package",
+        "challenge": "X",
+        "sessionID": "domain-solver",
+        "execution": "1bbd86fb-54a8-45b3-853f-ace0e9a7f44d",
+        "resource": "p5",
+        "path": "work/mixed.bin",
+        "callID": "p5",
+        "selectedExecution": "1bbd86fb-54a8-45b3-853f-ace0e9a7f44d"
+      },
+      "start": 0,
+      "end": 16,
+      "originalBytes": 16,
+      "originalComplete": null,
+      "rangeComplete": true,
+      "snapshotFixed": true
+    }
+  },
+  {
+    "seq": 25,
+    "t": 3,
+    "at": 1792821385747,
+    "sessionID": "domain-solver",
+    "op": "tool.settled",
+    "allow": true,
+    "detail": {
+      "callID": "p6",
+      "tool": "artifact.publish",
+      "result": "completed"
+    }
+  },
+  {
+    "seq": 26,
+    "t": 3,
+    "at": 1792821385747,
+    "sessionID": "domain-solver",
+    "op": "tool.execute",
+    "allow": true,
+    "detail": {
+      "tool": "artifact.publish",
+      "callID": "p6",
+      "result": "returned"
+    }
+  },
+  {
+    "seq": 27,
+    "t": 3,
+    "at": 1792821385747,
+    "sessionID": "engineer",
+    "op": "tool.registered",
+    "allow": true,
+    "detail": {
+      "callID": "p7",
+      "tool": "workspace.write",
+      "challengeId": "X",
+      "deadline": 1792821400747
+    }
+  },
+  {
+    "seq": 28,
+    "t": 4,
+    "at": 1792821385748,
+    "sessionID": "engineer",
+    "op": "tool.settled",
+    "allow": true,
+    "detail": {
+      "callID": "p7",
+      "tool": "workspace.write",
+      "result": "completed"
+    }
+  },
+  {
+    "seq": 29,
+    "t": 4,
+    "at": 1792821385748,
+    "sessionID": "engineer",
+    "op": "tool.execute",
+    "allow": true,
+    "detail": {
+      "tool": "workspace.write",
+      "callID": "p7",
+      "result": "returned"
+    }
+  },
+  {
+    "seq": 30,
+    "t": 4,
+    "at": 1792821385748,
+    "sessionID": "engineer",
+    "op": "tool.registered",
+    "allow": true,
+    "detail": {
+      "callID": "p8",
+      "tool": "artifact.publish",
+      "challengeId": "X",
+      "deadline": 1792821400748
+    }
+  },
+  {
+    "seq": 31,
+    "t": 4,
+    "at": 1792821385748,
+    "sessionID": "engineer",
+    "op": "artifact.published",
+    "allow": true,
+    "detail": {
+      "ref": "79e29875-2d08-4bfb-9158-89cf37eecb33",
+      "path": "published/79e29875-2d08-4bfb-9158-89cf37eecb33.bin",
+      "sha256": "9ae4336264e4c21d65169d453ebe26dab742b0fa62e44c72198ced00c4d4bac3",
+      "size": 33,
+      "source": {
+        "kind": "file",
+        "run": "D-package",
+        "challenge": "X",
+        "sessionID": "engineer",
+        "execution": "536d13ea-6718-4bd2-8642-fa0fa4b7015f",
+        "resource": "p7",
+        "path": "work/solve.cjs",
+        "callID": "p7",
+        "selectedExecution": "536d13ea-6718-4bd2-8642-fa0fa4b7015f"
+      },
+      "start": 0,
+      "end": 33,
+      "originalBytes": 33,
+      "originalComplete": null,
+      "rangeComplete": true,
+      "snapshotFixed": true
+    }
+  },
+  {
+    "seq": 32,
+    "t": 4,
+    "at": 1792821385748,
+    "sessionID": "engineer",
+    "op": "tool.settled",
+    "allow": true,
+    "detail": {
+      "callID": "p8",
+      "tool": "artifact.publish",
+      "result": "completed"
+    }
+  },
+  {
+    "seq": 33,
+    "t": 4,
+    "at": 1792821385748,
+    "sessionID": "engineer",
+    "op": "tool.execute",
+    "allow": true,
+    "detail": {
+      "tool": "artifact.publish",
+      "callID": "p8",
+      "result": "returned"
+    }
+  },
+  {
+    "seq": 34,
+    "t": 4,
+    "at": 1792821385748,
+    "sessionID": "engineer",
+    "op": "tool.registered",
+    "allow": true,
+    "detail": {
+      "callID": "p9",
+      "tool": "workspace.write",
+      "challengeId": "X",
+      "deadline": 1792821400748
+    }
+  },
+  {
+    "seq": 35,
+    "t": 4,
+    "at": 1792821385748,
+    "sessionID": "engineer",
+    "op": "tool.settled",
+    "allow": true,
+    "detail": {
+      "callID": "p9",
+      "tool": "workspace.write",
+      "result": "completed"
+    }
+  },
+  {
+    "seq": 36,
+    "t": 4,
+    "at": 1792821385748,
+    "sessionID": "engineer",
+    "op": "tool.execute",
+    "allow": true,
+    "detail": {
+      "tool": "workspace.write",
+      "callID": "p9",
+      "result": "returned"
+    }
+  },
+  {
+    "seq": 37,
+    "t": 4,
+    "at": 1792821385748,
+    "sessionID": "engineer",
+    "op": "tool.registered",
+    "allow": true,
+    "detail": {
+      "callID": "p10",
+      "tool": "artifact.publish",
+      "challengeId": "X",
+      "deadline": 1792821400748
+    }
+  },
+  {
+    "seq": 38,
+    "t": 5,
+    "at": 1792821385749,
+    "sessionID": "engineer",
+    "op": "artifact.published",
+    "allow": true,
+    "detail": {
+      "ref": "dbcb9233-5f21-4220-8f37-1e6e626e9d44",
+      "path": "published/dbcb9233-5f21-4220-8f37-1e6e626e9d44.bin",
+      "sha256": "da03a62a9551937813ca8072024b68274fb4aea8beb3b9c43607fe58ecf86a39",
+      "size": 135,
+      "source": {
+        "kind": "file",
+        "run": "D-package",
+        "challenge": "X",
+        "sessionID": "engineer",
+        "execution": "536d13ea-6718-4bd2-8642-fa0fa4b7015f",
+        "resource": "p9",
+        "path": "work/check.cjs",
+        "callID": "p9",
+        "selectedExecution": "536d13ea-6718-4bd2-8642-fa0fa4b7015f"
+      },
+      "start": 0,
+      "end": 135,
+      "originalBytes": 135,
+      "originalComplete": null,
+      "rangeComplete": true,
+      "snapshotFixed": true
+    }
+  },
+  {
+    "seq": 39,
+    "t": 5,
+    "at": 1792821385749,
+    "sessionID": "engineer",
+    "op": "tool.settled",
+    "allow": true,
+    "detail": {
+      "callID": "p10",
+      "tool": "artifact.publish",
+      "result": "completed"
+    }
+  },
+  {
+    "seq": 40,
+    "t": 5,
+    "at": 1792821385749,
+    "sessionID": "engineer",
+    "op": "tool.execute",
+    "allow": true,
+    "detail": {
+      "tool": "artifact.publish",
+      "callID": "p10",
+      "result": "returned"
+    }
+  },
+  {
+    "seq": 41,
+    "t": 5,
+    "at": 1792821385749,
+    "sessionID": "engineer",
+    "op": "tool.registered",
+    "allow": true,
+    "detail": {
+      "callID": "p11",
+      "tool": "package.publish",
+      "challengeId": "X",
+      "deadline": 1792821400749
+    }
+  },
+  {
+    "seq": 42,
+    "t": 7,
+    "at": 1792821385751,
+    "sessionID": "engineer",
+    "op": "package.published",
+    "allow": true,
+    "detail": {
+      "ref": "d67a6934-3817-4166-a02e-3378c657c711",
+      "path": "published/d67a6934-3817-4166-a02e-3378c657c711.bin",
+      "sha256": "ae378faa341154a401306865f14f11223714d883424e30f5ec911e3174db6b07",
+      "size": 3111,
+      "source": {
+        "kind": "package",
+        "run": "D-package",
+        "challenge": "X",
+        "sessionID": "engineer",
+        "execution": "536d13ea-6718-4bd2-8642-fa0fa4b7015f",
+        "resource": "p11"
+      },
+      "start": 0,
+      "end": 3111,
+      "originalBytes": 3111,
+      "originalComplete": true,
+      "rangeComplete": true,
+      "snapshotFixed": true
+    }
+  },
+  {
+    "seq": 43,
+    "t": 7,
+    "at": 1792821385751,
+    "sessionID": "engineer",
+    "op": "tool.settled",
+    "allow": true,
+    "detail": {
+      "callID": "p11",
+      "tool": "package.publish",
+      "result": "completed"
+    }
+  },
+  {
+    "seq": 44,
+    "t": 7,
+    "at": 1792821385751,
+    "sessionID": "engineer",
+    "op": "tool.execute",
+    "allow": true,
+    "detail": {
+      "tool": "package.publish",
+      "callID": "p11",
+      "result": "returned"
+    }
+  },
+  {
+    "seq": 45,
+    "t": 8,
+    "at": 1792821385752,
+    "sessionID": "root",
+    "op": "assign",
+    "allow": true,
+    "detail": {
+      "role": "verifier",
+      "challenge": "X",
+      "version": "d67a6934-3817-4166-a02e-3378c657c711"
+    }
+  },
+  {
+    "seq": 46,
+    "t": 8,
+    "at": 1792821385752,
+    "sessionID": "root",
+    "op": "tool.execute",
+    "allow": true,
+    "detail": {
+      "tool": "challenge.assign",
+      "callID": "p12",
+      "result": "returned"
+    }
+  },
+  {
+    "seq": 47,
+    "t": 8,
+    "at": 1792821385752,
+    "sessionID": "root",
+    "op": "dispatch.register",
+    "allow": true,
+    "detail": {
+      "role": "verifier",
+      "callID": "t13",
+      "challengeId": "X"
+    }
+  },
+  {
+    "seq": 48,
+    "t": 8,
+    "at": 1792821385752,
+    "sessionID": "root",
+    "op": "task.execution",
+    "allow": true,
+    "detail": {
+      "ref": "f1652142-6b8f-4069-ba12-93cc9fe5b529",
+      "run": "D-package",
+      "parent": "root",
+      "callID": "t13",
+      "role": "verifier",
+      "version": "d67a6934-3817-4166-a02e-3378c657c711",
+      "challengeId": "X",
+      "state": "starting",
+      "delivered": false
+    }
+  },
+  {
+    "seq": 49,
+    "t": 8,
+    "at": 1792821385752,
+    "sessionID": "root",
+    "op": "tool.before",
+    "allow": true,
+    "detail": {
+      "tool": "task",
+      "callID": "t13",
+      "result": "returned"
+    }
+  },
+  {
+    "seq": 50,
+    "t": 8,
+    "at": 1792821385752,
+    "sessionID": "root",
+    "op": "task.correlate",
+    "allow": true,
+    "detail": {
+      "callID": "t13",
+      "childSessionID": "verifier",
+      "childBoundToCaller": false
+    }
+  },
+  {
+    "seq": 51,
+    "t": 8,
+    "at": 1792821385752,
+    "sessionID": "root",
+    "op": "tool.after",
+    "allow": true,
+    "detail": {
+      "tool": "task",
+      "callID": "t13",
+      "result": "returned"
+    }
+  },
+  {
+    "seq": 52,
+    "t": 8,
+    "at": 1792821385752,
+    "sessionID": "verifier",
+    "op": "bind",
+    "allow": true,
+    "detail": {
+      "role": "verifier",
+      "via": "dispatch",
+      "sdkParentID": "root",
+      "sdkAgent": "verifier",
+      "callID": "t13",
+      "challengeId": "X",
+      "sdkMs": 0
+    }
+  },
+  {
+    "seq": 53,
+    "t": 8,
+    "at": 1792821385752,
+    "sessionID": "verifier",
+    "op": "chat.message",
+    "allow": true,
+    "detail": {
+      "result": "returned"
+    }
+  },
+  {
+    "seq": 54,
+    "t": 8,
+    "at": 1792821385752,
+    "sessionID": "verifier",
+    "op": "tool.registered",
+    "allow": true,
+    "detail": {
+      "callID": "p14",
+      "tool": "package.prepare",
+      "challengeId": "X",
+      "deadline": 1792821400752
+    }
+  },
+  {
+    "seq": 55,
+    "t": 13,
+    "at": 1792821385757,
+    "sessionID": "verifier",
+    "op": "package.prepared",
+    "allow": true,
+    "detail": {
+      "ready": true,
+      "preparation": "b05680df-9768-41d2-8ba4-716ecf2e1111",
+      "directory": "verify-b05680df-9768-41d2-8ba4-716ecf2e1111/inputs",
+      "manifestPath": "verify-b05680df-9768-41d2-8ba4-716ecf2e1111/manifest.json",
+      "candidatePath": "verify-b05680df-9768-41d2-8ba4-716ecf2e1111/candidate.bin",
+      "manifestSha256": "ae378faa341154a401306865f14f11223714d883424e30f5ec911e3174db6b07",
+      "metadata": [
+        {
+          "path": "verify-b05680df-9768-41d2-8ba4-716ecf2e1111/manifest.json",
+          "sha256": "ae378faa341154a401306865f14f11223714d883424e30f5ec911e3174db6b07",
+          "size": 3111
+        },
+        {
+          "path": "verify-b05680df-9768-41d2-8ba4-716ecf2e1111/candidate.bin",
+          "sha256": "4527432703d179e8d8f48f8ec1b39f5688c37d5e374dc13f6e72aba2224f59b0",
+          "size": 9
+        }
+      ],
+      "files": [
+        {
+          "path": "solve.cjs",
+          "sha256": "9ae4336264e4c21d65169d453ebe26dab742b0fa62e44c72198ced00c4d4bac3",
+          "size": 33
+        },
+        {
+          "path": "data/input.bin",
+          "sha256": "e9489f37fb3051e9efa1dc916004d7274e7b63975e3209708947267f2393a9be",
+          "size": 4
+        },
+        {
+          "path": "evidence/raw.bin",
+          "sha256": "8af1702498192f6c0ac605c33a0f2deb4ec738ff6a5e84992c7af4a9ea068917",
+          "size": 16
+        },
+        {
+          "path": "check.cjs",
+          "sha256": "da03a62a9551937813ca8072024b68274fb4aea8beb3b9c43607fe58ecf86a39",
+          "size": 135
+        }
+      ],
+      "execution": "f1652142-6b8f-4069-ba12-93cc9fe5b529",
+      "version": "d67a6934-3817-4166-a02e-3378c657c711"
+    }
+  },
+  {
+    "seq": 56,
+    "t": 13,
+    "at": 1792821385757,
+    "sessionID": "verifier",
+    "op": "tool.settled",
+    "allow": true,
+    "detail": {
+      "callID": "p14",
+      "tool": "package.prepare",
+      "result": "completed"
+    }
+  },
+  {
+    "seq": 57,
+    "t": 13,
+    "at": 1792821385757,
+    "sessionID": "verifier",
+    "op": "tool.execute",
+    "allow": true,
+    "detail": {
+      "tool": "package.prepare",
+      "callID": "p14",
+      "result": "returned"
+    }
+  },
+  {
+    "seq": 58,
+    "t": 13,
+    "at": 1792821385757,
+    "sessionID": "verifier",
+    "op": "tool.registered",
+    "allow": true,
+    "detail": {
+      "callID": "p15",
+      "tool": "job.run",
+      "challengeId": "X",
+      "deadline": 1792821390757
+    }
+  },
+  {
+    "seq": 59,
+    "t": 14,
+    "at": 1792821385758,
+    "sessionID": "verifier",
+    "op": "verification.job.input",
+    "allow": true,
+    "detail": {
+      "version": "d67a6934-3817-4166-a02e-3378c657c711",
+      "preparation": "b05680df-9768-41d2-8ba4-716ecf2e1111",
+      "execution": "f1652142-6b8f-4069-ba12-93cc9fe5b529",
+      "argv": [
+        "/opt/homebrew/Cellar/node/26.3.0/bin/node",
+        "check.cjs"
+      ],
+      "files": [
+        {
+          "path": "solve.cjs",
+          "sha256": "9ae4336264e4c21d65169d453ebe26dab742b0fa62e44c72198ced00c4d4bac3",
+          "size": 33
+        },
+        {
+          "path": "data/input.bin",
+          "sha256": "e9489f37fb3051e9efa1dc916004d7274e7b63975e3209708947267f2393a9be",
+          "size": 4
+        },
+        {
+          "path": "evidence/raw.bin",
+          "sha256": "8af1702498192f6c0ac605c33a0f2deb4ec738ff6a5e84992c7af4a9ea068917",
+          "size": 16
+        },
+        {
+          "path": "check.cjs",
+          "sha256": "da03a62a9551937813ca8072024b68274fb4aea8beb3b9c43607fe58ecf86a39",
+          "size": 135
+        }
+      ],
+      "metadata": [
+        {
+          "path": "verify-b05680df-9768-41d2-8ba4-716ecf2e1111/manifest.json",
+          "sha256": "ae378faa341154a401306865f14f11223714d883424e30f5ec911e3174db6b07",
+          "size": 3111
+        },
+        {
+          "path": "verify-b05680df-9768-41d2-8ba4-716ecf2e1111/candidate.bin",
+          "sha256": "4527432703d179e8d8f48f8ec1b39f5688c37d5e374dc13f6e72aba2224f59b0",
+          "size": 9
+        }
+      ],
+      "before": "matched",
+      "after": "pending",
+      "continuousIntegrity": "unknown",
+      "undeclaredDependencies": "unknown"
+    }
+  },
+  {
+    "seq": 60,
+    "t": 58,
+    "at": 1792821385802,
+    "sessionID": "verifier",
+    "op": "verification.job.terminal",
+    "allow": true,
+    "detail": {
+      "version": "d67a6934-3817-4166-a02e-3378c657c711",
+      "preparation": "b05680df-9768-41d2-8ba4-716ecf2e1111",
+      "execution": "f1652142-6b8f-4069-ba12-93cc9fe5b529",
+      "argv": [
+        "/opt/homebrew/Cellar/node/26.3.0/bin/node",
+        "check.cjs"
+      ],
+      "files": [
+        {
+          "path": "solve.cjs",
+          "sha256": "9ae4336264e4c21d65169d453ebe26dab742b0fa62e44c72198ced00c4d4bac3",
+          "size": 33
+        },
+        {
+          "path": "data/input.bin",
+          "sha256": "e9489f37fb3051e9efa1dc916004d7274e7b63975e3209708947267f2393a9be",
+          "size": 4
+        },
+        {
+          "path": "evidence/raw.bin",
+          "sha256": "8af1702498192f6c0ac605c33a0f2deb4ec738ff6a5e84992c7af4a9ea068917",
+          "size": 16
+        },
+        {
+          "path": "check.cjs",
+          "sha256": "da03a62a9551937813ca8072024b68274fb4aea8beb3b9c43607fe58ecf86a39",
+          "size": 135
+        }
+      ],
+      "metadata": [
+        {
+          "path": "verify-b05680df-9768-41d2-8ba4-716ecf2e1111/manifest.json",
+          "sha256": "ae378faa341154a401306865f14f11223714d883424e30f5ec911e3174db6b07",
+          "size": 3111
+        },
+        {
+          "path": "verify-b05680df-9768-41d2-8ba4-716ecf2e1111/candidate.bin",
+          "sha256": "4527432703d179e8d8f48f8ec1b39f5688c37d5e374dc13f6e72aba2224f59b0",
+          "size": 9
+        }
+      ],
+      "before": "matched",
+      "after": "matched",
+      "continuousIntegrity": "unknown",
+      "undeclaredDependencies": "unknown",
+      "job": "b4d375f6-c187-4fd1-8475-67f672d0e5a7",
+      "terminal": {
+        "job": "b4d375f6-c187-4fd1-8475-67f672d0e5a7",
+        "state": "exited",
+        "exitCode": 0,
+        "signal": null,
+        "reapIncomplete": false
+      }
+    }
+  },
+  {
+    "seq": 61,
+    "t": 58,
+    "at": 1792821385802,
+    "sessionID": "verifier",
+    "op": "tool.settled",
+    "allow": true,
+    "detail": {
+      "callID": "p15",
+      "tool": "job.run",
+      "job": "b4d375f6-c187-4fd1-8475-67f672d0e5a7",
+      "result": "exited"
+    }
+  },
+  {
+    "seq": 62,
+    "t": 58,
+    "at": 1792821385802,
+    "sessionID": "verifier",
+    "op": "tool.execute",
+    "allow": true,
+    "detail": {
+      "tool": "job.run",
+      "callID": "p15",
+      "result": "returned"
+    }
+  },
+  {
+    "seq": 63,
+    "t": 58,
+    "at": 1792821385802,
+    "sessionID": "verifier",
+    "op": "tool.registered",
+    "allow": true,
+    "detail": {
+      "callID": "p16",
+      "tool": "verification.report",
+      "challengeId": "X",
+      "deadline": 1792821400802
+    }
+  },
+  {
+    "seq": 64,
+    "t": 60,
+    "at": 1792821385804,
+    "sessionID": "verifier",
+    "op": "verification.registered",
+    "allow": true,
+    "detail": {
+      "run": "D-package",
+      "challenge": "X",
+      "version": "d67a6934-3817-4166-a02e-3378c657c711",
+      "sessionID": "verifier",
+      "execution": "f1652142-6b8f-4069-ba12-93cc9fe5b529",
+      "result": "94666795-d9dc-4d2d-b775-04eefdddde08",
+      "original": {
+        "judgment": "verified",
+        "mode": "recompute",
+        "rationale": "Local fixture recomputation under explicit trusted local execution premise",
+        "sourceFlow": "Inspect script and fixed input; compare stdout exact bytes to candidate",
+        "premises": [
+          {
+            "statement": "Trusted stable local execution, no untrusted concurrent writers",
+            "status": "assumed"
+          }
+        ],
+        "issues": [],
+        "requirements": {
+          "continuousIntegrity": false,
+          "declaredDependenciesOnly": false
+        },
+        "evidence": [
+          {
+            "kind": "job",
+            "job": "b4d375f6-c187-4fd1-8475-67f672d0e5a7",
+            "stream": "stdout",
+            "necessary": true,
+            "context": "Whole local stdout answers fixture; stderr irrelevant"
+          }
+        ],
+        "comparison": {
+          "evidence": 0,
+          "start": 0,
+          "end": 9
+        }
+      },
+      "effectiveJudgment": "verified",
+      "evidence": [
+        {
+          "kind": "job",
+          "source": {
+            "kind": "job",
+            "run": "D-package",
+            "challenge": "X",
+            "sessionID": "verifier",
+            "execution": "f1652142-6b8f-4069-ba12-93cc9fe5b529",
+            "resource": "b4d375f6-c187-4fd1-8475-67f672d0e5a7",
+            "callID": "p15",
+            "stream": "stdout"
+          },
+          "originalComplete": true,
+          "association": {
+            "version": "d67a6934-3817-4166-a02e-3378c657c711",
+            "preparation": "b05680df-9768-41d2-8ba4-716ecf2e1111",
+            "execution": "f1652142-6b8f-4069-ba12-93cc9fe5b529",
+            "argv": [
+              "/opt/homebrew/Cellar/node/26.3.0/bin/node",
+              "check.cjs"
+            ],
+            "files": [
+              {
+                "path": "solve.cjs",
+                "sha256": "9ae4336264e4c21d65169d453ebe26dab742b0fa62e44c72198ced00c4d4bac3",
+                "size": 33
+              },
+              {
+                "path": "data/input.bin",
+                "sha256": "e9489f37fb3051e9efa1dc916004d7274e7b63975e3209708947267f2393a9be",
+                "size": 4
+              },
+              {
+                "path": "evidence/raw.bin",
+                "sha256": "8af1702498192f6c0ac605c33a0f2deb4ec738ff6a5e84992c7af4a9ea068917",
+                "size": 16
+              },
+              {
+                "path": "check.cjs",
+                "sha256": "da03a62a9551937813ca8072024b68274fb4aea8beb3b9c43607fe58ecf86a39",
+                "size": 135
+              }
+            ],
+            "metadata": [
+              {
+                "path": "verify-b05680df-9768-41d2-8ba4-716ecf2e1111/manifest.json",
+                "sha256": "ae378faa341154a401306865f14f11223714d883424e30f5ec911e3174db6b07",
+                "size": 3111
+              },
+              {
+                "path": "verify-b05680df-9768-41d2-8ba4-716ecf2e1111/candidate.bin",
+                "sha256": "4527432703d179e8d8f48f8ec1b39f5688c37d5e374dc13f6e72aba2224f59b0",
+                "size": 9
+              }
+            ],
+            "before": "matched",
+            "after": "matched",
+            "continuousIntegrity": "unknown",
+            "undeclaredDependencies": "unknown"
+          },
+          "terminal": {
+            "state": "exited",
+            "exitCode": 0
+          },
+          "preparation": "b05680df-9768-41d2-8ba4-716ecf2e1111",
+          "start": 0,
+          "end": 9,
+          "size": 9,
+          "sha256": "4527432703d179e8d8f48f8ec1b39f5688c37d5e374dc13f6e72aba2224f59b0",
+          "encoding": "base64",
+          "data": "5peXe8OpfQD/",
+          "rangeComplete": true,
+          "necessary": true,
+          "context": "Whole local stdout answers fixture; stderr irrelevant"
+        }
+      ],
+      "hostChecks": {
+        "blockers": [],
+        "candidateEqual": true,
+        "semanticAssessment": "verifier_assertion_not_host_proven"
+      },
+      "createdAt": 1792821385804
+    }
+  },
+  {
+    "seq": 65,
+    "t": 60,
+    "at": 1792821385804,
+    "sessionID": "verifier",
+    "op": "tool.settled",
+    "allow": true,
+    "detail": {
+      "callID": "p16",
+      "tool": "verification.report",
+      "result": "completed"
+    }
+  },
+  {
+    "seq": 66,
+    "t": 60,
+    "at": 1792821385804,
+    "sessionID": "verifier",
+    "op": "tool.execute",
+    "allow": true,
+    "detail": {
+      "tool": "verification.report",
+      "callID": "p16",
+      "result": "returned"
+    }
+  },
+  {
+    "seq": 67,
+    "t": 62,
+    "at": 1792821385806,
+    "sessionID": "root",
+    "op": "tool.execute",
+    "allow": true,
+    "detail": {
+      "tool": "verification.read",
+      "callID": "p17",
+      "result": "returned"
+    }
+  }
+]

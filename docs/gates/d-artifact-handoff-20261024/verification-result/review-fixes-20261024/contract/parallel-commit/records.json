@@ -1,0 +1,125 @@
+[
+  {
+    "run": "D-package",
+    "challenge": "X",
+    "version": "f2e93a0b-0a75-48b8-a0e1-a4a11385dfac",
+    "sessionID": "verifier",
+    "execution": "48c4a835-e212-4d42-b4f5-99f507455f8a",
+    "result": "cee80bb5-defd-42d8-a64d-5a05454df3ce",
+    "original": {
+      "judgment": "verified",
+      "mode": "recompute",
+      "rationale": "Local fixture recomputation under explicit trusted local execution premise",
+      "sourceFlow": "Inspect script and fixed input; compare stdout exact bytes to candidate",
+      "premises": [
+        {
+          "statement": "Trusted stable local execution, no untrusted concurrent writers",
+          "status": "assumed"
+        }
+      ],
+      "issues": [],
+      "requirements": {
+        "continuousIntegrity": false,
+        "declaredDependenciesOnly": false
+      },
+      "evidence": [
+        {
+          "kind": "job",
+          "job": "822ecf5b-4a97-466c-8f69-b6f886cb9194",
+          "stream": "stdout",
+          "necessary": true,
+          "context": "Whole local stdout answers fixture; stderr irrelevant"
+        }
+      ],
+      "comparison": {
+        "evidence": 0,
+        "start": 0,
+        "end": 9
+      }
+    },
+    "effectiveJudgment": "verified",
+    "evidence": [
+      {
+        "kind": "job",
+        "source": {
+          "kind": "job",
+          "run": "D-package",
+          "challenge": "X",
+          "sessionID": "verifier",
+          "execution": "48c4a835-e212-4d42-b4f5-99f507455f8a",
+          "resource": "822ecf5b-4a97-466c-8f69-b6f886cb9194",
+          "callID": "p15",
+          "stream": "stdout"
+        },
+        "originalComplete": true,
+        "association": {
+          "version": "f2e93a0b-0a75-48b8-a0e1-a4a11385dfac",
+          "preparation": "c0b3c7c5-f8ab-4287-b8d9-801909fcb448",
+          "execution": "48c4a835-e212-4d42-b4f5-99f507455f8a",
+          "argv": [
+            "/opt/homebrew/Cellar/node/26.3.0/bin/node",
+            "check.cjs"
+          ],
+          "files": [
+            {
+              "path": "solve.cjs",
+              "sha256": "9ae4336264e4c21d65169d453ebe26dab742b0fa62e44c72198ced00c4d4bac3",
+              "size": 33
+            },
+            {
+              "path": "data/input.bin",
+              "sha256": "e9489f37fb3051e9efa1dc916004d7274e7b63975e3209708947267f2393a9be",
+              "size": 4
+            },
+            {
+              "path": "evidence/raw.bin",
+              "sha256": "8af1702498192f6c0ac605c33a0f2deb4ec738ff6a5e84992c7af4a9ea068917",
+              "size": 16
+            },
+            {
+              "path": "check.cjs",
+              "sha256": "da03a62a9551937813ca8072024b68274fb4aea8beb3b9c43607fe58ecf86a39",
+              "size": 135
+            }
+          ],
+          "metadata": [
+            {
+              "path": "verify-c0b3c7c5-f8ab-4287-b8d9-801909fcb448/manifest.json",
+              "sha256": "903aafae1d5bfcc6467990b69153851e489a90376238670b1b85e56a2819824a",
+              "size": 3111
+            },
+            {
+              "path": "verify-c0b3c7c5-f8ab-4287-b8d9-801909fcb448/candidate.bin",
+              "sha256": "4527432703d179e8d8f48f8ec1b39f5688c37d5e374dc13f6e72aba2224f59b0",
+              "size": 9
+            }
+          ],
+          "before": "matched",
+          "after": "matched",
+          "continuousIntegrity": "unknown",
+          "undeclaredDependencies": "unknown"
+        },
+        "terminal": {
+          "state": "exited",
+          "exitCode": 0
+        },
+        "preparation": "c0b3c7c5-f8ab-4287-b8d9-801909fcb448",
+        "start": 0,
+        "end": 9,
+        "size": 9,
+        "sha256": "4527432703d179e8d8f48f8ec1b39f5688c37d5e374dc13f6e72aba2224f59b0",
+        "encoding": "base64",
+        "data": "5peXe8OpfQD/",
+        "rangeComplete": true,
+        "necessary": true,
+        "context": "Whole local stdout answers fixture; stderr irrelevant"
+      }
+    ],
+    "hostChecks": {
+      "blockers": [],
+      "candidateEqual": true,
+      "semanticAssessment": "verifier_assertion_not_host_proven"
+    },
+    "createdAt": 1792821286633
+  }
+]

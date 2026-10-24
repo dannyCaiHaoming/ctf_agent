@@ -1,0 +1,643 @@
+--- a/apps/launcher/src/control-service.ts
++++ b/apps/launcher/src/control-service.ts
+@@ -10,6 +10,7 @@
+ import { createHttpTools, CookieJar, HttpRefused } from './http-tools.js';
+ import { JobManager, JobRefused, type JobBinding } from './job-tools.js';
+ import { ArtifactPublisher, snapshotWork, type ArtifactSource } from './artifact-tools.js';
++import { VerificationResults,fixEvidence } from './verification-results.js';
+ import { CandidatePackages } from './candidate-package-tools.js';
+ import { filePage } from './file-page.js';
+ import { listWorkspace, readWorkspace, searchWorkspace, writeWorkspace, WorkspaceRefused, type WorkspaceRoots } from './workspace-tools.js';
+@@ -92,8 +93,8 @@
+   return usage;
+ }
+ 
+-export const SOLVER_TOOLS = ['workspace.list', 'workspace.read', 'workspace.search', 'workspace.write', 'http.request', 'job.run', 'job.read', 'job.cancel', 'artifact.publish', 'artifact.read', 'package.publish', 'package.read', 'package.prepare'];
+-export const MANAGED_TOOLS = [...INTAKE_TOOLS, 'challenge.assign', 'challenge.unassign', 'task.stop', ...SOLVER_TOOLS];
++export const SOLVER_TOOLS = ['workspace.list', 'workspace.read', 'workspace.search', 'workspace.write', 'http.request', 'job.run', 'job.read', 'job.cancel', 'artifact.publish', 'artifact.read', 'package.publish', 'package.read', 'package.prepare', 'verification.report'];
++export const MANAGED_TOOLS = [...INTAKE_TOOLS, 'challenge.assign', 'challenge.unassign', 'task.stop', 'verification.read', ...SOLVER_TOOLS];
+ interface Resource { run: string; sessionID: string; challengeId: string; callID: string; tool: string; state: 'active' | 'settled' | 'unknown'; result?: string; job?: string; controller: AbortController; deadline: number; execution?: string; timer?: ReturnType<typeof setTimeout>; done?: Promise<unknown>; detachRpc?: () => void }
+ interface TaskStopResult { state: 'stopped' | 'unknown' | 'completed' | 'failed'; resources: 'settled' | 'unknown'; sessionAbort: 'confirmed' | 'unknown' | 'not_required'; executionRef?: string }
+ interface Execution { version?: string; ref: string; run: string; parent: string; callID: string; role: Role; challengeId?: string; childID?: string; state: 'starting' | 'running' | 'completed' | 'failed' | 'cancelled'; delivered: boolean; noticeMessageID?: string; delivery?: 'queued' | 'consumed' | 'suppressed' | 'stop_reply'; lateResult?: string; initialOutput?: string; result?: string }
+@@ -140,6 +141,9 @@
+   private readonly jobs: JobManager;
+   private readonly publications = new ArtifactPublisher();
+   private readonly packages = new CandidatePackages(this.publications);
++  private readonly verificationResults = new VerificationResults();
++  private readonly verificationJobs = new Map<string,{sessionID:string;execution:string;version:string;association:Record<string,unknown>;terminal:{state:string;exitCode:number|null}}>();
++  verificationResultSnapshot(){return this.verificationResults.snapshot();}
+   private readonly preparations = new Map<string, Preparation>();
+   private verifierExecution(binding:Binding) {
+     const e=[...this.executions.values()].find(e=>e.childID===binding.sessionID&&e.state==='running');
+@@ -466,6 +470,7 @@
+       this.checkDeclaration(binding, body.args, tool === 'ctf_challenge_assign');
+       return { allowed: true }; // Precheck only: execution is the declaration's linearization point.
+     }
++    if (tool === 'ctf_verification_read') { if(binding.role!=='coordinator')throw new ControlDenied('tool not permitted');return {allowed:true,rpcTimeoutMs:20000}; }
+     if (tool === 'ctf_task_stop') { this.checkTaskStop(binding, body.args); return { allowed: true, rpcTimeoutMs: 10000 }; }
+     const managed = SOLVER_TOOLS.find(name => `ctf_${name.replaceAll('.', '_')}` === tool);
+     if (managed) { this.checkSolver(binding, managed); return { allowed: true, rpcTimeoutMs: this.waitLimit(binding, managed, (body.args ?? {}) as Record<string, unknown>) + 5000 }; }
+@@ -529,6 +534,17 @@
+       if(version)return {execute:async()=>{await this.packages.read(this.options.runId??'run',challenge!,{version,component:'manifest'});return this.serial(commit);}};
+       return commit();
+     }
++    if(name==='verification.read') {
++      if(binding.role!=='coordinator')throw new ControlDenied('tool not permitted');
++      return {execute:()=>this.verificationResults.read(this.options.runId??'run',(body.args??{}) as Record<string,unknown>,async r=>{
++        const reasons:string[]=[];
++        try{await this.packages.read(r.run,r.challenge,{version:r.version,component:'manifest'});}catch{reasons.push('fixed package or dependency unavailable');}
++        for(const e of r.evidence){
++          if(e.kind==='artifact'){try{const src=e.source as {ref:string};await this.publications.bytes(r.run,r.challenge,src.ref);}catch{reasons.push('fixed evidence unavailable');}}
++          if(e.preparation){const p=this.preparations.get(e.preparation),b=this.bindings.get(r.sessionID);try{if(!p||!b)throw new Error();await this.packages.checkPrepared(this.roots(b).workDir,p);}catch{reasons.push('relevant prepared dependency changed_or_unreadable');}}
++        }return reasons;
++      },()=>{if(signal?.aborted)throw new ControlDenied('rpc abandoned');this.live(binding);if(this.stopReason)throw new ControlDenied('run stopped');})};
++    }
+     if (SOLVER_TOOLS.includes(name)) return this.prepareSolver(binding, name, (body.args ?? {}) as Record<string, unknown>, body.callID, signal);
+     if (!INTAKE_TOOLS.includes(name)) throw new ControlDenied('no managed tools');
+     const args = this.checkIntake(binding, name, body.args);
+@@ -543,7 +559,7 @@
+       (name === 'artifact.publish' && binding.role === 'verifier') ||
+       (name === 'package.publish' && binding.role !== 'engineer') ||
+       (name === 'package.read' && !['engineer','verifier'].includes(binding.role)) ||
+-      (name === 'package.prepare' && binding.role !== 'verifier')) throw new ControlDenied('tool not permitted');
++      (['package.prepare','verification.report'].includes(name) && binding.role !== 'verifier')) throw new ControlDenied('tool not permitted');
+     if (!this.options.challenges?.some(c => c.id === binding.challengeId)) throw new ControlDenied('challenge outside run');
+   }
+ 
+@@ -571,7 +587,7 @@
+     if (this.resources.has(key)) throw new ControlDenied('duplicate tool call');
+     const active = [...this.resources.values()].filter(r => r.state !== 'settled');
+     if (name === 'http.request' && active.filter(r => r.tool === name && r.challengeId === binding.challengeId).length >= 8) throw new ControlDenied('http limit');
+-    if(binding.role==='verifier'&&['package.read','package.prepare','job.run'].includes(name)) {
++    if(binding.role==='verifier'&&['package.read','package.prepare','job.run','verification.report'].includes(name)) {
+       const e=this.verifierExecution(binding);
+       if(name==='package.read'&&args.version!==e.version)throw new ControlDenied('verification version');
+     }
+@@ -628,6 +644,7 @@
+             result = await this.jobs.run(jobBinding, args, { signal: operation.controller.signal, deadline: operation.deadline, onRegistered: job => { operation.job = job; if(operation.execution) this.outputSources.set(job,{source:{...this.source(binding,'job',job,operation.execution),callID:call}}); } });
+             const done = this.jobs.waitSettled(jobBinding, operation.job!).then(async snapshot=>{
+               if(association&&preparation){try{await this.packages.checkPrepared(roots.workDir,preparation);association.after='matched';}catch{association.after='changed_or_unreadable';}
++                this.verificationJobs.set(operation.job!,{sessionID:binding.sessionID,execution:operation.execution!,version:String(association.version),association:structuredClone(association),terminal:{state:snapshot.state,exitCode:snapshot.exitCode}});
+                 this.record(binding.sessionID,'verification.job.terminal',true,undefined,{...association,job:operation.job,terminal:snapshot});
+                 return {...snapshot,inputAssociation:association};}
+               return snapshot;
+@@ -666,6 +683,29 @@
+             result=await this.packages.publish({source:this.source(binding,'package',call,operation.execution),dir:roots.publishedDir,challenge:this.options.challenges!.find(c=>c.id===binding.challengeId)!},args,()=>{operation.controller.signal.throwIfAborted();this.live(binding);});
+             this.record(binding.sessionID,'package.published',true,undefined,this.publicationSnapshot().find(p=>p.ref===(result as {version:string}).version));
+           } else if(name==='package.read') result=await this.packages.read(operation.run,binding.challengeId!,args);
++          else if(name==='verification.report') {
++            const e=this.verifierExecution(binding);
++            if(e.ref!==operation.execution)throw new ControlDenied('verification execution');
++            const active=()=>{operation.controller.signal.throwIfAborted();this.live(binding);if(this.stopReason)throw new ControlDenied('run stopped');if(this.verifierExecution(binding).ref!==e.ref)throw new ControlDenied('verification execution');};
++            result=await this.verificationResults.register({run:operation.run,challenge:binding.challengeId!,version:e.version,sessionID:binding.sessionID,execution:e.ref},args,async selection=>{
++              if(selection.kind==='artifact'){
++                const p=await this.publications.bytes(operation.run,binding.challengeId!,selection.ref);
++                if(p.source.kind==='package')throw new ControlDenied('verification evidence');
++                return fixEvidence(selection,p.bytes,{kind:'artifact',source:{...p.source,ref:selection.ref},originalComplete:p.record.originalComplete});
++              }
++              const j=this.verificationJobs.get(selection.job);
++              if(!j||j.sessionID!==binding.sessionID||j.execution!==e.ref||j.version!==e.version)throw new ControlDenied('verification job');
++              const output=this.jobs.outputSnapshot(this.jobBinding(binding,roots),selection.job,selection.stream);
++              return fixEvidence(selection,output.bytes,{kind:'job',source:{...this.outputSources.get(selection.job)!.source,stream:selection.stream},originalComplete:output.complete,association:structuredClone(j.association),terminal:j.terminal,preparation:String(j.association.preparation)});
++            },async()=>{
++              const p=await this.packages.read(operation.run,binding.challengeId!,{version:e.version,component:'candidate'});
++              // Candidate can span pages: use manifest's fixed base64, validated by CandidatePackages.read.
++              const m=await this.packages.read(operation.run,binding.challengeId!,{version:e.version,component:'manifest'});
++              let data=Buffer.from(m.data,'base64');let cursor=m.nextCursor;while(cursor){const n=await this.packages.read(operation.run,binding.challengeId!,{version:e.version,component:'manifest',cursor});data=Buffer.concat([data,Buffer.from(n.data,'base64')]);cursor=n.nextCursor;active();}
++              void p;return Buffer.from(JSON.parse(data.toString()).candidate.data,'base64');
++            },active);
++            this.record(binding.sessionID,'verification.registered',true,undefined,this.verificationResultSnapshot().find(r=>r.result===(result as {result:string}).result));
++          }
+           else if(name==='package.prepare') {
+             if(Object.keys(args).length)throw new ControlDenied('prepare arguments');
+             const e=this.verifierExecution(binding);
+--- a/apps/launcher/src/launch.ts
++++ b/apps/launcher/src/launch.ts
+@@ -331,6 +331,7 @@
+   await save(join(real.evidence, 'control-audit.json'), control.audit);
+   await save(join(real.evidence, 'tool-resources.json'), control.resourceSnapshot());
+   await save(join(real.evidence, 'publications.json'), control.publicationSnapshot());
++  await save(join(real.evidence, 'verification-results.json'), control.verificationResultSnapshot());
+   await save(join(real.evidence, 'assets.json'), { productRevision, copies });
+   await save(join(real.state, 'run.json'), { runId, status, rootSessionId: rootId || null, sessions: [...sessionIds],
+     deadlineMs, opencodeVersion: engine.version, model: loaded.config.model, configSha256: sha256(JSON.stringify({ ...config, plugin: undefined })), productRevision,
+--- a/apps/opencode-plugin/src/index.ts
++++ b/apps/opencode-plugin/src/index.ts
+@@ -11,7 +11,18 @@
+ 
+ export const pluginId = 'ctf-agent-host-foundation';
+ const packageEntry={path:tool.schema.string(),purpose:tool.schema.enum(['script','input','evidence'])};
++const reportSelection={start:tool.schema.number().int().nonnegative().optional(),end:tool.schema.number().int().nonnegative().optional(),necessary:tool.schema.boolean(),context:tool.schema.string()};
+ const schemas = {
++  'verification.report':{
++    judgment:tool.schema.enum(['verified','rejected','inconclusive']),mode:tool.schema.enum(['recompute','evidence_audit','replay']),rationale:tool.schema.string(),sourceFlow:tool.schema.string(),
++    premises:tool.schema.array(tool.schema.object({statement:tool.schema.string(),status:tool.schema.enum(['assumed','unknown'])})),issues:tool.schema.array(tool.schema.string()),
++    requirements:tool.schema.object({continuousIntegrity:tool.schema.boolean(),declaredDependenciesOnly:tool.schema.boolean()}),
++    evidence:tool.schema.array(tool.schema.discriminatedUnion('kind',[
++      tool.schema.object({kind:tool.schema.literal('job'),job:tool.schema.string(),stream:tool.schema.enum(['stdout','stderr']),...reportSelection}),
++      tool.schema.object({kind:tool.schema.literal('artifact'),ref:tool.schema.string(),...reportSelection})
++    ])),comparison:tool.schema.object({evidence:tool.schema.number().int().nonnegative(),start:tool.schema.number().int().nonnegative(),end:tool.schema.number().int().nonnegative()}).optional()
++  },
++  'verification.read':{challenge:tool.schema.string(),version:tool.schema.string(),result:tool.schema.string()},
+   'package.prepare': {},
+   'package.publish': {candidate:tool.schema.object({ref:tool.schema.string(),start:tool.schema.number().int().nonnegative(),end:tool.schema.number().int().nonnegative()}),files:tool.schema.array(tool.schema.discriminatedUnion('kind',[tool.schema.object({kind:tool.schema.literal('artifact'),ref:tool.schema.string(),...packageEntry}),tool.schema.object({kind:tool.schema.literal('material'),name:tool.schema.string(),...packageEntry})])).max(32),argv:tool.schema.array(tool.schema.string()).max(32).optional(),extraction:tool.schema.string(),premises:tool.schema.array(tool.schema.string()).max(32)},
+   'package.read': {version:tool.schema.string(),component:tool.schema.enum(['manifest','candidate','file']),path:tool.schema.string().optional(),cursor:tool.schema.string().optional()},
+@@ -34,6 +45,8 @@
+   'challenge.read': { id: tool.schema.string().min(1), path: tool.schema.string().min(1), cursor: tool.schema.string().regex(/^\d{1,15}$/).optional() }
+ };
+ const descriptions: Record<string, string> = {
++  'verification.report': 'Independent version-bound Verifier only. Submit judgment/mode/rationale/sourceFlow, explicit premises (assumed or unknown), issues, requirements (continuousIntegrity/declaredDependenciesOnly), and necessary or ancillary job/artifact evidence with context and optional half-open start/end. recompute comparison selects evidence index and byte interval. Host fills identity/version/job command, fixes raw bytes and checks mechanical facts, never semantic sufficiency. Unknown stays unknown. Missing required evidence/known mutation blocks effective judgment. Exact duplicate retains ref; conflict refused. Saved report is not Coordinator receipt or solved. Transport unknown: pause, no blind resend.',
++  'verification.read': 'Coordinator only. Read explicit challenge/version/result. Returns original Verifier judgment, host mechanical checks and current availability with explicit premises. No latest, TTL, oracle or solved. Semantic assessment is Verifier assertion, not host proof; equality never promotes a report.',
+   'package.prepare': 'Verifier only: prepare the host-bound version into a new private work subdirectory. No arguments. Host copies exact manifest paths and bytes, returns preparation handle, directory, manifestPath, candidatePath and hashes. Preparation does not execute argv. Use job.run with preparation and actual argv; no invented receipt. Before/after matching hashes cannot prove continuous integrity or all dependencies; those remain unknown. No verified or solved claim. Transport failure may follow preparation: pause affected handoff, no blind resend.',
+   'challenge.assign': 'Coordinator: declare challenge for the next native task. Verifier additionally requires the actual fixed package version, validated by the host before first admission. Each resumed execution needs an explicit new declaration. A prompt is not authorization.',
+   'package.publish': 'Engineer only: fix a candidate and solution package. Fix a whole package once: candidate is a published ref and exact nonempty half-open byte range; files select published refs or E material names, each with an unambiguous relative path and script/input/evidence purpose. Supply proposed argv (optional), extraction explanation and premises. At most 32 files; the serialized envelope, including base64 and metadata, is bounded to 1 MiB. No text normalization or automatic execution. Returned version refers to the whole package; hand off that actual version through native task completion. Incomplete/unknown provenance stays incomplete/unknown. Not verified or solved. Transport failure can follow commit: pause unconfirmed handoff; never blindly republish or rerun source. No unknown lock or recovery.',
+--- a/product/opencode/opencode.json
++++ b/product/opencode/opencode.json
+@@ -50,7 +50,8 @@
+         "task": "allow",
+         "ctf_challenge_assign": "allow",
+         "ctf_challenge_unassign": "allow",
+-        "ctf_task_stop": "allow"
++        "ctf_task_stop": "allow",
++        "ctf_verification_read": "allow"
+       }
+     },
+     "intake": {
+@@ -142,7 +143,8 @@
+         "ctf_job_cancel": "allow",
+         "ctf_artifact_read": "allow",
+         "ctf_package_read": "allow",
+-        "ctf_package_prepare": "allow"
++        "ctf_package_prepare": "allow",
++        "ctf_verification_report": "allow"
+       }
+     },
+     "recovery-critic": {
+--- a/tests/manual/d-verification-result.ts
++++ b/tests/manual/d-verification-result.ts
+@@ -0,0 +1,176 @@
++// Native no-model probe. Only loopback scripted provider; real E / OpenCode task / plugin / C / work / jobs.
++import assert from 'node:assert/strict';
++import {createHash} from 'node:crypto';
++import http from 'node:http';
++import fs from 'node:fs/promises';
++import {syncBuiltinESMExports} from 'node:module';
++import {join,resolve} from 'node:path';
++import {execFileSync} from 'node:child_process';
++import {tmpdir} from 'node:os';
++import {createCtfAgentHooks} from '../../apps/opencode-plugin/src/index.js';
++import {VerificationResults} from '../../apps/launcher/src/verification-results.js';
++import {ControlService,MANAGED_TOOLS} from '../../apps/launcher/src/control-service.js';
++import {launch} from '../../apps/launcher/src/launch.js';
++const label=process.argv[2];assert(label&&/^[\w-]+$/.test(label),'fresh label required');
++const base=resolve('docs/gates/d-artifact-handoff-20261024/verification-result',label);await fs.mkdir(base);
++const scenarios=process.argv[3]?[process.argv[3]]:['control','rejected','missing','lost','stop','late','budget'];
++const hash=(b:Buffer)=>createHash('sha256').update(b).digest('hex');
++const sourceFiles=['AGENTS.md','package.json','package-lock.json','apps/launcher/src/artifact-tools.ts','apps/launcher/src/candidate-package-tools.ts','apps/launcher/src/control-service.ts','apps/launcher/src/control-rpc.ts','apps/launcher/src/run-prep.ts','apps/launcher/src/launch.ts','apps/launcher/src/workspace-tools.ts','apps/launcher/src/job-tools.ts','apps/launcher/src/http-tools.ts','apps/opencode-plugin/src/index.ts','product/opencode/opencode.json','tests/manual/d-verification-result.ts','apps/launcher/src/verification-results.ts','tests/contract/d-verification-result.test.ts','tests/contract/d-verifier-handoff.test.ts','tests/contract/opencode-config.test.ts','tests/contract/control-service.test.ts','tests/contract/g-coordinator-stop.test.ts','tests/contract/g-team-integration.test.ts','tests/contract/d-candidate-package.test.ts',...['coordinator','intake','domain-solver','engineer','recon','verifier'].map(r=>`product/opencode/agents/${r}.md`)];
++await fs.mkdir(join(base,'source'));for(const path of sourceFiles){const destination=join(base,'source',path);await fs.mkdir(resolve(destination,'..'),{recursive:true});await fs.copyFile(path,destination);}
++await fs.writeFile(join(base,'source-hashes.json'),JSON.stringify(await Promise.all(sourceFiles.map(async path=>({path,sha256:hash(await fs.readFile(path))}))),null,2));
++const roleBodies=Object.fromEntries(await Promise.all(['coordinator','intake','domain-solver','engineer','recon','verifier'].map(async role=>[role,(await fs.readFile(`product/opencode/agents/${role}.md`,'utf8')).replace(/^---\r?\n[\s\S]*?\r?\n---(?:\r?\n|$)/,'').trim()])));
++const productConfig=JSON.parse(await fs.readFile('product/opencode/opencode.json','utf8'));
++const expectedTools=createCtfAgentHooks({controlUrl:'http://127.0.0.1:9/control',controlToken:'nonsecret-context-check-token-00000',tools:MANAGED_TOOLS}).tool!;
++const expected=Buffer.from([0xe6,0x97,0x97,0x7b,0xc3,0xa9,0x7d,0,255]);
++const raw=Buffer.concat([Buffer.from('log\r\n'),expected,Buffer.from('\r\nTAIL')]);
++const eMaterial='E_NONSECRET\r\n';
++const solverScript=`process.stdout.write(Buffer.from('${raw.toString('base64')}','base64'))`;
++const extractionScript="const f=require('node:fs'); const p=require('node:path'); if(f.readFileSync(p.join('data','input.txt'),'utf8')!=='E_NONSECRET\\r\\n')throw new Error('wrong E material'); const b=f.readFileSync('raw.bin').subarray(5,14); f.writeFileSync('candidate.bin',b); process.stdout.write(b);";
++for(const scenario of scenarios){
++ assert(['control','rejected','missing','lost','stop','late','budget'].includes(scenario));const candidateExpected=scenario==='rejected'?Buffer.from('INCORRECT'):expected;const out=join(base,scenario);await fs.mkdir(out);
++ const root=await fs.mkdtemp(join(tmpdir(),'d-package-runtime-'));const provider:any[]=[],events:any[]=[],wire:any[]=[],observations:any[]=[],loadedContext:any[]=[];
++ let releaseReady!:()=>void,releaseIO!:()=>void;const ready=new Promise<void>(r=>releaseReady=r),io=new Promise<void>(r=>releaseIO=r);
++ let barrier=false,stopped=false,packagePending=false,seq=0,phase=0,result:any,failure:string|undefined;const steps=new Map<string,number>();
++ const mark=(event:string,detail:unknown={})=>{const row={index:observations.length,at:Date.now(),event,detail};observations.push(row);return row;};
++ const originalCreate=http.createServer,originalRename=fs.rename,originalRecord=(ControlService.prototype as any).record,originalRegister=VerificationResults.prototype.register;
++ (ControlService.prototype as any).record=function(...args:any[]){const r=originalRecord.apply(this,args);if(args[1]==='verification.registered')mark('C.registered',args);if(args[1]==='verification.job.terminal')mark('C.job.terminal',args);if(args[1]==='revoke'){mark('C.revoke',args);if(scenario==='stop'&&barrier){releaseIO();mark('barrier.release.after.revoke');}}if(args[1]==='task.stop.result'){stopped=true;mark('C.stop.result',args);if(scenario==='late'){releaseIO();mark('response.release.after.stop');}}return r;};
++ VerificationResults.prototype.register=async function(...args:Parameters<VerificationResults['register']>){
++   if(scenario==='stop'){barrier=true;mark('register.before.barrier');releaseReady();await io;mark('register.before.resume');}
++   return originalRegister.apply(this,args);
++ };
++ (http as any).createServer=function(...args:any[]){const listener=args.at(-1);if(typeof listener!=='function')return (originalCreate as any)(...args);args[args.length-1]=(q:any,r:any)=>{
++  if(q.url==='/control'){
++   const chunks:Buffer[]=[];q.on('data',(c:Buffer)=>chunks.push(Buffer.from(c)));const end=r.end;
++   r.end=function(...endArgs:any[]){let body:any;try{body=JSON.parse(Buffer.concat(chunks).toString());}catch{}const prepare=body?.operation==='tool.execute'&&body?.input?.tool==='verification.report';
++    if(prepare){const response=String(endArgs[0]??'');wire.push({at:Date.now(),request:body,status:r.statusCode,response});mark('rpc.reply.ready',{sessionID:body.sessionID,callID:body.input.callID,status:r.statusCode,response});
++     if(scenario==='lost'){mark('socket.destroy.after.register');r.destroy();return r;}
++     if(scenario==='late'){barrier=true;mark('response.barrier');releaseReady();void io.then(()=>{mark('response.late.attempt',{destroyed:r.destroyed,writableFinished:r.writableFinished});end.apply(r,endArgs);});return r;}
++    }return end.apply(r,endArgs);
++   };r.on('close',()=>{if(Buffer.concat(chunks).toString().includes('verification.report'))mark('rpc.response.close',{finished:r.writableFinished,destroyed:r.destroyed});});
++  }listener(q,r);
++ };return (originalCreate as any)(...args);};syncBuiltinESMExports();
++ const failedRequests:any[]=[];
++ const stub=originalCreate((q,r)=>{let request:any;void(async()=>{
++  const chunks:Buffer[]=[];for await(const c of q)chunks.push(Buffer.from(c));assert(q.url?.endsWith('/chat/completions'));
++  const body=JSON.parse(Buffer.concat(chunks).toString());request=body;const first=String(body.messages.find((m:any)=>m.role==='user')?.content??'');
++  const who=/PK_ROLE_(intake|domain-solver|engineer|recon|verifier)/.exec(first)?.[1]??'coordinator';
++  if(!loadedContext.some(c=>c.role===who)){
++   const system=body.messages.filter((m:any)=>m.role==='system').map((m:any)=>typeof m.content==='string'?m.content:JSON.stringify(m.content)).join('\n');
++   const tools=body.tools.filter((t:any)=>t.function.name.startsWith('ctf_')).map((t:any)=>({name:t.function.name,description:t.function.description}));
++   loadedContext.push({role:who,system,expectedRoleBody:roleBodies[who],roleBodySha256:hash(Buffer.from(roleBodies[who]!)),tools});
++   assert(system.includes(roleBodies[who]!),`actual runtime must load final ${who} body`);
++   assert.deepEqual(tools.map((t:any)=>t.name).sort(),Object.entries(productConfig.agent[who].permission).filter(([name,permission])=>name.startsWith('ctf_')&&permission==='allow').map(([name])=>name).sort());
++   for(const t of tools)assert.equal(t.description,expectedTools[t.name]!.description,`final description ${t.name}`);
++  }
++  const step=steps.get(who)??0;steps.set(who,step+1);
++  const results=body.messages.filter((m:any)=>m.role==='tool').map((m:any)=>String(m.content));const decoded=results.flatMap((s:string)=>{try{return [JSON.parse(s)];}catch{return [];}});const all=body.messages.map((m:any)=>typeof m.content==='string'?m.content:JSON.stringify(m.content)).join('\n');
++  const calls:any[]=[];const call=(name:string,args:object={})=>calls.push({name,args});let content='WAIT_FOR_NATIVE_TASK';
++  const task=(role:string,extra='')=>call('task',{subagent_type:role,description:`package ${role}`,prompt:`PK_ROLE_${role} ${extra}`,...(role==='intake'?{}:{background:true})});
++  const publications=decoded.filter((v:any)=>v.ref&&v.snapshotFixed&&!Object.hasOwn(v,'data'));
++  if(who==='coordinator'){
++   if(phase===0){task('intake');phase++;}
++   else if(phase===1){assert(all.includes('INTAKE_READY'));call('ctf_challenge_assign',{role:'domain-solver',challenge:'X'});phase++;}
++   else if(phase===2){task('domain-solver');phase++;}
++   else if(phase===3&&all.includes('SOLVER_HANDOFF:')){call('ctf_challenge_assign',{role:'engineer',challenge:'X'});phase++;}
++   else if(phase===4){const m=/SOLVER_HANDOFF:(\[[^\]\n]+\])/.exec(all);assert(m);assert.equal(JSON.parse(m[1]!).length,2);task('engineer','HANDOFF:'+m[1]);phase++;}
++   else if(phase===5&&all.includes('ENGINEER_RESULT:')){const m=/ENGINEER_RESULT:(\{[^\n]+\})/.exec(all);assert(m);const version=JSON.parse(m[1]!).version;call('ctf_challenge_assign',{role:'verifier',challenge:'X',version});phase++;}
++   else if(phase===6){const m=/ENGINEER_RESULT:(\{[^\n]+\})/.exec(all);assert(m);task('verifier','VERSION:'+JSON.parse(m[1]!).version);phase++;}
++   else if(phase===7&&['stop','late'].includes(scenario)){call('ctf_challenge_assign',{role:'recon',challenge:'X'});phase++;}
++   else if(phase===8){task('recon');phase++;}
++   else if(phase===9&&all.includes('SIBLING_BARRIER_READY')){const initial=results.filter((s:string)=>s.includes('Background task started')&&s.includes('<task id='));assert.equal(initial.length,4);const m=/<task id="(ses_[\w]+)"/.exec(initial[2]!);assert(m);mark('parent.native.stop.handle',{taskID:m[1]});call('ctf_task_stop',{task_id:m[1]});phase++;}
++   else if(phase===10){assert(results.some((s:string)=>s.includes('"state":"stopped"')));content='STOP_CONFIRMED affected verification paused';phase=11;}
++   else if(phase===7&&['control','rejected','missing','lost'].includes(scenario)&&all.includes('VERIFIER_RESULT:')){if(scenario==='lost'){assert(all.includes('VERIFIER_RESULT:UNKNOWN'));content='UNKNOWN paused no blind resend';phase=11;}else{const m=/VERIFIER_RESULT:(\{[^\n]+\})/.exec(all);assert(m);const v=JSON.parse(m[1]!);call('ctf_verification_read',{challenge:'X',version:v.version,result:v.result});phase=12;}}
++   else if(phase===12){const v=decoded.find((v:any)=>v.original&&v.currentAvailability);assert(v);assert.equal(v.original.judgment,scenario==='rejected'?'rejected':'verified');assert.equal(v.effectiveJudgment,scenario==='missing'?'inconclusive':scenario==='rejected'?'rejected':'verified');assert.equal(v.currentAvailability.usable,scenario!=='missing');content='COORDINATOR_READ_RESULT mechanical contract only; semantic assertion scripted; not solved';phase=11;}
++   else if(phase===11)content='END';
++  }else if(who==='intake'){
++   if(step===0)call('ctf_challenge_list');else if(step===1)call('ctf_challenge_read',{id:'X',path:'input.txt'});else{assert(decoded.some((v:any)=>v.text===eMaterial));content='INTAKE_READY fixed E input.txt';}
++  }else if(who==='domain-solver'){
++   if(step===0)call('ctf_workspace_write',{path:'work/solve.cjs',content:solverScript});
++   else if(step===1)call('ctf_job_run',{argv:[process.execPath,'solve.cjs'],timeout_ms:5000});
++   else if(step===2){const j=decoded.findLast((v:any)=>v.job);assert.equal(j.exitCode,0);call('ctf_artifact_publish',{source:'job',job:j.job,stream:'stdout'});}
++   else if(step===3)call('ctf_artifact_publish',{source:'file',path:'work/solve.cjs'});
++   else{assert.equal(publications.length,2);content='SOLVER_HANDOFF:'+JSON.stringify(publications.map((p:any)=>({ref:p.ref,path:p.path,sha256:p.sha256,size:p.size})));}
++  }else if(who==='recon'){await ready;mark('sibling.native.completion.ready');content='SIBLING_BARRIER_READY';}
++  else if(who==='engineer'){
++   assert(body.tools.some((t:any)=>t.function.name==='ctf_package_publish'));const m=/HANDOFF:(\[[^\]\n]+\])/.exec(first);assert(m,'actual native Engineer task must supply refs');const refs=JSON.parse(m[1]!);
++   const pages=decoded.filter((v:any)=>v.encoding==='base64'&&v.ref);const get=(i:number)=>{const p=pages[i];assert(p);return Buffer.from(p.data,'base64');};
++   if(step===0)call('ctf_artifact_read',{ref:refs[0].ref});
++   else if(step===1)call('ctf_artifact_read',{ref:refs[1].ref});
++   else if(step===2)call('ctf_workspace_read',{path:'materials/input.txt'});
++   else if(step===3){assert.deepEqual(get(0),raw);assert(decoded.some((v:any)=>v.text===eMaterial));call('ctf_workspace_write',{path:'work/raw.bin',content:get(0).toString('base64'),encoding:'base64'});call('ctf_workspace_write',{path:'work/data/input.txt',content:decoded.find((v:any)=>v.text===eMaterial).text});}
++   else if(step===4){assert.equal(get(1).toString(),solverScript);call('ctf_workspace_write',{path:'work/source.cjs',content:get(1).toString('base64'),encoding:'base64'});}
++   else if(step===5)call('ctf_workspace_write',{path:'work/extract.cjs',content:scenario==='rejected'?extractionScript.replace('process.stdout.write(b);',"process.stdout.write('INCORRECT');"):extractionScript});
++   else if(step===6)call('ctf_job_run',{argv:[process.execPath,'extract.cjs'],timeout_ms:5000});
++   else if(step===7){assert.equal(decoded.findLast((v:any)=>v.job)?.exitCode,0);call('ctf_artifact_publish',{source:'file',path:'work/extract.cjs'});}
++   else if(step===8)call('ctf_artifact_publish',{source:'file',path:'work/source.cjs'});
++   else if(step===9){const j=decoded.findLast((v:any)=>v.job);call('ctf_artifact_publish',{source:'job',job:j.job,stream:'stdout'});}
++   else if(step===10){assert.equal(publications.length,3);packagePending=true;mark('provider.package.call');call('ctf_package_publish',{candidate:{ref:publications[2].ref,start:0,end:9},files:[{kind:'artifact',ref:publications[0].ref,path:'extract.cjs',purpose:'script'},{kind:'artifact',ref:publications[1].ref,path:'source.cjs',purpose:'script'},{kind:'artifact',ref:refs[0].ref,path:'raw.bin',purpose:'input'},{kind:'material',name:'input.txt',path:'data/input.txt',purpose:'input'},{kind:'artifact',ref:refs[1].ref,path:'evidence/solver.cjs',purpose:'evidence'}],argv:[process.execPath,'extract.cjs'],extraction:'Engineer local extract.cjs reads raw.bin [5,14) after checking fixed E input; stdout is candidate bytes without normalization',premises:['CTF_MATERIALS must expose fixed input.txt; raw.bin relative to proposed working directory','External state unknown; binary candidate fixture; no verifier/oracle']});}
++   else{
++    const p=decoded.find((v:any)=>v.version&&v.candidateSha256);assert(p?.version);
++    if(step===11)call('ctf_package_read',{version:p.version,component:'manifest'});
++    else if(step===12)call('ctf_package_read',{version:p.version,component:'candidate'});
++    else if(step===13)call('ctf_package_read',{version:p.version,component:'file',path:'data/input.txt'});
++    else{const reads=decoded.filter((v:any)=>v.version&&v.data);assert.equal(reads.length,3);const manifest=JSON.parse(Buffer.from(reads[0].data,'base64').toString());assert.equal(manifest.candidate.publication.ref,publications[2].ref);assert.deepEqual(Buffer.from(reads[1].data,'base64'),candidateExpected);assert.equal(Buffer.from(reads[2].data,'base64').toString(),eMaterial);assert.equal(manifest.argvStatus,'proposed');content='ENGINEER_RESULT:'+JSON.stringify({version:p.version,sha256:reads[1].sha256});}
++   }
++  }
++  else if(who==='verifier'){
++    assert(body.tools.some((t:any)=>t.function.name==='ctf_package_prepare'));
++    assert(!body.tools.some((t:any)=>['ctf_package_publish','ctf_artifact_publish','ctf_http_request'].includes(t.function.name)));
++    const version=/VERSION:([^\s]+)/.exec(first)?.[1];assert(version);
++    const prep=decoded.find((v:any)=>v.ready===true);
++    const manifestPage=decoded.find((v:any)=>v.component==='manifest');
++    if(step===0)call('ctf_package_read',{version,component:'manifest'});
++    else if(step===1)call('ctf_package_read',{version,component:'candidate'});
++    else if(step===2)call('ctf_package_read',{version,component:'file',path:'raw.bin'});
++    else if(step===3){assert(manifestPage);call('ctf_package_prepare');}
++        else if(step===4){assert(prep);const m=JSON.parse(Buffer.from(manifestPage.data,'base64').toString());assert.equal(m.argvStatus,'proposed');call('ctf_job_run',{preparation:prep.preparation,argv:scenario==='rejected'?[process.execPath,'-e',extractionScript]:m.argv,timeout_ms:15000});}
++    else if(step===5){const j=decoded.findLast((v:any)=>v.job);assert(j);assert.equal(j.exitCode,0);assert.equal(j.inputAssociation.version,version);assert.equal(j.inputAssociation.continuousIntegrity,'unknown');call('ctf_job_read',{job:j.job,stream:'stdout'});}
++    else if(step===6){const out=decoded.findLast((v:any)=>v.stream==='stdout');assert.deepEqual(Buffer.from(out.data,'base64'),expected);const j=decoded.findLast((v:any)=>v.job);
++      call('ctf_verification_report',{judgment:scenario==='rejected'?'rejected':'verified',mode:'recompute',rationale:scenario==='rejected'?'Scripted fixture counterexample: expected candidate differs from inspected stdout':'Scripted fixture source/dataflow checked under explicit trusted local assumption',sourceFlow:'Fixed E material check, raw.bin [5,14) and extract.cjs stdout; no semantic model claim',premises:[{statement:'Trusted stable local fixture execution; semantic choice predefined by stub',status:'assumed'}],issues:[],requirements:{continuousIntegrity:false,declaredDependenciesOnly:false},evidence:scenario==='missing'?[]:[{kind:'job',job:j.job,stream:'stdout',necessary:true,context:'Whole stdout of prepared local fixture calculation'}],...(scenario==='missing'?{}:{comparison:{evidence:0,start:0,end:9}})});
++    }else{if(scenario==='lost'){assert(results.some((s:string)=>s.includes('denied: control unavailable')));content='VERIFIER_RESULT:UNKNOWN pause no blind resend';}else{const v=decoded.find((v:any)=>v.result&&v.effectiveJudgment);assert(v);content='VERIFIER_RESULT:'+JSON.stringify({result:v.result,version});}}
++  }
++  provider.push({at:Date.now(),seq:++seq,who,step,phase,request:body,calls,content});const b={id:`chatcmpl-${seq}`,object:'chat.completion.chunk',created:Math.floor(Date.now()/1000),model:'scripted'};
++  const delta=calls.length?{role:'assistant',tool_calls:calls.map((c,i)=>({index:i,id:`call_${seq}_${i}`,type:'function',function:{name:c.name,arguments:JSON.stringify(c.args)}}))}:{role:'assistant',content};r.writeHead(200,{'content-type':'text/event-stream'});for(const v of [{...b,choices:[{index:0,delta,finish_reason:null}]},{...b,choices:[{index:0,delta:{},finish_reason:calls.length?'tool_calls':'stop'}]},{...b,choices:[],usage:{prompt_tokens:0,completion_tokens:0,total_tokens:0}}])r.write(`data: ${JSON.stringify(v)}\n\n`);r.end('data: [DONE]\n\n');
++ })().catch(e=>{failure??=String(e);failedRequests.push({at:Date.now(),error:String(e),request});mark('provider.failure',String(e));r.writeHead(500).end('{}');});});await new Promise<void>(r=>stub.listen(0,'127.0.0.1',r));
++ process.env.PK_STUB_KEY='local-nonsecret';process.env.HTTP_PROXY=process.env.HTTPS_PROXY=process.env.ALL_PROXY='http://127.0.0.1:9';process.env.NO_PROXY='127.0.0.1,localhost';
++ const config={model:'stub/scripted',enabled_providers:['stub'],provider:{stub:{npm:'@ai-sdk/openai-compatible',options:{baseURL:`http://127.0.0.1:${(stub.address() as any).port}/v1`,apiKey:'{env:PK_STUB_KEY}'},models:{scripted:{limit:{context:65536,output:2048}}}}}};assert.deepEqual(config.enabled_providers,['stub']);assert.equal(new URL(config.provider.stub.options.baseURL).hostname,'127.0.0.1');
++ await fs.writeFile(join(out,'provider-config.json'),JSON.stringify({...config,proxy:{HTTP_PROXY:process.env.HTTP_PROXY,HTTPS_PROXY:process.env.HTTPS_PROXY,ALL_PROXY:process.env.ALL_PROXY,NO_PROXY:process.env.NO_PROXY}},null,2));await fs.writeFile(join(root,'opencode.json'),JSON.stringify(config));
++ await fs.writeFile(join(out,'versions.json'),JSON.stringify({node:process.version,opencode:execFileSync('/Users/caihaoming/.opencode/bin/opencode',['--version'],{encoding:'utf8'}).trim(),sdk:JSON.parse(await fs.readFile('node_modules/@opencode-ai/sdk/package.json','utf8')).version,plugin:JSON.parse(await fs.readFile('node_modules/@opencode-ai/plugin/package.json','utf8')).version},null,2));
++ await fs.writeFile(join(root,'input.txt'),eMaterial);await fs.writeFile(join(root,'challenges.json'),JSON.stringify({challenges:[{id:'X',statement:'D package public nonsecret fixture; no oracle',materials:['input.txt']}]}));await fs.writeFile(join(root,'profile.json'),JSON.stringify({profileId:'package-local',challenges:'challenges.json',opencode:{configPath:'opencode.json',binaryPath:'/Users/caihaoming/.opencode/bin/opencode'},reference:{enabled:false},budget:{wallClockMs:60000,maxSteps:scenario==='budget'?39:90,maxObservableTokens:100000,maxToolJobs:3},os:{platform:'macos'}}));
++ const abort=new AbortController();
++ try{
++  result=await launch({profile:join(root,'profile.json'),runsRoot:join(root,'runs'),runId:scenario,onStarted:async({client})=>{const s=await client.event.subscribe({},{signal:abort.signal,throwOnError:true});void(async()=>{try{for await(const e of s.stream)events.push({at:Date.now(),...e});}catch{}})();}});
++  assert.equal(failure,undefined);assert.equal(result.status,scenario==='budget'?'budget_exceeded':'completed');assert.equal(phase,scenario==='budget'?7:11);
++  for(const role of ['coordinator','domain-solver','engineer','verifier'])assert(loadedContext.some(c=>c.role===role),`loaded ${role} context`);
++  const ev=join(result.runDir,'evidence');const load=async(n:string)=>JSON.parse(await fs.readFile(join(ev,n),'utf8'));const pubs=await load('publications.json'),resources=await load('tool-resources.json'),executions=await load('task-executions.json'),audit=await load('control-audit.json');
++  const packages=pubs.filter((p:any)=>p.source.kind==='package');assert.equal(packages.length,1);const sourceExecution=executions.find((e:any)=>e.role==='domain-solver'),engineerExecution=executions.find((e:any)=>e.role==='engineer'),verifierExecution=executions.find((e:any)=>e.role==='verifier');
++  assert.equal(new Set([sourceExecution.childID,engineerExecution.childID,verifierExecution.childID]).size,3);assert.equal(verifierExecution.version,packages[0].ref);
++  const calls=provider.flatMap(p=>p.calls);assert.equal(calls.filter(c=>c.name==='ctf_artifact_publish').length,5);assert.equal(calls.filter(c=>c.name==='ctf_package_publish').length,1);assert.equal(calls.filter(c=>c.name==='ctf_package_prepare').length,1);assert(resources.every((r:any)=>r.state==='settled'));
++  const prepareResource=resources.find((r:any)=>r.tool==='package.prepare');assert.equal(prepareResource.execution,verifierExecution.ref);assert.equal(prepareResource.sessionID,verifierExecution.childID);
++  const messages=await load('messages-'+verifierExecution.childID+'.json');const part=messages.flatMap((m:any)=>m.parts??[]).find((p:any)=>p.type==='tool'&&p.tool==='ctf_package_prepare');assert(part);assert.equal(part.callID,prepareResource.callID);
++  const fixed=packages[0];const bytes=await fs.readFile(join(result.runDir,'workspace/X',fixed.path));assert.equal(hash(bytes),fixed.sha256);const manifest=JSON.parse(bytes.toString());assert.deepEqual(Buffer.from(manifest.candidate.data,'base64'),candidateExpected);assert.equal(manifest.files.find((f:any)=>f.path==='raw.bin').publication.source.execution,sourceExecution.ref);
++  await fs.writeFile(join(out,'fixed-manifest.json'),bytes);await fs.writeFile(join(out,'candidate.bin'),Buffer.from(manifest.candidate.data,'base64'));
++  const prepared=audit.find((a:any)=>a.op==='package.prepared');assert(prepared);
++  const j=resources.find((r:any)=>r.tool==='job.run'&&r.sessionID===verifierExecution.childID);assert(j);
++  const records=await load('verification-results.json');const reportResource=resources.find((r:any)=>r.tool==='verification.report');
++  const reportMessages=messages.flatMap((m:any)=>m.parts??[]).filter((p:any)=>p.type==='tool'&&p.tool==='ctf_verification_report');
++  const order=(...names:string[])=>{const indices=names.map(n=>observations.findIndex(o=>o.event===n));assert(indices.every((n,i)=>n>=0&&(i===0||n>indices[i-1]!)),JSON.stringify({names,indices}));};
++  if(['control','rejected','missing'].includes(scenario)){
++    order('C.job.terminal','C.registered','rpc.reply.ready');assert.equal(records.length,1);assert.equal(reportMessages[0].state.status,'completed');assert(verifierExecution.delivered);assert.equal(records[0].version,fixed.ref);assert.equal(records[0].execution,verifierExecution.ref);assert.equal(calls.filter(c=>c.name==='ctf_verification_read').length,1);assert.equal(calls.filter(c=>c.name==='ctf_verification_report').length,1);
++    assert.equal(records[0].effectiveJudgment,scenario==='missing'?'inconclusive':scenario==='rejected'?'rejected':'verified');if(scenario!=='missing')assert.equal(records[0].hostChecks.candidateEqual,scenario!=='rejected');
++  }
++  if(scenario==='budget'){assert.equal(records.length,0);assert(!reportResource);assert(audit.some((a:any)=>a.op==='model.call'&&!a.allow&&a.reason==='budget denied'));assert.equal(provider.filter(p=>p.who==='verifier').length,6);}
++  if(scenario==='lost'){order('C.registered','rpc.reply.ready','socket.destroy.after.register','rpc.response.close');assert.equal(records.length,1);assert.equal(reportMessages[0].state.status,'error');assert.equal(reportMessages[0].state.error,'denied: control unavailable');assert.equal(calls.filter(c=>c.name==='ctf_verification_report').length,1);assert.equal(calls.filter(c=>c.name==='ctf_verification_read').length,0);assert(provider.some(p=>p.who==='verifier'&&p.content.includes('UNKNOWN')));}
++  if(['stop','late'].includes(scenario)){
++    assert(barrier&&stopped);assert.equal(verifierExecution.state,'cancelled');assert.equal(verifierExecution.delivery,'stop_reply');assert.equal(calls.filter(c=>c.name==='ctf_task_stop').length,1);assert.equal(observations.find(o=>o.event==='parent.native.stop.handle').detail.taskID,verifierExecution.childID);
++    assert.equal(calls.filter(c=>c.name==='ctf_verification_report').length,1);
++  }
++  if(scenario==='stop'){order('register.before.barrier','C.revoke','barrier.release.after.revoke','register.before.resume','C.stop.result');assert.equal(records.length,0);assert.equal(reportResource.result,'cancelled');}
++  if(scenario==='late'){order('C.registered','response.barrier','C.revoke','rpc.response.close','C.stop.result','response.release.after.stop','response.late.attempt');assert.equal(records.length,1);assert.equal(reportMessages[0].state.status,'error');assert.equal(reportMessages[0].state.error,'Tool execution aborted');assert.equal(reportResource.result,'completed');assert(!provider.some(p=>p.who==='verifier'&&p.step>6));}
++  await fs.writeFile(join(out,'summary.json'),JSON.stringify({scenario,verdict:'passed',result,sourceExecution,engineerExecution,verifierExecution,reportResource,reportToolState:reportMessages[0]?.state,records:records.length,realModelCalls:0,realUsage:'unavailable',scriptedUsage:'zero only',solved:false,scope:'D fourth interface isolated prototype; semantic assertions predefined; no model/solved claim'},null,2));
++ }catch(e){failure=failure??String(e);process.exitCode=1;console.error(e);}finally{
++  releaseReady();releaseIO();abort.abort();(http as any).createServer=originalCreate;fs.rename=originalRename;VerificationResults.prototype.register=originalRegister;(ControlService.prototype as any).record=originalRecord;syncBuiltinESMExports();
++  if(result?.runDir)for(const dir of ['evidence','workspace','state'])await fs.cp(join(result.runDir,dir),join(out,dir),{recursive:true});
++  for(const [n,v]of Object.entries({provider,failedRequests,events,wire,observations,loadedContext,result:{result,failure,scenario,root,realModelCalls:0}}))await fs.writeFile(join(out,n+'.json'),JSON.stringify(v,null,2));await fs.writeFile(join(out,'expected-raw.bin'),raw);await fs.writeFile(join(out,'expected-candidate.bin'),expected);await new Promise<void>(r=>{stub.close(()=>r());stub.closeAllConnections();});
++ }console.log(JSON.stringify({scenario,result,failure,out}));
++}
+--- a/apps/launcher/src/verification-results.ts
++++ b/apps/launcher/src/verification-results.ts
+@@ -0,0 +1,73 @@
++// D fourth interface prototype. Semantic assertions belong to the independent Verifier.
++// This registry checks mechanical facts; it is scoped to one C run, not restart recovery.
++import {randomUUID,createHash} from 'node:crypto';
++import {z} from 'zod';
++import {WorkspaceRefused} from './workspace-tools.js';
++const text=z.string().min(1).max(8192).refine(s=>!s.includes('\0'));
++const range={start:z.number().int().safe().nonnegative().optional(),end:z.number().int().safe().nonnegative().optional()};
++const selection={...range,necessary:z.boolean(),context:text};
++export const reportSchema=z.object({
++ judgment:z.enum(['verified','rejected','inconclusive']),mode:z.enum(['recompute','evidence_audit','replay']),rationale:text,sourceFlow:text,
++ premises:z.array(z.object({statement:text,status:z.enum(['assumed','unknown'])}).strict()).max(32),issues:z.array(text).max(32),
++ requirements:z.object({continuousIntegrity:z.boolean(),declaredDependenciesOnly:z.boolean()}).strict(),
++ evidence:z.array(z.discriminatedUnion('kind',[
++  z.object({kind:z.literal('job'),job:text,stream:z.enum(['stdout','stderr']),...selection}).strict(),
++  z.object({kind:z.literal('artifact'),ref:text,...selection}).strict()
++ ])).max(16),comparison:z.object({evidence:z.number().int().nonnegative(),start:z.number().int().safe().nonnegative(),end:z.number().int().safe().nonnegative()}).strict().optional()
++}).strict();
++export const resultReadSchema=z.object({challenge:text,version:text,result:text}).strict();
++export type Selection=z.infer<typeof reportSchema>['evidence'][number];
++export interface Evidence {kind:string;source:unknown;size:number;sha256:string;encoding:'base64';data:string;start:number;end:number;originalComplete:boolean|null;rangeComplete:true;necessary:boolean;context:string;association?:Record<string,unknown>;terminal?:{state:string;exitCode:number|null};preparation?:string}
++interface Context {run:string;challenge:string;version:string;sessionID:string;execution:string}
++export interface Stored extends Context {result:string;original:z.infer<typeof reportSchema>;effectiveJudgment:string;evidence:Evidence[];hostChecks:{blockers:string[];candidateEqual:boolean|null;semanticAssessment:'verifier_assertion_not_host_proven'};createdAt:number}
++const deny=(why:string):never=>{throw new WorkspaceRefused('verification '+why);};
++export const sha256=(b:Buffer)=>createHash('sha256').update(b).digest('hex');
++export function fixEvidence(s:Selection,bytes:Buffer,metadata:Omit<Evidence,'size'|'sha256'|'data'|'encoding'|'start'|'end'|'rangeComplete'|'necessary'|'context'>):Evidence{
++ const start=s.start??0,end=s.end??bytes.length;if(start>end||end>bytes.length)deny('range');const selected=Buffer.from(bytes.subarray(start,end));
++ return {...metadata,start,end,size:selected.length,sha256:sha256(selected),encoding:'base64',data:selected.toString('base64'),rangeComplete:true,necessary:s.necessary,context:s.context};
++}
++export class VerificationResults {
++ private records=new Map<string,Stored>();
++ private executions=new Map<string,string>();
++ snapshot(){return structuredClone([...this.records.values()]);}
++ async register(ctx:Context,args:Record<string,unknown>,resolve:(s:Selection)=>Promise<Evidence>,candidate:()=>Promise<Buffer>,active:()=>void){
++  const parsed=reportSchema.safeParse(args);if(!parsed.success)deny('arguments');const original=parsed.data!;
++  const key=ctx.run+'/'+ctx.execution;
++  const prior=this.executions.get(key);
++  if(prior){const r=this.records.get(prior)!;active();if(JSON.stringify(r.original)!==JSON.stringify(original))deny('conflicting report');return {result:r.result,duplicate:true,effectiveJudgment:r.effectiveJudgment};}
++  const expected=await candidate();active();const evidence:Evidence[]=[];
++  for(const s of original.evidence){evidence.push(await resolve(s));active();}
++  const blockers:string[]=[];
++  if(original.mode==='replay')blockers.push('replay unavailable');
++  if(!evidence.some(e=>e.necessary))blockers.push('no necessary evidence');
++  if(original.premises.some(p=>p.status==='unknown'))blockers.push('required premise unknown');
++  if(original.issues.length)blockers.push('unresolved verifier issues');
++  let candidateEqual:boolean|null=null;
++  for(const e of evidence.filter(e=>e.necessary)){
++   if(e.originalComplete!==true)blockers.push('necessary source incomplete or unknown');
++   if(e.association?.after==='changed_or_unreadable')blockers.push('prepared inputs changed_or_unreadable');
++   if(e.terminal&&(e.terminal.state!=='exited'||e.terminal.exitCode!==0))blockers.push('necessary job unsuccessful');
++   if(original.requirements.continuousIntegrity&&e.association?.continuousIntegrity!=='proven')blockers.push('continuous integrity unknown');
++   if(original.requirements.declaredDependenciesOnly&&e.association?.undeclaredDependencies!=='proven_absent')blockers.push('undeclared dependencies unknown');
++  }
++  if(original.mode==='recompute'){
++   if(!evidence.some(e=>e.necessary&&e.kind==='job'&&e.association))blockers.push('recompute requires own version-bound job');
++   const c=original.comparison,e=c&&evidence[c.evidence];
++   if(!c||!e||!e.necessary||e.kind!=='job'||!e.association)blockers.push('missing candidate comparison');
++   else{const b=Buffer.from(e.data,'base64');if(c.end<c.start||c.end>b.length)deny('comparison range');candidateEqual=b.subarray(c.start,c.end).equals(expected);if(original.judgment==='verified'&&!candidateEqual)blockers.push('candidate bytes differ');}
++  }
++  // No promotion from equality. A dishonest semantic assertion remains a semantic gap.
++  const effectiveJudgment=blockers.length?'inconclusive':original.judgment;
++  const row:Stored={...ctx,result:randomUUID(),original,effectiveJudgment,evidence,hostChecks:{blockers:[...new Set(blockers)],candidateEqual,semanticAssessment:'verifier_assertion_not_host_proven'},createdAt:Date.now()};
++  active(); // Atomic synchronous compare-and-set: no awaited IO between final check and commit.
++  const raced=this.executions.get(key);if(raced){const r=this.records.get(raced)!;if(JSON.stringify(r.original)!==JSON.stringify(original))deny('conflicting report');return {result:r.result,duplicate:true,effectiveJudgment:r.effectiveJudgment};}
++  this.records.set(row.result,row);this.executions.set(key,row.result);
++  return {result:row.result,duplicate:false,effectiveJudgment};
++ }
++ async read(run:string,args:Record<string,unknown>,check:(r:Stored)=>Promise<string[]>,active:()=>void){
++  const a=resultReadSchema.safeParse(args);if(!a.success)deny('read arguments');const v=a.data!,found=this.records.get(v.result);
++  if(!found||found.run!==run||found.challenge!==v.challenge||found.version!==v.version)deny('specified result');const r=found!;
++  const invalid=await check(structuredClone(r));active();
++  return {...structuredClone(r),currentAvailability:{usable:r.effectiveJudgment!=='inconclusive'&&invalid.length===0,reasons:[...r.hostChecks.blockers,...invalid],conditionalOn:r.original.premises,semanticAssessment:'verifier_assertion_not_host_proven'}};
++ }
++}
+--- a/tests/contract/d-verification-result.test.ts
++++ b/tests/contract/d-verification-result.test.ts
+@@ -0,0 +1,90 @@
++// Candidate-package contract: C integration with real files/jobs; SDK identity only is a deterministic fixture.
++import {afterAll,describe,it,expect} from 'vitest';
++import {mkdtemp,mkdir,writeFile,readFile,readdir,symlink,rename,rm} from 'node:fs/promises';
++import {join} from 'node:path';
++import {tmpdir} from 'node:os';
++import {createHash} from 'node:crypto';
++import {ControlService} from '../../apps/launcher/src/control-service.js';
++const services:ControlService[]=[];
++async function evidence(name:string,items:Record<string,Buffer|object>){
++ const root=process.env.D_RESULT_EVIDENCE_DIR;if(!root)return;const dir=join(root,name);await mkdir(dir,{recursive:true});
++ for(const [file,value] of Object.entries(items))await writeFile(join(dir,file),Buffer.isBuffer(value)?value:JSON.stringify(value,null,2));
++}
++
++afterAll(async()=>{await Promise.all(services.map(s=>s.stopAll('test end')));});
++async function fixture(){
++ const root=await mkdtemp(join(tmpdir(),'d-package-'));const materialsDir=join(root,'X/materials');await mkdir(materialsDir,{recursive:true});await writeFile(join(materialsDir,'input.bin'),Buffer.from([0,255,13,10]));
++ const client={session:{get:async({sessionID}:any)=>({data:{id:sessionID,parentID:'root',agent:sessionID==='other'?'engineer':sessionID}}),children:async()=>({data:[]}),messages:async()=>({data:[]}),abort:async()=>({data:true})}};
++ const s=new ControlService({runId:'D-package',client:client as never,budget:{maxModelCalls:100,maxObservableTokens:100000},expiresAt:Date.now()+60000,workdir:join(root,'opencode'),skillRoot:join(root,'skills'),challenges:[{id:'X',title:null,target:null,reachability:null,materials:[{name:'input.bin',sha256:createHash('sha256').update(Buffer.from([0,255,13,10])).digest('hex'),bytes:4}],materialsDir},{id:'Y',title:null,target:null,reachability:null,materials:[],materialsDir:join(root,'Y/materials')}]});services.push(s);s.bindRoot('root');let n=0;
++ const exec=(sid:string,tool:string,args:object={})=>s.handle(sid,'tool.execute',{tool,args,callID:'p'+(++n)}) as Promise<any>;
++ async function bind(sid:string,role:string,challenge='X',version?:string){await exec('root','challenge.assign',{role,challenge,...(version?{version}:{})});const callID='t'+(++n);await s.handle('root','tool.before',{tool:'task',callID,args:{subagent_type:role,background:true}});await s.handle('root','tool.after',{tool:'task',callID,metadata:{sessionId:sid},output:'running'});await s.handle(sid,'chat.message',{agent:role});}
++ await bind('domain-solver','domain-solver');await bind('engineer','engineer');
++ const publish=async(sid:string,path:string,bytes:Buffer)=>{await exec(sid,'workspace.write',{path,content:bytes.toString('base64'),encoding:'base64'});return exec(sid,'artifact.publish',{source:'file',path});};
++ const source=await publish('domain-solver','work/mixed.bin',Buffer.concat([Buffer.from('log\r\n旗{é}'),Buffer.from([0,255,13,10])]));
++ const script=await publish('engineer','work/solve.cjs',Buffer.from("process.stdout.write('candidate')"));
++ const args={candidate:{ref:source.ref,start:5,end:14},files:[{kind:'artifact',ref:script.ref,path:'solve.cjs',purpose:'script'},{kind:'material',name:'input.bin',path:'data/input.bin',purpose:'input'},{kind:'artifact',ref:source.ref,path:'evidence/raw.bin',purpose:'evidence'}],argv:[process.execPath,'solve.cjs'],extraction:'Select bytes [5,14); no normalization',premises:['External state unknown']};
++ const packages=()=>s.publicationSnapshot().filter(p=>p.source.kind as string==='package');
++ return {root,s,exec,bind,publish,source,script,args,packages,read:async(version:string,component='candidate',path?:string)=>exec('engineer','package.read',{version,component,...(path?{path}:{})})};
++}
++
++const report=(job:string,judgment='verified')=>({judgment,mode:'recompute',rationale:'Local fixture recomputation under explicit trusted local execution premise',sourceFlow:'Inspect script and fixed input; compare stdout exact bytes to candidate',premises:[{statement:'Trusted stable local execution, no untrusted concurrent writers',status:'assumed'}],issues:[],requirements:{continuousIntegrity:false,declaredDependenciesOnly:false},evidence:[{kind:'job',job,stream:'stdout',necessary:true,context:'Whole local stdout answers fixture; stderr irrelevant'}],comparison:{evidence:0,start:0,end:9}});
++async function ready(script="const b=require('node:fs').readFileSync('data/input.bin');process.stdout.write(Buffer.concat([Buffer.from('旗{é}'),b.subarray(0,2)]))",wrongCandidate=false){
++ const f=await fixture();const a=await f.publish('engineer','work/check.cjs',Buffer.from(script));const wrong=wrongCandidate?await f.publish('engineer','work/wrong.bin',Buffer.from('INCORRECT')):undefined;const p=await f.exec('engineer','package.publish',{...f.args,...(wrong?{candidate:{ref:wrong.ref,start:0,end:9}}:{}),files:[...f.args.files,{kind:'artifact',ref:a.ref,path:'check.cjs',purpose:'script'}]});await f.bind('verifier','verifier','X',p.version);const prep=await f.exec('verifier','package.prepare');const j=await f.exec('verifier','job.run',{preparation:prep.preparation,argv:[process.execPath,'check.cjs'],timeout_ms:5000});
++ return {...f,p,prep,j,readResult:(r:any,version=p.version)=>f.exec('root','verification.read',{challenge:'X',version,result:r.result})};
++}
++describe('D fourth interface',()=>{
++ it('Q1 registers host-bound original report and Coordinator reads exact result with raw bytes',async()=>{
++  const f=await ready();const r=await f.exec('verifier','verification.report',report(f.j.job));expect(r.result).toBeTruthy();const read=await f.readResult(r);expect(read.original.judgment).toBe('verified');expect(read.effectiveJudgment).toBe('verified');expect(read.currentAvailability.usable).toBe(true);expect(read.hostChecks.semanticAssessment).toBe('verifier_assertion_not_host_proven');expect(read.evidence[0].association.continuousIntegrity).toBe('unknown');expect(Buffer.from(read.evidence[0].data,'base64')).toEqual(Buffer.from([0xe6,0x97,0x97,0x7b,0xc3,0xa9,0x7d,0,255]));expect(read.execution).toBe(f.s.executionSnapshot().find(e=>e.role==='verifier')!.ref);
++  await evidence('valid',{'public-task.txt':Buffer.from('Nonsecret local fixture task: output UTF-8 旗{é} followed by the first two raw bytes of E input.bin. No normalization. This is a deterministic reference fixture, not model semantic acceptance.'),'report.json':read,'audit.json':f.s.audit,'stdout.bin':Buffer.from(read.evidence[0].data,'base64')});
++ });
++ it('Q1 rejects role, forged identity/receipt/job, foreign evidence and wrong specified version/challenge',async()=>{
++  const f=await ready();for(const sid of ['root','engineer','domain-solver'])await expect(f.exec(sid,'verification.report',report(f.j.job))).rejects.toThrow();
++  for(const arg of [{...report(f.j.job),version:f.p.version},{...report(f.j.job),receipt:{}},report('forged'),{...report(f.j.job),evidence:[{kind:'artifact',ref:'foreign',necessary:true,context:'foreign'}]}])await expect(f.exec('verifier','verification.report',arg)).rejects.toThrow();
++  const other=await f.exec('engineer','job.run',{argv:[process.execPath,'-e',"process.stdout.write('other')"],timeout_ms:5000});await expect(f.exec('verifier','verification.report',report(other.job))).rejects.toThrow();
++  const r=await f.exec('verifier','verification.report',report(f.j.job));await expect(f.readResult(r,f.source.ref)).rejects.toThrow();await expect(f.exec('root','verification.read',{challenge:'Y',version:f.p.version,result:r.result})).rejects.toThrow();await expect(f.exec('verifier','verification.read',{challenge:'X',version:f.p.version,result:r.result})).rejects.toThrow();
++ });
++ it('Q2 preserves rejected and missing-evidence proposals without equality-based promotion',async()=>{
++  const f=await ready(undefined,true);const a={...report(f.j.job,'rejected'),comparison:{evidence:0,start:0,end:9},rationale:'Inspected local fixture calculation contradicts candidate'};const r=await f.exec('verifier','verification.report',a);const v=await f.readResult(r);expect(v.effectiveJudgment).toBe('rejected');expect(v.hostChecks.candidateEqual).toBe(false);
++  const g=await ready();const q=await g.exec('verifier','verification.report',{...report(g.j.job),evidence:[],comparison:undefined});const w=await g.readResult(q);expect(w.original.judgment).toBe('verified');expect(w.effectiveJudgment).toBe('inconclusive');expect(w.currentAvailability.usable).toBe(false);
++  const h=await ready();const z=await h.exec('verifier','verification.report',report(h.j.job,'inconclusive'));expect((await h.readResult(z)).effectiveJudgment).toBe('inconclusive');await evidence('judgments',{'rejected.json':v,'missing.json':w,'rejected-candidate.bin':Buffer.from((await f.read(f.p.version)).data,'base64'),'rejected-manifest.json':Buffer.from((await f.read(f.p.version,'manifest')).data,'base64'),'recomputed.bin':Buffer.from(v.evidence[0].data,'base64')});
++ });
++ it('Q2 records echo/wrong-input equal-output/audit-string semantic counterexamples rather than claiming a classifier',async()=>{
++  const cases=[['echo',"process.stdout.write(require('node:fs').readFileSync('../candidate.bin'))"],['wrong-input',"const wrong=Buffer.from([0,255,99,99]);process.stdout.write(Buffer.concat([Buffer.from('旗{é}'),wrong.subarray(0,2)]))"],['audit-string',"process.stdout.write('candidate present in irrelevant log')"]];
++  for(const [name,script] of cases){const f=await ready(script);let a:any=report(f.j.job,'inconclusive');a.issues=['Semantic sufficiency not established: '+name];if(name==='audit-string'){a.mode='evidence_audit';delete a.comparison;}const r=await f.exec('verifier','verification.report',a);const v=await f.readResult(r);expect(v.effectiveJudgment).toBe('inconclusive');await evidence(name!,{'script.cjs':Buffer.from(script!),'report.json':v});}
++  // Deliberately dishonest semantic assertion passes mechanical checks: this is the boundary, not a semantic PASS.
++  const f=await ready("process.stdout.write(require('node:fs').readFileSync('../candidate.bin'))");const r=await f.exec('verifier','verification.report',report(f.j.job));const v=await f.readResult(r);expect(v.hostChecks.candidateEqual).toBe(true);expect(v.hostChecks.semanticAssessment).toBe('verifier_assertion_not_host_proven');await evidence('dishonest-echo-boundary',{'report.json':v});
++ });
++ it('Q3 keeps V3 change-restore unknown and blocks declared continuity requirement',async()=>{
++  const script="const f=require('node:fs');const b=f.readFileSync('data/input.bin');f.writeFileSync('data/input.bin','CHANGED');process.stdout.write(f.readFileSync('data/input.bin'));f.writeFileSync('data/input.bin',b);";
++  const f=await ready(script);const a={...report(f.j.job),requirements:{continuousIntegrity:true,declaredDependenciesOnly:true},comparison:{evidence:0,start:0,end:7}};const r=await f.exec('verifier','verification.report',a);const v=await f.readResult(r);expect(v.evidence[0].association.after).toBe('matched');expect(v.evidence[0].association.continuousIntegrity).toBe('unknown');expect(v.effectiveJudgment).toBe('inconclusive');await evidence('mid-job-restore',{'script.cjs':Buffer.from(script),'report.json':v,'stdout.bin':Buffer.from(v.evidence[0].data,'base64')});
++ });
++ it('Q3 retains known mutation, unknown premises, replay and necessary truncation as blockers',async()=>{
++  for(const kind of ['mutation','premise','replay','truncate']){const f=await ready(kind==='mutation'?"require('node:fs').writeFileSync('data/input.bin','CHANGED');process.stdout.write('candidate')":kind==='truncate'?"process.stdout.write('x'.repeat(1048577))":undefined);const a:any=report(f.j.job);if(kind==='premise')a.premises=[{statement:'Required instance state unknown',status:'unknown'}];if(kind==='replay')a.mode='replay';const r=await f.exec('verifier','verification.report',a);const v=await f.readResult(r);expect(v.effectiveJudgment).toBe('inconclusive');expect(v.hostChecks.blockers.length).toBeGreaterThan(0);await evidence(kind,{'report.json':v});}
++ });
++ it('Q3 nonessential truncated stderr preserves context, does not auto-deny stdout conclusion',async()=>{
++  const f=await ready("process.stderr.write('x'.repeat(1048577));process.stdout.write(Buffer.from([0xe6,0x97,0x97,0x7b,0xc3,0xa9,0x7d,0,255]))");const a=report(f.j.job);a.evidence.push({kind:'job',job:f.j.job,stream:'stderr',necessary:false,context:'Unrelated padding diagnostic; conclusion uses complete stdout only'});const r=await f.exec('verifier','verification.report',a);const v=await f.readResult(r);expect(v.evidence[1].originalComplete).toBe(false);expect(v.effectiveJudgment).toBe('verified');await evidence('irrelevant-truncation',{'report.json':v});
++ });
++ it('Q3 revision stays separate; relevant input mutation invalidates read while unrelated work does not',async()=>{
++  const f=await ready();const r=await f.exec('verifier','verification.report',report(f.j.job));const q=await f.exec('engineer','package.publish',f.args);expect(q.version).not.toBe(f.p.version);expect((await f.readResult(r)).currentAvailability.usable).toBe(true);await expect(f.readResult(r,q.version)).rejects.toThrow();await f.exec('verifier','workspace.write',{path:'work/unrelated',content:'edit'});expect((await f.readResult(r)).currentAvailability.usable).toBe(true);await writeFile(join(f.root,'X/work/verifier',f.prep.directory,'data/input.bin'),'changed');const v=await f.readResult(r);expect(v.original.judgment).toBe('verified');expect(v.currentAvailability.usable).toBe(false);await evidence('invalidation',{'report.json':v});
++ });
++ it('Q4 exact duplicates retain ref; conflicts refuse without overwrite; stop/budget refuse new registration',async()=>{
++  const f=await ready();const a=report(f.j.job);const r=await f.exec('verifier','verification.report',a);expect((await f.exec('verifier','verification.report',a)).result).toBe(r.result);await expect(f.exec('verifier','verification.report',{...a,rationale:'conflict'})).rejects.toThrow();expect((await f.readResult(r)).original.rationale).toBe(a.rationale);
++  const g=await ready();await g.exec('root','task.stop',{task_id:'verifier'});await expect(g.exec('verifier','verification.report',report(g.j.job))).rejects.toThrow();
++  const h=await ready();(h.s as any).options.budget.maxModelCalls=0;await expect(h.s.handle('verifier','model.call',{agent:'verifier'})).rejects.toThrow();await expect(h.exec('verifier','verification.report',report(h.j.job))).rejects.toThrow();
++ });
++ it('Q1/Q3 old-execution job and pending report cannot cross explicit version rebind',async()=>{
++  const f=await ready();let reached!:()=>void,release!:()=>void;const barrier=new Promise<void>(r=>reached=r),hold=new Promise<void>(r=>release=r);const packages=(f.s as any).packages,read=packages.read.bind(packages);let once=true;
++  packages.read=async(...args:any[])=>{const r=await read(...args);if(once){once=false;reached();await hold;}return r;};
++  const pending=f.exec('verifier','verification.report',report(f.j.job));const caught=pending.catch(e=>String(e));await barrier;
++  const e=f.s.executionSnapshot().find(e=>e.role==='verifier')!;await f.s.handle('root','chat.message',{agent:'coordinator',messageID:'done',parts:[{type:'text',synthetic:true,text:`<task id="verifier" state="completed">\n<summary>Background task completed: [ctf:${e.ref}]</summary>`}]});
++  const q=await f.exec('engineer','package.publish',f.args);await f.exec('root','challenge.assign',{role:'verifier',challenge:'X',version:q.version});await f.s.handle('root','tool.before',{tool:'task',callID:'rebind-report',args:{subagent_type:'verifier',task_id:'verifier',background:true}});release();expect(await caught).toContain('verification execution');expect(f.s.verificationResultSnapshot()).toHaveLength(0);await expect(f.exec('verifier','verification.report',report(f.j.job))).rejects.toThrow('verification job');await evidence('report-rebind-race',{'audit.json':f.s.audit,'executions.json':f.s.executionSnapshot(),'records.json':f.s.verificationResultSnapshot()});
++ });
++ it('Q4 parallel identical/conflicting submits have a single synchronous commit and saved report survives stop',async()=>{
++  const f=await ready();const a=report(f.j.job);const both=await Promise.all([f.exec('verifier','verification.report',a),f.exec('verifier','verification.report',a)]);expect(both[0].result).toBe(both[1].result);expect(f.s.verificationResultSnapshot()).toHaveLength(1);await f.exec('root','task.stop',{task_id:'verifier'});expect((await f.readResult(both[0])).original.judgment).toBe('verified');await expect(f.exec('verifier','verification.report',a)).rejects.toThrow();
++  const g=await ready();const rs=await Promise.allSettled([g.exec('verifier','verification.report',report(g.j.job)),g.exec('verifier','verification.report',{...report(g.j.job),rationale:'conflict'})]);expect(rs.filter(r=>r.status==='fulfilled')).toHaveLength(1);expect(g.s.verificationResultSnapshot()).toHaveLength(1);await evidence('parallel-commit',{'records.json':g.s.verificationResultSnapshot(),'audit.json':g.s.audit});
++ });
++ it('Q1 audit can cite trusted fixed job artifact without Verifier publish authority; damage invalidates current use',async()=>{
++  const f=await ready();const j=await f.exec('domain-solver','job.run',{argv:[process.execPath,'-e',"process.stdout.write('OBSERVED_SEQUENCE_CANDIDATE')"],timeout_ms:5000});const pub=await f.exec('domain-solver','artifact.publish',{source:'job',job:j.job,stream:'stdout'});const a:any={...report(f.j.job),mode:'evidence_audit',rationale:'Scripted public fixture operation audit; semantic sufficiency not model-tested',sourceFlow:'Inspect source operation and ordering under fixture assumptions; no safe replay capability',evidence:[{kind:'artifact',ref:pub.ref,necessary:true,context:'Whole trusted operation output, safety condition asserted by Verifier'}]};delete a.comparison;const r=await f.exec('verifier','verification.report',a);const v=await f.readResult(r);expect(v.effectiveJudgment).toBe('verified');expect(v.evidence[0].source.sessionID).toBe('domain-solver');await writeFile(join(f.root,'X/published',pub.ref+'.bin'),'corrupt');expect((await f.readResult(r)).currentAvailability.usable).toBe(false);await evidence('audit-artifact',{'report.json':v});
++ });
++
++});
+--- a/tests/contract/opencode-config.test.ts
++++ b/tests/contract/opencode-config.test.ts
+@@ -26,9 +26,9 @@
+   const jobs = ['ctf_job_run', 'ctf_job_read', 'ctf_job_cancel'];
+   const artifacts = ['ctf_artifact_publish', 'ctf_artifact_read'];
+   const allowed: Record<string, string[]> = {
+-    coordinator: ['ctf_challenge_assign', 'ctf_challenge_unassign', 'ctf_task_stop'], intake: ['ctf_challenge_list', 'ctf_challenge_read'],
++    coordinator: ['ctf_challenge_assign', 'ctf_challenge_unassign', 'ctf_task_stop', 'ctf_verification_read'], intake: ['ctf_challenge_list', 'ctf_challenge_read'],
+     recon: [...workspace, ...jobs, ...artifacts, 'ctf_http_request'], 'domain-solver': [...workspace, ...jobs, ...artifacts, 'ctf_http_request'],
+-    engineer: [...workspace, ...jobs, ...artifacts, 'ctf_package_publish', 'ctf_package_read'], verifier: [...workspace, ...jobs, 'ctf_artifact_read', 'ctf_package_read', 'ctf_package_prepare'], reference: [], strategy: [], 'recovery-critic': []
++    engineer: [...workspace, ...jobs, ...artifacts, 'ctf_package_publish', 'ctf_package_read'], verifier: [...workspace, ...jobs, 'ctf_artifact_read', 'ctf_package_read', 'ctf_package_prepare', 'ctf_verification_report'], reference: [], strategy: [], 'recovery-critic': []
+   };
+   for (const [role, tools] of Object.entries(allowed)) {
+     const permission = config.agent[role].permission;
+--- a/product/opencode/agents/coordinator.md
++++ b/product/opencode/agents/coordinator.md
+@@ -20,12 +20,17 @@
+ - 先以 `ctf_challenge_assign(challenge, role)` 宣告 recon／domain-solver／engineer／verifier 的題目，成功後用原生 `task(background=true)` 分派。不要從自由文字指定可信題目；未消費宣告跨輪保留，放棄時用 `ctf_challenge_unassign(role)`。
+ - 原生 task 的早期引用表示任務已啟動，不是完成。後續原生完成通知交回同一任務；依工具終態、證據與未解問題決定繼續或換路，不靠輪詢等待。
+ - 恢復使用原生已交付的 task_id，保持同題；每次執行的可信引用由宿主固定。停止直接分派的任務用 `ctf_task_stop(task_id)`，讀取回覆中實際終態及 unknown，不把初始工具回覆改寫為成功。
+-- 按問題需要使用 Reference／Strategy；普通腳本失敗交原 Solver 修正，持續停滯才觸發 Recovery Critic。Engineer 整理與 Verifier 獨立驗證責任保留；產物交接用下節，Engineer 候選整包固定已接入，獨立驗證結果登記／oracle 接口仍未接入，不稱完整流程已完成。
++- 按問題需要使用 Reference／Strategy；普通腳本失敗交原 Solver 修正，持續停滯才觸發 Recovery Critic。Engineer 整理與 Verifier 獨立驗證責任保留；產物交接用下節，Engineer 候選整包固定已接入，本隔離原型已提供驗證報告登記／讀回；oracle 接口仍未接入，不稱完整流程已完成。
+ 
+ ## 產物交給 Engineer
+ 來源角色完成後，將工具實際返回的 ref 和下一步必要說明放入同題 Engineer 的原生 `task(background=true)`，沿用先 assign 再分派；不要傳 sibling work 路徑或自填可信身份／hash。Coordinator 沒有直接發布權限。
+ 來源未返回確認引用、回報拒絕／損壞／傳輸錯誤時，標記未確認並暫停受影響交接；傳輸錯誤可能已提交，不猜來源未執行，不因缺 ref 重跑 job／HTTP 或盲目重發發布。這是使用規則，尚無對活躍模型新調用的 unknown 強制鎖定或恢復系統。
+-發布成功、Engineer 實際讀取及候選／verified／solved 分開認定。等待 Engineer 讀取所需頁和完整性標記後才記已取得材料；改寫要新 ref。Engineer 整理完成後接收其工具實際返回的整包 version 與必要說明；version 表示固定內容，不是獨立驗證。本原型 Verifier 已有指定版本讀取／準備能力，須經下節宿主綁定後才正式送驗；驗證結果登記與可信提交仍未接入，不把明確 version 視為 verified。
++發布成功、Engineer 實際讀取及候選／verified／solved 分開認定。等待 Engineer 讀取所需頁和完整性標記後才記已取得材料；改寫要新 ref。Engineer 整理完成後接收其工具實際返回的整包 version 與必要說明；version 表示固定內容，不是獨立驗證。本原型 Verifier 已有指定版本讀取／準備能力，須經下節宿主綁定後才正式送驗；本隔離原型已提供報告登記／讀回；可信提交仍未接入，不把明確 version 視為 verified。
+ 
+ ## D 第三接口原型
+-Coordinator 送驗先以 challenge.assign(role="verifier", challenge, version) 指定工具實際返回版本，再原生 task(background=true)；同 session 新 execution 也須重新聲明。不從 prompt 授權。Verifier 只能正式讀取宿主綁定版本；package.prepare 無參數，宿主複製精確 bytes 並返回準備句柄與目錄，不以手抄 base64 替代。job.run 帶 preparation 及實際 argv，cwd 為準備的 inputs。自行檢查腳本與包內腳本分清來源。前後 hash 不證明中途未改或完整依賴，持續完整性及未聲明依賴 unknown。輸出相等不是語義正確。停止／預算拒絕不得繼續；傳輸未知暫停受影響交接，無盲目重發。結果文字走原生交回，尚無 verified／solved 登記。
++Coordinator 送驗先以 challenge.assign(role="verifier", challenge, version) 指定工具實際返回版本，再原生 task(background=true)；同 session 新 execution 也須重新聲明。不從 prompt 授權。Verifier 只能正式讀取宿主綁定版本；package.prepare 無參數，宿主複製精確 bytes 並返回準備句柄與目錄，不以手抄 base64 替代。job.run 帶 preparation 及實際 argv，cwd 為準備的 inputs。自行檢查腳本與包內腳本分清來源。前後 hash 不證明中途未改或完整依賴，持續完整性及未聲明依賴 unknown。輸出相等不是語義正確。停止／預算拒絕不得繼續；傳輸未知暫停受影響交接，無盲目重發。報告引用走原生交回；沒有 solved 登記。
++
++## D 第四接口隔離原型
++Verifier 用 `ctf_verification_report` 提出 judgment（verified/rejected/inconclusive）、mode、rationale、sourceFlow、必要 premises（statement/status=assumed|unknown）、issues、requirements（continuousIntegrity/declaredDependenciesOnly）及 evidence。job 證據選 job/stream 和可選半開 start/end；artifact 選 ref 和範圍；每項 necessary/context 說明是否必需及選材條件。recompute 的 comparison 選 evidence 索引及其中 start/end。宿主填身份、綁定版本、命令、原始 bytes、來源與完整性，不手填 receipt/hash/session/version。Verifier 無發布權。
++方法須回答題意並檢查來源及資料流；echo 候選、錯輸入同輸出、日誌含候選字串都不自動支持 verified。宿主只做機械核對，不能驗證這段語義判斷；字段齊全不能掩蓋缺口。continuousIntegrity／undeclaredDependencies 的 unknown 原樣保留；依賴這些未證條件時 issues 或必要 unknown premise 必須明示，結論 inconclusive；可信本地執行假設須顯式保存。已知 changed_or_unreadable 不能忽略。
++Coordinator 用 `ctf_verification_read({challenge,version,result})` 讀指定結果；原判斷、宿主 checks、目前可用性分開，需查看 conditionalOn 和 semanticAssessment。新版本不能沿用舊結果，無 latest/TTL。提交報告、收到 RPC 回覆與 Coordinator 讀取不同；傳輸未知暫停受影響交接，不盲目重發。同 execution 相同內容保留原 ref，衝突拒絕，不覆寫。停止／預算拒絕不新登記，已有報告事實保留；不接 oracle 或 solved。
+--- a/product/opencode/agents/verifier.md
++++ b/product/opencode/agents/verifier.md
+@@ -8,14 +8,19 @@
+ 在獨立上下文中驗證固定的候選：按候選性質選擇安全重放、本地重算或證據審計。
+ 
+ ## 交付
+-- 驗證方式、檢查結果與證據；結論為 verified、rejected 或 inconclusive。缺關鍵證據只能記為 inconclusive 或 rejected。
++- 驗證方式、檢查結果與證據；結論為 verified、rejected 或 inconclusive。缺關鍵證據只能記為 inconclusive；rejected 需要具體且相關的反證。
+ - 不可安全重放時只審計證據，並說明不可重放的原因。
+ 
+ ## 不做
+ - 不繼承 Solver 的私有推理，不改原候選或其證據，不做平台提示、實例管理或提交。
+ 
+ ## 已接入能力與 D 邊界
+-在獨立會話讀 materials／published，可用 `ctf_artifact_read({ref,cursor?})` 只讀同題固定引用（base64 分頁，nextCursor 為 null 才到末頁；分開檢查 snapshotFixed／rangeComplete／originalComplete），無發布權限；在自己 work 用 job 本地重算；不能讀 sibling work，沒有普通 HTTP。材料重算只證明該計算，不自動驗證 Solver 候選；Engineer 已可固定候選及解法包，本原型已增加綁定版本的 package.read／prepare，驗證結果登記仍未接入；缺少明確候選、依賴版本或安全重放能力時保持 inconclusive。角色報告不能直接登記 verified 或更改 solved。
++在獨立會話讀 materials／published，可用 `ctf_artifact_read({ref,cursor?})` 只讀同題固定引用（base64 分頁，nextCursor 為 null 才到末頁；分開檢查 snapshotFixed／rangeComplete／originalComplete），無發布權限；在自己 work 用 job 本地重算；不能讀 sibling work，沒有普通 HTTP。材料重算只證明該計算，不自動驗證 Solver 候選；Engineer 已可固定候選及解法包，本原型已增加綁定版本的 package.read／prepare，本隔離原型已提供驗證報告登記；缺少明確候選、依賴版本或安全重放能力時保持 inconclusive。自由文字不能登記結果或更改 solved；受管報告仍需宿主核對。
+ 
+ ## D 第三接口原型
+-Coordinator 送驗先以 challenge.assign(role="verifier", challenge, version) 指定工具實際返回版本，再原生 task(background=true)；同 session 新 execution 也須重新聲明。不從 prompt 授權。Verifier 只能正式讀取宿主綁定版本；package.prepare 無參數，宿主複製精確 bytes 並返回準備句柄與目錄，不以手抄 base64 替代。job.run 帶 preparation 及實際 argv，cwd 為準備的 inputs。自行檢查腳本與包內腳本分清來源。前後 hash 不證明中途未改或完整依賴，持續完整性及未聲明依賴 unknown。輸出相等不是語義正確。停止／預算拒絕不得繼續；傳輸未知暫停受影響交接，無盲目重發。結果文字走原生交回，尚無 verified／solved 登記。
++Coordinator 送驗先以 challenge.assign(role="verifier", challenge, version) 指定工具實際返回版本，再原生 task(background=true)；同 session 新 execution 也須重新聲明。不從 prompt 授權。Verifier 只能正式讀取宿主綁定版本；package.prepare 無參數，宿主複製精確 bytes 並返回準備句柄與目錄，不以手抄 base64 替代。job.run 帶 preparation 及實際 argv，cwd 為準備的 inputs。自行檢查腳本與包內腳本分清來源。前後 hash 不證明中途未改或完整依賴，持續完整性及未聲明依賴 unknown。輸出相等不是語義正確。停止／預算拒絕不得繼續；傳輸未知暫停受影響交接，無盲目重發。報告引用走原生交回；沒有 solved 登記。
++
++## D 第四接口隔離原型
++Verifier 用 `ctf_verification_report` 提出 judgment（verified/rejected/inconclusive）、mode、rationale、sourceFlow、必要 premises（statement/status=assumed|unknown）、issues、requirements（continuousIntegrity/declaredDependenciesOnly）及 evidence。job 證據選 job/stream 和可選半開 start/end；artifact 選 ref 和範圍；每項 necessary/context 說明是否必需及選材條件。recompute 的 comparison 選 evidence 索引及其中 start/end。宿主填身份、綁定版本、命令、原始 bytes、來源與完整性，不手填 receipt/hash/session/version。Verifier 無發布權。
++方法須回答題意並檢查來源及資料流；echo 候選、錯輸入同輸出、日誌含候選字串都不自動支持 verified。宿主只做機械核對，不能驗證這段語義判斷；字段齊全不能掩蓋缺口。continuousIntegrity／undeclaredDependencies 的 unknown 原樣保留；依賴這些未證條件時 issues 或必要 unknown premise 必須明示，結論 inconclusive；可信本地執行假設須顯式保存。已知 changed_or_unreadable 不能忽略。
++Coordinator 用 `ctf_verification_read({challenge,version,result})` 讀指定結果；原判斷、宿主 checks、目前可用性分開，需查看 conditionalOn 和 semanticAssessment。新版本不能沿用舊結果，無 latest/TTL。提交報告、收到 RPC 回覆與 Coordinator 讀取不同；傳輸未知暫停受影響交接，不盲目重發。同 execution 相同內容保留原 ref，衝突拒絕，不覆寫。停止／預算拒絕不新登記，已有報告事實保留；不接 oracle 或 solved。
+--- a/docs/superpowers/specs/2026-10-24-design-v1-d-candidate-verification-minimal.md
++++ b/docs/superpowers/specs/2026-10-24-design-v1-d-candidate-verification-minimal.md
+@@ -2,7 +2,7 @@
+ 
+ 記錄日期：2026-10-24（Asia/Tokyo）。
+ 
+-**狀態：接口一按首題最小邊界已接入主工作區並完成主區無模型回歸。H1 原完整條件未通過及 H5/H7 限制保留。接口二已按核對版本接入主區並完成無模型回歸；接口三已按首題最小邊界定稿；V3完整條件未通過，已接入主區並完成無模型驗收，見§5；後兩接口仍為待驗候選。** 本文是 [核心 design v1](2026-10-22-ctf-agent-design-v1.md) 第 2 節 D 的詳細子文件；D 的接口細節與待決問題以本文為準。本文只寫設計，不授權產品修改、驗證 session、真實模型運行或 commit。下文「推薦候選」是本次設計建議，不冒稱已驗證或已批准的外部接口。
++**狀態：接口一按首題最小邊界已接入主工作區並完成主區無模型回歸。H1 原完整條件未通過及 H5/H7 限制保留。接口二已按核對版本接入主區並完成無模型回歸；接口三已按首題最小邊界定稿；V3完整條件未通過，已接入主區並完成無模型驗收，見§5；接口四已完成隔離原型無模型驗證並在§6記錄部分成立邊界，尚未接入主區；接口五仍為待驗候選。** 本文是 [核心 design v1](2026-10-22-ctf-agent-design-v1.md) 第 2 節 D 的詳細子文件；D 的接口細節與待決問題以本文為準。本文只寫設計，不授權產品修改、驗證 session、真實模型運行或 commit。下文「推薦候選」是本次設計建議，不冒稱已驗證或已批准的外部接口。
+ 
+ ## 1. 目的與範圍
+ 
+@@ -284,6 +284,16 @@
+ 
+ 同一execution的重複報告不製造互相覆寫結論；衝突必須明示。保存先於回复與下游接收分開，停止／預算拒絕後不新登記；保存後回复丟失仍保留事實，調用方unknown不盲目重發。結果讀回供Coordinator使用；不接第五接口提交、oracle或solved，不加恢復系統。
+ 
++### 子區驗證採用的 schema（先記候選，驗證後按下述邊界定稿）
++
++`verification.report` 僅 Verifier：judgment、mode、rationale、sourceFlow、premises（statement/status=assumed|unknown）、issues、requirements（continuousIntegrity/declaredDependenciesOnly）、evidence。證據逐項選 job（job/stream/start/end）或固定 artifact（ref/start/end），標記 necessary 及選材 context。recompute 另選 comparison={evidence,index 對應所選證據；start/end 為其中半開區間}；完整候選由宿主讀取比較，無手填 receipt/hash/version/身份。實際 schema 的 comparison 使用 `evidence` 整數索引及 start/end。
++
++宿主固定 evidence bytes/base64、來源、命令、完整性和 preparation 關聯；一個 execution 僅一份報告，重複同參數回相同 ref，衝突拒絕。沒有自動重試。非法身份／來源拒絕登記；合法提議機械不足則保留原 judgment，effectiveJudgment=inconclusive，附 blockers，不改成 rejected。replay 一律不可用。必要截斷、必要 unknown 前提、未解 issues、已知 prepared 改寫、必要 continuous/declared-only unknown 都阻擋有效結論。非必要截斷仍保存 context 與完整性。
++
++`verification.read({challenge,version,result})` 僅 Coordinator，指定同 run 題目及精確版本；重新讀固定包及所有被採用的 preparation bytes，輸出 original report、hostChecks、currentAvailability；不建立 latest／TTL。原始報告和結論不可覆寫。內存 registry 沿用 C 生命週期，原 bytes 保存於結果與 C audit／run evidence；不宣稱重啟持久化。提交原子點是最後 active 核對後 registry.set，之前停止零登記；之後停止／丟回复仍保存既有事實。
++
++**語義邊界：** sourceFlow/rationale/context 是 Verifier 判斷，不是 host 證明。宿主不能識別任意 echo、錯輸入同輸出或字串匹配；刻意虛假但字段完整的語義報告可跨過機械核對，必須在本輪保留此反例，不能把契約通過寫成語義充分性已驗。unknown 不清除；assumed 條件顯式保留。三條預定替身只驗接線，真實模型語義仍未驗。
++
+ ### 本輪待驗問題與去向
+ 
+ | 問題 | 最小有效觀察 |
+@@ -294,6 +304,29 @@
+ | Q4 停止／傳輸／重複 | 原生在途停止、預算拒絕、保存前後競爭、真實RPC回复丟失及遲到；相同／衝突報告不靜默覆寫，不盲目重發 |
+ 
+ 通過後只定已證明的登記與核對契約；語義最低證據若仍無法落地，明示缺口，不能用預定替身選對答案宣稱已解決。舊IndependentVerificationService只參考版本／失效原則，不沿用輸出相等直接verified、自造session或舊Runtime收據。
++
++### 隔離驗證結論（2026-10-24；主 session 尚未獨立核對）
++
++**僅第四接口原型機械契約有條件成立，語義充分性沒有由無模型驗證證明。** 實際工作樹 `/Users/caihaoming/.codex/worktrees/3e07/pentest-agent`，detached HEAD `639782bed2fd1fe3507c8876c10dcca78a3a8a38` 上未提交改動；前三接口直接復用，沒有預置 published、自造 runtime session、SDK resume child 或第五接口。Node v26.3.0、OpenCode 1.19.3、SDK/plugin 1.19.0；僅 loopback 預定替身，真實模型調用 0，真實 usage unavailable。
++
++| 判據 | 結論 | 實際證據與限制 |
++| --- | --- | --- |
++| Q1 報告綁定 | 成立於本輪公開 runtime 邊界 | 同一 E→Solver job/發布→Engineer 整包固定→Coordinator 指定版本→獨立 Verifier 讀／prepare／job／report→原生完成交回→Coordinator 指定 read。首份報告的 session/execution/version 來自真實 C 記錄；Verifier 無 publish。角色、偽身份/receipt/job、外來引用、他人 job、錯版本/題目、舊 execution job 均定向拒絕。 |
++| Q2 判斷與證據 | **部分成立** | 正向 fixture 有明確公開規則及真 job；有效反證採固定 `INCORRECT` 候選、獨立重算正確 bytes，實際不等；缺證據原提議 verified 保存但 effective=inconclusive。echo、錯輸入同輸出、audit 字串匹配不自動升格，按 Verifier 已聲明缺口得到 inconclusive。**蓄意虛假但完整的 echo 報告仍可得到 effective=verified/current usable；hostChecks 一直明示 semanticAssessment=verifier_assertion_not_host_proven。這是未解語義能力邊界，不能稱已攔住虛假論證。** |
++| Q3 完整性／有效性 | **部分成立（固定包／所選本地依賴）** | 必要截斷、unknown 必要前提、issues、replay、已知 changed_or_unreadable、被聲明為必需的持續完整性／僅聲明依賴 unknown 均不能成為有效結論；非必要截斷保留 context 且不自動否決。V3 改寫後恢復及未聲明輸入的原反例復跑保留；前後 matched 不清除 unknown。新版本不能套舊結果、回報途中 rebind 拒絕、相關準備文件改變令 current unusable、無關 work 改變不失效。**外部實例狀態、任意未聲明依賴和任意並發寫入沒有持續監控；明示本地可信前提是 Verifier 接受條件，不是 host 證明。** |
++| Q4 停止／傳輸／重複 | 成立於已測本地生命週期 | 真實 plugin/C RPC：登記前停止零結果；登記後 socket 斷開仍保存結果、工具報 control unavailable；登記後原生停止保留結果，晚回覆在 destroyed socket 上嘗試發送，工具 Tool execution aborted；預算在 report 前拒絕。相同／衝突及並發提交由 contract 測試證明單一原子提交，不靜默覆寫；不是跨重啟冪等恢復。 |
++
++最終可核對批次為 [native-accepted](../../gates/d-artifact-handoff-20261024/verification-result/native-accepted/)；七案各自從空 run 啟動，**每案都是自身同入口鏈路，沒有拼接各案成功**。control／rejected／missing／lost／stop／late／budget 的 provider 請求數依次 43／43／43／42／45／45／39（預定替身請求，不是真模型用量），保存結果數依次 1／1／1／1／0／1／0。預算案內層 run code=1、status=budget_exceeded 為預期觀察；probe 本身 exit=0。原生角色正文、工具描述／權限逐項與最後源碼核對，原始 requests/messages、bindings/executions/admissions/resources、job bytes、固定包與 report 均保留。
++
++**停止及未知的證明分層：** sibling 只在注入的 barrier 到達後自然完成，原生完成通知喚醒 Coordinator 再調 task.stop；沒有透過 SDK 重啟子任務製造在途狀態。lost 案記錄宿主保存與調用方未確認分離；unknown、不盲目重發與暫停交接是替身預定選擇，未驗真實模型會自動採用。late 案證明 native abort 關閉連接、回覆未送達，未證明插件成功收到遲到回覆後再次拒絕。registry 及證據隨 C run 存活，run 結束匯出；沒有跨重啟恢復。
++
++**最終 schema 決策：** 採上述 report/read；登記錯誤拒絕，合法但機械不足保留原提議並 effective=inconclusive；不把拒絕登記當 candidate rejected。必要證據選取、語義理由、無法安全 replay 的理由與前提由 Verifier 說明；host 不建立關鍵詞分類器。host 固定 job 完整輸出或選取區間的 bytes/hash、來源、實際命令、preparation、終態。回讀重新核對固定包和已引用的準備內容；保留原事實與目前可用性。這不是通用動態依賴捕獲、原子 OS 隔離或模型語義驗收。每個流沿用 1 MiB 上限、report 最多 16 項證據；read 返回整份報告，尚未驗證大型報告在原生工具輸出截斷後的完整下游閱讀，不把 contract 的大輸出直讀當公開 runtime 完整交付。
++
++**保留失敗與修訂：** 初始 9 項 RED 為缺少受管入口；初次 typecheck 的 Zod3／plugin Zod4 schema 不相容及 Stored 縮窄診斷均留原日誌；宣告構建首次因公開 snapshot 暴露未匯出 Stored 而 exit=1，修正 export 後通過。早期 rejected 樣例只是錯檢查器，不支持有效反證；native-first/native-final 的機械 passed 原樣保留但其 rejected 語義樣例不作 Q2 驗收。native-accepted 已更換為固定錯候選／正確獨立重算，不覆寫舊失敗。初始 RED 當時沒有即時捕獲新測試文件快照；另以已保存基線源碼＋最終測試做帶完整 hash 的 red-replay（12 failed，含等待不存在入口的 race 超時），不把重放回填成當時原始快照。
++
++最終 `npm run typecheck`、`npm run build`、`npm test` 均 exit=0，47 files／384 tests；必要定向回歸 9 files／106 tests，含新報告 12 項及前三接口/C/G。最終測試 fixture 收緊後的完整同批驗收記錄以 delivery-* 日誌為準，早期日誌均保留，不混寫為同次結果。源／最終 hash、原 bytes、命令與失敗索引見 [本輪證據索引](../../gates/d-artifact-handoff-20261024/verification-result/README.md)。主區 `/tmp/d-verification-result-main-baseline.json` 存在，逐項只讀 hash 核對未變；這不是主 session 的獨立核對。
++
++本輪沒有合併產品、commit/push、真實模型調用或 solved 判定；plan、session、工作樹保留等待主 session 核對。後續仍需主 session 決定此機械契約及 Q2/Q3 的部分成立邊界是否足以接入首題，不能從本次測試自動推導接入／真模型授權。
+ 
+ ## 7. 接口五：Coordinator 與可信完成判定
+ 

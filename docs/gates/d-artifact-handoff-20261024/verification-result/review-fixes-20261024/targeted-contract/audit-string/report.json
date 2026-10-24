@@ -1,0 +1,131 @@
+{
+  "run": "D-package",
+  "challenge": "X",
+  "version": "a9ff7f15-ec83-47c2-a193-11107ccd5af2",
+  "sessionID": "verifier",
+  "execution": "615ef610-a7ca-4fa2-84f1-d1b89220d0dc",
+  "result": "18374ea2-b53d-4665-a6a1-24b5a0ef86af",
+  "original": {
+    "judgment": "inconclusive",
+    "mode": "evidence_audit",
+    "rationale": "Local fixture recomputation under explicit trusted local execution premise",
+    "sourceFlow": "Inspect script and fixed input; compare stdout exact bytes to candidate",
+    "premises": [
+      {
+        "statement": "Trusted stable local execution, no untrusted concurrent writers",
+        "status": "assumed"
+      }
+    ],
+    "issues": [
+      "Semantic sufficiency not established: audit-string"
+    ],
+    "requirements": {
+      "continuousIntegrity": false,
+      "declaredDependenciesOnly": false
+    },
+    "evidence": [
+      {
+        "kind": "job",
+        "job": "cc95d2ae-b97a-4f66-8080-d3201cfe65d8",
+        "stream": "stdout",
+        "necessary": true,
+        "context": "Whole local stdout answers fixture; stderr irrelevant"
+      }
+    ]
+  },
+  "effectiveJudgment": "inconclusive",
+  "evidence": [
+    {
+      "kind": "job",
+      "source": {
+        "kind": "job",
+        "run": "D-package",
+        "challenge": "X",
+        "sessionID": "verifier",
+        "execution": "615ef610-a7ca-4fa2-84f1-d1b89220d0dc",
+        "resource": "cc95d2ae-b97a-4f66-8080-d3201cfe65d8",
+        "callID": "p15",
+        "stream": "stdout"
+      },
+      "originalComplete": true,
+      "association": {
+        "version": "a9ff7f15-ec83-47c2-a193-11107ccd5af2",
+        "preparation": "d10cb686-f6ff-4835-9906-cc02ced8d45e",
+        "execution": "615ef610-a7ca-4fa2-84f1-d1b89220d0dc",
+        "argv": [
+          "/opt/homebrew/Cellar/node/26.3.0/bin/node",
+          "check.cjs"
+        ],
+        "files": [
+          {
+            "path": "solve.cjs",
+            "sha256": "9ae4336264e4c21d65169d453ebe26dab742b0fa62e44c72198ced00c4d4bac3",
+            "size": 33
+          },
+          {
+            "path": "data/input.bin",
+            "sha256": "e9489f37fb3051e9efa1dc916004d7274e7b63975e3209708947267f2393a9be",
+            "size": 4
+          },
+          {
+            "path": "evidence/raw.bin",
+            "sha256": "8af1702498192f6c0ac605c33a0f2deb4ec738ff6a5e84992c7af4a9ea068917",
+            "size": 16
+          },
+          {
+            "path": "check.cjs",
+            "sha256": "4ea27176665951c9b54c17439017faefe3118fd6d2b3b65d777e9d43cd12d04b",
+            "size": 59
+          }
+        ],
+        "metadata": [
+          {
+            "path": "verify-d10cb686-f6ff-4835-9906-cc02ced8d45e/manifest.json",
+            "sha256": "9375a339f49283da3ada28271105da7a6f94fb199b31d6bf977e0d6e3be3e0ad",
+            "size": 3108
+          },
+          {
+            "path": "verify-d10cb686-f6ff-4835-9906-cc02ced8d45e/candidate.bin",
+            "sha256": "4527432703d179e8d8f48f8ec1b39f5688c37d5e374dc13f6e72aba2224f59b0",
+            "size": 9
+          }
+        ],
+        "before": "matched",
+        "after": "matched",
+        "continuousIntegrity": "unknown",
+        "undeclaredDependencies": "unknown"
+      },
+      "terminal": {
+        "state": "exited",
+        "exitCode": 0
+      },
+      "preparation": "d10cb686-f6ff-4835-9906-cc02ced8d45e",
+      "start": 0,
+      "end": 35,
+      "size": 35,
+      "sha256": "2ec2e555f3347e5afffe3899f716ac964db3de6785a90f0bd8307edf66809de9",
+      "encoding": "base64",
+      "data": "Y2FuZGlkYXRlIHByZXNlbnQgaW4gaXJyZWxldmFudCBsb2c=",
+      "rangeComplete": true,
+      "necessary": true,
+      "context": "Whole local stdout answers fixture; stderr irrelevant"
+    }
+  ],
+  "hostChecks": {
+    "blockers": [
+      "unresolved verifier issues"
+    ],
+    "candidateEqual": null,
+    "semanticAssessment": "verifier_assertion_not_host_proven"
+  },
+  "createdAt": 1792821475419,
+  "currentAvailability": {
+    "usable": false,
+    "reasons": [
+      "unresolved verifier issues"
+    ],
+    "warnings": [],
+    "checkedAt": 1792821475421,
+    "premises": "see fixed report; assumptions are not host proofs"
+  }
+}

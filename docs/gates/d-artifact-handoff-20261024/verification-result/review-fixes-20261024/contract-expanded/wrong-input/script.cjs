@@ -1,0 +1,1 @@
+const wrong=Buffer.from([0,255,99,99]);process.stdout.write(Buffer.concat([Buffer.from('旗{é}'),wrong.subarray(0,2)]))

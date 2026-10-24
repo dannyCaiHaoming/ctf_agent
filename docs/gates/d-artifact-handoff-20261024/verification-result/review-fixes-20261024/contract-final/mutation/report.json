@@ -1,0 +1,137 @@
+{
+  "run": "D-package",
+  "challenge": "X",
+  "version": "6f703d79-1dc6-455b-b021-d8a9a1f076c6",
+  "sessionID": "verifier",
+  "execution": "bb3bb327-a865-41b3-aec6-45cce64d59ef",
+  "result": "b23e60e4-4caf-46e3-af95-574fabd43d9c",
+  "original": {
+    "judgment": "verified",
+    "mode": "recompute",
+    "rationale": "Local fixture recomputation under explicit trusted local execution premise",
+    "sourceFlow": "Inspect script and fixed input; compare stdout exact bytes to candidate",
+    "premises": [
+      {
+        "statement": "Trusted stable local execution, no untrusted concurrent writers",
+        "status": "assumed"
+      }
+    ],
+    "issues": [],
+    "requirements": {
+      "continuousIntegrity": false,
+      "declaredDependenciesOnly": false
+    },
+    "evidence": [
+      {
+        "kind": "job",
+        "job": "0786ec15-2b0b-42fd-a03b-fea9b06933b2",
+        "stream": "stdout",
+        "necessary": true,
+        "context": "Whole local stdout answers fixture; stderr irrelevant"
+      }
+    ],
+    "comparison": {
+      "evidence": 0,
+      "start": 0,
+      "end": 9
+    }
+  },
+  "effectiveJudgment": "inconclusive",
+  "evidence": [
+    {
+      "kind": "job",
+      "source": {
+        "kind": "job",
+        "run": "D-package",
+        "challenge": "X",
+        "sessionID": "verifier",
+        "execution": "bb3bb327-a865-41b3-aec6-45cce64d59ef",
+        "resource": "0786ec15-2b0b-42fd-a03b-fea9b06933b2",
+        "callID": "p15",
+        "stream": "stdout"
+      },
+      "originalComplete": true,
+      "association": {
+        "version": "6f703d79-1dc6-455b-b021-d8a9a1f076c6",
+        "preparation": "03c4476f-13b9-4d10-af87-1abd9ceac4b6",
+        "execution": "bb3bb327-a865-41b3-aec6-45cce64d59ef",
+        "argv": [
+          "/opt/homebrew/Cellar/node/26.3.0/bin/node",
+          "check.cjs"
+        ],
+        "files": [
+          {
+            "path": "solve.cjs",
+            "sha256": "9ae4336264e4c21d65169d453ebe26dab742b0fa62e44c72198ced00c4d4bac3",
+            "size": 33
+          },
+          {
+            "path": "data/input.bin",
+            "sha256": "e9489f37fb3051e9efa1dc916004d7274e7b63975e3209708947267f2393a9be",
+            "size": 4
+          },
+          {
+            "path": "evidence/raw.bin",
+            "sha256": "8af1702498192f6c0ac605c33a0f2deb4ec738ff6a5e84992c7af4a9ea068917",
+            "size": 16
+          },
+          {
+            "path": "check.cjs",
+            "sha256": "dd2a07e5ccb4b45b2254bf78f9d07461dd6cb9e28ce2d7a4411f78beb656b023",
+            "size": 94
+          }
+        ],
+        "metadata": [
+          {
+            "path": "verify-03c4476f-13b9-4d10-af87-1abd9ceac4b6/manifest.json",
+            "sha256": "181f4fbad4ba09f08b942fe8d9f5a5eb3ba7a90c5be3860feb587c51ff38b814",
+            "size": 3108
+          },
+          {
+            "path": "verify-03c4476f-13b9-4d10-af87-1abd9ceac4b6/candidate.bin",
+            "sha256": "4527432703d179e8d8f48f8ec1b39f5688c37d5e374dc13f6e72aba2224f59b0",
+            "size": 9
+          }
+        ],
+        "before": "matched",
+        "after": "changed_or_unreadable",
+        "continuousIntegrity": "unknown",
+        "undeclaredDependencies": "unknown"
+      },
+      "terminal": {
+        "state": "exited",
+        "exitCode": 0
+      },
+      "preparation": "03c4476f-13b9-4d10-af87-1abd9ceac4b6",
+      "start": 0,
+      "end": 9,
+      "size": 9,
+      "sha256": "dda18a0e21ae47c53b4309434cbc02ae8bf764fa83a6defbb719431242722aa7",
+      "encoding": "base64",
+      "data": "Y2FuZGlkYXRl",
+      "rangeComplete": true,
+      "necessary": true,
+      "context": "Whole local stdout answers fixture; stderr irrelevant"
+    }
+  ],
+  "hostChecks": {
+    "blockers": [
+      "prepared inputs changed_or_unreadable",
+      "candidate bytes differ"
+    ],
+    "candidateEqual": false,
+    "semanticAssessment": "verifier_assertion_not_host_proven"
+  },
+  "createdAt": 1792821518277,
+  "currentAvailability": {
+    "usable": false,
+    "reasons": [
+      "prepared inputs changed_or_unreadable",
+      "candidate bytes differ",
+      "relevant prepared dependency changed_or_unreadable"
+    ],
+    "warnings": [],
+    "checkedAt": 1792821518281,
+    "premises": "see fixed report; assumptions are not host proofs"
+  }
+}

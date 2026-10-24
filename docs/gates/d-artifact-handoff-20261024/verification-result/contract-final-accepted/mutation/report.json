@@ -1,0 +1,141 @@
+{
+  "run": "D-package",
+  "challenge": "X",
+  "version": "b3c475dd-9809-4f07-9ddc-baa66780a4af",
+  "sessionID": "verifier",
+  "execution": "5eab662c-7b82-4a7c-9d5a-5f24b1747f8b",
+  "result": "bdaad0db-7213-4658-a3dc-4bf108b946a8",
+  "original": {
+    "judgment": "verified",
+    "mode": "recompute",
+    "rationale": "Local fixture recomputation under explicit trusted local execution premise",
+    "sourceFlow": "Inspect script and fixed input; compare stdout exact bytes to candidate",
+    "premises": [
+      {
+        "statement": "Trusted stable local execution, no untrusted concurrent writers",
+        "status": "assumed"
+      }
+    ],
+    "issues": [],
+    "requirements": {
+      "continuousIntegrity": false,
+      "declaredDependenciesOnly": false
+    },
+    "evidence": [
+      {
+        "kind": "job",
+        "job": "5c8dd834-1812-4ef7-9010-3fdc14a50fa4",
+        "stream": "stdout",
+        "necessary": true,
+        "context": "Whole local stdout answers fixture; stderr irrelevant"
+      }
+    ],
+    "comparison": {
+      "evidence": 0,
+      "start": 0,
+      "end": 9
+    }
+  },
+  "effectiveJudgment": "inconclusive",
+  "evidence": [
+    {
+      "kind": "job",
+      "source": {
+        "kind": "job",
+        "run": "D-package",
+        "challenge": "X",
+        "sessionID": "verifier",
+        "execution": "5eab662c-7b82-4a7c-9d5a-5f24b1747f8b",
+        "resource": "5c8dd834-1812-4ef7-9010-3fdc14a50fa4",
+        "callID": "p15",
+        "stream": "stdout"
+      },
+      "originalComplete": true,
+      "association": {
+        "version": "b3c475dd-9809-4f07-9ddc-baa66780a4af",
+        "preparation": "b9078dc3-71e4-4d1b-acdf-2838445b3657",
+        "execution": "5eab662c-7b82-4a7c-9d5a-5f24b1747f8b",
+        "argv": [
+          "/opt/homebrew/Cellar/node/26.3.0/bin/node",
+          "check.cjs"
+        ],
+        "files": [
+          {
+            "path": "solve.cjs",
+            "sha256": "9ae4336264e4c21d65169d453ebe26dab742b0fa62e44c72198ced00c4d4bac3",
+            "size": 33
+          },
+          {
+            "path": "data/input.bin",
+            "sha256": "e9489f37fb3051e9efa1dc916004d7274e7b63975e3209708947267f2393a9be",
+            "size": 4
+          },
+          {
+            "path": "evidence/raw.bin",
+            "sha256": "8af1702498192f6c0ac605c33a0f2deb4ec738ff6a5e84992c7af4a9ea068917",
+            "size": 16
+          },
+          {
+            "path": "check.cjs",
+            "sha256": "dd2a07e5ccb4b45b2254bf78f9d07461dd6cb9e28ce2d7a4411f78beb656b023",
+            "size": 94
+          }
+        ],
+        "metadata": [
+          {
+            "path": "verify-b9078dc3-71e4-4d1b-acdf-2838445b3657/manifest.json",
+            "sha256": "a45edadf093502e464bac07fbdba2477f48b7063cd2d595795156401f183da4b",
+            "size": 3108
+          },
+          {
+            "path": "verify-b9078dc3-71e4-4d1b-acdf-2838445b3657/candidate.bin",
+            "sha256": "4527432703d179e8d8f48f8ec1b39f5688c37d5e374dc13f6e72aba2224f59b0",
+            "size": 9
+          }
+        ],
+        "before": "matched",
+        "after": "changed_or_unreadable",
+        "continuousIntegrity": "unknown",
+        "undeclaredDependencies": "unknown"
+      },
+      "terminal": {
+        "state": "exited",
+        "exitCode": 0
+      },
+      "preparation": "b9078dc3-71e4-4d1b-acdf-2838445b3657",
+      "start": 0,
+      "end": 9,
+      "size": 9,
+      "sha256": "dda18a0e21ae47c53b4309434cbc02ae8bf764fa83a6defbb719431242722aa7",
+      "encoding": "base64",
+      "data": "Y2FuZGlkYXRl",
+      "rangeComplete": true,
+      "necessary": true,
+      "context": "Whole local stdout answers fixture; stderr irrelevant"
+    }
+  ],
+  "hostChecks": {
+    "blockers": [
+      "prepared inputs changed_or_unreadable",
+      "candidate bytes differ"
+    ],
+    "candidateEqual": false,
+    "semanticAssessment": "verifier_assertion_not_host_proven"
+  },
+  "createdAt": 1792820719956,
+  "currentAvailability": {
+    "usable": false,
+    "reasons": [
+      "prepared inputs changed_or_unreadable",
+      "candidate bytes differ",
+      "relevant prepared dependency changed_or_unreadable"
+    ],
+    "conditionalOn": [
+      {
+        "statement": "Trusted stable local execution, no untrusted concurrent writers",
+        "status": "assumed"
+      }
+    ],
+    "semanticAssessment": "verifier_assertion_not_host_proven"
+  }
+}

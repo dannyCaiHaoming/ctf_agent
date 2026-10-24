@@ -1,0 +1,1 @@
+process.stdout.write('candidate present in irrelevant log')

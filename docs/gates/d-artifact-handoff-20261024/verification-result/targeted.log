@@ -1,0 +1,59 @@
+
+ RUN  v2.1.8 /Users/caihaoming/.codex/worktrees/3e07/pentest-agent
+
+ ✓ tests/contract/opencode-config.test.ts (2 tests) 6ms
+ ✓ tests/contract/d-h7-rpc-stop.test.ts (3 tests) 76ms
+stdout | tests/contract/d-artifact-handoff.test.ts > D deterministic phase-controlled races and failures (not runtime) > H5 same-length-in-place rejects modified or out-of-root source with exact phase order
+{"criterion":"H5","kind":"same-length-in-place","order":["ancestry-validated","descriptor-validated","source-mutated-before-read","read-chunk","read-chunk"],"result":"refused","timing":"explicit awaited phase, no sleep"}
+
+stdout | tests/contract/d-artifact-handoff.test.ts > D deterministic phase-controlled races and failures (not runtime) > H5 rename-file rejects modified or out-of-root source with exact phase order
+{"criterion":"H5","kind":"rename-file","order":["ancestry-validated","descriptor-validated","source-mutated-before-read","read-chunk","read-chunk"],"result":"refused","timing":"explicit awaited phase, no sleep"}
+
+stdout | tests/contract/d-artifact-handoff.test.ts > D deterministic phase-controlled races and failures (not runtime) > H5 replace-parent rejects modified or out-of-root source with exact phase order
+{"criterion":"H5","kind":"replace-parent","order":["ancestry-validated","parent-swapped"],"result":"refused","timing":"explicit awaited phase, no sleep"}
+
+stdout | tests/contract/d-artifact-handoff.test.ts > D deterministic phase-controlled races and failures (not runtime) > H5 symlink-parent rejects modified or out-of-root source with exact phase order
+{"criterion":"H5","kind":"symlink-parent","order":["ancestry-validated","parent-swapped"],"result":"refused","timing":"explicit awaited phase, no sleep"}
+
+stdout | tests/contract/d-artifact-handoff.test.ts > D deterministic phase-controlled races and failures (not runtime) > H5 symlink-leaf rejects modified or out-of-root source with exact phase order
+{"criterion":"H5","kind":"symlink-leaf","order":["ancestry-validated","leaf-swapped"],"result":"refused","timing":"explicit awaited phase, no sleep"}
+
+stdout | tests/contract/d-artifact-handoff.test.ts > D deterministic phase-controlled races and failures (not runtime) > H5 quiescent atomic rename selects a whole version; hash does not stop same-uid writes
+{"criterion":"H5","osCounterexample":"same uid directly rewrote published bytes; managed read detects but cannot prevent","isolation":false}
+
+stdout | tests/contract/d-artifact-handoff.test.ts > D deterministic phase-controlled races and failures (not runtime) > H7 write-failure leaves no half ref or implicit source replay
+{"criterion":"H7","kind":"write-failure","order":["check-live","write"],"commits":0,"visibleRefs":0,"sourceReplay":0}
+
+stdout | tests/contract/d-artifact-handoff.test.ts > D deterministic phase-controlled races and failures (not runtime) > H7 cancel-before-write leaves no half ref or implicit source replay
+{"criterion":"H7","kind":"cancel-before-write","order":["check-live"],"commits":0,"visibleRefs":0,"sourceReplay":0}
+
+stdout | tests/contract/d-artifact-handoff.test.ts > D deterministic phase-controlled races and failures (not runtime) > H7 cancel-after-rename leaves no half ref or implicit source replay
+{"criterion":"H7","kind":"cancel-after-rename","order":["check-live","write","check-live","rename","check-live"],"commits":1,"visibleRefs":0,"sourceReplay":0}
+
+stdout | tests/contract/d-artifact-handoff.test.ts > D deterministic phase-controlled races and failures (not runtime) > H7 deadline-after-rename leaves no half ref or implicit source replay
+{"criterion":"H7","kind":"deadline-after-rename","order":["check-live","write","check-live","rename","check-live"],"commits":1,"visibleRefs":0,"sourceReplay":0}
+
+stdout | tests/contract/d-artifact-handoff.test.ts > D deterministic phase-controlled races and failures (not runtime) > H7 reply-lost leaves no half ref or implicit source replay
+{"criterion":"H7","kind":"reply-lost","order":["check-live","write","check-live","rename","check-live"],"commits":1,"visibleRefs":1,"sourceReplay":0}
+
+stdout | tests/contract/d-artifact-handoff.test.ts > H5 external writer rendezvous between reads rejects a mixed buffer with deterministic order
+{"criterion":"H5","barrier":"awaited external writer between chunks","order":["read-1","second-read-blocked","external-write-completed","second-read-released","read-2"],"result":"mixed buffer refused before publication"}
+
+ ✓ tests/contract/d-artifact-handoff.test.ts (22 tests) 258ms
+stdout | tests/contract/d-artifact-handoff.test.ts > H3 concurrent publication audit attaches each own ref rather than last registry entry
+{"criterion":"H3","interleaving":"two real commits before either C reply resumes","order":["committed:963bd3ec-05e7-4718-9844-6ec49192074b","committed:70ae5a91-ae4b-41be-b0cf-8d52fdf64909","reply:963bd3ec-05e7-4718-9844-6ec49192074b","reply:70ae5a91-ae4b-41be-b0cf-8d52fdf64909"],"result":"audit source matched own ref"}
+
+ ✓ tests/contract/g-team-integration.test.ts (3 tests) 313ms
+ ✓ tests/contract/d-candidate-package.test.ts (14 tests) 508ms
+ ✓ tests/contract/control-service.test.ts (31 tests) 485ms
+   ✓ plugin denies when the control service cannot answer > rejects when the service never replies, is unreachable, or replies with something unusable 409ms
+ ✓ tests/contract/d-verifier-handoff.test.ts (10 tests) 549ms
+ ✓ tests/contract/d-verification-result.test.ts (12 tests) 1589ms
+ ✓ tests/contract/g-coordinator-stop.test.ts (9 tests) 3514ms
+   ✓ completed jobs remain exited when stopped; abort failure and unknown reap never claim stopped 3072ms
+
+ Test Files  9 passed (9)
+      Tests  106 passed (106)
+   Start at  14:42:45
+   Duration  3.86s (transform 285ms, setup 0ms, collect 1.02s, tests 7.30s, environment 1ms, prepare 393ms)
+

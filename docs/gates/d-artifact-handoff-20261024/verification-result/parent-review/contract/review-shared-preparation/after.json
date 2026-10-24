@@ -1,0 +1,219 @@
+{
+  "run": "D-package",
+  "challenge": "X",
+  "version": "980f61f2-f336-4923-b1c9-283bdc01a088",
+  "sessionID": "verifier",
+  "execution": "2a037982-cd99-4e7d-b095-1f80993bc702",
+  "result": "7810c074-2a9a-4ced-b070-afa004994076",
+  "original": {
+    "judgment": "verified",
+    "mode": "recompute",
+    "rationale": "Local fixture recomputation under explicit trusted local execution premise",
+    "sourceFlow": "Inspect script and fixed input; compare stdout exact bytes to candidate",
+    "premises": [
+      {
+        "statement": "Trusted stable local execution, no untrusted concurrent writers",
+        "status": "assumed"
+      }
+    ],
+    "issues": [],
+    "requirements": {
+      "continuousIntegrity": false,
+      "declaredDependenciesOnly": false
+    },
+    "evidence": [
+      {
+        "kind": "job",
+        "job": "6c09f013-6c76-4418-bad2-077d1f0c6469",
+        "stream": "stdout",
+        "necessary": true,
+        "context": "Whole local stdout answers fixture; stderr irrelevant"
+      },
+      {
+        "kind": "job",
+        "job": "6c09f013-6c76-4418-bad2-077d1f0c6469",
+        "stream": "stderr",
+        "necessary": false,
+        "context": "Ancillary stderr sharing the necessary job preparation"
+      }
+    ],
+    "comparison": {
+      "evidence": 0,
+      "start": 0,
+      "end": 9
+    }
+  },
+  "effectiveJudgment": "verified",
+  "evidence": [
+    {
+      "kind": "job",
+      "source": {
+        "kind": "job",
+        "run": "D-package",
+        "challenge": "X",
+        "sessionID": "verifier",
+        "execution": "2a037982-cd99-4e7d-b095-1f80993bc702",
+        "resource": "6c09f013-6c76-4418-bad2-077d1f0c6469",
+        "callID": "p15",
+        "stream": "stdout"
+      },
+      "originalComplete": true,
+      "association": {
+        "version": "980f61f2-f336-4923-b1c9-283bdc01a088",
+        "preparation": "f54ddcd2-0bcc-440c-8401-576453d4cd8e",
+        "execution": "2a037982-cd99-4e7d-b095-1f80993bc702",
+        "argv": [
+          "/opt/homebrew/Cellar/node/26.3.0/bin/node",
+          "check.cjs"
+        ],
+        "files": [
+          {
+            "path": "solve.cjs",
+            "sha256": "9ae4336264e4c21d65169d453ebe26dab742b0fa62e44c72198ced00c4d4bac3",
+            "size": 33
+          },
+          {
+            "path": "data/input.bin",
+            "sha256": "e9489f37fb3051e9efa1dc916004d7274e7b63975e3209708947267f2393a9be",
+            "size": 4
+          },
+          {
+            "path": "evidence/raw.bin",
+            "sha256": "8af1702498192f6c0ac605c33a0f2deb4ec738ff6a5e84992c7af4a9ea068917",
+            "size": 16
+          },
+          {
+            "path": "check.cjs",
+            "sha256": "da03a62a9551937813ca8072024b68274fb4aea8beb3b9c43607fe58ecf86a39",
+            "size": 135
+          }
+        ],
+        "metadata": [
+          {
+            "path": "verify-f54ddcd2-0bcc-440c-8401-576453d4cd8e/manifest.json",
+            "sha256": "09786dd041fb63094037a8fd94f5fcad920bfc87cb624adb5126d8a6e0b075d5",
+            "size": 3111
+          },
+          {
+            "path": "verify-f54ddcd2-0bcc-440c-8401-576453d4cd8e/candidate.bin",
+            "sha256": "4527432703d179e8d8f48f8ec1b39f5688c37d5e374dc13f6e72aba2224f59b0",
+            "size": 9
+          }
+        ],
+        "before": "matched",
+        "after": "matched",
+        "continuousIntegrity": "unknown",
+        "undeclaredDependencies": "unknown"
+      },
+      "terminal": {
+        "state": "exited",
+        "exitCode": 0
+      },
+      "preparation": "f54ddcd2-0bcc-440c-8401-576453d4cd8e",
+      "start": 0,
+      "end": 9,
+      "size": 9,
+      "sha256": "4527432703d179e8d8f48f8ec1b39f5688c37d5e374dc13f6e72aba2224f59b0",
+      "encoding": "base64",
+      "data": "5peXe8OpfQD/",
+      "rangeComplete": true,
+      "necessary": true,
+      "context": "Whole local stdout answers fixture; stderr irrelevant"
+    },
+    {
+      "kind": "job",
+      "source": {
+        "kind": "job",
+        "run": "D-package",
+        "challenge": "X",
+        "sessionID": "verifier",
+        "execution": "2a037982-cd99-4e7d-b095-1f80993bc702",
+        "resource": "6c09f013-6c76-4418-bad2-077d1f0c6469",
+        "callID": "p15",
+        "stream": "stderr"
+      },
+      "originalComplete": true,
+      "association": {
+        "version": "980f61f2-f336-4923-b1c9-283bdc01a088",
+        "preparation": "f54ddcd2-0bcc-440c-8401-576453d4cd8e",
+        "execution": "2a037982-cd99-4e7d-b095-1f80993bc702",
+        "argv": [
+          "/opt/homebrew/Cellar/node/26.3.0/bin/node",
+          "check.cjs"
+        ],
+        "files": [
+          {
+            "path": "solve.cjs",
+            "sha256": "9ae4336264e4c21d65169d453ebe26dab742b0fa62e44c72198ced00c4d4bac3",
+            "size": 33
+          },
+          {
+            "path": "data/input.bin",
+            "sha256": "e9489f37fb3051e9efa1dc916004d7274e7b63975e3209708947267f2393a9be",
+            "size": 4
+          },
+          {
+            "path": "evidence/raw.bin",
+            "sha256": "8af1702498192f6c0ac605c33a0f2deb4ec738ff6a5e84992c7af4a9ea068917",
+            "size": 16
+          },
+          {
+            "path": "check.cjs",
+            "sha256": "da03a62a9551937813ca8072024b68274fb4aea8beb3b9c43607fe58ecf86a39",
+            "size": 135
+          }
+        ],
+        "metadata": [
+          {
+            "path": "verify-f54ddcd2-0bcc-440c-8401-576453d4cd8e/manifest.json",
+            "sha256": "09786dd041fb63094037a8fd94f5fcad920bfc87cb624adb5126d8a6e0b075d5",
+            "size": 3111
+          },
+          {
+            "path": "verify-f54ddcd2-0bcc-440c-8401-576453d4cd8e/candidate.bin",
+            "sha256": "4527432703d179e8d8f48f8ec1b39f5688c37d5e374dc13f6e72aba2224f59b0",
+            "size": 9
+          }
+        ],
+        "before": "matched",
+        "after": "matched",
+        "continuousIntegrity": "unknown",
+        "undeclaredDependencies": "unknown"
+      },
+      "terminal": {
+        "state": "exited",
+        "exitCode": 0
+      },
+      "preparation": "f54ddcd2-0bcc-440c-8401-576453d4cd8e",
+      "start": 0,
+      "end": 0,
+      "size": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "encoding": "base64",
+      "data": "",
+      "rangeComplete": true,
+      "necessary": false,
+      "context": "Ancillary stderr sharing the necessary job preparation"
+    }
+  ],
+  "hostChecks": {
+    "blockers": [],
+    "candidateEqual": true,
+    "semanticAssessment": "verifier_assertion_not_host_proven"
+  },
+  "createdAt": 1792822046981,
+  "currentAvailability": {
+    "usable": false,
+    "reasons": [
+      "relevant prepared dependency changed_or_unreadable"
+    ],
+    "warnings": [
+      {
+        "evidenceIndex": 1,
+        "reason": "relevant prepared dependency changed_or_unreadable"
+      }
+    ],
+    "checkedAt": 1792822046985,
+    "premises": "see fixed report; assumptions are not host proofs"
+  }
+}

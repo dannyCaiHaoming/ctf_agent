@@ -1,0 +1,238 @@
+[
+  {
+    "index": 0,
+    "at": 1792820793355,
+    "event": "provider.package.call",
+    "detail": {}
+  },
+  {
+    "index": 1,
+    "at": 1792820793655,
+    "event": "C.job.terminal",
+    "detail": [
+      "ses_e938daf80ffd4Z9tBeNX2OwmyJ",
+      "verification.job.terminal",
+      true,
+      null,
+      {
+        "version": "43d8e0f6-8cf1-4015-b731-4765e0b2c7fc",
+        "preparation": "59f13cc7-9cc8-4bde-b055-306bcd63d670",
+        "execution": "63f1c7e1-acc4-4247-bc19-f140f19b81bb",
+        "argv": [
+          "/opt/homebrew/Cellar/node/26.3.0/bin/node",
+          "extract.cjs"
+        ],
+        "files": [
+          {
+            "path": "extract.cjs",
+            "sha256": "44a74af79001c99ff10ffd0e7efbf104430bda4d1c7bc61fa737be34696393a1",
+            "size": 278
+          },
+          {
+            "path": "source.cjs",
+            "sha256": "77778162f10a8d4194a28af0b1afcb6540894a0f527d65a910d2194c3fd1e147",
+            "size": 74
+          },
+          {
+            "path": "raw.bin",
+            "sha256": "27ddedb8bc0775ffffacf7f65607afa8b1a4fa31181bf37e8b4f03e05c74dcb9",
+            "size": 20
+          },
+          {
+            "path": "data/input.txt",
+            "sha256": "b5681bcc5994e57fbe5f04669900f5d2e7b1c78d40cec989c8f0a2a54b44e7b4",
+            "size": 13
+          },
+          {
+            "path": "evidence/solver.cjs",
+            "sha256": "77778162f10a8d4194a28af0b1afcb6540894a0f527d65a910d2194c3fd1e147",
+            "size": 74
+          }
+        ],
+        "metadata": [
+          {
+            "path": "verify-59f13cc7-9cc8-4bde-b055-306bcd63d670/manifest.json",
+            "sha256": "dc435f449a10cd5781983c332c92e222865b48a77d4dae53d5fd76e77ef9d82a",
+            "size": 4068
+          },
+          {
+            "path": "verify-59f13cc7-9cc8-4bde-b055-306bcd63d670/candidate.bin",
+            "sha256": "4527432703d179e8d8f48f8ec1b39f5688c37d5e374dc13f6e72aba2224f59b0",
+            "size": 9
+          }
+        ],
+        "before": "matched",
+        "after": "matched",
+        "continuousIntegrity": "unknown",
+        "undeclaredDependencies": "unknown",
+        "job": "b4711a45-9f84-4ffc-8c82-85507c165aa4",
+        "terminal": {
+          "job": "b4711a45-9f84-4ffc-8c82-85507c165aa4",
+          "state": "exited",
+          "exitCode": 0,
+          "signal": null,
+          "reapIncomplete": false
+        }
+      }
+    ]
+  },
+  {
+    "index": 2,
+    "at": 1792820793698,
+    "event": "C.registered",
+    "detail": [
+      "ses_e938daf80ffd4Z9tBeNX2OwmyJ",
+      "verification.registered",
+      true,
+      null,
+      {
+        "run": "control",
+        "challenge": "X",
+        "version": "43d8e0f6-8cf1-4015-b731-4765e0b2c7fc",
+        "sessionID": "ses_e938daf80ffd4Z9tBeNX2OwmyJ",
+        "execution": "63f1c7e1-acc4-4247-bc19-f140f19b81bb",
+        "result": "c3476600-046e-41d6-b347-cfb786da9f32",
+        "original": {
+          "judgment": "verified",
+          "mode": "recompute",
+          "rationale": "Scripted fixture source/dataflow checked under explicit trusted local assumption",
+          "sourceFlow": "Fixed E material check, raw.bin [5,14) and extract.cjs stdout; no semantic model claim",
+          "premises": [
+            {
+              "statement": "Trusted stable local fixture execution; semantic choice predefined by stub",
+              "status": "assumed"
+            }
+          ],
+          "issues": [],
+          "requirements": {
+            "continuousIntegrity": false,
+            "declaredDependenciesOnly": false
+          },
+          "evidence": [
+            {
+              "kind": "job",
+              "job": "b4711a45-9f84-4ffc-8c82-85507c165aa4",
+              "stream": "stdout",
+              "necessary": true,
+              "context": "Whole stdout of prepared local fixture calculation"
+            }
+          ],
+          "comparison": {
+            "evidence": 0,
+            "start": 0,
+            "end": 9
+          }
+        },
+        "effectiveJudgment": "verified",
+        "evidence": [
+          {
+            "kind": "job",
+            "source": {
+              "kind": "job",
+              "run": "control",
+              "challenge": "X",
+              "sessionID": "ses_e938daf80ffd4Z9tBeNX2OwmyJ",
+              "execution": "63f1c7e1-acc4-4247-bc19-f140f19b81bb",
+              "resource": "b4711a45-9f84-4ffc-8c82-85507c165aa4",
+              "callID": "call_38_0",
+              "stream": "stdout"
+            },
+            "originalComplete": true,
+            "association": {
+              "version": "43d8e0f6-8cf1-4015-b731-4765e0b2c7fc",
+              "preparation": "59f13cc7-9cc8-4bde-b055-306bcd63d670",
+              "execution": "63f1c7e1-acc4-4247-bc19-f140f19b81bb",
+              "argv": [
+                "/opt/homebrew/Cellar/node/26.3.0/bin/node",
+                "extract.cjs"
+              ],
+              "files": [
+                {
+                  "path": "extract.cjs",
+                  "sha256": "44a74af79001c99ff10ffd0e7efbf104430bda4d1c7bc61fa737be34696393a1",
+                  "size": 278
+                },
+                {
+                  "path": "source.cjs",
+                  "sha256": "77778162f10a8d4194a28af0b1afcb6540894a0f527d65a910d2194c3fd1e147",
+                  "size": 74
+                },
+                {
+                  "path": "raw.bin",
+                  "sha256": "27ddedb8bc0775ffffacf7f65607afa8b1a4fa31181bf37e8b4f03e05c74dcb9",
+                  "size": 20
+                },
+                {
+                  "path": "data/input.txt",
+                  "sha256": "b5681bcc5994e57fbe5f04669900f5d2e7b1c78d40cec989c8f0a2a54b44e7b4",
+                  "size": 13
+                },
+                {
+                  "path": "evidence/solver.cjs",
+                  "sha256": "77778162f10a8d4194a28af0b1afcb6540894a0f527d65a910d2194c3fd1e147",
+                  "size": 74
+                }
+              ],
+              "metadata": [
+                {
+                  "path": "verify-59f13cc7-9cc8-4bde-b055-306bcd63d670/manifest.json",
+                  "sha256": "dc435f449a10cd5781983c332c92e222865b48a77d4dae53d5fd76e77ef9d82a",
+                  "size": 4068
+                },
+                {
+                  "path": "verify-59f13cc7-9cc8-4bde-b055-306bcd63d670/candidate.bin",
+                  "sha256": "4527432703d179e8d8f48f8ec1b39f5688c37d5e374dc13f6e72aba2224f59b0",
+                  "size": 9
+                }
+              ],
+              "before": "matched",
+              "after": "matched",
+              "continuousIntegrity": "unknown",
+              "undeclaredDependencies": "unknown"
+            },
+            "terminal": {
+              "state": "exited",
+              "exitCode": 0
+            },
+            "preparation": "59f13cc7-9cc8-4bde-b055-306bcd63d670",
+            "start": 0,
+            "end": 9,
+            "size": 9,
+            "sha256": "4527432703d179e8d8f48f8ec1b39f5688c37d5e374dc13f6e72aba2224f59b0",
+            "encoding": "base64",
+            "data": "5peXe8OpfQD/",
+            "rangeComplete": true,
+            "necessary": true,
+            "context": "Whole stdout of prepared local fixture calculation"
+          }
+        ],
+        "hostChecks": {
+          "blockers": [],
+          "candidateEqual": true,
+          "semanticAssessment": "verifier_assertion_not_host_proven"
+        },
+        "createdAt": 1792820793697
+      }
+    ]
+  },
+  {
+    "index": 3,
+    "at": 1792820793698,
+    "event": "rpc.reply.ready",
+    "detail": {
+      "sessionID": "ses_e938daf80ffd4Z9tBeNX2OwmyJ",
+      "callID": "call_40_0",
+      "status": 200,
+      "response": "{\"result\":{\"result\":\"c3476600-046e-41d6-b347-cfb786da9f32\",\"duplicate\":false,\"effectiveJudgment\":\"verified\"}}"
+    }
+  },
+  {
+    "index": 4,
+    "at": 1792820793698,
+    "event": "rpc.response.close",
+    "detail": {
+      "finished": true,
+      "destroyed": true
+    }
+  }
+]

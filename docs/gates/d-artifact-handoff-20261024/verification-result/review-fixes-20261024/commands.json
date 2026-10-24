@@ -1,0 +1,64 @@
+[
+  {
+    "command": "D_RESULT_EVIDENCE_DIR=.../red npx vitest run tests/contract/d-verification-result.test.ts",
+    "exitCode": 1,
+    "log": "RED.log",
+    "tests": "3 failures / 12 pass; both feedback issues reproduced before mutation",
+    "source": "entry-source + red-source/tests/contract/d-verification-result.test.ts"
+  },
+  {
+    "command": "D_RESULT_EVIDENCE_DIR=.../contract npx vitest run tests/contract/d-verification-result.test.ts",
+    "exitCode": 0,
+    "log": "contract-first.log",
+    "tests": 15
+  },
+  {
+    "command": "D_RESULT_EVIDENCE_DIR=.../contract-expanded npx vitest run tests/contract/d-verification-result.test.ts",
+    "exitCode": 0,
+    "log": "contract-expanded.log",
+    "tests": 18
+  },
+  {
+    "command": "npx tsx tests/manual/d-verification-result.ts native-paged-first",
+    "exitCode": 0,
+    "log": "native-paged-first.log",
+    "rawEvidence": "../native-paged-first",
+    "scenarios": 8,
+    "note": "inner budget run code 1/budget_exceeded expected"
+  },
+  {
+    "command": "npx vitest run [nine D/C/G/config contract files listed in README]",
+    "exitCode": 0,
+    "log": "targeted.log",
+    "tests": 112
+  },
+  {
+    "record": "final-build-exit.json",
+    "command": [
+      "npm",
+      "run",
+      "build"
+    ],
+    "exitCode": 0,
+    "elapsedSeconds": 2.271280288696289
+  },
+  {
+    "record": "final-test-exit.json",
+    "command": [
+      "npm",
+      "test"
+    ],
+    "exitCode": 0,
+    "elapsedSeconds": 15.212337255477905
+  },
+  {
+    "record": "final-typecheck-exit.json",
+    "command": [
+      "npm",
+      "run",
+      "typecheck"
+    ],
+    "exitCode": 0,
+    "elapsedSeconds": 2.4643139839172363
+  }
+]

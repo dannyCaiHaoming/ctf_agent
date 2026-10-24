@@ -1,0 +1,1 @@
+process.stdout.write(require('node:fs').readFileSync('../candidate.bin'))

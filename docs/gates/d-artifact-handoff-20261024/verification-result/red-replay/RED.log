@@ -1,0 +1,77 @@
+
+ RUN  v2.1.8 /Users/caihaoming/.codex/worktrees/3e07/pentest-agent/docs/gates/d-artifact-handoff-20261024/verification-result/red-replay/source
+
+ ❯ tests/contract/d-verification-result.test.ts (12 tests | 12 failed) 5727ms
+   × D fourth interface > Q1 registers host-bound original report and Coordinator reads exact result with raw bytes 63ms
+     → denied: no managed tools
+   × D fourth interface > Q1 rejects role, forged identity/receipt/job, foreign evidence and wrong specified version/challenge 99ms
+     → denied: no managed tools
+   × D fourth interface > Q2 preserves rejected and missing-evidence proposals without equality-based promotion 55ms
+     → denied: no managed tools
+   × D fourth interface > Q2 records echo/wrong-input equal-output/audit-string semantic counterexamples rather than claiming a classifier 54ms
+     → denied: no managed tools
+   × D fourth interface > Q3 keeps V3 change-restore unknown and blocks declared continuity requirement 53ms
+     → denied: no managed tools
+   × D fourth interface > Q3 retains known mutation, unknown premises, replay and necessary truncation as blockers 52ms
+     → denied: no managed tools
+   × D fourth interface > Q3 nonessential truncated stderr preserves context, does not auto-deny stdout conclusion 55ms
+     → denied: no managed tools
+   × D fourth interface > Q3 revision stays separate; relevant input mutation invalidates read while unrelated work does not 54ms
+     → denied: no managed tools
+   × D fourth interface > Q4 exact duplicates retain ref; conflicts refuse without overwrite; stop/budget refuse new registration 53ms
+     → denied: no managed tools
+   × D fourth interface > Q1/Q3 old-execution job and pending report cannot cross explicit version rebind 5005ms
+     → Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+   × D fourth interface > Q4 parallel identical/conflicting submits have a single synchronous commit and saved report survives stop 87ms
+     → denied: no managed tools
+   × D fourth interface > Q1 audit can cite trusted fixed job artifact without Verifier publish authority; damage invalidates current use 97ms
+     → denied: no managed tools
+
+⎯⎯⎯⎯⎯⎯ Failed Tests 12 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/contract/d-verification-result.test.ts > D fourth interface > Q1 registers host-bound original report and Coordinator reads exact result with raw bytes
+ FAIL  tests/contract/d-verification-result.test.ts > D fourth interface > Q2 preserves rejected and missing-evidence proposals without equality-based promotion
+ FAIL  tests/contract/d-verification-result.test.ts > D fourth interface > Q2 records echo/wrong-input equal-output/audit-string semantic counterexamples rather than claiming a classifier
+ FAIL  tests/contract/d-verification-result.test.ts > D fourth interface > Q3 keeps V3 change-restore unknown and blocks declared continuity requirement
+ FAIL  tests/contract/d-verification-result.test.ts > D fourth interface > Q3 retains known mutation, unknown premises, replay and necessary truncation as blockers
+ FAIL  tests/contract/d-verification-result.test.ts > D fourth interface > Q3 nonessential truncated stderr preserves context, does not auto-deny stdout conclusion
+ FAIL  tests/contract/d-verification-result.test.ts > D fourth interface > Q3 revision stays separate; relevant input mutation invalidates read while unrelated work does not
+ FAIL  tests/contract/d-verification-result.test.ts > D fourth interface > Q4 exact duplicates retain ref; conflicts refuse without overwrite; stop/budget refuse new registration
+ FAIL  tests/contract/d-verification-result.test.ts > D fourth interface > Q4 parallel identical/conflicting submits have a single synchronous commit and saved report survives stop
+ FAIL  tests/contract/d-verification-result.test.ts > D fourth interface > Q1 audit can cite trusted fixed job artifact without Verifier publish authority; damage invalidates current use
+Error: denied: no managed tools
+ ❯ ControlService.executeManaged apps/launcher/src/control-service.ts:533:45
+    531|     }
+    532|     if (SOLVER_TOOLS.includes(name)) return this.prepareSolver(binding…
+    533|     if (!INTAKE_TOOLS.includes(name)) throw new ControlDenied('no mana…
+       |                                             ^
+    534|     const args = this.checkIntake(binding, name, body.args);
+    535|     const challenges = this.options.challenges ?? [];
+ ❯ apps/launcher/src/control-service.ts:217:32
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/12]⎯
+
+ FAIL  tests/contract/d-verification-result.test.ts > D fourth interface > Q1 rejects role, forged identity/receipt/job, foreign evidence and wrong specified version/challenge
+Error: denied: no managed tools
+ ❯ ControlService.executeManaged apps/launcher/src/control-service.ts:533:45
+    531|     }
+    532|     if (SOLVER_TOOLS.includes(name)) return this.prepareSolver(binding…
+    533|     if (!INTAKE_TOOLS.includes(name)) throw new ControlDenied('no mana…
+       |                                             ^
+    534|     const args = this.checkIntake(binding, name, body.args);
+    535|     const challenges = this.options.challenges ?? [];
+ ❯ apps/launcher/src/control-service.ts:217:32
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/12]⎯
+
+ FAIL  tests/contract/d-verification-result.test.ts > D fourth interface > Q1/Q3 old-execution job and pending report cannot cross explicit version rebind
+Error: Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/12]⎯
+
+ Test Files  1 failed (1)
+      Tests  12 failed (12)
+   Start at  14:47:27
+   Duration  5.98s (transform 55ms, setup 0ms, collect 68ms, tests 5.73s, environment 0ms, prepare 26ms)
+

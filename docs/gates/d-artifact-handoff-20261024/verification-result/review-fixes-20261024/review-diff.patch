@@ -1,0 +1,277 @@
+--- a/apps/launcher/src/control-service.ts
++++ b/apps/launcher/src/control-service.ts
+@@ -537,12 +537,13 @@
+     if(name==='verification.read') {
+       if(binding.role!=='coordinator')throw new ControlDenied('tool not permitted');
+       return {execute:()=>this.verificationResults.read(this.options.runId??'run',(body.args??{}) as Record<string,unknown>,async r=>{
+-        const reasons:string[]=[];
++        const reasons:string[]=[],warnings:{evidenceIndex:number;reason:string}[]=[];
+         try{await this.packages.read(r.run,r.challenge,{version:r.version,component:'manifest'});}catch{reasons.push('fixed package or dependency unavailable');}
+-        for(const e of r.evidence){
+-          if(e.kind==='artifact'){try{const src=e.source as {ref:string};await this.publications.bytes(r.run,r.challenge,src.ref);}catch{reasons.push('fixed evidence unavailable');}}
+-          if(e.preparation){const p=this.preparations.get(e.preparation),b=this.bindings.get(r.sessionID);try{if(!p||!b)throw new Error();await this.packages.checkPrepared(this.roots(b).workDir,p);}catch{reasons.push('relevant prepared dependency changed_or_unreadable');}}
+-        }return reasons;
++        for(const [evidenceIndex,e] of r.evidence.entries()){
++          const changed=(reason:string)=>{if(e.necessary)reasons.push(reason);else warnings.push({evidenceIndex,reason});};
++          if(e.kind==='artifact'){try{const src=e.source as {ref:string};await this.publications.bytes(r.run,r.challenge,src.ref);}catch{changed('fixed evidence unavailable');}}
++          if(e.preparation){const p=this.preparations.get(e.preparation),b=this.bindings.get(r.sessionID);try{if(!p||!b)throw new Error();await this.packages.checkPrepared(this.roots(b).workDir,p);}catch{changed('relevant prepared dependency changed_or_unreadable');}}
++        }return {blocking:reasons,warnings};
+       },()=>{if(signal?.aborted)throw new ControlDenied('rpc abandoned');this.live(binding);if(this.stopReason)throw new ControlDenied('run stopped');})};
+     }
+     if (SOLVER_TOOLS.includes(name)) return this.prepareSolver(binding, name, (body.args ?? {}) as Record<string, unknown>, body.callID, signal);
+--- a/apps/opencode-plugin/src/index.ts
++++ b/apps/opencode-plugin/src/index.ts
+@@ -22,7 +22,7 @@
+       tool.schema.object({kind:tool.schema.literal('artifact'),ref:tool.schema.string(),...reportSelection})
+     ])),comparison:tool.schema.object({evidence:tool.schema.number().int().nonnegative(),start:tool.schema.number().int().nonnegative(),end:tool.schema.number().int().nonnegative()}).optional()
+   },
+-  'verification.read':{challenge:tool.schema.string(),version:tool.schema.string(),result:tool.schema.string()},
++  'verification.read':{challenge:tool.schema.string(),version:tool.schema.string(),result:tool.schema.string(),cursor:tool.schema.string().optional()},
+   'package.prepare': {},
+   'package.publish': {candidate:tool.schema.object({ref:tool.schema.string(),start:tool.schema.number().int().nonnegative(),end:tool.schema.number().int().nonnegative()}),files:tool.schema.array(tool.schema.discriminatedUnion('kind',[tool.schema.object({kind:tool.schema.literal('artifact'),ref:tool.schema.string(),...packageEntry}),tool.schema.object({kind:tool.schema.literal('material'),name:tool.schema.string(),...packageEntry})])).max(32),argv:tool.schema.array(tool.schema.string()).max(32).optional(),extraction:tool.schema.string(),premises:tool.schema.array(tool.schema.string()).max(32)},
+   'package.read': {version:tool.schema.string(),component:tool.schema.enum(['manifest','candidate','file']),path:tool.schema.string().optional(),cursor:tool.schema.string().optional()},
+@@ -46,7 +46,7 @@
+ };
+ const descriptions: Record<string, string> = {
+   'verification.report': 'Independent version-bound Verifier only. Submit judgment/mode/rationale/sourceFlow, explicit premises (assumed or unknown), issues, requirements (continuousIntegrity/declaredDependenciesOnly), and necessary or ancillary job/artifact evidence with context and optional half-open start/end. recompute comparison selects evidence index and byte interval. Host fills identity/version/job command, fixes raw bytes and checks mechanical facts, never semantic sufficiency. Unknown stays unknown. Missing required evidence/known mutation blocks effective judgment. Exact duplicate retains ref; conflict refused. Saved report is not Coordinator receipt or solved. Transport unknown: pause, no blind resend.',
+-  'verification.read': 'Coordinator only. Read explicit challenge/version/result. Returns original Verifier judgment, host mechanical checks and current availability with explicit premises. No latest, TTL, oracle or solved. Semantic assessment is Verifier assertion, not host proof; equality never promotes a report.',
++  'verification.read': 'Coordinator only. Read explicit challenge/version/result and optional cursor. Returns bounded status summary and a fixed JSON report page: report.data is base64, raw page <=32768 bytes. Follow nextCursor unchanged until null; concatenate bytes and check report.size/sha256 before declaring full receipt. Original judgment, rationale, premises, source metadata and all evidence bytes are in the fixed JSON, never dropped. Each page also checks currentAvailability; necessary dependency changes block, independent ancillary changes warn with evidenceIndex. Fixed report/hash never changes with availability. Semantic assessment remains Verifier assertion, not host proof. No latest, TTL, oracle, solved or recovery.',
+   'package.prepare': 'Verifier only: prepare the host-bound version into a new private work subdirectory. No arguments. Host copies exact manifest paths and bytes, returns preparation handle, directory, manifestPath, candidatePath and hashes. Preparation does not execute argv. Use job.run with preparation and actual argv; no invented receipt. Before/after matching hashes cannot prove continuous integrity or all dependencies; those remain unknown. No verified or solved claim. Transport failure may follow preparation: pause affected handoff, no blind resend.',
+   'challenge.assign': 'Coordinator: declare challenge for the next native task. Verifier additionally requires the actual fixed package version, validated by the host before first admission. Each resumed execution needs an explicit new declaration. A prompt is not authorization.',
+   'package.publish': 'Engineer only: fix a candidate and solution package. Fix a whole package once: candidate is a published ref and exact nonempty half-open byte range; files select published refs or E material names, each with an unambiguous relative path and script/input/evidence purpose. Supply proposed argv (optional), extraction explanation and premises. At most 32 files; the serialized envelope, including base64 and metadata, is bounded to 1 MiB. No text normalization or automatic execution. Returned version refers to the whole package; hand off that actual version through native task completion. Incomplete/unknown provenance stays incomplete/unknown. Not verified or solved. Transport failure can follow commit: pause unconfirmed handoff; never blindly republish or rerun source. No unknown lock or recovery.',
+--- a/tests/manual/d-verification-result.ts
++++ b/tests/manual/d-verification-result.ts
+@@ -13,7 +13,7 @@
+ import {launch} from '../../apps/launcher/src/launch.js';
+ const label=process.argv[2];assert(label&&/^[\w-]+$/.test(label),'fresh label required');
+ const base=resolve('docs/gates/d-artifact-handoff-20261024/verification-result',label);await fs.mkdir(base);
+-const scenarios=process.argv[3]?[process.argv[3]]:['control','rejected','missing','lost','stop','late','budget'];
++const scenarios=process.argv[3]?[process.argv[3]]:['control','rejected','missing','lost','stop','late','large','budget'];
+ const hash=(b:Buffer)=>createHash('sha256').update(b).digest('hex');
+ const sourceFiles=['AGENTS.md','package.json','package-lock.json','apps/launcher/src/artifact-tools.ts','apps/launcher/src/candidate-package-tools.ts','apps/launcher/src/control-service.ts','apps/launcher/src/control-rpc.ts','apps/launcher/src/run-prep.ts','apps/launcher/src/launch.ts','apps/launcher/src/workspace-tools.ts','apps/launcher/src/job-tools.ts','apps/launcher/src/http-tools.ts','apps/opencode-plugin/src/index.ts','product/opencode/opencode.json','tests/manual/d-verification-result.ts','apps/launcher/src/verification-results.ts','tests/contract/d-verification-result.test.ts','tests/contract/d-verifier-handoff.test.ts','tests/contract/opencode-config.test.ts','tests/contract/control-service.test.ts','tests/contract/g-coordinator-stop.test.ts','tests/contract/g-team-integration.test.ts','tests/contract/d-candidate-package.test.ts',...['coordinator','intake','domain-solver','engineer','recon','verifier'].map(r=>`product/opencode/agents/${r}.md`)];
+ await fs.mkdir(join(base,'source'));for(const path of sourceFiles){const destination=join(base,'source',path);await fs.mkdir(resolve(destination,'..'),{recursive:true});await fs.copyFile(path,destination);}
+@@ -27,8 +27,8 @@
+ const solverScript=`process.stdout.write(Buffer.from('${raw.toString('base64')}','base64'))`;
+ const extractionScript="const f=require('node:fs'); const p=require('node:path'); if(f.readFileSync(p.join('data','input.txt'),'utf8')!=='E_NONSECRET\\r\\n')throw new Error('wrong E material'); const b=f.readFileSync('raw.bin').subarray(5,14); f.writeFileSync('candidate.bin',b); process.stdout.write(b);";
+ for(const scenario of scenarios){
+- assert(['control','rejected','missing','lost','stop','late','budget'].includes(scenario));const candidateExpected=scenario==='rejected'?Buffer.from('INCORRECT'):expected;const out=join(base,scenario);await fs.mkdir(out);
+- const root=await fs.mkdtemp(join(tmpdir(),'d-package-runtime-'));const provider:any[]=[],events:any[]=[],wire:any[]=[],observations:any[]=[],loadedContext:any[]=[];
++ assert(['control','rejected','missing','lost','stop','late','large','budget'].includes(scenario));const candidateExpected=scenario==='rejected'?Buffer.from('INCORRECT'):expected;const out=join(base,scenario);await fs.mkdir(out);
++ const root=await fs.mkdtemp(join(tmpdir(),'d-package-runtime-'));const provider:any[]=[],events:any[]=[],wire:any[]=[],observations:any[]=[],loadedContext:any[]=[],readbackPages:any[]=[];let reportReadback:any;
+  let releaseReady!:()=>void,releaseIO!:()=>void;const ready=new Promise<void>(r=>releaseReady=r),io=new Promise<void>(r=>releaseIO=r);
+  let barrier=false,stopped=false,packagePending=false,seq=0,phase=0,result:any,failure:string|undefined;const steps=new Map<string,number>();
+  const mark=(event:string,detail:unknown={})=>{const row={index:observations.length,at:Date.now(),event,detail};observations.push(row);return row;};
+@@ -56,10 +56,11 @@
+   const who=/PK_ROLE_(intake|domain-solver|engineer|recon|verifier)/.exec(first)?.[1]??'coordinator';
+   if(!loadedContext.some(c=>c.role===who)){
+    const system=body.messages.filter((m:any)=>m.role==='system').map((m:any)=>typeof m.content==='string'?m.content:JSON.stringify(m.content)).join('\n');
+-   const tools=body.tools.filter((t:any)=>t.function.name.startsWith('ctf_')).map((t:any)=>({name:t.function.name,description:t.function.description}));
++   const tools=body.tools.filter((t:any)=>t.function.name.startsWith('ctf_')).map((t:any)=>({name:t.function.name,description:t.function.description,parameters:t.function.parameters}));
+    loadedContext.push({role:who,system,expectedRoleBody:roleBodies[who],roleBodySha256:hash(Buffer.from(roleBodies[who]!)),tools});
+    assert(system.includes(roleBodies[who]!),`actual runtime must load final ${who} body`);
+    assert.deepEqual(tools.map((t:any)=>t.name).sort(),Object.entries(productConfig.agent[who].permission).filter(([name,permission])=>name.startsWith('ctf_')&&permission==='allow').map(([name])=>name).sort());
++   if(who==='coordinator')assert(Object.hasOwn(tools.find((t:any)=>t.name==='ctf_verification_read')!.parameters.properties,'cursor'));
+    for(const t of tools)assert.equal(t.description,expectedTools[t.name]!.description,`final description ${t.name}`);
+   }
+   const step=steps.get(who)??0;steps.set(who,step+1);
+@@ -79,8 +80,12 @@
+    else if(phase===8){task('recon');phase++;}
+    else if(phase===9&&all.includes('SIBLING_BARRIER_READY')){const initial=results.filter((s:string)=>s.includes('Background task started')&&s.includes('<task id='));assert.equal(initial.length,4);const m=/<task id="(ses_[\w]+)"/.exec(initial[2]!);assert(m);mark('parent.native.stop.handle',{taskID:m[1]});call('ctf_task_stop',{task_id:m[1]});phase++;}
+    else if(phase===10){assert(results.some((s:string)=>s.includes('"state":"stopped"')));content='STOP_CONFIRMED affected verification paused';phase=11;}
+-   else if(phase===7&&['control','rejected','missing','lost'].includes(scenario)&&all.includes('VERIFIER_RESULT:')){if(scenario==='lost'){assert(all.includes('VERIFIER_RESULT:UNKNOWN'));content='UNKNOWN paused no blind resend';phase=11;}else{const m=/VERIFIER_RESULT:(\{[^\n]+\})/.exec(all);assert(m);const v=JSON.parse(m[1]!);call('ctf_verification_read',{challenge:'X',version:v.version,result:v.result});phase=12;}}
+-   else if(phase===12){const v=decoded.find((v:any)=>v.original&&v.currentAvailability);assert(v);assert.equal(v.original.judgment,scenario==='rejected'?'rejected':'verified');assert.equal(v.effectiveJudgment,scenario==='missing'?'inconclusive':scenario==='rejected'?'rejected':'verified');assert.equal(v.currentAvailability.usable,scenario!=='missing');content='COORDINATOR_READ_RESULT mechanical contract only; semantic assertion scripted; not solved';phase=11;}
++   else if(phase===7&&['control','rejected','missing','lost','large'].includes(scenario)&&all.includes('VERIFIER_RESULT:')){if(scenario==='lost'){assert(all.includes('VERIFIER_RESULT:UNKNOWN'));content='UNKNOWN paused no blind resend';phase=11;}else{const m=/VERIFIER_RESULT:(\{[^\n]+\})/.exec(all);assert(m);const v=JSON.parse(m[1]!);call('ctf_verification_read',{challenge:'X',version:v.version,result:v.result});phase=12;}}
++   else if(phase===12){const pages=decoded.filter((v:any)=>v.report?.encoding==='base64'&&v.currentAvailability);assert(pages.length);const last=pages.at(-1);const bytes=Buffer.concat(pages.map((v:any,i:number)=>{assert(Buffer.byteLength(JSON.stringify(v))<262144);assert.equal(v.report.sha256,pages[0].report.sha256);assert.equal(v.report.size,pages[0].report.size);assert.equal(v.report.offset,pages.slice(0,i).reduce((n:number,p:any)=>n+Buffer.from(p.report.data,'base64').length,0));return Buffer.from(v.report.data,'base64');}));
++    readbackPages.push(last);
++    if(last.report.nextCursor!==null){assert.equal(last.report.done,false);call('ctf_verification_read',{challenge:last.challenge,version:last.version,result:last.result,cursor:last.report.nextCursor});}
++    else{assert.equal(last.report.done,true);assert.equal(bytes.length,last.report.size);assert.equal(hash(bytes),last.report.sha256);const v=JSON.parse(bytes.toString());assert.equal(v.original.judgment,scenario==='rejected'?'rejected':'verified');assert.equal(v.effectiveJudgment,scenario==='missing'?'inconclusive':scenario==='rejected'?'rejected':'verified');assert.equal(last.currentAvailability.usable,scenario!=='missing');if(scenario==='large'){assert(bytes.length>1048576);assert.equal(Buffer.from(v.evidence[1].data,'base64').length,1048576);assert.equal(v.evidence[1].necessary,false);assert.equal(v.evidence[1].originalComplete,false);assert(Buffer.from(v.evidence[1].data,'base64').equals(Buffer.alloc(1048576,120)));assert(pages.length>1);}await fs.writeFile(join(out,'coordinator-report.bin'),bytes);await fs.writeFile(join(out,'coordinator-read-pages.json'),JSON.stringify(pages,null,2));reportReadback={pages:pages.length,size:bytes.length,sha256:hash(bytes),largestReply:Math.max(...pages.map((p:any)=>Buffer.byteLength(JSON.stringify(p)))),complete:true};content='COORDINATOR_READ_RESULT full pages size/hash checked; semantic assertion scripted; not solved';phase=11;}
++   }
+    else if(phase===11)content='END';
+   }else if(who==='intake'){
+    if(step===0)call('ctf_challenge_list');else if(step===1)call('ctf_challenge_read',{id:'X',path:'input.txt'});else{assert(decoded.some((v:any)=>v.text===eMaterial));content='INTAKE_READY fixed E input.txt';}
+@@ -123,10 +128,10 @@
+     else if(step===1)call('ctf_package_read',{version,component:'candidate'});
+     else if(step===2)call('ctf_package_read',{version,component:'file',path:'raw.bin'});
+     else if(step===3){assert(manifestPage);call('ctf_package_prepare');}
+-        else if(step===4){assert(prep);const m=JSON.parse(Buffer.from(manifestPage.data,'base64').toString());assert.equal(m.argvStatus,'proposed');call('ctf_job_run',{preparation:prep.preparation,argv:scenario==='rejected'?[process.execPath,'-e',extractionScript]:m.argv,timeout_ms:15000});}
++        else if(step===4){assert(prep);const m=JSON.parse(Buffer.from(manifestPage.data,'base64').toString());assert.equal(m.argvStatus,'proposed');call('ctf_job_run',{preparation:prep.preparation,argv:scenario==='rejected'?[process.execPath,'-e',extractionScript]:scenario==='large'?[process.execPath,'-e',extractionScript+"process.stderr.write('x'.repeat(1048577));"]:m.argv,timeout_ms:15000});}
+     else if(step===5){const j=decoded.findLast((v:any)=>v.job);assert(j);assert.equal(j.exitCode,0);assert.equal(j.inputAssociation.version,version);assert.equal(j.inputAssociation.continuousIntegrity,'unknown');call('ctf_job_read',{job:j.job,stream:'stdout'});}
+     else if(step===6){const out=decoded.findLast((v:any)=>v.stream==='stdout');assert.deepEqual(Buffer.from(out.data,'base64'),expected);const j=decoded.findLast((v:any)=>v.job);
+-      call('ctf_verification_report',{judgment:scenario==='rejected'?'rejected':'verified',mode:'recompute',rationale:scenario==='rejected'?'Scripted fixture counterexample: expected candidate differs from inspected stdout':'Scripted fixture source/dataflow checked under explicit trusted local assumption',sourceFlow:'Fixed E material check, raw.bin [5,14) and extract.cjs stdout; no semantic model claim',premises:[{statement:'Trusted stable local fixture execution; semantic choice predefined by stub',status:'assumed'}],issues:[],requirements:{continuousIntegrity:false,declaredDependenciesOnly:false},evidence:scenario==='missing'?[]:[{kind:'job',job:j.job,stream:'stdout',necessary:true,context:'Whole stdout of prepared local fixture calculation'}],...(scenario==='missing'?{}:{comparison:{evidence:0,start:0,end:9}})});
++      call('ctf_verification_report',{judgment:scenario==='rejected'?'rejected':'verified',mode:'recompute',rationale:scenario==='rejected'?'Scripted fixture counterexample: expected candidate differs from inspected stdout':'Scripted fixture source/dataflow checked under explicit trusted local assumption',sourceFlow:'Fixed E material check, raw.bin [5,14) and extract.cjs stdout; no semantic model claim',premises:[{statement:'Trusted stable local fixture execution; semantic choice predefined by stub',status:'assumed'}],issues:[],requirements:{continuousIntegrity:false,declaredDependenciesOnly:false},evidence:scenario==='missing'?[]:[{kind:'job',job:j.job,stream:'stdout',necessary:true,context:'Whole stdout of prepared local fixture calculation'},...(scenario==='large'?[{kind:'job',job:j.job,stream:'stderr',necessary:false,context:'Independent diagnostic padding; candidate depends only on complete stdout'}]:[])],...(scenario==='missing'?{}:{comparison:{evidence:0,start:0,end:9}})});
+     }else{if(scenario==='lost'){assert(results.some((s:string)=>s.includes('denied: control unavailable')));content='VERIFIER_RESULT:UNKNOWN pause no blind resend';}else{const v=decoded.find((v:any)=>v.result&&v.effectiveJudgment);assert(v);content='VERIFIER_RESULT:'+JSON.stringify({result:v.result,version});}}
+   }
+   provider.push({at:Date.now(),seq:++seq,who,step,phase,request:body,calls,content});const b={id:`chatcmpl-${seq}`,object:'chat.completion.chunk',created:Math.floor(Date.now()/1000),model:'scripted'};
+@@ -155,8 +160,8 @@
+   const records=await load('verification-results.json');const reportResource=resources.find((r:any)=>r.tool==='verification.report');
+   const reportMessages=messages.flatMap((m:any)=>m.parts??[]).filter((p:any)=>p.type==='tool'&&p.tool==='ctf_verification_report');
+   const order=(...names:string[])=>{const indices=names.map(n=>observations.findIndex(o=>o.event===n));assert(indices.every((n,i)=>n>=0&&(i===0||n>indices[i-1]!)),JSON.stringify({names,indices}));};
+-  if(['control','rejected','missing'].includes(scenario)){
+-    order('C.job.terminal','C.registered','rpc.reply.ready');assert.equal(records.length,1);assert.equal(reportMessages[0].state.status,'completed');assert(verifierExecution.delivered);assert.equal(records[0].version,fixed.ref);assert.equal(records[0].execution,verifierExecution.ref);assert.equal(calls.filter(c=>c.name==='ctf_verification_read').length,1);assert.equal(calls.filter(c=>c.name==='ctf_verification_report').length,1);
++  if(['control','rejected','missing','large'].includes(scenario)){
++    order('C.job.terminal','C.registered','rpc.reply.ready');assert.equal(records.length,1);assert.equal(reportMessages[0].state.status,'completed');assert(verifierExecution.delivered);assert.equal(records[0].version,fixed.ref);assert.equal(records[0].execution,verifierExecution.ref);assert.equal(calls.filter(c=>c.name==='ctf_verification_read').length,reportReadback.pages);assert.equal(calls.filter(c=>c.name==='ctf_verification_report').length,1);
+     assert.equal(records[0].effectiveJudgment,scenario==='missing'?'inconclusive':scenario==='rejected'?'rejected':'verified');if(scenario!=='missing')assert.equal(records[0].hostChecks.candidateEqual,scenario!=='rejected');
+   }
+   if(scenario==='budget'){assert.equal(records.length,0);assert(!reportResource);assert(audit.some((a:any)=>a.op==='model.call'&&!a.allow&&a.reason==='budget denied'));assert.equal(provider.filter(p=>p.who==='verifier').length,6);}
+@@ -167,7 +172,7 @@
+   }
+   if(scenario==='stop'){order('register.before.barrier','C.revoke','barrier.release.after.revoke','register.before.resume','C.stop.result');assert.equal(records.length,0);assert.equal(reportResource.result,'cancelled');}
+   if(scenario==='late'){order('C.registered','response.barrier','C.revoke','rpc.response.close','C.stop.result','response.release.after.stop','response.late.attempt');assert.equal(records.length,1);assert.equal(reportMessages[0].state.status,'error');assert.equal(reportMessages[0].state.error,'Tool execution aborted');assert.equal(reportResource.result,'completed');assert(!provider.some(p=>p.who==='verifier'&&p.step>6));}
+-  await fs.writeFile(join(out,'summary.json'),JSON.stringify({scenario,verdict:'passed',result,sourceExecution,engineerExecution,verifierExecution,reportResource,reportToolState:reportMessages[0]?.state,records:records.length,realModelCalls:0,realUsage:'unavailable',scriptedUsage:'zero only',solved:false,scope:'D fourth interface isolated prototype; semantic assertions predefined; no model/solved claim'},null,2));
++  await fs.writeFile(join(out,'summary.json'),JSON.stringify({scenario,verdict:'passed',result,sourceExecution,engineerExecution,verifierExecution,reportResource,reportToolState:reportMessages[0]?.state,reportReadback,records:records.length,realModelCalls:0,realUsage:'unavailable',scriptedUsage:'zero only',solved:false,scope:'D fourth interface isolated prototype; semantic assertions predefined; no model/solved claim'},null,2));
+  }catch(e){failure=failure??String(e);process.exitCode=1;console.error(e);}finally{
+   releaseReady();releaseIO();abort.abort();(http as any).createServer=originalCreate;fs.rename=originalRename;VerificationResults.prototype.register=originalRegister;(ControlService.prototype as any).record=originalRecord;syncBuiltinESMExports();
+   if(result?.runDir)for(const dir of ['evidence','workspace','state'])await fs.cp(join(result.runDir,dir),join(out,dir),{recursive:true});
+--- a/apps/launcher/src/verification-results.ts
++++ b/apps/launcher/src/verification-results.ts
+@@ -15,7 +15,7 @@
+   z.object({kind:z.literal('artifact'),ref:text,...selection}).strict()
+  ])).max(16),comparison:z.object({evidence:z.number().int().nonnegative(),start:z.number().int().safe().nonnegative(),end:z.number().int().safe().nonnegative()}).strict().optional()
+ }).strict();
+-export const resultReadSchema=z.object({challenge:text,version:text,result:text}).strict();
++export const resultReadSchema=z.object({challenge:text,version:text,result:text,cursor:z.string().regex(/^\d{1,15}$/).optional()}).strict();
+ export type Selection=z.infer<typeof reportSchema>['evidence'][number];
+ export interface Evidence {kind:string;source:unknown;size:number;sha256:string;encoding:'base64';data:string;start:number;end:number;originalComplete:boolean|null;rangeComplete:true;necessary:boolean;context:string;association?:Record<string,unknown>;terminal?:{state:string;exitCode:number|null};preparation?:string}
+ interface Context {run:string;challenge:string;version:string;sessionID:string;execution:string}
+@@ -64,10 +64,13 @@
+   this.records.set(row.result,row);this.executions.set(key,row.result);
+   return {result:row.result,duplicate:false,effectiveJudgment};
+  }
+- async read(run:string,args:Record<string,unknown>,check:(r:Stored)=>Promise<string[]>,active:()=>void){
++ async read(run:string,args:Record<string,unknown>,check:(r:Stored)=>Promise<{blocking:string[];warnings:{evidenceIndex:number;reason:string}[]}>,active:()=>void){
+   const a=resultReadSchema.safeParse(args);if(!a.success)deny('read arguments');const v=a.data!,found=this.records.get(v.result);
+   if(!found||found.run!==run||found.challenge!==v.challenge||found.version!==v.version)deny('specified result');const r=found!;
+   const invalid=await check(structuredClone(r));active();
+-  return {...structuredClone(r),currentAvailability:{usable:r.effectiveJudgment!=='inconclusive'&&invalid.length===0,reasons:[...r.hostChecks.blockers,...invalid],conditionalOn:r.original.premises,semanticAssessment:'verifier_assertion_not_host_proven'}};
++  const bytes=Buffer.from(JSON.stringify(r));const offset=Number(v.cursor??'0');if(!Number.isSafeInteger(offset)||offset>bytes.length)deny('cursor');const end=Math.min(offset+32768,bytes.length);
++  return {result:r.result,challenge:r.challenge,version:r.version,effectiveJudgment:r.effectiveJudgment,semanticAssessment:r.hostChecks.semanticAssessment,evidenceCount:r.evidence.length,necessaryEvidence:r.evidence.flatMap((e,i)=>e.necessary?[i]:[]),
++   currentAvailability:{usable:r.effectiveJudgment!=='inconclusive'&&invalid.blocking.length===0,reasons:[...r.hostChecks.blockers,...invalid.blocking],warnings:invalid.warnings,checkedAt:Date.now(),premises:'see fixed report; assumptions are not host proofs'},
++   report:{size:bytes.length,sha256:sha256(bytes),encoding:'base64',data:bytes.subarray(offset,end).toString('base64'),offset,nextCursor:end<bytes.length?String(end):null,done:end===bytes.length,pageBytes:32768}};
+  }
+ }
+--- a/tests/contract/d-verification-result.test.ts
++++ b/tests/contract/d-verification-result.test.ts
+@@ -30,7 +30,11 @@
+ const report=(job:string,judgment='verified')=>({judgment,mode:'recompute',rationale:'Local fixture recomputation under explicit trusted local execution premise',sourceFlow:'Inspect script and fixed input; compare stdout exact bytes to candidate',premises:[{statement:'Trusted stable local execution, no untrusted concurrent writers',status:'assumed'}],issues:[],requirements:{continuousIntegrity:false,declaredDependenciesOnly:false},evidence:[{kind:'job',job,stream:'stdout',necessary:true,context:'Whole local stdout answers fixture; stderr irrelevant'}],comparison:{evidence:0,start:0,end:9}});
+ async function ready(script="const b=require('node:fs').readFileSync('data/input.bin');process.stdout.write(Buffer.concat([Buffer.from('旗{é}'),b.subarray(0,2)]))",wrongCandidate=false){
+  const f=await fixture();const a=await f.publish('engineer','work/check.cjs',Buffer.from(script));const wrong=wrongCandidate?await f.publish('engineer','work/wrong.bin',Buffer.from('INCORRECT')):undefined;const p=await f.exec('engineer','package.publish',{...f.args,...(wrong?{candidate:{ref:wrong.ref,start:0,end:9}}:{}),files:[...f.args.files,{kind:'artifact',ref:a.ref,path:'check.cjs',purpose:'script'}]});await f.bind('verifier','verifier','X',p.version);const prep=await f.exec('verifier','package.prepare');const j=await f.exec('verifier','job.run',{preparation:prep.preparation,argv:[process.execPath,'check.cjs'],timeout_ms:5000});
+- return {...f,p,prep,j,readResult:(r:any,version=p.version)=>f.exec('root','verification.read',{challenge:'X',version,result:r.result})};
++ return {...f,p,prep,j,readResult:async(r:any,version=p.version)=>{
++  const chunks:Buffer[]=[];let cursor:string|undefined,page:any;let size:number|undefined,digest:string|undefined;
++  do{page=await f.exec('root','verification.read',{challenge:'X',version,result:r.result,...(cursor?{cursor}:{})});expect(Buffer.byteLength(JSON.stringify(page))).toBeLessThan(262144);expect(page.report.offset).toBe(chunks.reduce((n,b)=>n+b.length,0));if(size!==undefined){expect(page.report.size).toBe(size);expect(page.report.sha256).toBe(digest);}size=page.report.size;digest=page.report.sha256;chunks.push(Buffer.from(page.report.data,'base64'));cursor=page.report.nextCursor??undefined;}while(cursor);
++  const bytes=Buffer.concat(chunks);expect(page.report.done).toBe(true);expect(bytes.length).toBe(size);expect(createHash('sha256').update(bytes).digest('hex')).toBe(digest);return {...JSON.parse(bytes.toString()),currentAvailability:page.currentAvailability};
++ }};
+ }
+ describe('D fourth interface',()=>{
+  it('Q1 registers host-bound original report and Coordinator reads exact result with raw bytes',async()=>{
+@@ -87,4 +91,28 @@
+   const f=await ready();const j=await f.exec('domain-solver','job.run',{argv:[process.execPath,'-e',"process.stdout.write('OBSERVED_SEQUENCE_CANDIDATE')"],timeout_ms:5000});const pub=await f.exec('domain-solver','artifact.publish',{source:'job',job:j.job,stream:'stdout'});const a:any={...report(f.j.job),mode:'evidence_audit',rationale:'Scripted public fixture operation audit; semantic sufficiency not model-tested',sourceFlow:'Inspect source operation and ordering under fixture assumptions; no safe replay capability',evidence:[{kind:'artifact',ref:pub.ref,necessary:true,context:'Whole trusted operation output, safety condition asserted by Verifier'}]};delete a.comparison;const r=await f.exec('verifier','verification.report',a);const v=await f.readResult(r);expect(v.effectiveJudgment).toBe('verified');expect(v.evidence[0].source.sessionID).toBe('domain-solver');await writeFile(join(f.root,'X/published',pub.ref+'.bin'),'corrupt');expect((await f.readResult(r)).currentAvailability.usable).toBe(false);await evidence('audit-artifact',{'report.json':v});
+  });
+ 
++ it('review R1 bounds every read while retaining a report larger than actual native tool output limit',async()=>{
++  const f=await ready("process.stderr.write('x'.repeat(1048577));const b=require('node:fs').readFileSync('data/input.bin');process.stdout.write(Buffer.concat([Buffer.from('旗{é}'),b.subarray(0,2)]))");const a=report(f.j.job);a.evidence.push({kind:'job',job:f.j.job,stream:'stderr',necessary:false,context:'Independent diagnostic padding; necessary result is complete stdout'});const r=await f.exec('verifier','verification.report',a);const raw=await f.exec('root','verification.read',{challenge:'X',version:f.p.version,result:r.result});
++  await evidence('review-large-read-raw',{'actual-first-reply.json':raw,'stored-report.json':f.s.verificationResultSnapshot()[0]!});expect(Buffer.byteLength(JSON.stringify(raw))).toBeLessThan(262144);expect(raw.report.size).toBeGreaterThan(1048576);expect(Object.hasOwn(raw,'original')).toBe(false);const full=await f.readResult(r);expect(Buffer.from(full.evidence[1].data,'base64')).toEqual(Buffer.alloc(1048576,120));expect(full.evidence[1].originalComplete).toBe(false);expect(full.currentAvailability.usable).toBe(true);
++ });
++ it('review R2 independent nonnecessary artifact damage warns without invalidating stable necessary evidence',async()=>{
++  const f=await ready();const j=await f.exec('domain-solver','job.run',{argv:[process.execPath,'-e',"process.stdout.write('independent ancillary observation')"],timeout_ms:5000});const pub=await f.exec('domain-solver','artifact.publish',{source:'job',job:j.job,stream:'stdout'});const a:any=report(f.j.job);a.evidence.push({kind:'artifact',ref:pub.ref,necessary:false,context:'Independent ancillary observation, not used by the candidate computation or package'});const r=await f.exec('verifier','verification.report',a);const before=await f.readResult(r);await writeFile(join(f.root,'X/published',pub.ref+'.bin'),'DAMAGED');const after=await f.readResult(r);await evidence('review-independent-artifact',{'before.json':before,'after.json':after,'stored-report.json':f.s.verificationResultSnapshot()[0]!});expect(after.currentAvailability.usable).toBe(true);expect(after.currentAvailability.warnings).toHaveLength(1);
++ });
++ it('review R2 a different nonnecessary preparation changes without invalidating the necessary preparation',async()=>{
++  const f=await ready();const ancillary=await f.exec('verifier','package.prepare');const j=await f.exec('verifier','job.run',{preparation:ancillary.preparation,argv:[process.execPath,'-e',"process.stdout.write('independent diagnostic')"],timeout_ms:5000});const a=report(f.j.job);a.evidence.push({kind:'job',job:j.job,stream:'stdout',necessary:false,context:'Separate diagnostic preparation; no bytes used for candidate comparison'});const r=await f.exec('verifier','verification.report',a);const before=await f.readResult(r);await writeFile(join(f.root,'X/work/verifier',ancillary.directory,'data/input.bin'),'DAMAGED');const after=await f.readResult(r);await evidence('review-independent-preparation',{'before.json':before,'after.json':after,'main-input.bin':await readFile(join(f.root,'X/work/verifier',f.prep.directory,'data/input.bin'))});expect(after.currentAvailability.usable).toBe(true);expect(after.currentAvailability.warnings).toHaveLength(1);
++ });
++
++ it('review R2 necessary independent artifact damage still blocks; necessary flags are fixed at registration',async()=>{
++  const f=await ready();const j=await f.exec('domain-solver','job.run',{argv:[process.execPath,'-e',"process.stdout.write('necessary supplemental observation')"],timeout_ms:5000});const pub=await f.exec('domain-solver','artifact.publish',{source:'job',job:j.job,stream:'stdout'});const a:any=report(f.j.job);a.evidence.push({kind:'artifact',ref:pub.ref,necessary:true,context:'Supplementary operation observation required by this judgment'});const r=await f.exec('verifier','verification.report',a);expect((await f.readResult(r)).currentAvailability.usable).toBe(true);await writeFile(join(f.root,'X/published',pub.ref+'.bin'),'DAMAGED');const after=await f.readResult(r);expect(after.currentAvailability.usable).toBe(false);expect(after.evidence[1].necessary).toBe(true);await evidence('review-necessary-artifact',{'after.json':after});
++ });
++ it('review R2 shared preparation or fixed-package dependency damage blocks despite an ancillary entry',async()=>{
++  for(const kind of ['shared-preparation','package-dependency']){
++   const f=await ready();const a:any=report(f.j.job);a.evidence.push(kind==='shared-preparation'?{kind:'job',job:f.j.job,stream:'stderr',necessary:false,context:'Ancillary stderr sharing the necessary job preparation'}:{kind:'artifact',ref:f.source.ref,necessary:false,context:'Ancillary view of an artifact that is also a fixed package input'});const r=await f.exec('verifier','verification.report',a);expect((await f.readResult(r)).currentAvailability.usable).toBe(true);
++   if(kind==='shared-preparation')await writeFile(join(f.root,'X/work/verifier',f.prep.directory,'data/input.bin'),'DAMAGED');else await writeFile(join(f.root,'X/published',f.source.ref+'.bin'),'DAMAGED');const after=await f.readResult(r);expect(after.currentAvailability.usable).toBe(false);await evidence('review-'+kind,{'after.json':after});
++  }
++ });
++ it('review R1 rejects invalid cursors and pages metadata too large for a single native reply',async()=>{
++  const f=await ready();const a=report(f.j.job);a.premises=Array.from({length:32},()=>({statement:'前'.repeat(8192),status:'assumed'}));const r=await f.exec('verifier','verification.report',a);const one=await f.exec('root','verification.read',{challenge:'X',version:f.p.version,result:r.result});expect(one.report.size).toBeGreaterThan(262144);expect(Buffer.byteLength(JSON.stringify(one))).toBeLessThan(262144);for(const cursor of ['-1','x','999999999999999'])await expect(f.exec('root','verification.read',{challenge:'X',version:f.p.version,result:r.result,cursor})).rejects.toThrow();const full=await f.readResult(r);expect(full.original.premises).toEqual(a.premises);await evidence('review-large-metadata',{'first-page.json':one,'report.json':full});
++ });
++
+ });
+--- a/product/opencode/agents/coordinator.md
++++ b/product/opencode/agents/coordinator.md
+@@ -33,4 +33,7 @@
+ ## D 第四接口隔離原型
+ Verifier 用 `ctf_verification_report` 提出 judgment（verified/rejected/inconclusive）、mode、rationale、sourceFlow、必要 premises（statement/status=assumed|unknown）、issues、requirements（continuousIntegrity/declaredDependenciesOnly）及 evidence。job 證據選 job/stream 和可選半開 start/end；artifact 選 ref 和範圍；每項 necessary/context 說明是否必需及選材條件。recompute 的 comparison 選 evidence 索引及其中 start/end。宿主填身份、綁定版本、命令、原始 bytes、來源與完整性，不手填 receipt/hash/session/version。Verifier 無發布權。
+ 方法須回答題意並檢查來源及資料流；echo 候選、錯輸入同輸出、日誌含候選字串都不自動支持 verified。宿主只做機械核對，不能驗證這段語義判斷；字段齊全不能掩蓋缺口。continuousIntegrity／undeclaredDependencies 的 unknown 原樣保留；依賴這些未證條件時 issues 或必要 unknown premise 必須明示，結論 inconclusive；可信本地執行假設須顯式保存。已知 changed_or_unreadable 不能忽略。
+-Coordinator 用 `ctf_verification_read({challenge,version,result})` 讀指定結果；原判斷、宿主 checks、目前可用性分開，需查看 conditionalOn 和 semanticAssessment。新版本不能沿用舊結果，無 latest/TTL。提交報告、收到 RPC 回覆與 Coordinator 讀取不同；傳輸未知暫停受影響交接，不盲目重發。同 execution 相同內容保留原 ref，衝突拒絕，不覆寫。停止／預算拒絕不新登記，已有報告事實保留；不接 oracle 或 solved。
++Coordinator 用 `ctf_verification_read({challenge,version,result,cursor?})` 讀指定結果；原判斷、宿主 checks、目前可用性分開，需查看 conditionalOn 和 semanticAssessment。新版本不能沿用舊結果，無 latest/TTL。提交報告、收到 RPC 回覆與 Coordinator 讀取不同；傳輸未知暫停受影響交接，不盲目重發。同 execution 相同內容保留原 ref，衝突拒絕，不覆寫。停止／預算拒絕不新登記，已有報告事實保留；不接 oracle 或 solved。
++
++## 第四接口主核對修正：有界讀回與必要依賴
++verification.read 返回小摘要及 `report` 固定 JSON 的 base64 頁，raw 每頁最多 32768 bytes；原理由／前提／全部證據 bytes 在完整 JSON 裡。依 nextCursor 逐頁讀到 null，串接後核對 size/sha256，才能記完整收到，不能只看摘要或首頁。每頁 currentAvailability 是當時核對，與固定原報告分開；必要來源／包依賴改變阻斷，獨立非必要 artifact／不同 preparation 變動只列 warnings。若共享必要 preparation 或本來是包依賴，仍會阻斷。necessary 在登記時固定，不以改標記繞過必要證據。語義充分性仍是 Verifier 責任；echo 反例與 unknown 不因分頁修正而消失。
+--- a/product/opencode/agents/verifier.md
++++ b/product/opencode/agents/verifier.md
+@@ -23,4 +23,7 @@
+ ## D 第四接口隔離原型
+ Verifier 用 `ctf_verification_report` 提出 judgment（verified/rejected/inconclusive）、mode、rationale、sourceFlow、必要 premises（statement/status=assumed|unknown）、issues、requirements（continuousIntegrity/declaredDependenciesOnly）及 evidence。job 證據選 job/stream 和可選半開 start/end；artifact 選 ref 和範圍；每項 necessary/context 說明是否必需及選材條件。recompute 的 comparison 選 evidence 索引及其中 start/end。宿主填身份、綁定版本、命令、原始 bytes、來源與完整性，不手填 receipt/hash/session/version。Verifier 無發布權。
+ 方法須回答題意並檢查來源及資料流；echo 候選、錯輸入同輸出、日誌含候選字串都不自動支持 verified。宿主只做機械核對，不能驗證這段語義判斷；字段齊全不能掩蓋缺口。continuousIntegrity／undeclaredDependencies 的 unknown 原樣保留；依賴這些未證條件時 issues 或必要 unknown premise 必須明示，結論 inconclusive；可信本地執行假設須顯式保存。已知 changed_or_unreadable 不能忽略。
+-Coordinator 用 `ctf_verification_read({challenge,version,result})` 讀指定結果；原判斷、宿主 checks、目前可用性分開，需查看 conditionalOn 和 semanticAssessment。新版本不能沿用舊結果，無 latest/TTL。提交報告、收到 RPC 回覆與 Coordinator 讀取不同；傳輸未知暫停受影響交接，不盲目重發。同 execution 相同內容保留原 ref，衝突拒絕，不覆寫。停止／預算拒絕不新登記，已有報告事實保留；不接 oracle 或 solved。
++Coordinator 用 `ctf_verification_read({challenge,version,result,cursor?})` 讀指定結果；原判斷、宿主 checks、目前可用性分開，需查看 conditionalOn 和 semanticAssessment。新版本不能沿用舊結果，無 latest/TTL。提交報告、收到 RPC 回覆與 Coordinator 讀取不同；傳輸未知暫停受影響交接，不盲目重發。同 execution 相同內容保留原 ref，衝突拒絕，不覆寫。停止／預算拒絕不新登記，已有報告事實保留；不接 oracle 或 solved。
++
++## 第四接口主核對修正：有界讀回與必要依賴
++verification.read 返回小摘要及 `report` 固定 JSON 的 base64 頁，raw 每頁最多 32768 bytes；原理由／前提／全部證據 bytes 在完整 JSON 裡。依 nextCursor 逐頁讀到 null，串接後核對 size/sha256，才能記完整收到，不能只看摘要或首頁。每頁 currentAvailability 是當時核對，與固定原報告分開；必要來源／包依賴改變阻斷，獨立非必要 artifact／不同 preparation 變動只列 warnings。若共享必要 preparation 或本來是包依賴，仍會阻斷。necessary 在登記時固定，不以改標記繞過必要證據。語義充分性仍是 Verifier 責任；echo 反例與 unknown 不因分頁修正而消失。
+--- a/docs/superpowers/specs/2026-10-24-design-v1-d-candidate-verification-minimal.md
++++ b/docs/superpowers/specs/2026-10-24-design-v1-d-candidate-verification-minimal.md
+@@ -290,7 +290,7 @@
+ 
+ 宿主固定 evidence bytes/base64、來源、命令、完整性和 preparation 關聯；一個 execution 僅一份報告，重複同參數回相同 ref，衝突拒絕。沒有自動重試。非法身份／來源拒絕登記；合法提議機械不足則保留原 judgment，effectiveJudgment=inconclusive，附 blockers，不改成 rejected。replay 一律不可用。必要截斷、必要 unknown 前提、未解 issues、已知 prepared 改寫、必要 continuous/declared-only unknown 都阻擋有效結論。非必要截斷仍保存 context 與完整性。
+ 
+-`verification.read({challenge,version,result})` 僅 Coordinator，指定同 run 題目及精確版本；重新讀固定包及所有被採用的 preparation bytes，輸出 original report、hostChecks、currentAvailability；不建立 latest／TTL。原始報告和結論不可覆寫。內存 registry 沿用 C 生命週期，原 bytes 保存於結果與 C audit／run evidence；不宣稱重啟持久化。提交原子點是最後 active 核對後 registry.set，之前停止零登記；之後停止／丟回复仍保存既有事實。
++`verification.read({challenge,version,result,cursor?})` 僅 Coordinator，指定同 run 題目及精確版本；重新核對固定包與證據依賴（必要項阻斷、獨立非必要項警告），有界摘要與原 report／hostChecks／全部 bytes 以固定 JSON 分頁讀回，詳見下述主核對修正；不建立 latest／TTL。原始報告和結論不可覆寫。內存 registry 沿用 C 生命週期，原 bytes 保存於結果與 C audit／run evidence；不宣稱重啟持久化。提交原子點是最後 active 核對後 registry.set，之前停止零登記；之後停止／丟回复仍保存既有事實。
+ 
+ **語義邊界：** sourceFlow/rationale/context 是 Verifier 判斷，不是 host 證明。宿主不能識別任意 echo、錯輸入同輸出或字串匹配；刻意虛假但字段完整的語義報告可跨過機械核對，必須在本輪保留此反例，不能把契約通過寫成語義充分性已驗。unknown 不清除；assumed 條件顯式保留。三條預定替身只驗接線，真實模型語義仍未驗。
+ 
+@@ -304,6 +304,16 @@
+ | Q4 停止／傳輸／重複 | 原生在途停止、預算拒絕、保存前後競爭、真實RPC回复丟失及遲到；相同／衝突報告不靜默覆寫，不盲目重發 |
+ 
+ 通過後只定已證明的登記與核對契約；語義最低證據若仍無法落地，明示缺口，不能用預定替身選對答案宣稱已解決。舊IndependentVerificationService只參考版本／失效原則，不沿用輸出相等直接verified、自造session或舊Runtime收據。
++
++### 主 session 核對後的兩項修正（2026-10-24；先保存 RED，再按以下邊界定稿）
++
++主核對指出：舊 `verification.read` 展開所有 base64，1 MiB 非必要 stderr 即超過 native tool_output.max_bytes=262144；此外舊有效性遍歷所有 evidence，不區分 necessary，獨立非必要 artifact／不同 preparation 變動會錯誤阻斷主結論。這兩點是直接契約缺口，先前 Q1/Q3 的成立敘述不能涵蓋它們。初版原始證據與全部舊 hash 保留，修正證據另存 review-fixes-20261024。
++
++本輪採用最小有界讀回契約：`verification.read({challenge,version,result,cursor?})` 統一返回有界摘要與固定報告的 base64 頁。摘要只含宿主身份/精確版本/原 effectiveJudgment/semanticAssessment、證據數、必要證據索引及本次 currentAvailability（usable、固定原因、非必要證據警告、核對時間），不內嵌任意 rationale/premises/context/bytes。完整不可變報告 JSON（含原 judgment、前提、全部證據 bytes、完整性、來源/命令/association）以 `report={size,sha256,encoding,data,offset,nextCursor,done,pageBytes}` 返回，raw page 固定上限 32768 bytes。讀到 nextCursor=null、核對總長/hash 後才可聲稱完整讀報告；單頁/摘要不代表完整接收。每頁仍核對當前可用性，報告原始內容/hash 不因可用性變化改寫。不新增 latest、TTL、通用引用或恢復系統。必要 bytes 不丟棄、不靜默截斷，任意大文字字段亦隨報告分頁。
++
++失效契約：固定包及其真實依賴始終是本結論對象，損壞必阻斷。report 登記時的 necessary 選擇不可覆寫；必要 evidence 的來源 artifact/preparation 變化阻斷；**獨立**非必要 artifact 或不同 preparation 變化僅記帶 evidenceIndex 的 warnings，不改必要證據已支持的可用性。若非必要項與必要項共享同一 preparation，該 preparation 損壞仍由必要項阻斷；非必要 artifact 若本來是固定包依賴，仍由固定包核對阻斷。由 Verifier 選必要項的語義正確性未由 host 證明，不能藉改 necessary 掩蓋必要依賴，也不增設關鍵詞判斷器。
++
++驗證要保留原例：主必要證據穩定時，另一獨立非必要 artifact 損壞／不同 preparation 變動仍可用且有 warning；對照必要 artifact 與共享 preparation 變動必阻斷。大結果用實際 Verifier job 產生 1 MiB stderr、保留 necessary stdout，經真 native Coordinator 多頁逐 bytes 讀回，逐頁核對實際工具限額、schema/role 載入、終頁/總長/hash；不得拿 contract 的直接對象讀取冒充原生交付。
+ 
+ ### 隔離驗證結論（2026-10-24；主 session 尚未獨立核對）
+ 
+@@ -316,17 +326,29 @@
+ | Q3 完整性／有效性 | **部分成立（固定包／所選本地依賴）** | 必要截斷、unknown 必要前提、issues、replay、已知 changed_or_unreadable、被聲明為必需的持續完整性／僅聲明依賴 unknown 均不能成為有效結論；非必要截斷保留 context 且不自動否決。V3 改寫後恢復及未聲明輸入的原反例復跑保留；前後 matched 不清除 unknown。新版本不能套舊結果、回報途中 rebind 拒絕、相關準備文件改變令 current unusable、無關 work 改變不失效。**外部實例狀態、任意未聲明依賴和任意並發寫入沒有持續監控；明示本地可信前提是 Verifier 接受條件，不是 host 證明。** |
+ | Q4 停止／傳輸／重複 | 成立於已測本地生命週期 | 真實 plugin/C RPC：登記前停止零結果；登記後 socket 斷開仍保存結果、工具報 control unavailable；登記後原生停止保留結果，晚回覆在 destroyed socket 上嘗試發送，工具 Tool execution aborted；預算在 report 前拒絕。相同／衝突及並發提交由 contract 測試證明單一原子提交，不靜默覆寫；不是跨重啟冪等恢復。 |
+ 
+-最終可核對批次為 [native-accepted](../../gates/d-artifact-handoff-20261024/verification-result/native-accepted/)；七案各自從空 run 啟動，**每案都是自身同入口鏈路，沒有拼接各案成功**。control／rejected／missing／lost／stop／late／budget 的 provider 請求數依次 43／43／43／42／45／45／39（預定替身請求，不是真模型用量），保存結果數依次 1／1／1／1／0／1／0。預算案內層 run code=1、status=budget_exceeded 為預期觀察；probe 本身 exit=0。原生角色正文、工具描述／權限逐項與最後源碼核對，原始 requests/messages、bindings/executions/admissions/resources、job bytes、固定包與 report 均保留。
++初輪可核對批次為 [native-accepted](../../gates/d-artifact-handoff-20261024/verification-result/native-accepted/)；七案各自從空 run 啟動，**每案都是自身同入口鏈路，沒有拼接各案成功**。control／rejected／missing／lost／stop／late／budget 的 provider 請求數依次 43／43／43／42／45／45／39（預定替身請求，不是真模型用量），保存結果數依次 1／1／1／1／0／1／0。預算案內層 run code=1、status=budget_exceeded 為預期觀察；probe 本身 exit=0。原生角色正文、工具描述／權限逐項與最後源碼核對，原始 requests/messages、bindings/executions/admissions/resources、job bytes、固定包與 report 均保留。
+ 
+ **停止及未知的證明分層：** sibling 只在注入的 barrier 到達後自然完成，原生完成通知喚醒 Coordinator 再調 task.stop；沒有透過 SDK 重啟子任務製造在途狀態。lost 案記錄宿主保存與調用方未確認分離；unknown、不盲目重發與暫停交接是替身預定選擇，未驗真實模型會自動採用。late 案證明 native abort 關閉連接、回覆未送達，未證明插件成功收到遲到回覆後再次拒絕。registry 及證據隨 C run 存活，run 結束匯出；沒有跨重啟恢復。
+ 
+-**最終 schema 決策：** 採上述 report/read；登記錯誤拒絕，合法但機械不足保留原提議並 effective=inconclusive；不把拒絕登記當 candidate rejected。必要證據選取、語義理由、無法安全 replay 的理由與前提由 Verifier 說明；host 不建立關鍵詞分類器。host 固定 job 完整輸出或選取區間的 bytes/hash、來源、實際命令、preparation、終態。回讀重新核對固定包和已引用的準備內容；保留原事實與目前可用性。這不是通用動態依賴捕獲、原子 OS 隔離或模型語義驗收。每個流沿用 1 MiB 上限、report 最多 16 項證據；read 返回整份報告，尚未驗證大型報告在原生工具輸出截斷後的完整下游閱讀，不把 contract 的大輸出直讀當公開 runtime 完整交付。
++**最終 schema 決策：** 採上述 report/read；登記錯誤拒絕，合法但機械不足保留原提議並 effective=inconclusive；不把拒絕登記當 candidate rejected。必要證據選取、語義理由、無法安全 replay 的理由與前提由 Verifier 說明；host 不建立關鍵詞分類器。host 固定 job 完整輸出或選取區間的 bytes/hash、來源、實際命令、preparation、終態。回讀重新核對固定包和已引用的準備內容；保留原事實與目前可用性。這不是通用動態依賴捕獲、原子 OS 隔離或模型語義驗收。每個流沿用 1 MiB 上限、report 最多 16 項證據；初版 read 返回整份報告的大輸出缺口已由主核對指出並在上述有界讀回修正，當時的 contract 大輸出直讀不作原生交付證據。
+ 
+ **保留失敗與修訂：** 初始 9 項 RED 為缺少受管入口；初次 typecheck 的 Zod3／plugin Zod4 schema 不相容及 Stored 縮窄診斷均留原日誌；宣告構建首次因公開 snapshot 暴露未匯出 Stored 而 exit=1，修正 export 後通過。早期 rejected 樣例只是錯檢查器，不支持有效反證；native-first/native-final 的機械 passed 原樣保留但其 rejected 語義樣例不作 Q2 驗收。native-accepted 已更換為固定錯候選／正確獨立重算，不覆寫舊失敗。初始 RED 當時沒有即時捕獲新測試文件快照；另以已保存基線源碼＋最終測試做帶完整 hash 的 red-replay（12 failed，含等待不存在入口的 race 超時），不把重放回填成當時原始快照。
+ 
+ 最終 `npm run typecheck`、`npm run build`、`npm test` 均 exit=0，47 files／384 tests；必要定向回歸 9 files／106 tests，含新報告 12 項及前三接口/C/G。最終測試 fixture 收緊後的完整同批驗收記錄以 delivery-* 日誌為準，早期日誌均保留，不混寫為同次結果。源／最終 hash、原 bytes、命令與失敗索引見 [本輪證據索引](../../gates/d-artifact-handoff-20261024/verification-result/README.md)。主區 `/tmp/d-verification-result-main-baseline.json` 存在，逐項只讀 hash 核對未變；這不是主 session 的獨立核對。
+ 
+ 本輪沒有合併產品、commit/push、真實模型調用或 solved 判定；plan、session、工作樹保留等待主 session 核對。後續仍需主 session 決定此機械契約及 Q2/Q3 的部分成立邊界是否足以接入首題，不能從本次測試自動推導接入／真模型授權。
++
++### 兩項修正的最終核對結果（2026-10-24；等待主 session 再核對）
++
++三個原例先在未修改產品的進入版本真實 RED：報告單次 JSON 超過 262144 bytes；獨立非必要 artifact 損壞後 usable=false；不同的非必要 preparation 改變後 usable=false。保存了**當時實際在盤的**產品／測試 source bytes/hash、原始回复、前後可用性、固定判斷與完整 RED 日誌；沒有覆寫上一輪證據。新增六項有價值的定向契約，原始 necessary 選擇不改：三個原例修正，另測必要 artifact 損壞、共享 preparation／固定包依賴損壞仍阻斷，以及含 32×8192 中文前提的超大 metadata／非法 cursor。
++
++最終同源公開 runtime 批次是 [native-paged-first](../../gates/d-artifact-handoff-20261024/verification-result/native-paged-first/)，同一版原型跑完 control、rejected、missing、lost、stop、late、large、budget 八案，各案自身從 E 到 Coordinator 原生讀回的完整鏈路。provider 請求數依次 43／43／43／42／45／45／85／39，保存報告數依次 1／1／1／1／0／1／1／0。probe exit=0；budget 內層 exit=1／budget_exceeded 是預期。原先 native-accepted 為修正前證據，不能替代本輪有界讀回驗收。
++
++large 案：Verifier 真 job 寫出完整必要 stdout 9 bytes 及超限 stderr，宿主保留 stderr 1048576 bytes 且 originalComplete=false、necessary=false。Coordinator 透過真實 plugin/C `verification.read` **43 頁**收到固定 JSON **1403719 bytes**；從 provider 實際收到的原始 tool 字串量測，單回覆最大 **44294 bytes**，每頁低於 native 262144 bytes／2000 lines 限額，raw page ≤32768 bytes。終頁 done=true/nextCursor=null；逐頁 offset、size/hash 一致；重組 SHA-256 `0961e957a0b694044fdee481834703e643f128f46b5ea7fea8bb2d3aacceb0de`，與 Coordinator 保存的完整 bytes 及 C 保存報告內容逐 byte 一致。所有 1 MiB stderr bytes 讀回，沒有丟掉必要證據或靜默截斷。實際載入的 role 正文、description 和含 cursor 的工具 parameters/schema 均保存並核對。這證明原生分頁傳輸／接收，不證明真實模型會在有限 context 中選對材料或理解完整大報告。
++
++必要性失效修正由真实文件／job 的 C contract 驗證：獨立非必要 artifact 損壞或不同 preparation 改變，必要來源保持原 bytes，currentAvailability.usable 仍 true 且 warnings 明示 evidenceIndex／原因；必要 artifact、共享必要 preparation 或固定包依賴損壞仍 false。這部分身份是 SDK fixture，不能冒稱已在 native runtime 證明非必要依賴場景；本輪 native large 證明的是非必要截斷的保存／完整分頁閱讀。原 judgment、necessary 選擇與固定 JSON/hash 不因後續變化覆寫，動態 availability 不混入固定 payload。
++
++最終 typecheck/build/test 均 exit=0；47 files／**390 tests**，定向 9 files／**112 tests**，報告專項 18 tests。來源／最終 hash、相對本輪進入版本的 diff、完整命令與退出碼、原始 RED、同源 runtime 核對與逐頁實際字串量測見 [修正證據索引](../../gates/d-artifact-handoff-20261024/verification-result/review-fixes-20261024/README.md)。原來 Q2 dishonest echo 和 V3 unknown 的部分成立邊界不變；沒有新增 oracle／第五接口、模型語義判斷器或恢復系統。plan/session/worktree 繼續保留，未 commit/push、合併或調用真模型。
+ 
+ ## 7. 接口五：Coordinator 與可信完成判定
+ 

@@ -1,0 +1,13 @@
+
+> ctf-agent@0.1.0 typecheck
+> tsc --noEmit
+
+apps/launcher/src/verification-results.ts(70,29): error TS2345: Argument of type 'Stored | undefined' is not assignable to parameter of type 'Stored'.
+  Type 'undefined' is not assignable to type 'Stored'.
+apps/launcher/src/verification-results.ts(71,61): error TS18048: 'r' is possibly 'undefined'.
+apps/launcher/src/verification-results.ts(71,130): error TS18048: 'r' is possibly 'undefined'.
+apps/launcher/src/verification-results.ts(71,178): error TS18048: 'r' is possibly 'undefined'.
+apps/opencode-plugin/src/index.ts(81,7): error TS2322: Type '{ judgment: ZodEnum<["verified", "rejected", "inconclusive"]>; mode: ZodEnum<["recompute", "evidence_audit", "replay"]>; rationale: ZodEffects<ZodString, string, string>; ... 5 more ...; comparison: ZodOptional<...>; } | ... 18 more ... | { ...; }' is not assignable to type 'Readonly<{ [k: string]: $ZodType<unknown, unknown, $ZodTypeInternals<unknown, unknown>>; }>'.
+  Type '{ judgment: z.ZodEnum<["verified", "rejected", "inconclusive"]>; mode: z.ZodEnum<["recompute", "evidence_audit", "replay"]>; rationale: z.ZodEffects<z.ZodString, string, string>; ... 5 more ...; comparison: z.ZodOptional<...>; }' is not assignable to type 'Readonly<{ [k: string]: $ZodType<unknown, unknown, $ZodTypeInternals<unknown, unknown>>; }>'.
+    Property 'judgment' is incompatible with index signature.
+      Type 'ZodEnum<["verified", "rejected", "inconclusive"]>' is missing the following properties from type '$ZodType<unknown, unknown, $ZodTypeInternals<unknown, unknown>>': _zod, "~standard"
