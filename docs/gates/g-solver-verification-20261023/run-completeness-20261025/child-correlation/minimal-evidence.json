@@ -1,0 +1,4706 @@
+{
+  "source": "same product launcher/plugin/ControlService plus native OpenCode1.19.3; metadata only",
+  "cases": [
+    {
+      "case": "notice-read-partial",
+      "result": {
+        "code": 0,
+        "status": "completed",
+        "runDir": "/private/var/folders/tn/x1hbkfy17sx0w1lb8kjzzr340000gn/T/ctf-child-correlation-km69t97l/notice-read-partial/runs/run"
+      },
+      "version": "1.19.3",
+      "admittedModelCalls": 7,
+      "usageTotal": {
+        "availability": "reported",
+        "input_tokens": 7,
+        "output_tokens": 7,
+        "reasoning_tokens": 0,
+        "lowerBound": false
+      },
+      "captures": [
+        {
+          "hook": {
+            "at": 1792859392870,
+            "phase": "return",
+            "sessionID": "ses_e9140b4acffe1zWvRDKc08vyQf",
+            "operation": "chat.message",
+            "messageID": "msg_16ebf4b56001bkIFh9o27h6dKb",
+            "agent": "intake",
+            "executions": [
+              {
+                "ref": "7e07b087-2b17-4067-81bf-649fa3111137",
+                "parent": "ses_e9140b7cbffeG5jAx5JZwz8xwb",
+                "callID": "call_1_0",
+                "childID": "ses_e9140b4acffe1zWvRDKc08vyQf",
+                "state": "running",
+                "delivered": false
+              }
+            ],
+            "binding": {
+              "parentID": "ses_e9140b7cbffeG5jAx5JZwz8xwb",
+              "role": "intake",
+              "dispatchCallID": "call_1_0"
+            }
+          },
+          "candidate": {
+            "ref": "7e07b087-2b17-4067-81bf-649fa3111137",
+            "parent": "ses_e9140b7cbffeG5jAx5JZwz8xwb",
+            "callID": "call_1_0",
+            "childID": "ses_e9140b4acffe1zWvRDKc08vyQf",
+            "userID": "msg_16ebf4b56001bkIFh9o27h6dKb",
+            "freezeAt": 1792859392870
+          }
+        },
+        {
+          "hook": {
+            "at": 1792859392917,
+            "phase": "return",
+            "sessionID": "ses_e9140b4acffe1zWvRDKc08vyQf",
+            "operation": "chat.message",
+            "messageID": "msg_16ebf4b940018zvXEf0fMXMRnp",
+            "agent": "intake",
+            "executions": [
+              {
+                "ref": "7e07b087-2b17-4067-81bf-649fa3111137",
+                "parent": "ses_e9140b7cbffeG5jAx5JZwz8xwb",
+                "callID": "call_1_0",
+                "childID": "ses_e9140b4acffe1zWvRDKc08vyQf",
+                "state": "completed",
+                "delivered": true,
+                "noticeMessageID": "msg_16ebf4b81001oE4RzWDKfuJfjv"
+              },
+              {
+                "ref": "8698a9f1-be6b-493b-bd02-0cbb94185426",
+                "parent": "ses_e9140b7cbffeG5jAx5JZwz8xwb",
+                "callID": "call_4_0",
+                "childID": "ses_e9140b4acffe1zWvRDKc08vyQf",
+                "state": "running",
+                "delivered": false
+              }
+            ],
+            "binding": {
+              "parentID": "ses_e9140b7cbffeG5jAx5JZwz8xwb",
+              "role": "intake",
+              "dispatchCallID": "call_1_0"
+            }
+          },
+          "candidate": {
+            "ref": "8698a9f1-be6b-493b-bd02-0cbb94185426",
+            "parent": "ses_e9140b7cbffeG5jAx5JZwz8xwb",
+            "callID": "call_4_0",
+            "childID": "ses_e9140b4acffe1zWvRDKc08vyQf",
+            "userID": "msg_16ebf4b940018zvXEf0fMXMRnp",
+            "freezeAt": 1792859392917
+          }
+        }
+      ],
+      "chains": [
+        {
+          "ref": "7e07b087-2b17-4067-81bf-649fa3111137",
+          "parent": "ses_e9140b7cbffeG5jAx5JZwz8xwb",
+          "callID": "call_1_0",
+          "childID": "ses_e9140b4acffe1zWvRDKc08vyQf",
+          "userID": "msg_16ebf4b56001bkIFh9o27h6dKb",
+          "freezeAt": 1792859392870,
+          "userRole": "user",
+          "assistants": [
+            {
+              "id": "msg_16ebf4b680015fPvz71b8elMPU",
+              "role": "assistant",
+              "parentID": "msg_16ebf4b56001bkIFh9o27h6dKb",
+              "finish": "length",
+              "time": {
+                "created": 1792859392872,
+                "completed": 1792859392895
+              },
+              "textChars": 7
+            }
+          ],
+          "finalClassification": "incomplete",
+          "noticeAt": 1792859392899,
+          "classificationFromLastPreNoticePoll": "unknown:no-pre-notice-poll",
+          "modelCallCrossCheck": true
+        },
+        {
+          "ref": "8698a9f1-be6b-493b-bd02-0cbb94185426",
+          "parent": "ses_e9140b7cbffeG5jAx5JZwz8xwb",
+          "callID": "call_4_0",
+          "childID": "ses_e9140b4acffe1zWvRDKc08vyQf",
+          "userID": "msg_16ebf4b940018zvXEf0fMXMRnp",
+          "freezeAt": 1792859392917,
+          "userRole": "user",
+          "assistants": [
+            {
+              "id": "msg_16ebf4b9b001Iv86XdHEEnmeYL",
+              "role": "assistant",
+              "parentID": "msg_16ebf4b940018zvXEf0fMXMRnp",
+              "finish": "stop",
+              "time": {
+                "created": 1792859392923,
+                "completed": 1792859392943
+              },
+              "textChars": 8
+            }
+          ],
+          "finalClassification": "complete",
+          "noticeAt": 1792859392947,
+          "classificationFromLastPreNoticePoll": "unknown:no-pre-notice-poll",
+          "modelCallCrossCheck": true
+        }
+      ],
+      "finalExecutions": [
+        {
+          "ref": "7e07b087-2b17-4067-81bf-649fa3111137",
+          "run": "run",
+          "parent": "ses_e9140b7cbffeG5jAx5JZwz8xwb",
+          "callID": "call_1_0",
+          "role": "intake",
+          "childID": "ses_e9140b4acffe1zWvRDKc08vyQf",
+          "state": "completed",
+          "delivered": true,
+          "noticeMessageID": "msg_16ebf4b81001oE4RzWDKfuJfjv",
+          "delivery": "consumed"
+        },
+        {
+          "ref": "8698a9f1-be6b-493b-bd02-0cbb94185426",
+          "run": "run",
+          "parent": "ses_e9140b7cbffeG5jAx5JZwz8xwb",
+          "callID": "call_4_0",
+          "role": "intake",
+          "childID": "ses_e9140b4acffe1zWvRDKc08vyQf",
+          "state": "completed",
+          "delivered": true,
+          "noticeMessageID": "msg_16ebf4bb0001YAa24Wlc5wuRmo",
+          "delivery": "consumed"
+        }
+      ],
+      "noticeReads": [
+        {
+          "at": 1792859392899,
+          "started": 1792859392897,
+          "phase": "notice-sdk-read-before-consumption",
+          "sessionID": "ses_e9140b7cbffeG5jAx5JZwz8xwb",
+          "childID": "ses_e9140b4acffe1zWvRDKc08vyQf",
+          "messageID": "msg_16ebf4b81001oE4RzWDKfuJfjv",
+          "messages": [
+            {
+              "id": "msg_16ebf4b56001bkIFh9o27h6dKb",
+              "role": "user",
+              "parentID": null,
+              "finish": null,
+              "time": {
+                "created": 1792859392854
+              },
+              "error": false,
+              "textChars": 11
+            },
+            {
+              "id": "msg_16ebf4b680015fPvz71b8elMPU",
+              "role": "assistant",
+              "parentID": "msg_16ebf4b56001bkIFh9o27h6dKb",
+              "finish": "length",
+              "time": {
+                "created": 1792859392872,
+                "completed": 1792859392895
+              },
+              "error": false,
+              "textChars": 7
+            }
+          ]
+        },
+        {
+          "at": 1792859392946,
+          "started": 1792859392944,
+          "phase": "notice-sdk-read-before-consumption",
+          "sessionID": "ses_e9140b7cbffeG5jAx5JZwz8xwb",
+          "childID": "ses_e9140b4acffe1zWvRDKc08vyQf",
+          "messageID": "msg_16ebf4bb0001YAa24Wlc5wuRmo",
+          "messages": [
+            {
+              "id": "msg_16ebf4b56001bkIFh9o27h6dKb",
+              "role": "user",
+              "parentID": null,
+              "finish": null,
+              "time": {
+                "created": 1792859392854
+              },
+              "error": false,
+              "textChars": 11
+            },
+            {
+              "id": "msg_16ebf4b680015fPvz71b8elMPU",
+              "role": "assistant",
+              "parentID": "msg_16ebf4b56001bkIFh9o27h6dKb",
+              "finish": "length",
+              "time": {
+                "created": 1792859392872,
+                "completed": 1792859392895
+              },
+              "error": false,
+              "textChars": 7
+            },
+            {
+              "id": "msg_16ebf4b940018zvXEf0fMXMRnp",
+              "role": "user",
+              "parentID": null,
+              "finish": null,
+              "time": {
+                "created": 1792859392916
+              },
+              "error": false,
+              "textChars": 11
+            },
+            {
+              "id": "msg_16ebf4b9b001Iv86XdHEEnmeYL",
+              "role": "assistant",
+              "parentID": "msg_16ebf4b940018zvXEf0fMXMRnp",
+              "finish": "stop",
+              "time": {
+                "created": 1792859392923,
+                "completed": 1792859392943
+              },
+              "error": false,
+              "textChars": 8
+            }
+          ]
+        }
+      ],
+      "correlationAudit": [
+        {
+          "seq": 1,
+          "t": 71,
+          "at": 1792859392055,
+          "sessionID": "ses_e9140b7cbffeG5jAx5JZwz8xwb",
+          "op": "bind",
+          "allow": true,
+          "detail": {
+            "role": "coordinator",
+            "via": "root"
+          },
+          "role": "coordinator"
+        },
+        {
+          "seq": 4,
+          "t": 861,
+          "at": 1792859392845,
+          "sessionID": "ses_e9140b7cbffeG5jAx5JZwz8xwb",
+          "op": "dispatch.register",
+          "allow": true,
+          "detail": {
+            "role": "intake",
+            "callID": "call_1_0",
+            "argsFingerprint": "218c63fa83e6e95d8b4355a86453299b3689922d47271e62e5788db4959515d3"
+          },
+          "role": "coordinator"
+        },
+        {
+          "seq": 5,
+          "t": 861,
+          "at": 1792859392845,
+          "sessionID": "ses_e9140b7cbffeG5jAx5JZwz8xwb",
+          "op": "task.execution",
+          "allow": true,
+          "detail": {
+            "ref": "7e07b087-2b17-4067-81bf-649fa3111137",
+            "run": "run",
+            "parent": "ses_e9140b7cbffeG5jAx5JZwz8xwb",
+            "callID": "call_1_0",
+            "role": "intake",
+            "state": "starting",
+            "delivered": false
+          },
+          "role": "coordinator"
+        },
+        {
+          "seq": 7,
+          "t": 872,
+          "at": 1792859392856,
+          "sessionID": "ses_e9140b7cbffeG5jAx5JZwz8xwb",
+          "op": "task.correlate",
+          "allow": true,
+          "detail": {
+            "callID": "call_1_0",
+            "childSessionID": "ses_e9140b4acffe1zWvRDKc08vyQf",
+            "childBoundToCaller": false
+          },
+          "role": "coordinator"
+        },
+        {
+          "seq": 9,
+          "t": 886,
+          "at": 1792859392870,
+          "sessionID": "ses_e9140b4acffe1zWvRDKc08vyQf",
+          "op": "bind",
+          "allow": true,
+          "detail": {
+            "role": "intake",
+            "via": "dispatch",
+            "sdkParentID": "ses_e9140b7cbffeG5jAx5JZwz8xwb",
+            "sdkAgent": "intake",
+            "callID": "call_1_0",
+            "sdkMs": 14
+          },
+          "role": "intake"
+        },
+        {
+          "seq": 13,
+          "t": 915,
+          "at": 1792859392899,
+          "sessionID": "ses_e9140b7cbffeG5jAx5JZwz8xwb",
+          "op": "task.completion",
+          "allow": true,
+          "detail": {
+            "ref": "7e07b087-2b17-4067-81bf-649fa3111137",
+            "childID": "ses_e9140b4acffe1zWvRDKc08vyQf",
+            "callID": "call_1_0",
+            "state": "completed",
+            "messageID": "msg_16ebf4b81001oE4RzWDKfuJfjv",
+            "wake": true
+          },
+          "role": "coordinator"
+        },
+        {
+          "seq": 15,
+          "t": 927,
+          "at": 1792859392911,
+          "sessionID": "ses_e9140b7cbffeG5jAx5JZwz8xwb",
+          "op": "task.delivered",
+          "allow": true,
+          "detail": {
+            "ref": "7e07b087-2b17-4067-81bf-649fa3111137",
+            "messageID": "msg_16ebf4b81001oE4RzWDKfuJfjv",
+            "admitNo": 4
+          },
+          "role": "coordinator"
+        },
+        {
+          "seq": 17,
+          "t": 930,
+          "at": 1792859392914,
+          "sessionID": "ses_e9140b7cbffeG5jAx5JZwz8xwb",
+          "op": "dispatch.resume",
+          "allow": true,
+          "detail": {
+            "role": "intake",
+            "taskId": "ses_e9140b4acffe1zWvRDKc08vyQf",
+            "declarationConsumed": false
+          },
+          "role": "coordinator"
+        },
+        {
+          "seq": 18,
+          "t": 930,
+          "at": 1792859392914,
+          "sessionID": "ses_e9140b7cbffeG5jAx5JZwz8xwb",
+          "op": "task.execution",
+          "allow": true,
+          "detail": {
+            "ref": "8698a9f1-be6b-493b-bd02-0cbb94185426",
+            "run": "run",
+            "parent": "ses_e9140b7cbffeG5jAx5JZwz8xwb",
+            "callID": "call_4_0",
+            "role": "intake",
+            "childID": "ses_e9140b4acffe1zWvRDKc08vyQf",
+            "state": "running",
+            "delivered": false
+          },
+          "role": "coordinator"
+        },
+        {
+          "seq": 21,
+          "t": 933,
+          "at": 1792859392917,
+          "sessionID": "ses_e9140b7cbffeG5jAx5JZwz8xwb",
+          "op": "task.correlate",
+          "allow": true,
+          "detail": {
+            "callID": "call_4_0",
+            "childSessionID": "ses_e9140b4acffe1zWvRDKc08vyQf",
+            "childBoundToCaller": true
+          },
+          "role": "coordinator"
+        },
+        {
+          "seq": 25,
+          "t": 963,
+          "at": 1792859392947,
+          "sessionID": "ses_e9140b7cbffeG5jAx5JZwz8xwb",
+          "op": "task.completion",
+          "allow": true,
+          "detail": {
+            "ref": "8698a9f1-be6b-493b-bd02-0cbb94185426",
+            "childID": "ses_e9140b4acffe1zWvRDKc08vyQf",
+            "callID": "call_4_0",
+            "state": "completed",
+            "messageID": "msg_16ebf4bb0001YAa24Wlc5wuRmo",
+            "wake": true
+          },
+          "role": "coordinator"
+        },
+        {
+          "seq": 27,
+          "t": 974,
+          "at": 1792859392958,
+          "sessionID": "ses_e9140b7cbffeG5jAx5JZwz8xwb",
+          "op": "task.delivered",
+          "allow": true,
+          "detail": {
+            "ref": "8698a9f1-be6b-493b-bd02-0cbb94185426",
+            "messageID": "msg_16ebf4bb0001YAa24Wlc5wuRmo",
+            "admitNo": 7
+          },
+          "role": "coordinator"
+        }
+      ],
+      "requests": [
+        {
+          "at": 1792859392788,
+          "isRoot": true,
+          "isChild": false,
+          "rootStep": 1,
+          "childCount": 0,
+          "finish": "tool_calls",
+          "calls": [
+            {
+              "name": "task",
+              "subagent_type": "intake",
+              "background": true,
+              "promptChars": 11,
+              "promptSHA256": "66fddd00ccb86fb21cdba02ac7bdda0449cd8c00622ffeaed38f241dadf03e1a",
+              "descriptionChars": 16,
+              "descriptionSHA256": "aba0243578212720268332e8d6dc48e513385c035ef626f2b2138b2925e46970"
+            }
+          ],
+          "max_tokens": 128
+        },
+        {
+          "at": 1792859392878,
+          "isRoot": true,
+          "isChild": false,
+          "rootStep": 1,
+          "childCount": 0,
+          "finish": "stop",
+          "calls": [],
+          "max_tokens": 128
+        },
+        {
+          "at": 1792859392891,
+          "isRoot": false,
+          "isChild": true,
+          "rootStep": 1,
+          "childCount": 1,
+          "finish": "length",
+          "calls": [],
+          "max_tokens": 128
+        },
+        {
+          "at": 1792859392912,
+          "isRoot": true,
+          "isChild": false,
+          "rootStep": 2,
+          "childCount": 1,
+          "finish": "tool_calls",
+          "calls": [
+            {
+              "name": "task",
+              "subagent_type": "intake",
+              "task_id": "ses_e9140b4acffe1zWvRDKc08vyQf",
+              "background": true,
+              "promptChars": 11,
+              "promptSHA256": "66fddd00ccb86fb21cdba02ac7bdda0449cd8c00622ffeaed38f241dadf03e1a",
+              "descriptionChars": 16,
+              "descriptionSHA256": "aba0243578212720268332e8d6dc48e513385c035ef626f2b2138b2925e46970"
+            }
+          ],
+          "max_tokens": 128
+        },
+        {
+          "at": 1792859392936,
+          "isRoot": true,
+          "isChild": false,
+          "rootStep": 2,
+          "childCount": 1,
+          "finish": "stop",
+          "calls": [],
+          "max_tokens": 128
+        },
+        {
+          "at": 1792859392937,
+          "isRoot": false,
+          "isChild": true,
+          "rootStep": 2,
+          "childCount": 2,
+          "finish": "stop",
+          "calls": [],
+          "max_tokens": 128
+        },
+        {
+          "at": 1792859392960,
+          "isRoot": true,
+          "isChild": false,
+          "rootStep": 2,
+          "childCount": 2,
+          "finish": "stop",
+          "calls": [],
+          "max_tokens": 128
+        }
+      ]
+    },
+    {
+      "case": "notice-read-empty",
+      "result": {
+        "code": 0,
+        "status": "completed",
+        "runDir": "/private/var/folders/tn/x1hbkfy17sx0w1lb8kjzzr340000gn/T/ctf-child-correlation-km69t97l/notice-read-empty/runs/run"
+      },
+      "version": "1.19.3",
+      "admittedModelCalls": 7,
+      "usageTotal": {
+        "availability": "reported",
+        "input_tokens": 7,
+        "output_tokens": 7,
+        "reasoning_tokens": 0,
+        "lowerBound": false
+      },
+      "captures": [
+        {
+          "hook": {
+            "at": 1792859395186,
+            "phase": "return",
+            "sessionID": "ses_e9140aba1ffe7f1JYiFY3DvOeU",
+            "operation": "chat.message",
+            "messageID": "msg_16ebf5460001iCpb2Ibf8TLi2E",
+            "agent": "intake",
+            "executions": [
+              {
+                "ref": "fb37615a-d141-4f8a-9612-fde974795c3c",
+                "parent": "ses_e9140ae12ffe56sgUgFdY4t2gj",
+                "callID": "call_1_0",
+                "childID": "ses_e9140aba1ffe7f1JYiFY3DvOeU",
+                "state": "running",
+                "delivered": false
+              }
+            ],
+            "binding": {
+              "parentID": "ses_e9140ae12ffe56sgUgFdY4t2gj",
+              "role": "intake",
+              "dispatchCallID": "call_1_0"
+            }
+          },
+          "candidate": {
+            "ref": "fb37615a-d141-4f8a-9612-fde974795c3c",
+            "parent": "ses_e9140ae12ffe56sgUgFdY4t2gj",
+            "callID": "call_1_0",
+            "childID": "ses_e9140aba1ffe7f1JYiFY3DvOeU",
+            "userID": "msg_16ebf5460001iCpb2Ibf8TLi2E",
+            "freezeAt": 1792859395186
+          }
+        },
+        {
+          "hook": {
+            "at": 1792859395291,
+            "phase": "return",
+            "sessionID": "ses_e9140aba1ffe7f1JYiFY3DvOeU",
+            "operation": "chat.message",
+            "messageID": "msg_16ebf54da001ZCwGsS6xwx9mol",
+            "agent": "intake",
+            "executions": [
+              {
+                "ref": "fb37615a-d141-4f8a-9612-fde974795c3c",
+                "parent": "ses_e9140ae12ffe56sgUgFdY4t2gj",
+                "callID": "call_1_0",
+                "childID": "ses_e9140aba1ffe7f1JYiFY3DvOeU",
+                "state": "completed",
+                "delivered": true,
+                "noticeMessageID": "msg_16ebf54c6001SDK31DzZACBbmw"
+              },
+              {
+                "ref": "6dfe9424-ae0f-4aef-93c1-59364f37f2c2",
+                "parent": "ses_e9140ae12ffe56sgUgFdY4t2gj",
+                "callID": "call_4_0",
+                "childID": "ses_e9140aba1ffe7f1JYiFY3DvOeU",
+                "state": "running",
+                "delivered": false
+              }
+            ],
+            "binding": {
+              "parentID": "ses_e9140ae12ffe56sgUgFdY4t2gj",
+              "role": "intake",
+              "dispatchCallID": "call_1_0"
+            }
+          },
+          "candidate": {
+            "ref": "6dfe9424-ae0f-4aef-93c1-59364f37f2c2",
+            "parent": "ses_e9140ae12ffe56sgUgFdY4t2gj",
+            "callID": "call_4_0",
+            "childID": "ses_e9140aba1ffe7f1JYiFY3DvOeU",
+            "userID": "msg_16ebf54da001ZCwGsS6xwx9mol",
+            "freezeAt": 1792859395291
+          }
+        }
+      ],
+      "chains": [
+        {
+          "ref": "fb37615a-d141-4f8a-9612-fde974795c3c",
+          "parent": "ses_e9140ae12ffe56sgUgFdY4t2gj",
+          "callID": "call_1_0",
+          "childID": "ses_e9140aba1ffe7f1JYiFY3DvOeU",
+          "userID": "msg_16ebf5460001iCpb2Ibf8TLi2E",
+          "freezeAt": 1792859395186,
+          "userRole": "user",
+          "assistants": [
+            {
+              "id": "msg_16ebf5476001BjlmnVP0oeOuu0",
+              "role": "assistant",
+              "parentID": "msg_16ebf5460001iCpb2Ibf8TLi2E",
+              "finish": "length",
+              "time": {
+                "created": 1792859395190,
+                "completed": 1792859395268
+              },
+              "textChars": 0
+            }
+          ],
+          "finalClassification": "incomplete",
+          "noticeAt": 1792859395272,
+          "classificationFromLastPreNoticePoll": "unknown",
+          "modelCallCrossCheck": true
+        },
+        {
+          "ref": "6dfe9424-ae0f-4aef-93c1-59364f37f2c2",
+          "parent": "ses_e9140ae12ffe56sgUgFdY4t2gj",
+          "callID": "call_4_0",
+          "childID": "ses_e9140aba1ffe7f1JYiFY3DvOeU",
+          "userID": "msg_16ebf54da001ZCwGsS6xwx9mol",
+          "freezeAt": 1792859395291,
+          "userRole": "user",
+          "assistants": [
+            {
+              "id": "msg_16ebf54e0001aAPFhIhxkz0LjG",
+              "role": "assistant",
+              "parentID": "msg_16ebf54da001ZCwGsS6xwx9mol",
+              "finish": "stop",
+              "time": {
+                "created": 1792859395296,
+                "completed": 1792859395317
+              },
+              "textChars": 8
+            }
+          ],
+          "finalClassification": "complete",
+          "noticeAt": 1792859395321,
+          "classificationFromLastPreNoticePoll": "unknown",
+          "modelCallCrossCheck": true
+        }
+      ],
+      "finalExecutions": [
+        {
+          "ref": "fb37615a-d141-4f8a-9612-fde974795c3c",
+          "run": "run",
+          "parent": "ses_e9140ae12ffe56sgUgFdY4t2gj",
+          "callID": "call_1_0",
+          "role": "intake",
+          "childID": "ses_e9140aba1ffe7f1JYiFY3DvOeU",
+          "state": "completed",
+          "delivered": true,
+          "noticeMessageID": "msg_16ebf54c6001SDK31DzZACBbmw",
+          "delivery": "consumed"
+        },
+        {
+          "ref": "6dfe9424-ae0f-4aef-93c1-59364f37f2c2",
+          "run": "run",
+          "parent": "ses_e9140ae12ffe56sgUgFdY4t2gj",
+          "callID": "call_4_0",
+          "role": "intake",
+          "childID": "ses_e9140aba1ffe7f1JYiFY3DvOeU",
+          "state": "completed",
+          "delivered": true,
+          "noticeMessageID": "msg_16ebf54f6001aUaz6DXnIr38XG",
+          "delivery": "consumed"
+        }
+      ],
+      "noticeReads": [
+        {
+          "at": 1792859395272,
+          "started": 1792859395270,
+          "phase": "notice-sdk-read-before-consumption",
+          "sessionID": "ses_e9140ae12ffe56sgUgFdY4t2gj",
+          "childID": "ses_e9140aba1ffe7f1JYiFY3DvOeU",
+          "messageID": "msg_16ebf54c6001SDK31DzZACBbmw",
+          "messages": [
+            {
+              "id": "msg_16ebf5460001iCpb2Ibf8TLi2E",
+              "role": "user",
+              "parentID": null,
+              "finish": null,
+              "time": {
+                "created": 1792859395168
+              },
+              "error": false,
+              "textChars": 11
+            },
+            {
+              "id": "msg_16ebf5476001BjlmnVP0oeOuu0",
+              "role": "assistant",
+              "parentID": "msg_16ebf5460001iCpb2Ibf8TLi2E",
+              "finish": "length",
+              "time": {
+                "created": 1792859395190,
+                "completed": 1792859395268
+              },
+              "error": false,
+              "textChars": 0
+            }
+          ]
+        },
+        {
+          "at": 1792859395321,
+          "started": 1792859395318,
+          "phase": "notice-sdk-read-before-consumption",
+          "sessionID": "ses_e9140ae12ffe56sgUgFdY4t2gj",
+          "childID": "ses_e9140aba1ffe7f1JYiFY3DvOeU",
+          "messageID": "msg_16ebf54f6001aUaz6DXnIr38XG",
+          "messages": [
+            {
+              "id": "msg_16ebf5460001iCpb2Ibf8TLi2E",
+              "role": "user",
+              "parentID": null,
+              "finish": null,
+              "time": {
+                "created": 1792859395168
+              },
+              "error": false,
+              "textChars": 11
+            },
+            {
+              "id": "msg_16ebf5476001BjlmnVP0oeOuu0",
+              "role": "assistant",
+              "parentID": "msg_16ebf5460001iCpb2Ibf8TLi2E",
+              "finish": "length",
+              "time": {
+                "created": 1792859395190,
+                "completed": 1792859395268
+              },
+              "error": false,
+              "textChars": 0
+            },
+            {
+              "id": "msg_16ebf54da001ZCwGsS6xwx9mol",
+              "role": "user",
+              "parentID": null,
+              "finish": null,
+              "time": {
+                "created": 1792859395290
+              },
+              "error": false,
+              "textChars": 11
+            },
+            {
+              "id": "msg_16ebf54e0001aAPFhIhxkz0LjG",
+              "role": "assistant",
+              "parentID": "msg_16ebf54da001ZCwGsS6xwx9mol",
+              "finish": "stop",
+              "time": {
+                "created": 1792859395296,
+                "completed": 1792859395317
+              },
+              "error": false,
+              "textChars": 8
+            }
+          ]
+        }
+      ],
+      "correlationAudit": [
+        {
+          "seq": 1,
+          "t": 61,
+          "at": 1792859394544,
+          "sessionID": "ses_e9140ae12ffe56sgUgFdY4t2gj",
+          "op": "bind",
+          "allow": true,
+          "detail": {
+            "role": "coordinator",
+            "via": "root"
+          },
+          "role": "coordinator"
+        },
+        {
+          "seq": 4,
+          "t": 680,
+          "at": 1792859395163,
+          "sessionID": "ses_e9140ae12ffe56sgUgFdY4t2gj",
+          "op": "dispatch.register",
+          "allow": true,
+          "detail": {
+            "role": "intake",
+            "callID": "call_1_0",
+            "argsFingerprint": "218c63fa83e6e95d8b4355a86453299b3689922d47271e62e5788db4959515d3"
+          },
+          "role": "coordinator"
+        },
+        {
+          "seq": 5,
+          "t": 680,
+          "at": 1792859395163,
+          "sessionID": "ses_e9140ae12ffe56sgUgFdY4t2gj",
+          "op": "task.execution",
+          "allow": true,
+          "detail": {
+            "ref": "fb37615a-d141-4f8a-9612-fde974795c3c",
+            "run": "run",
+            "parent": "ses_e9140ae12ffe56sgUgFdY4t2gj",
+            "callID": "call_1_0",
+            "role": "intake",
+            "state": "starting",
+            "delivered": false
+          },
+          "role": "coordinator"
+        },
+        {
+          "seq": 7,
+          "t": 687,
+          "at": 1792859395170,
+          "sessionID": "ses_e9140ae12ffe56sgUgFdY4t2gj",
+          "op": "task.correlate",
+          "allow": true,
+          "detail": {
+            "callID": "call_1_0",
+            "childSessionID": "ses_e9140aba1ffe7f1JYiFY3DvOeU",
+            "childBoundToCaller": false
+          },
+          "role": "coordinator"
+        },
+        {
+          "seq": 9,
+          "t": 703,
+          "at": 1792859395186,
+          "sessionID": "ses_e9140aba1ffe7f1JYiFY3DvOeU",
+          "op": "bind",
+          "allow": true,
+          "detail": {
+            "role": "intake",
+            "via": "dispatch",
+            "sdkParentID": "ses_e9140ae12ffe56sgUgFdY4t2gj",
+            "sdkAgent": "intake",
+            "callID": "call_1_0",
+            "sdkMs": 17
+          },
+          "role": "intake"
+        },
+        {
+          "seq": 13,
+          "t": 789,
+          "at": 1792859395272,
+          "sessionID": "ses_e9140ae12ffe56sgUgFdY4t2gj",
+          "op": "task.completion",
+          "allow": true,
+          "detail": {
+            "ref": "fb37615a-d141-4f8a-9612-fde974795c3c",
+            "childID": "ses_e9140aba1ffe7f1JYiFY3DvOeU",
+            "callID": "call_1_0",
+            "state": "completed",
+            "messageID": "msg_16ebf54c6001SDK31DzZACBbmw",
+            "wake": true
+          },
+          "role": "coordinator"
+        },
+        {
+          "seq": 15,
+          "t": 797,
+          "at": 1792859395280,
+          "sessionID": "ses_e9140ae12ffe56sgUgFdY4t2gj",
+          "op": "task.delivered",
+          "allow": true,
+          "detail": {
+            "ref": "fb37615a-d141-4f8a-9612-fde974795c3c",
+            "messageID": "msg_16ebf54c6001SDK31DzZACBbmw",
+            "admitNo": 4
+          },
+          "role": "coordinator"
+        },
+        {
+          "seq": 17,
+          "t": 805,
+          "at": 1792859395288,
+          "sessionID": "ses_e9140ae12ffe56sgUgFdY4t2gj",
+          "op": "dispatch.resume",
+          "allow": true,
+          "detail": {
+            "role": "intake",
+            "taskId": "ses_e9140aba1ffe7f1JYiFY3DvOeU",
+            "declarationConsumed": false
+          },
+          "role": "coordinator"
+        },
+        {
+          "seq": 18,
+          "t": 805,
+          "at": 1792859395288,
+          "sessionID": "ses_e9140ae12ffe56sgUgFdY4t2gj",
+          "op": "task.execution",
+          "allow": true,
+          "detail": {
+            "ref": "6dfe9424-ae0f-4aef-93c1-59364f37f2c2",
+            "run": "run",
+            "parent": "ses_e9140ae12ffe56sgUgFdY4t2gj",
+            "callID": "call_4_0",
+            "role": "intake",
+            "childID": "ses_e9140aba1ffe7f1JYiFY3DvOeU",
+            "state": "running",
+            "delivered": false
+          },
+          "role": "coordinator"
+        },
+        {
+          "seq": 21,
+          "t": 808,
+          "at": 1792859395291,
+          "sessionID": "ses_e9140ae12ffe56sgUgFdY4t2gj",
+          "op": "task.correlate",
+          "allow": true,
+          "detail": {
+            "callID": "call_4_0",
+            "childSessionID": "ses_e9140aba1ffe7f1JYiFY3DvOeU",
+            "childBoundToCaller": true
+          },
+          "role": "coordinator"
+        },
+        {
+          "seq": 25,
+          "t": 838,
+          "at": 1792859395321,
+          "sessionID": "ses_e9140ae12ffe56sgUgFdY4t2gj",
+          "op": "task.completion",
+          "allow": true,
+          "detail": {
+            "ref": "6dfe9424-ae0f-4aef-93c1-59364f37f2c2",
+            "childID": "ses_e9140aba1ffe7f1JYiFY3DvOeU",
+            "callID": "call_4_0",
+            "state": "completed",
+            "messageID": "msg_16ebf54f6001aUaz6DXnIr38XG",
+            "wake": true
+          },
+          "role": "coordinator"
+        },
+        {
+          "seq": 27,
+          "t": 849,
+          "at": 1792859395332,
+          "sessionID": "ses_e9140ae12ffe56sgUgFdY4t2gj",
+          "op": "task.delivered",
+          "allow": true,
+          "detail": {
+            "ref": "6dfe9424-ae0f-4aef-93c1-59364f37f2c2",
+            "messageID": "msg_16ebf54f6001aUaz6DXnIr38XG",
+            "admitNo": 7
+          },
+          "role": "coordinator"
+        }
+      ],
+      "requests": [
+        {
+          "at": 1792859395156,
+          "isRoot": true,
+          "isChild": false,
+          "rootStep": 1,
+          "childCount": 0,
+          "finish": "tool_calls",
+          "calls": [
+            {
+              "name": "task",
+              "subagent_type": "intake",
+              "background": true,
+              "promptChars": 11,
+              "promptSHA256": "66fddd00ccb86fb21cdba02ac7bdda0449cd8c00622ffeaed38f241dadf03e1a",
+              "descriptionChars": 16,
+              "descriptionSHA256": "aba0243578212720268332e8d6dc48e513385c035ef626f2b2138b2925e46970"
+            }
+          ],
+          "max_tokens": 128
+        },
+        {
+          "at": 1792859395245,
+          "isRoot": true,
+          "isChild": false,
+          "rootStep": 1,
+          "childCount": 0,
+          "finish": "stop",
+          "calls": [],
+          "max_tokens": 128
+        },
+        {
+          "at": 1792859395261,
+          "isRoot": false,
+          "isChild": true,
+          "rootStep": 1,
+          "childCount": 1,
+          "finish": "length",
+          "calls": [],
+          "max_tokens": 128
+        },
+        {
+          "at": 1792859395281,
+          "isRoot": true,
+          "isChild": false,
+          "rootStep": 2,
+          "childCount": 1,
+          "finish": "tool_calls",
+          "calls": [
+            {
+              "name": "task",
+              "subagent_type": "intake",
+              "task_id": "ses_e9140aba1ffe7f1JYiFY3DvOeU",
+              "background": true,
+              "promptChars": 11,
+              "promptSHA256": "66fddd00ccb86fb21cdba02ac7bdda0449cd8c00622ffeaed38f241dadf03e1a",
+              "descriptionChars": 16,
+              "descriptionSHA256": "aba0243578212720268332e8d6dc48e513385c035ef626f2b2138b2925e46970"
+            }
+          ],
+          "max_tokens": 128
+        },
+        {
+          "at": 1792859395310,
+          "isRoot": true,
+          "isChild": false,
+          "rootStep": 2,
+          "childCount": 1,
+          "finish": "stop",
+          "calls": [],
+          "max_tokens": 128
+        },
+        {
+          "at": 1792859395310,
+          "isRoot": false,
+          "isChild": true,
+          "rootStep": 2,
+          "childCount": 2,
+          "finish": "stop",
+          "calls": [],
+          "max_tokens": 128
+        },
+        {
+          "at": 1792859395334,
+          "isRoot": true,
+          "isChild": false,
+          "rootStep": 2,
+          "childCount": 2,
+          "finish": "stop",
+          "calls": [],
+          "max_tokens": 128
+        }
+      ]
+    },
+    {
+      "case": "single-partial",
+      "result": {
+        "code": 0,
+        "status": "completed",
+        "runDir": "/private/var/folders/tn/x1hbkfy17sx0w1lb8kjzzr340000gn/T/ctf-child-correlation-km69t97l/single-partial/runs/run"
+      },
+      "version": "1.19.3",
+      "admittedModelCalls": 7,
+      "usageTotal": {
+        "availability": "reported",
+        "input_tokens": 7,
+        "output_tokens": 7,
+        "reasoning_tokens": 0,
+        "lowerBound": false
+      },
+      "captures": [
+        {
+          "hook": {
+            "at": 1792859267661,
+            "phase": "return",
+            "sessionID": "ses_e91429dc6ffewV0oeVzWvaBx6a",
+            "operation": "chat.message",
+            "messageID": "msg_16ebd623c001hZj12bf6rJYaI0",
+            "agent": "intake",
+            "executions": [
+              {
+                "ref": "a133c861-be28-44be-9d52-a6132e0cb10f",
+                "parent": "ses_e9142a07affeDDwscft8gUBgL7",
+                "callID": "call_1_0",
+                "childID": "ses_e91429dc6ffewV0oeVzWvaBx6a",
+                "state": "running",
+                "delivered": false
+              }
+            ],
+            "binding": {
+              "parentID": "ses_e9142a07affeDDwscft8gUBgL7",
+              "role": "intake",
+              "dispatchCallID": "call_1_0"
+            }
+          },
+          "candidate": {
+            "ref": "a133c861-be28-44be-9d52-a6132e0cb10f",
+            "parent": "ses_e9142a07affeDDwscft8gUBgL7",
+            "callID": "call_1_0",
+            "childID": "ses_e91429dc6ffewV0oeVzWvaBx6a",
+            "userID": "msg_16ebd623c001hZj12bf6rJYaI0",
+            "freezeAt": 1792859267661
+          }
+        },
+        {
+          "hook": {
+            "at": 1792859267709,
+            "phase": "return",
+            "sessionID": "ses_e91429dc6ffewV0oeVzWvaBx6a",
+            "operation": "chat.message",
+            "messageID": "msg_16ebd627d001Ei5UHcukJ6PdIN",
+            "agent": "intake",
+            "executions": [
+              {
+                "ref": "a133c861-be28-44be-9d52-a6132e0cb10f",
+                "parent": "ses_e9142a07affeDDwscft8gUBgL7",
+                "callID": "call_1_0",
+                "childID": "ses_e91429dc6ffewV0oeVzWvaBx6a",
+                "state": "completed",
+                "delivered": true,
+                "noticeMessageID": "msg_16ebd6269001Ydd7E4PEQv7pPQ"
+              },
+              {
+                "ref": "2cb80d98-9ce9-4198-a088-54a78fe3adcc",
+                "parent": "ses_e9142a07affeDDwscft8gUBgL7",
+                "callID": "call_4_0",
+                "childID": "ses_e91429dc6ffewV0oeVzWvaBx6a",
+                "state": "running",
+                "delivered": false
+              }
+            ],
+            "binding": {
+              "parentID": "ses_e9142a07affeDDwscft8gUBgL7",
+              "role": "intake",
+              "dispatchCallID": "call_1_0"
+            }
+          },
+          "candidate": {
+            "ref": "2cb80d98-9ce9-4198-a088-54a78fe3adcc",
+            "parent": "ses_e9142a07affeDDwscft8gUBgL7",
+            "callID": "call_4_0",
+            "childID": "ses_e91429dc6ffewV0oeVzWvaBx6a",
+            "userID": "msg_16ebd627d001Ei5UHcukJ6PdIN",
+            "freezeAt": 1792859267709
+          }
+        }
+      ],
+      "chains": [
+        {
+          "ref": "a133c861-be28-44be-9d52-a6132e0cb10f",
+          "parent": "ses_e9142a07affeDDwscft8gUBgL7",
+          "callID": "call_1_0",
+          "childID": "ses_e91429dc6ffewV0oeVzWvaBx6a",
+          "userID": "msg_16ebd623c001hZj12bf6rJYaI0",
+          "freezeAt": 1792859267661,
+          "userRole": "user",
+          "assistants": [
+            {
+              "id": "msg_16ebd62500011Mt0BPBQhuuK1c",
+              "role": "assistant",
+              "parentID": "msg_16ebd623c001hZj12bf6rJYaI0",
+              "finish": "length",
+              "time": {
+                "created": 1792859267664,
+                "completed": 1792859267687
+              },
+              "textChars": 7
+            }
+          ],
+          "finalClassification": "incomplete",
+          "noticeAt": 1792859267690,
+          "classificationFromLastPreNoticePoll": "unknown:no-pre-notice-poll",
+          "modelCallCrossCheck": true
+        },
+        {
+          "ref": "2cb80d98-9ce9-4198-a088-54a78fe3adcc",
+          "parent": "ses_e9142a07affeDDwscft8gUBgL7",
+          "callID": "call_4_0",
+          "childID": "ses_e91429dc6ffewV0oeVzWvaBx6a",
+          "userID": "msg_16ebd627d001Ei5UHcukJ6PdIN",
+          "freezeAt": 1792859267709,
+          "userRole": "user",
+          "assistants": [
+            {
+              "id": "msg_16ebd6283001orghYtYKUWXuuE",
+              "role": "assistant",
+              "parentID": "msg_16ebd627d001Ei5UHcukJ6PdIN",
+              "finish": "stop",
+              "time": {
+                "created": 1792859267715,
+                "completed": 1792859267737
+              },
+              "textChars": 8
+            }
+          ],
+          "finalClassification": "complete",
+          "noticeAt": 1792859267739,
+          "classificationFromLastPreNoticePoll": "unknown:no-pre-notice-poll",
+          "modelCallCrossCheck": true
+        }
+      ],
+      "finalExecutions": [
+        {
+          "ref": "a133c861-be28-44be-9d52-a6132e0cb10f",
+          "run": "run",
+          "parent": "ses_e9142a07affeDDwscft8gUBgL7",
+          "callID": "call_1_0",
+          "role": "intake",
+          "childID": "ses_e91429dc6ffewV0oeVzWvaBx6a",
+          "state": "completed",
+          "delivered": true,
+          "noticeMessageID": "msg_16ebd6269001Ydd7E4PEQv7pPQ",
+          "delivery": "consumed"
+        },
+        {
+          "ref": "2cb80d98-9ce9-4198-a088-54a78fe3adcc",
+          "run": "run",
+          "parent": "ses_e9142a07affeDDwscft8gUBgL7",
+          "callID": "call_4_0",
+          "role": "intake",
+          "childID": "ses_e91429dc6ffewV0oeVzWvaBx6a",
+          "state": "completed",
+          "delivered": true,
+          "noticeMessageID": "msg_16ebd629a001ckp0M4wcgsQePy",
+          "delivery": "consumed"
+        }
+      ],
+      "noticeReads": [],
+      "correlationAudit": [
+        {
+          "seq": 1,
+          "t": 84,
+          "at": 1792859266952,
+          "sessionID": "ses_e9142a07affeDDwscft8gUBgL7",
+          "op": "bind",
+          "allow": true,
+          "detail": {
+            "role": "coordinator",
+            "via": "root"
+          },
+          "role": "coordinator"
+        },
+        {
+          "seq": 4,
+          "t": 767,
+          "at": 1792859267635,
+          "sessionID": "ses_e9142a07affeDDwscft8gUBgL7",
+          "op": "dispatch.register",
+          "allow": true,
+          "detail": {
+            "role": "intake",
+            "callID": "call_1_0",
+            "argsFingerprint": "218c63fa83e6e95d8b4355a86453299b3689922d47271e62e5788db4959515d3"
+          },
+          "role": "coordinator"
+        },
+        {
+          "seq": 5,
+          "t": 767,
+          "at": 1792859267635,
+          "sessionID": "ses_e9142a07affeDDwscft8gUBgL7",
+          "op": "task.execution",
+          "allow": true,
+          "detail": {
+            "ref": "a133c861-be28-44be-9d52-a6132e0cb10f",
+            "run": "run",
+            "parent": "ses_e9142a07affeDDwscft8gUBgL7",
+            "callID": "call_1_0",
+            "role": "intake",
+            "state": "starting",
+            "delivered": false
+          },
+          "role": "coordinator"
+        },
+        {
+          "seq": 7,
+          "t": 778,
+          "at": 1792859267646,
+          "sessionID": "ses_e9142a07affeDDwscft8gUBgL7",
+          "op": "task.correlate",
+          "allow": true,
+          "detail": {
+            "callID": "call_1_0",
+            "childSessionID": "ses_e91429dc6ffewV0oeVzWvaBx6a",
+            "childBoundToCaller": false
+          },
+          "role": "coordinator"
+        },
+        {
+          "seq": 9,
+          "t": 793,
+          "at": 1792859267661,
+          "sessionID": "ses_e91429dc6ffewV0oeVzWvaBx6a",
+          "op": "bind",
+          "allow": true,
+          "detail": {
+            "role": "intake",
+            "via": "dispatch",
+            "sdkParentID": "ses_e9142a07affeDDwscft8gUBgL7",
+            "sdkAgent": "intake",
+            "callID": "call_1_0",
+            "sdkMs": 16
+          },
+          "role": "intake"
+        },
+        {
+          "seq": 13,
+          "t": 822,
+          "at": 1792859267690,
+          "sessionID": "ses_e9142a07affeDDwscft8gUBgL7",
+          "op": "task.completion",
+          "allow": true,
+          "detail": {
+            "ref": "a133c861-be28-44be-9d52-a6132e0cb10f",
+            "childID": "ses_e91429dc6ffewV0oeVzWvaBx6a",
+            "callID": "call_1_0",
+            "state": "completed",
+            "messageID": "msg_16ebd6269001Ydd7E4PEQv7pPQ",
+            "wake": true
+          },
+          "role": "coordinator"
+        },
+        {
+          "seq": 15,
+          "t": 835,
+          "at": 1792859267703,
+          "sessionID": "ses_e9142a07affeDDwscft8gUBgL7",
+          "op": "task.delivered",
+          "allow": true,
+          "detail": {
+            "ref": "a133c861-be28-44be-9d52-a6132e0cb10f",
+            "messageID": "msg_16ebd6269001Ydd7E4PEQv7pPQ",
+            "admitNo": 4
+          },
+          "role": "coordinator"
+        },
+        {
+          "seq": 17,
+          "t": 839,
+          "at": 1792859267707,
+          "sessionID": "ses_e9142a07affeDDwscft8gUBgL7",
+          "op": "dispatch.resume",
+          "allow": true,
+          "detail": {
+            "role": "intake",
+            "taskId": "ses_e91429dc6ffewV0oeVzWvaBx6a",
+            "declarationConsumed": false
+          },
+          "role": "coordinator"
+        },
+        {
+          "seq": 18,
+          "t": 839,
+          "at": 1792859267707,
+          "sessionID": "ses_e9142a07affeDDwscft8gUBgL7",
+          "op": "task.execution",
+          "allow": true,
+          "detail": {
+            "ref": "2cb80d98-9ce9-4198-a088-54a78fe3adcc",
+            "run": "run",
+            "parent": "ses_e9142a07affeDDwscft8gUBgL7",
+            "callID": "call_4_0",
+            "role": "intake",
+            "childID": "ses_e91429dc6ffewV0oeVzWvaBx6a",
+            "state": "running",
+            "delivered": false
+          },
+          "role": "coordinator"
+        },
+        {
+          "seq": 21,
+          "t": 842,
+          "at": 1792859267710,
+          "sessionID": "ses_e9142a07affeDDwscft8gUBgL7",
+          "op": "task.correlate",
+          "allow": true,
+          "detail": {
+            "callID": "call_4_0",
+            "childSessionID": "ses_e91429dc6ffewV0oeVzWvaBx6a",
+            "childBoundToCaller": true
+          },
+          "role": "coordinator"
+        },
+        {
+          "seq": 25,
+          "t": 871,
+          "at": 1792859267739,
+          "sessionID": "ses_e9142a07affeDDwscft8gUBgL7",
+          "op": "task.completion",
+          "allow": true,
+          "detail": {
+            "ref": "2cb80d98-9ce9-4198-a088-54a78fe3adcc",
+            "childID": "ses_e91429dc6ffewV0oeVzWvaBx6a",
+            "callID": "call_4_0",
+            "state": "completed",
+            "messageID": "msg_16ebd629a001ckp0M4wcgsQePy",
+            "wake": true
+          },
+          "role": "coordinator"
+        },
+        {
+          "seq": 27,
+          "t": 888,
+          "at": 1792859267756,
+          "sessionID": "ses_e9142a07affeDDwscft8gUBgL7",
+          "op": "task.delivered",
+          "allow": true,
+          "detail": {
+            "ref": "2cb80d98-9ce9-4198-a088-54a78fe3adcc",
+            "messageID": "msg_16ebd629a001ckp0M4wcgsQePy",
+            "admitNo": 7
+          },
+          "role": "coordinator"
+        }
+      ],
+      "requests": [
+        {
+          "at": 1792859267576,
+          "isRoot": true,
+          "isChild": false,
+          "rootStep": 1,
+          "childCount": 0,
+          "finish": "tool_calls",
+          "calls": [
+            {
+              "name": "task",
+              "subagent_type": "intake",
+              "background": true,
+              "promptChars": 11,
+              "promptSHA256": "66fddd00ccb86fb21cdba02ac7bdda0449cd8c00622ffeaed38f241dadf03e1a",
+              "descriptionChars": 16,
+              "descriptionSHA256": "aba0243578212720268332e8d6dc48e513385c035ef626f2b2138b2925e46970"
+            }
+          ],
+          "max_tokens": 128
+        },
+        {
+          "at": 1792859267670,
+          "isRoot": true,
+          "isChild": false,
+          "rootStep": 1,
+          "childCount": 0,
+          "finish": "stop",
+          "calls": [],
+          "max_tokens": 128
+        },
+        {
+          "at": 1792859267683,
+          "isRoot": false,
+          "isChild": true,
+          "rootStep": 1,
+          "childCount": 1,
+          "finish": "length",
+          "calls": [],
+          "max_tokens": 128
+        },
+        {
+          "at": 1792859267705,
+          "isRoot": true,
+          "isChild": false,
+          "rootStep": 2,
+          "childCount": 1,
+          "finish": "tool_calls",
+          "calls": [
+            {
+              "name": "task",
+              "subagent_type": "intake",
+              "task_id": "ses_e91429dc6ffewV0oeVzWvaBx6a",
+              "background": true,
+              "promptChars": 11,
+              "promptSHA256": "66fddd00ccb86fb21cdba02ac7bdda0449cd8c00622ffeaed38f241dadf03e1a",
+              "descriptionChars": 16,
+              "descriptionSHA256": "aba0243578212720268332e8d6dc48e513385c035ef626f2b2138b2925e46970"
+            }
+          ],
+          "max_tokens": 128
+        },
+        {
+          "at": 1792859267730,
+          "isRoot": true,
+          "isChild": false,
+          "rootStep": 2,
+          "childCount": 1,
+          "finish": "stop",
+          "calls": [],
+          "max_tokens": 128
+        },
+        {
+          "at": 1792859267731,
+          "isRoot": false,
+          "isChild": true,
+          "rootStep": 2,
+          "childCount": 2,
+          "finish": "stop",
+          "calls": [],
+          "max_tokens": 128
+        },
+        {
+          "at": 1792859267758,
+          "isRoot": true,
+          "isChild": false,
+          "rootStep": 2,
+          "childCount": 2,
+          "finish": "stop",
+          "calls": [],
+          "max_tokens": 128
+        }
+      ]
+    },
+    {
+      "case": "single-empty",
+      "result": {
+        "code": 0,
+        "status": "completed",
+        "runDir": "/private/var/folders/tn/x1hbkfy17sx0w1lb8kjzzr340000gn/T/ctf-child-correlation-km69t97l/single-empty/runs/run"
+      },
+      "version": "1.19.3",
+      "admittedModelCalls": 7,
+      "usageTotal": {
+        "availability": "reported",
+        "input_tokens": 7,
+        "output_tokens": 7,
+        "reasoning_tokens": 0,
+        "lowerBound": false
+      },
+      "captures": [
+        {
+          "hook": {
+            "at": 1792859270533,
+            "phase": "return",
+            "sessionID": "ses_e914292b1ffeZlpjGhiFlZcvJf",
+            "operation": "chat.message",
+            "messageID": "msg_16ebd6d50001FBbXotIWNNuPyF",
+            "agent": "intake",
+            "executions": [
+              {
+                "ref": "f068cddf-f2f6-48d2-8b08-46f8387f0343",
+                "parent": "ses_e91429736ffe6ytDHLxT2x3GM0",
+                "callID": "call_1_0",
+                "childID": "ses_e914292b1ffeZlpjGhiFlZcvJf",
+                "state": "running",
+                "delivered": false
+              }
+            ],
+            "binding": {
+              "parentID": "ses_e91429736ffe6ytDHLxT2x3GM0",
+              "role": "intake",
+              "dispatchCallID": "call_1_0"
+            }
+          },
+          "candidate": {
+            "ref": "f068cddf-f2f6-48d2-8b08-46f8387f0343",
+            "parent": "ses_e91429736ffe6ytDHLxT2x3GM0",
+            "callID": "call_1_0",
+            "childID": "ses_e914292b1ffeZlpjGhiFlZcvJf",
+            "userID": "msg_16ebd6d50001FBbXotIWNNuPyF",
+            "freezeAt": 1792859270533
+          }
+        },
+        {
+          "hook": {
+            "at": 1792859270587,
+            "phase": "return",
+            "sessionID": "ses_e914292b1ffeZlpjGhiFlZcvJf",
+            "operation": "chat.message",
+            "messageID": "msg_16ebd6dba001la5fV18jKkSFuH",
+            "agent": "intake",
+            "executions": [
+              {
+                "ref": "f068cddf-f2f6-48d2-8b08-46f8387f0343",
+                "parent": "ses_e91429736ffe6ytDHLxT2x3GM0",
+                "callID": "call_1_0",
+                "childID": "ses_e914292b1ffeZlpjGhiFlZcvJf",
+                "state": "completed",
+                "delivered": true,
+                "noticeMessageID": "msg_16ebd6da7001d327eIJ4usnfLr"
+              },
+              {
+                "ref": "47f2ca5a-5677-49c1-9363-aeb1c3456b3e",
+                "parent": "ses_e91429736ffe6ytDHLxT2x3GM0",
+                "callID": "call_4_0",
+                "childID": "ses_e914292b1ffeZlpjGhiFlZcvJf",
+                "state": "running",
+                "delivered": false
+              }
+            ],
+            "binding": {
+              "parentID": "ses_e91429736ffe6ytDHLxT2x3GM0",
+              "role": "intake",
+              "dispatchCallID": "call_1_0"
+            }
+          },
+          "candidate": {
+            "ref": "47f2ca5a-5677-49c1-9363-aeb1c3456b3e",
+            "parent": "ses_e91429736ffe6ytDHLxT2x3GM0",
+            "callID": "call_4_0",
+            "childID": "ses_e914292b1ffeZlpjGhiFlZcvJf",
+            "userID": "msg_16ebd6dba001la5fV18jKkSFuH",
+            "freezeAt": 1792859270587
+          }
+        }
+      ],
+      "chains": [
+        {
+          "ref": "f068cddf-f2f6-48d2-8b08-46f8387f0343",
+          "parent": "ses_e91429736ffe6ytDHLxT2x3GM0",
+          "callID": "call_1_0",
+          "childID": "ses_e914292b1ffeZlpjGhiFlZcvJf",
+          "userID": "msg_16ebd6d50001FBbXotIWNNuPyF",
+          "freezeAt": 1792859270533,
+          "userRole": "user",
+          "assistants": [
+            {
+              "id": "msg_16ebd6d880017UGTJWCRwUEXe6",
+              "role": "assistant",
+              "parentID": "msg_16ebd6d50001FBbXotIWNNuPyF",
+              "finish": "length",
+              "time": {
+                "created": 1792859270536,
+                "completed": 1792859270566
+              },
+              "textChars": 0
+            }
+          ],
+          "finalClassification": "incomplete",
+          "noticeAt": 1792859270567,
+          "classificationFromLastPreNoticePoll": "unknown:no-pre-notice-poll",
+          "modelCallCrossCheck": true
+        },
+        {
+          "ref": "47f2ca5a-5677-49c1-9363-aeb1c3456b3e",
+          "parent": "ses_e91429736ffe6ytDHLxT2x3GM0",
+          "callID": "call_4_0",
+          "childID": "ses_e914292b1ffeZlpjGhiFlZcvJf",
+          "userID": "msg_16ebd6dba001la5fV18jKkSFuH",
+          "freezeAt": 1792859270587,
+          "userRole": "user",
+          "assistants": [
+            {
+              "id": "msg_16ebd6dc0001jMy9bw54fQedON",
+              "role": "assistant",
+              "parentID": "msg_16ebd6dba001la5fV18jKkSFuH",
+              "finish": "stop",
+              "time": {
+                "created": 1792859270592,
+                "completed": 1792859270608
+              },
+              "textChars": 8
+            }
+          ],
+          "finalClassification": "complete",
+          "noticeAt": 1792859270609,
+          "classificationFromLastPreNoticePoll": "unknown",
+          "modelCallCrossCheck": true
+        }
+      ],
+      "finalExecutions": [
+        {
+          "ref": "f068cddf-f2f6-48d2-8b08-46f8387f0343",
+          "run": "run",
+          "parent": "ses_e91429736ffe6ytDHLxT2x3GM0",
+          "callID": "call_1_0",
+          "role": "intake",
+          "childID": "ses_e914292b1ffeZlpjGhiFlZcvJf",
+          "state": "completed",
+          "delivered": true,
+          "noticeMessageID": "msg_16ebd6da7001d327eIJ4usnfLr",
+          "delivery": "consumed"
+        },
+        {
+          "ref": "47f2ca5a-5677-49c1-9363-aeb1c3456b3e",
+          "run": "run",
+          "parent": "ses_e91429736ffe6ytDHLxT2x3GM0",
+          "callID": "call_4_0",
+          "role": "intake",
+          "childID": "ses_e914292b1ffeZlpjGhiFlZcvJf",
+          "state": "completed",
+          "delivered": true,
+          "noticeMessageID": "msg_16ebd6dd1001ZgtroI963FkPox",
+          "delivery": "consumed"
+        }
+      ],
+      "noticeReads": [],
+      "correlationAudit": [
+        {
+          "seq": 1,
+          "t": 59,
+          "at": 1792859269324,
+          "sessionID": "ses_e91429736ffe6ytDHLxT2x3GM0",
+          "op": "bind",
+          "allow": true,
+          "detail": {
+            "role": "coordinator",
+            "via": "root"
+          },
+          "role": "coordinator"
+        },
+        {
+          "seq": 4,
+          "t": 1210,
+          "at": 1792859270475,
+          "sessionID": "ses_e91429736ffe6ytDHLxT2x3GM0",
+          "op": "dispatch.register",
+          "allow": true,
+          "detail": {
+            "role": "intake",
+            "callID": "call_1_0",
+            "argsFingerprint": "218c63fa83e6e95d8b4355a86453299b3689922d47271e62e5788db4959515d3"
+          },
+          "role": "coordinator"
+        },
+        {
+          "seq": 5,
+          "t": 1210,
+          "at": 1792859270475,
+          "sessionID": "ses_e91429736ffe6ytDHLxT2x3GM0",
+          "op": "task.execution",
+          "allow": true,
+          "detail": {
+            "ref": "f068cddf-f2f6-48d2-8b08-46f8387f0343",
+            "run": "run",
+            "parent": "ses_e91429736ffe6ytDHLxT2x3GM0",
+            "callID": "call_1_0",
+            "role": "intake",
+            "state": "starting",
+            "delivered": false
+          },
+          "role": "coordinator"
+        },
+        {
+          "seq": 7,
+          "t": 1217,
+          "at": 1792859270482,
+          "sessionID": "ses_e91429736ffe6ytDHLxT2x3GM0",
+          "op": "task.correlate",
+          "allow": true,
+          "detail": {
+            "callID": "call_1_0",
+            "childSessionID": "ses_e914292b1ffeZlpjGhiFlZcvJf",
+            "childBoundToCaller": false
+          },
+          "role": "coordinator"
+        },
+        {
+          "seq": 9,
+          "t": 1268,
+          "at": 1792859270533,
+          "sessionID": "ses_e914292b1ffeZlpjGhiFlZcvJf",
+          "op": "bind",
+          "allow": true,
+          "detail": {
+            "role": "intake",
+            "via": "dispatch",
+            "sdkParentID": "ses_e91429736ffe6ytDHLxT2x3GM0",
+            "sdkAgent": "intake",
+            "callID": "call_1_0",
+            "sdkMs": 52
+          },
+          "role": "intake"
+        },
+        {
+          "seq": 13,
+          "t": 1302,
+          "at": 1792859270567,
+          "sessionID": "ses_e91429736ffe6ytDHLxT2x3GM0",
+          "op": "task.completion",
+          "allow": true,
+          "detail": {
+            "ref": "f068cddf-f2f6-48d2-8b08-46f8387f0343",
+            "childID": "ses_e914292b1ffeZlpjGhiFlZcvJf",
+            "callID": "call_1_0",
+            "state": "completed",
+            "messageID": "msg_16ebd6da7001d327eIJ4usnfLr",
+            "wake": true
+          },
+          "role": "coordinator"
+        },
+        {
+          "seq": 15,
+          "t": 1311,
+          "at": 1792859270576,
+          "sessionID": "ses_e91429736ffe6ytDHLxT2x3GM0",
+          "op": "task.delivered",
+          "allow": true,
+          "detail": {
+            "ref": "f068cddf-f2f6-48d2-8b08-46f8387f0343",
+            "messageID": "msg_16ebd6da7001d327eIJ4usnfLr",
+            "admitNo": 4
+          },
+          "role": "coordinator"
+        },
+        {
+          "seq": 17,
+          "t": 1319,
+          "at": 1792859270584,
+          "sessionID": "ses_e91429736ffe6ytDHLxT2x3GM0",
+          "op": "dispatch.resume",
+          "allow": true,
+          "detail": {
+            "role": "intake",
+            "taskId": "ses_e914292b1ffeZlpjGhiFlZcvJf",
+            "declarationConsumed": false
+          },
+          "role": "coordinator"
+        },
+        {
+          "seq": 18,
+          "t": 1319,
+          "at": 1792859270584,
+          "sessionID": "ses_e91429736ffe6ytDHLxT2x3GM0",
+          "op": "task.execution",
+          "allow": true,
+          "detail": {
+            "ref": "47f2ca5a-5677-49c1-9363-aeb1c3456b3e",
+            "run": "run",
+            "parent": "ses_e91429736ffe6ytDHLxT2x3GM0",
+            "callID": "call_4_0",
+            "role": "intake",
+            "childID": "ses_e914292b1ffeZlpjGhiFlZcvJf",
+            "state": "running",
+            "delivered": false
+          },
+          "role": "coordinator"
+        },
+        {
+          "seq": 21,
+          "t": 1322,
+          "at": 1792859270587,
+          "sessionID": "ses_e91429736ffe6ytDHLxT2x3GM0",
+          "op": "task.correlate",
+          "allow": true,
+          "detail": {
+            "callID": "call_4_0",
+            "childSessionID": "ses_e914292b1ffeZlpjGhiFlZcvJf",
+            "childBoundToCaller": true
+          },
+          "role": "coordinator"
+        },
+        {
+          "seq": 25,
+          "t": 1344,
+          "at": 1792859270609,
+          "sessionID": "ses_e91429736ffe6ytDHLxT2x3GM0",
+          "op": "task.completion",
+          "allow": true,
+          "detail": {
+            "ref": "47f2ca5a-5677-49c1-9363-aeb1c3456b3e",
+            "childID": "ses_e914292b1ffeZlpjGhiFlZcvJf",
+            "callID": "call_4_0",
+            "state": "completed",
+            "messageID": "msg_16ebd6dd1001ZgtroI963FkPox",
+            "wake": true
+          },
+          "role": "coordinator"
+        },
+        {
+          "seq": 27,
+          "t": 1362,
+          "at": 1792859270627,
+          "sessionID": "ses_e91429736ffe6ytDHLxT2x3GM0",
+          "op": "task.delivered",
+          "allow": true,
+          "detail": {
+            "ref": "47f2ca5a-5677-49c1-9363-aeb1c3456b3e",
+            "messageID": "msg_16ebd6dd1001ZgtroI963FkPox",
+            "admitNo": 7
+          },
+          "role": "coordinator"
+        }
+      ],
+      "requests": [
+        {
+          "at": 1792859270466,
+          "isRoot": true,
+          "isChild": false,
+          "rootStep": 1,
+          "childCount": 0,
+          "finish": "tool_calls",
+          "calls": [
+            {
+              "name": "task",
+              "subagent_type": "intake",
+              "background": true,
+              "promptChars": 11,
+              "promptSHA256": "66fddd00ccb86fb21cdba02ac7bdda0449cd8c00622ffeaed38f241dadf03e1a",
+              "descriptionChars": 16,
+              "descriptionSHA256": "aba0243578212720268332e8d6dc48e513385c035ef626f2b2138b2925e46970"
+            }
+          ],
+          "max_tokens": 128
+        },
+        {
+          "at": 1792859270549,
+          "isRoot": true,
+          "isChild": false,
+          "rootStep": 1,
+          "childCount": 0,
+          "finish": "stop",
+          "calls": [],
+          "max_tokens": 128
+        },
+        {
+          "at": 1792859270562,
+          "isRoot": false,
+          "isChild": true,
+          "rootStep": 1,
+          "childCount": 1,
+          "finish": "length",
+          "calls": [],
+          "max_tokens": 128
+        },
+        {
+          "at": 1792859270581,
+          "isRoot": true,
+          "isChild": false,
+          "rootStep": 2,
+          "childCount": 1,
+          "finish": "tool_calls",
+          "calls": [
+            {
+              "name": "task",
+              "subagent_type": "intake",
+              "task_id": "ses_e914292b1ffeZlpjGhiFlZcvJf",
+              "background": true,
+              "promptChars": 11,
+              "promptSHA256": "66fddd00ccb86fb21cdba02ac7bdda0449cd8c00622ffeaed38f241dadf03e1a",
+              "descriptionChars": 16,
+              "descriptionSHA256": "aba0243578212720268332e8d6dc48e513385c035ef626f2b2138b2925e46970"
+            }
+          ],
+          "max_tokens": 128
+        },
+        {
+          "at": 1792859270604,
+          "isRoot": false,
+          "isChild": true,
+          "rootStep": 2,
+          "childCount": 2,
+          "finish": "stop",
+          "calls": [],
+          "max_tokens": 128
+        },
+        {
+          "at": 1792859270605,
+          "isRoot": true,
+          "isChild": false,
+          "rootStep": 2,
+          "childCount": 2,
+          "finish": "stop",
+          "calls": [],
+          "max_tokens": 128
+        },
+        {
+          "at": 1792859270629,
+          "isRoot": true,
+          "isChild": false,
+          "rootStep": 2,
+          "childCount": 2,
+          "finish": "stop",
+          "calls": [],
+          "max_tokens": 128
+        }
+      ]
+    },
+    {
+      "case": "partial",
+      "result": {
+        "code": 1,
+        "status": "deadline_exceeded",
+        "runDir": "/private/var/folders/tn/x1hbkfy17sx0w1lb8kjzzr340000gn/T/ctf-child-correlation-km69t97l/partial/runs/run"
+      },
+      "version": "1.19.3",
+      "admittedModelCalls": 8,
+      "usageTotal": {
+        "availability": "reported",
+        "input_tokens": 8,
+        "output_tokens": 8,
+        "reasoning_tokens": 0,
+        "lowerBound": true
+      },
+      "captures": [
+        {
+          "hook": {
+            "at": 1792859217177,
+            "phase": "return",
+            "sessionID": "ses_e914362fdffeKamcK1A7EtfUV4",
+            "operation": "chat.message",
+            "messageID": "msg_16ebc9d05001BFiSfJzMa8Llee",
+            "agent": "intake",
+            "executions": [
+              {
+                "ref": "1d6a1c1d-1aba-40b4-8626-a172edd57ba7",
+                "parent": "ses_e914365c6ffeQI45ZwHQLeqkhg",
+                "callID": "call_1_0",
+                "childID": "ses_e914362fdffeKamcK1A7EtfUV4",
+                "state": "running",
+                "delivered": false
+              },
+              {
+                "ref": "ec3b1737-c2cc-472d-be30-171f2ab3a5ce",
+                "parent": "ses_e914365c6ffeQI45ZwHQLeqkhg",
+                "callID": "call_1_1",
+                "childID": "ses_e914362f9ffeSrqCs3GstmMHMF",
+                "state": "starting",
+                "delivered": false
+              }
+            ],
+            "binding": {
+              "parentID": "ses_e914365c6ffeQI45ZwHQLeqkhg",
+              "role": "intake",
+              "dispatchCallID": "call_1_0"
+            }
+          },
+          "candidate": {
+            "ref": "1d6a1c1d-1aba-40b4-8626-a172edd57ba7",
+            "parent": "ses_e914365c6ffeQI45ZwHQLeqkhg",
+            "callID": "call_1_0",
+            "childID": "ses_e914362fdffeKamcK1A7EtfUV4",
+            "userID": "msg_16ebc9d05001BFiSfJzMa8Llee",
+            "freezeAt": 1792859217177
+          }
+        },
+        {
+          "hook": {
+            "at": 1792859217177,
+            "phase": "return",
+            "sessionID": "ses_e914362f9ffeSrqCs3GstmMHMF",
+            "operation": "chat.message",
+            "messageID": "msg_16ebc9d08001vSfNCqwjnRFwvF",
+            "agent": "strategy",
+            "executions": [
+              {
+                "ref": "1d6a1c1d-1aba-40b4-8626-a172edd57ba7",
+                "parent": "ses_e914365c6ffeQI45ZwHQLeqkhg",
+                "callID": "call_1_0",
+                "childID": "ses_e914362fdffeKamcK1A7EtfUV4",
+                "state": "running",
+                "delivered": false
+              },
+              {
+                "ref": "ec3b1737-c2cc-472d-be30-171f2ab3a5ce",
+                "parent": "ses_e914365c6ffeQI45ZwHQLeqkhg",
+                "callID": "call_1_1",
+                "childID": "ses_e914362f9ffeSrqCs3GstmMHMF",
+                "state": "running",
+                "delivered": false
+              }
+            ],
+            "binding": {
+              "parentID": "ses_e914365c6ffeQI45ZwHQLeqkhg",
+              "role": "strategy",
+              "dispatchCallID": "call_1_1"
+            }
+          },
+          "candidate": {
+            "ref": "ec3b1737-c2cc-472d-be30-171f2ab3a5ce",
+            "parent": "ses_e914365c6ffeQI45ZwHQLeqkhg",
+            "callID": "call_1_1",
+            "childID": "ses_e914362f9ffeSrqCs3GstmMHMF",
+            "userID": "msg_16ebc9d08001vSfNCqwjnRFwvF",
+            "freezeAt": 1792859217177
+          }
+        },
+        {
+          "hook": {
+            "at": 1792859217234,
+            "phase": "return",
+            "sessionID": "ses_e914362fdffeKamcK1A7EtfUV4",
+            "operation": "chat.message",
+            "messageID": "msg_16ebc9d51001Ub6Hpnr3L2Hnql",
+            "agent": "intake",
+            "executions": [
+              {
+                "ref": "1d6a1c1d-1aba-40b4-8626-a172edd57ba7",
+                "parent": "ses_e914365c6ffeQI45ZwHQLeqkhg",
+                "callID": "call_1_0",
+                "childID": "ses_e914362fdffeKamcK1A7EtfUV4",
+                "state": "completed",
+                "delivered": true,
+                "noticeMessageID": "msg_16ebc9d3d001WLBGusNChro8KF"
+              },
+              {
+                "ref": "ec3b1737-c2cc-472d-be30-171f2ab3a5ce",
+                "parent": "ses_e914365c6ffeQI45ZwHQLeqkhg",
+                "callID": "call_1_1",
+                "childID": "ses_e914362f9ffeSrqCs3GstmMHMF",
+                "state": "completed",
+                "delivered": true,
+                "noticeMessageID": "msg_16ebc9d39001Ad3oD00exYPk5P"
+              },
+              {
+                "ref": "015196c4-e1d5-4183-971a-6470c100f1b7",
+                "parent": "ses_e914365c6ffeQI45ZwHQLeqkhg",
+                "callID": "call_5_0",
+                "childID": "ses_e914362fdffeKamcK1A7EtfUV4",
+                "state": "running",
+                "delivered": false
+              }
+            ],
+            "binding": {
+              "parentID": "ses_e914365c6ffeQI45ZwHQLeqkhg",
+              "role": "intake",
+              "dispatchCallID": "call_1_0"
+            }
+          },
+          "candidate": {
+            "ref": "015196c4-e1d5-4183-971a-6470c100f1b7",
+            "parent": "ses_e914365c6ffeQI45ZwHQLeqkhg",
+            "callID": "call_5_0",
+            "childID": "ses_e914362fdffeKamcK1A7EtfUV4",
+            "userID": "msg_16ebc9d51001Ub6Hpnr3L2Hnql",
+            "freezeAt": 1792859217234
+          }
+        }
+      ],
+      "chains": [
+        {
+          "ref": "1d6a1c1d-1aba-40b4-8626-a172edd57ba7",
+          "parent": "ses_e914365c6ffeQI45ZwHQLeqkhg",
+          "callID": "call_1_0",
+          "childID": "ses_e914362fdffeKamcK1A7EtfUV4",
+          "userID": "msg_16ebc9d05001BFiSfJzMa8Llee",
+          "freezeAt": 1792859217177,
+          "userRole": "user",
+          "assistants": [
+            {
+              "id": "msg_16ebc9d1d001FC9XGSSNJpTR6C",
+              "role": "assistant",
+              "parentID": "msg_16ebc9d05001BFiSfJzMa8Llee",
+              "finish": "length",
+              "time": {
+                "created": 1792859217181,
+                "completed": 1792859217212
+              },
+              "textChars": 7
+            }
+          ],
+          "finalClassification": "incomplete",
+          "noticeAt": 1792859217213,
+          "classificationFromLastPreNoticePoll": "unknown:no-pre-notice-poll",
+          "modelCallCrossCheck": true
+        },
+        {
+          "ref": "ec3b1737-c2cc-472d-be30-171f2ab3a5ce",
+          "parent": "ses_e914365c6ffeQI45ZwHQLeqkhg",
+          "callID": "call_1_1",
+          "childID": "ses_e914362f9ffeSrqCs3GstmMHMF",
+          "userID": "msg_16ebc9d08001vSfNCqwjnRFwvF",
+          "freezeAt": 1792859217177,
+          "userRole": "user",
+          "assistants": [
+            {
+              "id": "msg_16ebc9d1e001Lk2LZPtEVLw5b3",
+              "role": "assistant",
+              "parentID": "msg_16ebc9d08001vSfNCqwjnRFwvF",
+              "finish": "length",
+              "time": {
+                "created": 1792859217182,
+                "completed": 1792859217208
+              },
+              "textChars": 7
+            }
+          ],
+          "finalClassification": "incomplete",
+          "noticeAt": 1792859217210,
+          "classificationFromLastPreNoticePoll": "unknown:no-pre-notice-poll",
+          "modelCallCrossCheck": true
+        },
+        {
+          "ref": "015196c4-e1d5-4183-971a-6470c100f1b7",
+          "parent": "ses_e914365c6ffeQI45ZwHQLeqkhg",
+          "callID": "call_5_0",
+          "childID": "ses_e914362fdffeKamcK1A7EtfUV4",
+          "userID": "msg_16ebc9d51001Ub6Hpnr3L2Hnql",
+          "freezeAt": 1792859217234,
+          "userRole": "user",
+          "assistants": [
+            {
+              "id": "msg_16ebc9d57001CbAhOcQ7DDsH7U",
+              "role": "assistant",
+              "parentID": "msg_16ebc9d51001Ub6Hpnr3L2Hnql",
+              "finish": "stop",
+              "time": {
+                "created": 1792859217239,
+                "completed": 1792859217260
+              },
+              "textChars": 8
+            }
+          ],
+          "finalClassification": "complete",
+          "noticeAt": 1792859217261,
+          "classificationFromLastPreNoticePoll": "unknown:no-pre-notice-poll",
+          "modelCallCrossCheck": true
+        }
+      ],
+      "finalExecutions": [
+        {
+          "ref": "1d6a1c1d-1aba-40b4-8626-a172edd57ba7",
+          "run": "run",
+          "parent": "ses_e914365c6ffeQI45ZwHQLeqkhg",
+          "callID": "call_1_0",
+          "role": "intake",
+          "childID": "ses_e914362fdffeKamcK1A7EtfUV4",
+          "state": "completed",
+          "delivered": true,
+          "noticeMessageID": "msg_16ebc9d3d001WLBGusNChro8KF",
+          "delivery": "consumed"
+        },
+        {
+          "ref": "ec3b1737-c2cc-472d-be30-171f2ab3a5ce",
+          "run": "run",
+          "parent": "ses_e914365c6ffeQI45ZwHQLeqkhg",
+          "callID": "call_1_1",
+          "role": "strategy",
+          "childID": "ses_e914362f9ffeSrqCs3GstmMHMF",
+          "state": "completed",
+          "delivered": true,
+          "noticeMessageID": "msg_16ebc9d39001Ad3oD00exYPk5P",
+          "delivery": "suppressed"
+        },
+        {
+          "ref": "015196c4-e1d5-4183-971a-6470c100f1b7",
+          "run": "run",
+          "parent": "ses_e914365c6ffeQI45ZwHQLeqkhg",
+          "callID": "call_5_0",
+          "role": "intake",
+          "childID": "ses_e914362fdffeKamcK1A7EtfUV4",
+          "state": "completed",
+          "delivered": true,
+          "noticeMessageID": "msg_16ebc9d6d001fBYObgI6eY3Srz",
+          "delivery": "consumed"
+        }
+      ],
+      "noticeReads": [],
+      "correlationAudit": [
+        {
+          "seq": 1,
+          "t": 83,
+          "at": 1792859216445,
+          "sessionID": "ses_e914365c6ffeQI45ZwHQLeqkhg",
+          "op": "bind",
+          "allow": true,
+          "detail": {
+            "role": "coordinator",
+            "via": "root"
+          },
+          "role": "coordinator"
+        },
+        {
+          "seq": 4,
+          "t": 784,
+          "at": 1792859217146,
+          "sessionID": "ses_e914365c6ffeQI45ZwHQLeqkhg",
+          "op": "dispatch.register",
+          "allow": true,
+          "detail": {
+            "role": "intake",
+            "callID": "call_1_0",
+            "argsFingerprint": "218c63fa83e6e95d8b4355a86453299b3689922d47271e62e5788db4959515d3"
+          },
+          "role": "coordinator"
+        },
+        {
+          "seq": 5,
+          "t": 784,
+          "at": 1792859217146,
+          "sessionID": "ses_e914365c6ffeQI45ZwHQLeqkhg",
+          "op": "task.execution",
+          "allow": true,
+          "detail": {
+            "ref": "1d6a1c1d-1aba-40b4-8626-a172edd57ba7",
+            "run": "run",
+            "parent": "ses_e914365c6ffeQI45ZwHQLeqkhg",
+            "callID": "call_1_0",
+            "role": "intake",
+            "state": "starting",
+            "delivered": false
+          },
+          "role": "coordinator"
+        },
+        {
+          "seq": 7,
+          "t": 786,
+          "at": 1792859217148,
+          "sessionID": "ses_e914365c6ffeQI45ZwHQLeqkhg",
+          "op": "dispatch.register",
+          "allow": true,
+          "detail": {
+            "role": "strategy",
+            "callID": "call_1_1",
+            "argsFingerprint": "3fecfe9ccc78330f24521b769ef755ca5f7faf2a79390ed3e1bb50b54d60dcfd"
+          },
+          "role": "coordinator"
+        },
+        {
+          "seq": 8,
+          "t": 786,
+          "at": 1792859217148,
+          "sessionID": "ses_e914365c6ffeQI45ZwHQLeqkhg",
+          "op": "task.execution",
+          "allow": true,
+          "detail": {
+            "ref": "ec3b1737-c2cc-472d-be30-171f2ab3a5ce",
+            "run": "run",
+            "parent": "ses_e914365c6ffeQI45ZwHQLeqkhg",
+            "callID": "call_1_1",
+            "role": "strategy",
+            "state": "starting",
+            "delivered": false
+          },
+          "role": "coordinator"
+        },
+        {
+          "seq": 10,
+          "t": 797,
+          "at": 1792859217159,
+          "sessionID": "ses_e914365c6ffeQI45ZwHQLeqkhg",
+          "op": "task.correlate",
+          "allow": true,
+          "detail": {
+            "callID": "call_1_0",
+            "childSessionID": "ses_e914362fdffeKamcK1A7EtfUV4",
+            "childBoundToCaller": false
+          },
+          "role": "coordinator"
+        },
+        {
+          "seq": 12,
+          "t": 799,
+          "at": 1792859217161,
+          "sessionID": "ses_e914365c6ffeQI45ZwHQLeqkhg",
+          "op": "task.correlate",
+          "allow": true,
+          "detail": {
+            "callID": "call_1_1",
+            "childSessionID": "ses_e914362f9ffeSrqCs3GstmMHMF",
+            "childBoundToCaller": false
+          },
+          "role": "coordinator"
+        },
+        {
+          "seq": 14,
+          "t": 814,
+          "at": 1792859217176,
+          "sessionID": "ses_e914362fdffeKamcK1A7EtfUV4",
+          "op": "bind",
+          "allow": true,
+          "detail": {
+            "role": "intake",
+            "via": "dispatch",
+            "sdkParentID": "ses_e914365c6ffeQI45ZwHQLeqkhg",
+            "sdkAgent": "intake",
+            "callID": "call_1_0",
+            "sdkMs": 18
+          },
+          "role": "intake"
+        },
+        {
+          "seq": 16,
+          "t": 815,
+          "at": 1792859217177,
+          "sessionID": "ses_e914362f9ffeSrqCs3GstmMHMF",
+          "op": "bind",
+          "allow": true,
+          "detail": {
+            "role": "strategy",
+            "via": "dispatch",
+            "sdkParentID": "ses_e914365c6ffeQI45ZwHQLeqkhg",
+            "sdkAgent": "strategy",
+            "callID": "call_1_1",
+            "sdkMs": 16
+          },
+          "role": "strategy"
+        },
+        {
+          "seq": 21,
+          "t": 848,
+          "at": 1792859217210,
+          "sessionID": "ses_e914365c6ffeQI45ZwHQLeqkhg",
+          "op": "task.completion",
+          "allow": true,
+          "detail": {
+            "ref": "ec3b1737-c2cc-472d-be30-171f2ab3a5ce",
+            "childID": "ses_e914362f9ffeSrqCs3GstmMHMF",
+            "callID": "call_1_1",
+            "state": "completed",
+            "messageID": "msg_16ebc9d39001Ad3oD00exYPk5P",
+            "wake": true
+          },
+          "role": "coordinator"
+        },
+        {
+          "seq": 23,
+          "t": 851,
+          "at": 1792859217213,
+          "sessionID": "ses_e914365c6ffeQI45ZwHQLeqkhg",
+          "op": "task.completion",
+          "allow": true,
+          "detail": {
+            "ref": "1d6a1c1d-1aba-40b4-8626-a172edd57ba7",
+            "childID": "ses_e914362fdffeKamcK1A7EtfUV4",
+            "callID": "call_1_0",
+            "state": "completed",
+            "messageID": "msg_16ebc9d3d001WLBGusNChro8KF",
+            "wake": true
+          },
+          "role": "coordinator"
+        },
+        {
+          "seq": 25,
+          "t": 866,
+          "at": 1792859217228,
+          "sessionID": "ses_e914365c6ffeQI45ZwHQLeqkhg",
+          "op": "task.delivered",
+          "allow": true,
+          "detail": {
+            "ref": "1d6a1c1d-1aba-40b4-8626-a172edd57ba7",
+            "messageID": "msg_16ebc9d3d001WLBGusNChro8KF",
+            "admitNo": 5
+          },
+          "role": "coordinator"
+        },
+        {
+          "seq": 27,
+          "t": 870,
+          "at": 1792859217232,
+          "sessionID": "ses_e914365c6ffeQI45ZwHQLeqkhg",
+          "op": "dispatch.resume",
+          "allow": true,
+          "detail": {
+            "role": "intake",
+            "taskId": "ses_e914362fdffeKamcK1A7EtfUV4",
+            "declarationConsumed": false
+          },
+          "role": "coordinator"
+        },
+        {
+          "seq": 28,
+          "t": 870,
+          "at": 1792859217232,
+          "sessionID": "ses_e914365c6ffeQI45ZwHQLeqkhg",
+          "op": "task.execution",
+          "allow": true,
+          "detail": {
+            "ref": "015196c4-e1d5-4183-971a-6470c100f1b7",
+            "run": "run",
+            "parent": "ses_e914365c6ffeQI45ZwHQLeqkhg",
+            "callID": "call_5_0",
+            "role": "intake",
+            "childID": "ses_e914362fdffeKamcK1A7EtfUV4",
+            "state": "running",
+            "delivered": false
+          },
+          "role": "coordinator"
+        },
+        {
+          "seq": 31,
+          "t": 872,
+          "at": 1792859217234,
+          "sessionID": "ses_e914365c6ffeQI45ZwHQLeqkhg",
+          "op": "task.correlate",
+          "allow": true,
+          "detail": {
+            "callID": "call_5_0",
+            "childSessionID": "ses_e914362fdffeKamcK1A7EtfUV4",
+            "childBoundToCaller": true
+          },
+          "role": "coordinator"
+        },
+        {
+          "seq": 35,
+          "t": 899,
+          "at": 1792859217261,
+          "sessionID": "ses_e914365c6ffeQI45ZwHQLeqkhg",
+          "op": "task.completion",
+          "allow": true,
+          "detail": {
+            "ref": "015196c4-e1d5-4183-971a-6470c100f1b7",
+            "childID": "ses_e914362fdffeKamcK1A7EtfUV4",
+            "callID": "call_5_0",
+            "state": "completed",
+            "messageID": "msg_16ebc9d6d001fBYObgI6eY3Srz",
+            "wake": true
+          },
+          "role": "coordinator"
+        },
+        {
+          "seq": 37,
+          "t": 913,
+          "at": 1792859217275,
+          "sessionID": "ses_e914365c6ffeQI45ZwHQLeqkhg",
+          "op": "task.delivered",
+          "allow": true,
+          "detail": {
+            "ref": "015196c4-e1d5-4183-971a-6470c100f1b7",
+            "messageID": "msg_16ebc9d6d001fBYObgI6eY3Srz",
+            "admitNo": 8
+          },
+          "role": "coordinator"
+        }
+      ],
+      "requests": [
+        {
+          "at": 1792859217089,
+          "isRoot": true,
+          "isChild": false,
+          "rootStep": 1,
+          "childCount": 0,
+          "finish": "tool_calls",
+          "calls": [
+            {
+              "name": "task",
+              "subagent_type": "intake",
+              "background": true,
+              "promptChars": 11,
+              "promptSHA256": "66fddd00ccb86fb21cdba02ac7bdda0449cd8c00622ffeaed38f241dadf03e1a",
+              "descriptionChars": 16,
+              "descriptionSHA256": "aba0243578212720268332e8d6dc48e513385c035ef626f2b2138b2925e46970"
+            },
+            {
+              "name": "task",
+              "subagent_type": "strategy",
+              "background": true,
+              "promptChars": 11,
+              "promptSHA256": "66fddd00ccb86fb21cdba02ac7bdda0449cd8c00622ffeaed38f241dadf03e1a",
+              "descriptionChars": 16,
+              "descriptionSHA256": "aba0243578212720268332e8d6dc48e513385c035ef626f2b2138b2925e46970"
+            }
+          ],
+          "max_tokens": 128
+        },
+        {
+          "at": 1792859217195,
+          "isRoot": true,
+          "isChild": false,
+          "rootStep": 1,
+          "childCount": 0,
+          "finish": "stop",
+          "calls": [],
+          "max_tokens": 128
+        },
+        {
+          "at": 1792859217204,
+          "isRoot": false,
+          "isChild": true,
+          "rootStep": 1,
+          "childCount": 1,
+          "finish": "length",
+          "calls": [],
+          "max_tokens": 128
+        },
+        {
+          "at": 1792859217205,
+          "isRoot": false,
+          "isChild": true,
+          "rootStep": 1,
+          "childCount": 2,
+          "finish": "length",
+          "calls": [],
+          "max_tokens": 128
+        },
+        {
+          "at": 1792859217230,
+          "isRoot": true,
+          "isChild": false,
+          "rootStep": 2,
+          "childCount": 2,
+          "finish": "tool_calls",
+          "calls": [
+            {
+              "name": "task",
+              "subagent_type": "intake",
+              "task_id": "ses_e914362fdffeKamcK1A7EtfUV4",
+              "background": true,
+              "promptChars": 11,
+              "promptSHA256": "66fddd00ccb86fb21cdba02ac7bdda0449cd8c00622ffeaed38f241dadf03e1a",
+              "descriptionChars": 16,
+              "descriptionSHA256": "aba0243578212720268332e8d6dc48e513385c035ef626f2b2138b2925e46970"
+            }
+          ],
+          "max_tokens": 128
+        },
+        {
+          "at": 1792859217254,
+          "isRoot": true,
+          "isChild": false,
+          "rootStep": 2,
+          "childCount": 2,
+          "finish": "stop",
+          "calls": [],
+          "max_tokens": 128
+        },
+        {
+          "at": 1792859217254,
+          "isRoot": false,
+          "isChild": true,
+          "rootStep": 2,
+          "childCount": 3,
+          "finish": "stop",
+          "calls": [],
+          "max_tokens": 128
+        },
+        {
+          "at": 1792859217276,
+          "isRoot": true,
+          "isChild": false,
+          "rootStep": 2,
+          "childCount": 3,
+          "finish": "stop",
+          "calls": [],
+          "max_tokens": 128
+        }
+      ]
+    },
+    {
+      "case": "empty",
+      "result": {
+        "code": 1,
+        "status": "deadline_exceeded",
+        "runDir": "/private/var/folders/tn/x1hbkfy17sx0w1lb8kjzzr340000gn/T/ctf-child-correlation-km69t97l/empty/runs/run"
+      },
+      "version": "1.19.3",
+      "admittedModelCalls": 8,
+      "usageTotal": {
+        "availability": "reported",
+        "input_tokens": 8,
+        "output_tokens": 8,
+        "reasoning_tokens": 0,
+        "lowerBound": true
+      },
+      "captures": [
+        {
+          "hook": {
+            "at": 1792859243611,
+            "phase": "return",
+            "sessionID": "ses_e9142fbf3ffeFxiSNmm5agIJ6u",
+            "operation": "chat.message",
+            "messageID": "msg_16ebd0414001L2VGDavUWKSmjk",
+            "agent": "strategy",
+            "executions": [
+              {
+                "ref": "33d0cf98-9e2a-48df-836a-6549001eb18e",
+                "parent": "ses_e9142fe76ffeGfYCu4SMdBLPnh",
+                "callID": "call_1_0",
+                "childID": "ses_e9142fbf7ffeuVVW6i5bsfOi5Z",
+                "state": "starting",
+                "delivered": false
+              },
+              {
+                "ref": "2a4a9edc-73ff-4f69-9bf6-bd4643e3b3e2",
+                "parent": "ses_e9142fe76ffeGfYCu4SMdBLPnh",
+                "callID": "call_1_1",
+                "childID": "ses_e9142fbf3ffeFxiSNmm5agIJ6u",
+                "state": "running",
+                "delivered": false
+              }
+            ],
+            "binding": {
+              "parentID": "ses_e9142fe76ffeGfYCu4SMdBLPnh",
+              "role": "strategy",
+              "dispatchCallID": "call_1_1"
+            }
+          },
+          "candidate": {
+            "ref": "2a4a9edc-73ff-4f69-9bf6-bd4643e3b3e2",
+            "parent": "ses_e9142fe76ffeGfYCu4SMdBLPnh",
+            "callID": "call_1_1",
+            "childID": "ses_e9142fbf3ffeFxiSNmm5agIJ6u",
+            "userID": "msg_16ebd0414001L2VGDavUWKSmjk",
+            "freezeAt": 1792859243611
+          }
+        },
+        {
+          "hook": {
+            "at": 1792859243612,
+            "phase": "return",
+            "sessionID": "ses_e9142fbf7ffeuVVW6i5bsfOi5Z",
+            "operation": "chat.message",
+            "messageID": "msg_16ebd040b0016YHKhM55A0ZGcx",
+            "agent": "intake",
+            "executions": [
+              {
+                "ref": "33d0cf98-9e2a-48df-836a-6549001eb18e",
+                "parent": "ses_e9142fe76ffeGfYCu4SMdBLPnh",
+                "callID": "call_1_0",
+                "childID": "ses_e9142fbf7ffeuVVW6i5bsfOi5Z",
+                "state": "running",
+                "delivered": false
+              },
+              {
+                "ref": "2a4a9edc-73ff-4f69-9bf6-bd4643e3b3e2",
+                "parent": "ses_e9142fe76ffeGfYCu4SMdBLPnh",
+                "callID": "call_1_1",
+                "childID": "ses_e9142fbf3ffeFxiSNmm5agIJ6u",
+                "state": "running",
+                "delivered": false
+              }
+            ],
+            "binding": {
+              "parentID": "ses_e9142fe76ffeGfYCu4SMdBLPnh",
+              "role": "intake",
+              "dispatchCallID": "call_1_0"
+            }
+          },
+          "candidate": {
+            "ref": "33d0cf98-9e2a-48df-836a-6549001eb18e",
+            "parent": "ses_e9142fe76ffeGfYCu4SMdBLPnh",
+            "callID": "call_1_0",
+            "childID": "ses_e9142fbf7ffeuVVW6i5bsfOi5Z",
+            "userID": "msg_16ebd040b0016YHKhM55A0ZGcx",
+            "freezeAt": 1792859243612
+          }
+        },
+        {
+          "hook": {
+            "at": 1792859243667,
+            "phase": "return",
+            "sessionID": "ses_e9142fbf7ffeuVVW6i5bsfOi5Z",
+            "operation": "chat.message",
+            "messageID": "msg_16ebd0492001ETZsWYZfXJrzKP",
+            "agent": "intake",
+            "executions": [
+              {
+                "ref": "33d0cf98-9e2a-48df-836a-6549001eb18e",
+                "parent": "ses_e9142fe76ffeGfYCu4SMdBLPnh",
+                "callID": "call_1_0",
+                "childID": "ses_e9142fbf7ffeuVVW6i5bsfOi5Z",
+                "state": "completed",
+                "delivered": true,
+                "noticeMessageID": "msg_16ebd047a001Qg2KTwFSwDEcpa"
+              },
+              {
+                "ref": "2a4a9edc-73ff-4f69-9bf6-bd4643e3b3e2",
+                "parent": "ses_e9142fe76ffeGfYCu4SMdBLPnh",
+                "callID": "call_1_1",
+                "childID": "ses_e9142fbf3ffeFxiSNmm5agIJ6u",
+                "state": "completed",
+                "delivered": true,
+                "noticeMessageID": "msg_16ebd047d001Jdonvvp7hNTQ02"
+              },
+              {
+                "ref": "70a0f065-1def-4988-89a6-5d8cfb70b8bf",
+                "parent": "ses_e9142fe76ffeGfYCu4SMdBLPnh",
+                "callID": "call_5_0",
+                "childID": "ses_e9142fbf7ffeuVVW6i5bsfOi5Z",
+                "state": "running",
+                "delivered": false
+              }
+            ],
+            "binding": {
+              "parentID": "ses_e9142fe76ffeGfYCu4SMdBLPnh",
+              "role": "intake",
+              "dispatchCallID": "call_1_0"
+            }
+          },
+          "candidate": {
+            "ref": "70a0f065-1def-4988-89a6-5d8cfb70b8bf",
+            "parent": "ses_e9142fe76ffeGfYCu4SMdBLPnh",
+            "callID": "call_5_0",
+            "childID": "ses_e9142fbf7ffeuVVW6i5bsfOi5Z",
+            "userID": "msg_16ebd0492001ETZsWYZfXJrzKP",
+            "freezeAt": 1792859243667
+          }
+        }
+      ],
+      "chains": [
+        {
+          "ref": "2a4a9edc-73ff-4f69-9bf6-bd4643e3b3e2",
+          "parent": "ses_e9142fe76ffeGfYCu4SMdBLPnh",
+          "callID": "call_1_1",
+          "childID": "ses_e9142fbf3ffeFxiSNmm5agIJ6u",
+          "userID": "msg_16ebd0414001L2VGDavUWKSmjk",
+          "freezeAt": 1792859243611,
+          "userRole": "user",
+          "assistants": [
+            {
+              "id": "msg_16ebd045f001WKacJ6H84nfwGV",
+              "role": "assistant",
+              "parentID": "msg_16ebd0414001L2VGDavUWKSmjk",
+              "finish": "length",
+              "time": {
+                "created": 1792859243615,
+                "completed": 1792859243644
+              },
+              "textChars": 0
+            }
+          ],
+          "finalClassification": "incomplete",
+          "noticeAt": 1792859243646,
+          "classificationFromLastPreNoticePoll": "unknown",
+          "modelCallCrossCheck": true
+        },
+        {
+          "ref": "33d0cf98-9e2a-48df-836a-6549001eb18e",
+          "parent": "ses_e9142fe76ffeGfYCu4SMdBLPnh",
+          "callID": "call_1_0",
+          "childID": "ses_e9142fbf7ffeuVVW6i5bsfOi5Z",
+          "userID": "msg_16ebd040b0016YHKhM55A0ZGcx",
+          "freezeAt": 1792859243612,
+          "userRole": "user",
+          "assistants": [
+            {
+              "id": "msg_16ebd0460001Qk9uk5J0jaBaav",
+              "role": "assistant",
+              "parentID": "msg_16ebd040b0016YHKhM55A0ZGcx",
+              "finish": "length",
+              "time": {
+                "created": 1792859243616,
+                "completed": 1792859243641
+              },
+              "textChars": 0
+            }
+          ],
+          "finalClassification": "incomplete",
+          "noticeAt": 1792859243643,
+          "classificationFromLastPreNoticePoll": "unknown",
+          "modelCallCrossCheck": true
+        },
+        {
+          "ref": "70a0f065-1def-4988-89a6-5d8cfb70b8bf",
+          "parent": "ses_e9142fe76ffeGfYCu4SMdBLPnh",
+          "callID": "call_5_0",
+          "childID": "ses_e9142fbf7ffeuVVW6i5bsfOi5Z",
+          "userID": "msg_16ebd0492001ETZsWYZfXJrzKP",
+          "freezeAt": 1792859243667,
+          "userRole": "user",
+          "assistants": [
+            {
+              "id": "msg_16ebd049800193yiEmyJn43MHP",
+              "role": "assistant",
+              "parentID": "msg_16ebd0492001ETZsWYZfXJrzKP",
+              "finish": "stop",
+              "time": {
+                "created": 1792859243672,
+                "completed": 1792859243693
+              },
+              "textChars": 8
+            }
+          ],
+          "finalClassification": "complete",
+          "noticeAt": 1792859243694,
+          "classificationFromLastPreNoticePoll": "unknown",
+          "modelCallCrossCheck": true
+        }
+      ],
+      "finalExecutions": [
+        {
+          "ref": "33d0cf98-9e2a-48df-836a-6549001eb18e",
+          "run": "run",
+          "parent": "ses_e9142fe76ffeGfYCu4SMdBLPnh",
+          "callID": "call_1_0",
+          "role": "intake",
+          "childID": "ses_e9142fbf7ffeuVVW6i5bsfOi5Z",
+          "state": "completed",
+          "delivered": true,
+          "noticeMessageID": "msg_16ebd047a001Qg2KTwFSwDEcpa",
+          "delivery": "suppressed"
+        },
+        {
+          "ref": "2a4a9edc-73ff-4f69-9bf6-bd4643e3b3e2",
+          "run": "run",
+          "parent": "ses_e9142fe76ffeGfYCu4SMdBLPnh",
+          "callID": "call_1_1",
+          "role": "strategy",
+          "childID": "ses_e9142fbf3ffeFxiSNmm5agIJ6u",
+          "state": "completed",
+          "delivered": true,
+          "noticeMessageID": "msg_16ebd047d001Jdonvvp7hNTQ02",
+          "delivery": "consumed"
+        },
+        {
+          "ref": "70a0f065-1def-4988-89a6-5d8cfb70b8bf",
+          "run": "run",
+          "parent": "ses_e9142fe76ffeGfYCu4SMdBLPnh",
+          "callID": "call_5_0",
+          "role": "intake",
+          "childID": "ses_e9142fbf7ffeuVVW6i5bsfOi5Z",
+          "state": "completed",
+          "delivered": true,
+          "noticeMessageID": "msg_16ebd04ae001971mFYfPgT6g8d",
+          "delivery": "consumed"
+        }
+      ],
+      "noticeReads": [],
+      "correlationAudit": [
+        {
+          "seq": 1,
+          "t": 64,
+          "at": 1792859242891,
+          "sessionID": "ses_e9142fe76ffeGfYCu4SMdBLPnh",
+          "op": "bind",
+          "allow": true,
+          "detail": {
+            "role": "coordinator",
+            "via": "root"
+          },
+          "role": "coordinator"
+        },
+        {
+          "seq": 4,
+          "t": 698,
+          "at": 1792859243525,
+          "sessionID": "ses_e9142fe76ffeGfYCu4SMdBLPnh",
+          "op": "dispatch.register",
+          "allow": true,
+          "detail": {
+            "role": "intake",
+            "callID": "call_1_0",
+            "argsFingerprint": "218c63fa83e6e95d8b4355a86453299b3689922d47271e62e5788db4959515d3"
+          },
+          "role": "coordinator"
+        },
+        {
+          "seq": 5,
+          "t": 698,
+          "at": 1792859243525,
+          "sessionID": "ses_e9142fe76ffeGfYCu4SMdBLPnh",
+          "op": "task.execution",
+          "allow": true,
+          "detail": {
+            "ref": "33d0cf98-9e2a-48df-836a-6549001eb18e",
+            "run": "run",
+            "parent": "ses_e9142fe76ffeGfYCu4SMdBLPnh",
+            "callID": "call_1_0",
+            "role": "intake",
+            "state": "starting",
+            "delivered": false
+          },
+          "role": "coordinator"
+        },
+        {
+          "seq": 7,
+          "t": 699,
+          "at": 1792859243526,
+          "sessionID": "ses_e9142fe76ffeGfYCu4SMdBLPnh",
+          "op": "dispatch.register",
+          "allow": true,
+          "detail": {
+            "role": "strategy",
+            "callID": "call_1_1",
+            "argsFingerprint": "3fecfe9ccc78330f24521b769ef755ca5f7faf2a79390ed3e1bb50b54d60dcfd"
+          },
+          "role": "coordinator"
+        },
+        {
+          "seq": 8,
+          "t": 699,
+          "at": 1792859243526,
+          "sessionID": "ses_e9142fe76ffeGfYCu4SMdBLPnh",
+          "op": "task.execution",
+          "allow": true,
+          "detail": {
+            "ref": "2a4a9edc-73ff-4f69-9bf6-bd4643e3b3e2",
+            "run": "run",
+            "parent": "ses_e9142fe76ffeGfYCu4SMdBLPnh",
+            "callID": "call_1_1",
+            "role": "strategy",
+            "state": "starting",
+            "delivered": false
+          },
+          "role": "coordinator"
+        },
+        {
+          "seq": 10,
+          "t": 705,
+          "at": 1792859243532,
+          "sessionID": "ses_e9142fe76ffeGfYCu4SMdBLPnh",
+          "op": "task.correlate",
+          "allow": true,
+          "detail": {
+            "callID": "call_1_0",
+            "childSessionID": "ses_e9142fbf7ffeuVVW6i5bsfOi5Z",
+            "childBoundToCaller": false
+          },
+          "role": "coordinator"
+        },
+        {
+          "seq": 12,
+          "t": 714,
+          "at": 1792859243541,
+          "sessionID": "ses_e9142fe76ffeGfYCu4SMdBLPnh",
+          "op": "task.correlate",
+          "allow": true,
+          "detail": {
+            "callID": "call_1_1",
+            "childSessionID": "ses_e9142fbf3ffeFxiSNmm5agIJ6u",
+            "childBoundToCaller": false
+          },
+          "role": "coordinator"
+        },
+        {
+          "seq": 14,
+          "t": 784,
+          "at": 1792859243611,
+          "sessionID": "ses_e9142fbf3ffeFxiSNmm5agIJ6u",
+          "op": "bind",
+          "allow": true,
+          "detail": {
+            "role": "strategy",
+            "via": "dispatch",
+            "sdkParentID": "ses_e9142fe76ffeGfYCu4SMdBLPnh",
+            "sdkAgent": "strategy",
+            "callID": "call_1_1",
+            "sdkMs": 70
+          },
+          "role": "strategy"
+        },
+        {
+          "seq": 16,
+          "t": 785,
+          "at": 1792859243612,
+          "sessionID": "ses_e9142fbf7ffeuVVW6i5bsfOi5Z",
+          "op": "bind",
+          "allow": true,
+          "detail": {
+            "role": "intake",
+            "via": "dispatch",
+            "sdkParentID": "ses_e9142fe76ffeGfYCu4SMdBLPnh",
+            "sdkAgent": "intake",
+            "callID": "call_1_0",
+            "sdkMs": 80
+          },
+          "role": "intake"
+        },
+        {
+          "seq": 21,
+          "t": 816,
+          "at": 1792859243643,
+          "sessionID": "ses_e9142fe76ffeGfYCu4SMdBLPnh",
+          "op": "task.completion",
+          "allow": true,
+          "detail": {
+            "ref": "33d0cf98-9e2a-48df-836a-6549001eb18e",
+            "childID": "ses_e9142fbf7ffeuVVW6i5bsfOi5Z",
+            "callID": "call_1_0",
+            "state": "completed",
+            "messageID": "msg_16ebd047a001Qg2KTwFSwDEcpa",
+            "wake": true
+          },
+          "role": "coordinator"
+        },
+        {
+          "seq": 23,
+          "t": 819,
+          "at": 1792859243646,
+          "sessionID": "ses_e9142fe76ffeGfYCu4SMdBLPnh",
+          "op": "task.completion",
+          "allow": true,
+          "detail": {
+            "ref": "2a4a9edc-73ff-4f69-9bf6-bd4643e3b3e2",
+            "childID": "ses_e9142fbf3ffeFxiSNmm5agIJ6u",
+            "callID": "call_1_1",
+            "state": "completed",
+            "messageID": "msg_16ebd047d001Jdonvvp7hNTQ02",
+            "wake": true
+          },
+          "role": "coordinator"
+        },
+        {
+          "seq": 25,
+          "t": 834,
+          "at": 1792859243661,
+          "sessionID": "ses_e9142fe76ffeGfYCu4SMdBLPnh",
+          "op": "task.delivered",
+          "allow": true,
+          "detail": {
+            "ref": "2a4a9edc-73ff-4f69-9bf6-bd4643e3b3e2",
+            "messageID": "msg_16ebd047d001Jdonvvp7hNTQ02",
+            "admitNo": 5
+          },
+          "role": "coordinator"
+        },
+        {
+          "seq": 27,
+          "t": 838,
+          "at": 1792859243665,
+          "sessionID": "ses_e9142fe76ffeGfYCu4SMdBLPnh",
+          "op": "dispatch.resume",
+          "allow": true,
+          "detail": {
+            "role": "intake",
+            "taskId": "ses_e9142fbf7ffeuVVW6i5bsfOi5Z",
+            "declarationConsumed": false
+          },
+          "role": "coordinator"
+        },
+        {
+          "seq": 28,
+          "t": 838,
+          "at": 1792859243665,
+          "sessionID": "ses_e9142fe76ffeGfYCu4SMdBLPnh",
+          "op": "task.execution",
+          "allow": true,
+          "detail": {
+            "ref": "70a0f065-1def-4988-89a6-5d8cfb70b8bf",
+            "run": "run",
+            "parent": "ses_e9142fe76ffeGfYCu4SMdBLPnh",
+            "callID": "call_5_0",
+            "role": "intake",
+            "childID": "ses_e9142fbf7ffeuVVW6i5bsfOi5Z",
+            "state": "running",
+            "delivered": false
+          },
+          "role": "coordinator"
+        },
+        {
+          "seq": 31,
+          "t": 840,
+          "at": 1792859243667,
+          "sessionID": "ses_e9142fe76ffeGfYCu4SMdBLPnh",
+          "op": "task.correlate",
+          "allow": true,
+          "detail": {
+            "callID": "call_5_0",
+            "childSessionID": "ses_e9142fbf7ffeuVVW6i5bsfOi5Z",
+            "childBoundToCaller": true
+          },
+          "role": "coordinator"
+        },
+        {
+          "seq": 35,
+          "t": 867,
+          "at": 1792859243694,
+          "sessionID": "ses_e9142fe76ffeGfYCu4SMdBLPnh",
+          "op": "task.completion",
+          "allow": true,
+          "detail": {
+            "ref": "70a0f065-1def-4988-89a6-5d8cfb70b8bf",
+            "childID": "ses_e9142fbf7ffeuVVW6i5bsfOi5Z",
+            "callID": "call_5_0",
+            "state": "completed",
+            "messageID": "msg_16ebd04ae001971mFYfPgT6g8d",
+            "wake": true
+          },
+          "role": "coordinator"
+        },
+        {
+          "seq": 37,
+          "t": 880,
+          "at": 1792859243707,
+          "sessionID": "ses_e9142fe76ffeGfYCu4SMdBLPnh",
+          "op": "task.delivered",
+          "allow": true,
+          "detail": {
+            "ref": "70a0f065-1def-4988-89a6-5d8cfb70b8bf",
+            "messageID": "msg_16ebd04ae001971mFYfPgT6g8d",
+            "admitNo": 8
+          },
+          "role": "coordinator"
+        }
+      ],
+      "requests": [
+        {
+          "at": 1792859243517,
+          "isRoot": true,
+          "isChild": false,
+          "rootStep": 1,
+          "childCount": 0,
+          "finish": "tool_calls",
+          "calls": [
+            {
+              "name": "task",
+              "subagent_type": "intake",
+              "background": true,
+              "promptChars": 11,
+              "promptSHA256": "66fddd00ccb86fb21cdba02ac7bdda0449cd8c00622ffeaed38f241dadf03e1a",
+              "descriptionChars": 16,
+              "descriptionSHA256": "aba0243578212720268332e8d6dc48e513385c035ef626f2b2138b2925e46970"
+            },
+            {
+              "name": "task",
+              "subagent_type": "strategy",
+              "background": true,
+              "promptChars": 11,
+              "promptSHA256": "66fddd00ccb86fb21cdba02ac7bdda0449cd8c00622ffeaed38f241dadf03e1a",
+              "descriptionChars": 16,
+              "descriptionSHA256": "aba0243578212720268332e8d6dc48e513385c035ef626f2b2138b2925e46970"
+            }
+          ],
+          "max_tokens": 128
+        },
+        {
+          "at": 1792859243630,
+          "isRoot": true,
+          "isChild": false,
+          "rootStep": 1,
+          "childCount": 0,
+          "finish": "stop",
+          "calls": [],
+          "max_tokens": 128
+        },
+        {
+          "at": 1792859243638,
+          "isRoot": false,
+          "isChild": true,
+          "rootStep": 1,
+          "childCount": 1,
+          "finish": "length",
+          "calls": [],
+          "max_tokens": 128
+        },
+        {
+          "at": 1792859243639,
+          "isRoot": false,
+          "isChild": true,
+          "rootStep": 1,
+          "childCount": 2,
+          "finish": "length",
+          "calls": [],
+          "max_tokens": 128
+        },
+        {
+          "at": 1792859243663,
+          "isRoot": true,
+          "isChild": false,
+          "rootStep": 2,
+          "childCount": 2,
+          "finish": "tool_calls",
+          "calls": [
+            {
+              "name": "task",
+              "subagent_type": "intake",
+              "task_id": "ses_e9142fbf7ffeuVVW6i5bsfOi5Z",
+              "background": true,
+              "promptChars": 11,
+              "promptSHA256": "66fddd00ccb86fb21cdba02ac7bdda0449cd8c00622ffeaed38f241dadf03e1a",
+              "descriptionChars": 16,
+              "descriptionSHA256": "aba0243578212720268332e8d6dc48e513385c035ef626f2b2138b2925e46970"
+            }
+          ],
+          "max_tokens": 128
+        },
+        {
+          "at": 1792859243686,
+          "isRoot": true,
+          "isChild": false,
+          "rootStep": 2,
+          "childCount": 2,
+          "finish": "stop",
+          "calls": [],
+          "max_tokens": 128
+        },
+        {
+          "at": 1792859243686,
+          "isRoot": false,
+          "isChild": true,
+          "rootStep": 2,
+          "childCount": 3,
+          "finish": "stop",
+          "calls": [],
+          "max_tokens": 128
+        },
+        {
+          "at": 1792859243709,
+          "isRoot": true,
+          "isChild": false,
+          "rootStep": 2,
+          "childCount": 3,
+          "finish": "stop",
+          "calls": [],
+          "max_tokens": 128
+        }
+      ]
+    },
+    {
+      "case": "sync-resume",
+      "result": {
+        "code": 0,
+        "status": "completed",
+        "runDir": "/private/var/folders/tn/x1hbkfy17sx0w1lb8kjzzr340000gn/T/ctf-child-correlation-km69t97l/sync-resume/runs/run"
+      },
+      "version": "1.19.3",
+      "admittedModelCalls": 6,
+      "usageTotal": {
+        "availability": "reported",
+        "input_tokens": 6,
+        "output_tokens": 6,
+        "reasoning_tokens": 0,
+        "lowerBound": false
+      },
+      "captures": [
+        {
+          "hook": {
+            "at": 1792859312140,
+            "phase": "return",
+            "sessionID": "ses_e9141f006ffetYajNH5m8RNS33",
+            "operation": "chat.message",
+            "messageID": "msg_16ebe0ffc001CJD35L5uZjOM4F",
+            "agent": "intake",
+            "executions": [
+              {
+                "ref": "faa97a4b-2398-45e0-b118-383dcea834d1",
+                "parent": "ses_e9141f3f9ffexYfpLJ85lMWPZA",
+                "callID": "call_1_0",
+                "childID": "ses_e9141f006ffetYajNH5m8RNS33",
+                "state": "running",
+                "delivered": false
+              }
+            ],
+            "binding": {
+              "parentID": "ses_e9141f3f9ffexYfpLJ85lMWPZA",
+              "role": "intake",
+              "dispatchCallID": "call_1_0"
+            }
+          },
+          "candidate": {
+            "ref": "faa97a4b-2398-45e0-b118-383dcea834d1",
+            "parent": "ses_e9141f3f9ffexYfpLJ85lMWPZA",
+            "callID": "call_1_0",
+            "childID": "ses_e9141f006ffetYajNH5m8RNS33",
+            "userID": "msg_16ebe0ffc001CJD35L5uZjOM4F",
+            "freezeAt": 1792859312140
+          }
+        },
+        {
+          "hook": {
+            "at": 1792859312185,
+            "phase": "return",
+            "sessionID": "ses_e9141f006ffetYajNH5m8RNS33",
+            "operation": "chat.message",
+            "messageID": "msg_16ebe1038001Dz1EnVANkB0Ocz",
+            "agent": "intake",
+            "executions": [
+              {
+                "ref": "faa97a4b-2398-45e0-b118-383dcea834d1",
+                "parent": "ses_e9141f3f9ffexYfpLJ85lMWPZA",
+                "callID": "call_1_0",
+                "childID": "ses_e9141f006ffetYajNH5m8RNS33",
+                "state": "completed",
+                "delivered": true,
+                "noticeMessageID": "msg_16ebe10270015SXhfRXM7wejpX"
+              }
+            ],
+            "binding": {
+              "parentID": "ses_e9141f3f9ffexYfpLJ85lMWPZA",
+              "role": "intake",
+              "dispatchCallID": "call_1_0"
+            }
+          },
+          "candidate": "unknown:execution-not-unique"
+        }
+      ],
+      "chains": [
+        {
+          "ref": "faa97a4b-2398-45e0-b118-383dcea834d1",
+          "parent": "ses_e9141f3f9ffexYfpLJ85lMWPZA",
+          "callID": "call_1_0",
+          "childID": "ses_e9141f006ffetYajNH5m8RNS33",
+          "userID": "msg_16ebe0ffc001CJD35L5uZjOM4F",
+          "freezeAt": 1792859312140,
+          "userRole": "user",
+          "assistants": [
+            {
+              "id": "msg_16ebe100e001CqroIf5hkFoWAq",
+              "role": "assistant",
+              "parentID": "msg_16ebe0ffc001CJD35L5uZjOM4F",
+              "finish": "length",
+              "time": {
+                "created": 1792859312143,
+                "completed": 1792859312166
+              },
+              "textChars": 7
+            }
+          ],
+          "finalClassification": "incomplete",
+          "noticeAt": 1792859312168,
+          "classificationFromLastPreNoticePoll": "unknown:no-pre-notice-poll",
+          "modelCallCrossCheck": true
+        }
+      ],
+      "finalExecutions": [
+        {
+          "ref": "faa97a4b-2398-45e0-b118-383dcea834d1",
+          "run": "run",
+          "parent": "ses_e9141f3f9ffexYfpLJ85lMWPZA",
+          "callID": "call_1_0",
+          "role": "intake",
+          "childID": "ses_e9141f006ffetYajNH5m8RNS33",
+          "state": "completed",
+          "delivered": true,
+          "noticeMessageID": "msg_16ebe10270015SXhfRXM7wejpX",
+          "delivery": "consumed"
+        }
+      ],
+      "noticeReads": [],
+      "correlationAudit": [
+        {
+          "seq": 1,
+          "t": 71,
+          "at": 1792859311113,
+          "sessionID": "ses_e9141f3f9ffexYfpLJ85lMWPZA",
+          "op": "bind",
+          "allow": true,
+          "detail": {
+            "role": "coordinator",
+            "via": "root"
+          },
+          "role": "coordinator"
+        },
+        {
+          "seq": 4,
+          "t": 1072,
+          "at": 1792859312114,
+          "sessionID": "ses_e9141f3f9ffexYfpLJ85lMWPZA",
+          "op": "dispatch.register",
+          "allow": true,
+          "detail": {
+            "role": "intake",
+            "callID": "call_1_0",
+            "argsFingerprint": "218c63fa83e6e95d8b4355a86453299b3689922d47271e62e5788db4959515d3"
+          },
+          "role": "coordinator"
+        },
+        {
+          "seq": 5,
+          "t": 1072,
+          "at": 1792859312114,
+          "sessionID": "ses_e9141f3f9ffexYfpLJ85lMWPZA",
+          "op": "task.execution",
+          "allow": true,
+          "detail": {
+            "ref": "faa97a4b-2398-45e0-b118-383dcea834d1",
+            "run": "run",
+            "parent": "ses_e9141f3f9ffexYfpLJ85lMWPZA",
+            "callID": "call_1_0",
+            "role": "intake",
+            "state": "starting",
+            "delivered": false
+          },
+          "role": "coordinator"
+        },
+        {
+          "seq": 7,
+          "t": 1084,
+          "at": 1792859312126,
+          "sessionID": "ses_e9141f3f9ffexYfpLJ85lMWPZA",
+          "op": "task.correlate",
+          "allow": true,
+          "detail": {
+            "callID": "call_1_0",
+            "childSessionID": "ses_e9141f006ffetYajNH5m8RNS33",
+            "childBoundToCaller": false
+          },
+          "role": "coordinator"
+        },
+        {
+          "seq": 9,
+          "t": 1098,
+          "at": 1792859312140,
+          "sessionID": "ses_e9141f006ffetYajNH5m8RNS33",
+          "op": "bind",
+          "allow": true,
+          "detail": {
+            "role": "intake",
+            "via": "dispatch",
+            "sdkParentID": "ses_e9141f3f9ffexYfpLJ85lMWPZA",
+            "sdkAgent": "intake",
+            "callID": "call_1_0",
+            "sdkMs": 15
+          },
+          "role": "intake"
+        },
+        {
+          "seq": 13,
+          "t": 1126,
+          "at": 1792859312168,
+          "sessionID": "ses_e9141f3f9ffexYfpLJ85lMWPZA",
+          "op": "task.completion",
+          "allow": true,
+          "detail": {
+            "ref": "faa97a4b-2398-45e0-b118-383dcea834d1",
+            "childID": "ses_e9141f006ffetYajNH5m8RNS33",
+            "callID": "call_1_0",
+            "state": "completed",
+            "messageID": "msg_16ebe10270015SXhfRXM7wejpX",
+            "wake": true
+          },
+          "role": "coordinator"
+        },
+        {
+          "seq": 15,
+          "t": 1133,
+          "at": 1792859312175,
+          "sessionID": "ses_e9141f3f9ffexYfpLJ85lMWPZA",
+          "op": "task.delivered",
+          "allow": true,
+          "detail": {
+            "ref": "faa97a4b-2398-45e0-b118-383dcea834d1",
+            "messageID": "msg_16ebe10270015SXhfRXM7wejpX",
+            "admitNo": 4
+          },
+          "role": "coordinator"
+        },
+        {
+          "seq": 17,
+          "t": 1141,
+          "at": 1792859312183,
+          "sessionID": "ses_e9141f3f9ffexYfpLJ85lMWPZA",
+          "op": "dispatch.resume",
+          "allow": true,
+          "detail": {
+            "role": "intake",
+            "taskId": "ses_e9141f006ffetYajNH5m8RNS33",
+            "declarationConsumed": false
+          },
+          "role": "coordinator"
+        },
+        {
+          "seq": 21,
+          "t": 1156,
+          "at": 1792859312198,
+          "sessionID": "ses_e9141f3f9ffexYfpLJ85lMWPZA",
+          "op": "task.correlate",
+          "allow": true,
+          "detail": {
+            "callID": "call_4_0",
+            "childSessionID": "ses_e9141f006ffetYajNH5m8RNS33",
+            "childBoundToCaller": true
+          },
+          "role": "coordinator"
+        }
+      ],
+      "requests": [
+        {
+          "at": 1792859312057,
+          "isRoot": true,
+          "isChild": false,
+          "rootStep": 1,
+          "childCount": 0,
+          "finish": "tool_calls",
+          "calls": [
+            {
+              "name": "task",
+              "subagent_type": "intake",
+              "background": true,
+              "promptChars": 11,
+              "promptSHA256": "66fddd00ccb86fb21cdba02ac7bdda0449cd8c00622ffeaed38f241dadf03e1a",
+              "descriptionChars": 16,
+              "descriptionSHA256": "aba0243578212720268332e8d6dc48e513385c035ef626f2b2138b2925e46970"
+            }
+          ],
+          "max_tokens": 128
+        },
+        {
+          "at": 1792859312149,
+          "isRoot": true,
+          "isChild": false,
+          "rootStep": 1,
+          "childCount": 0,
+          "finish": "stop",
+          "calls": [],
+          "max_tokens": 128
+        },
+        {
+          "at": 1792859312162,
+          "isRoot": false,
+          "isChild": true,
+          "rootStep": 1,
+          "childCount": 1,
+          "finish": "length",
+          "calls": [],
+          "max_tokens": 128
+        },
+        {
+          "at": 1792859312181,
+          "isRoot": true,
+          "isChild": false,
+          "rootStep": 2,
+          "childCount": 1,
+          "finish": "tool_calls",
+          "calls": [
+            {
+              "name": "task",
+              "subagent_type": "intake",
+              "task_id": "ses_e9141f006ffetYajNH5m8RNS33",
+              "background": false,
+              "promptChars": 11,
+              "promptSHA256": "66fddd00ccb86fb21cdba02ac7bdda0449cd8c00622ffeaed38f241dadf03e1a",
+              "descriptionChars": 16,
+              "descriptionSHA256": "aba0243578212720268332e8d6dc48e513385c035ef626f2b2138b2925e46970"
+            }
+          ],
+          "max_tokens": 128
+        },
+        {
+          "at": 1792859312194,
+          "isRoot": false,
+          "isChild": true,
+          "rootStep": 2,
+          "childCount": 2,
+          "finish": "stop",
+          "calls": [],
+          "max_tokens": 128
+        },
+        {
+          "at": 1792859312212,
+          "isRoot": true,
+          "isChild": false,
+          "rootStep": 2,
+          "childCount": 2,
+          "finish": "stop",
+          "calls": [],
+          "max_tokens": 128
+        }
+      ]
+    },
+    {
+      "case": "failure-early-resume-partial",
+      "result": {
+        "code": 1,
+        "status": "deadline_exceeded",
+        "runDir": "/private/var/folders/tn/x1hbkfy17sx0w1lb8kjzzr340000gn/T/ctf-child-correlation-km69t97l/partial/runs/run"
+      },
+      "version": "1.19.3",
+      "admittedModelCalls": 6,
+      "usageTotal": {
+        "availability": "reported",
+        "input_tokens": 6,
+        "output_tokens": 6,
+        "reasoning_tokens": 0,
+        "lowerBound": true
+      },
+      "captures": [
+        {
+          "hook": {
+            "at": 1792859146930,
+            "phase": "return",
+            "sessionID": "ses_e9144756affe9DztBk51bvzcwW",
+            "operation": "chat.message",
+            "messageID": "msg_16ebb8a9f001BTLO2IQIXBNGF8",
+            "agent": "intake",
+            "executions": [
+              {
+                "ref": "cea21f18-cb50-4845-b374-a6f019b92818",
+                "parent": "ses_e91447893ffeJiamBs3ZSZEtTL",
+                "callID": "call_1_0",
+                "childID": "ses_e9144756affe9DztBk51bvzcwW",
+                "state": "running",
+                "delivered": false
+              },
+              {
+                "ref": "cac562e3-ca0e-48f5-b4c5-bca8d2887cb7",
+                "parent": "ses_e91447893ffeJiamBs3ZSZEtTL",
+                "callID": "call_1_1",
+                "childID": "ses_e9144755effeS9CfzkF0qw8eAK",
+                "state": "starting",
+                "delivered": false
+              }
+            ],
+            "binding": {
+              "parentID": "ses_e91447893ffeJiamBs3ZSZEtTL",
+              "role": "intake",
+              "dispatchCallID": "call_1_0"
+            }
+          },
+          "candidate": {
+            "ref": "cea21f18-cb50-4845-b374-a6f019b92818",
+            "parent": "ses_e91447893ffeJiamBs3ZSZEtTL",
+            "callID": "call_1_0",
+            "childID": "ses_e9144756affe9DztBk51bvzcwW",
+            "userID": "msg_16ebb8a9f001BTLO2IQIXBNGF8",
+            "freezeAt": 1792859146930
+          }
+        },
+        {
+          "hook": {
+            "at": 1792859146931,
+            "phase": "return",
+            "sessionID": "ses_e9144755effeS9CfzkF0qw8eAK",
+            "operation": "chat.message",
+            "messageID": "msg_16ebb8aa2001rcLrkrb7iSPTWk",
+            "agent": "strategy",
+            "executions": [
+              {
+                "ref": "cea21f18-cb50-4845-b374-a6f019b92818",
+                "parent": "ses_e91447893ffeJiamBs3ZSZEtTL",
+                "callID": "call_1_0",
+                "childID": "ses_e9144756affe9DztBk51bvzcwW",
+                "state": "running",
+                "delivered": false
+              },
+              {
+                "ref": "cac562e3-ca0e-48f5-b4c5-bca8d2887cb7",
+                "parent": "ses_e91447893ffeJiamBs3ZSZEtTL",
+                "callID": "call_1_1",
+                "childID": "ses_e9144755effeS9CfzkF0qw8eAK",
+                "state": "running",
+                "delivered": false
+              }
+            ],
+            "binding": {
+              "parentID": "ses_e91447893ffeJiamBs3ZSZEtTL",
+              "role": "strategy",
+              "dispatchCallID": "call_1_1"
+            }
+          },
+          "candidate": {
+            "ref": "cac562e3-ca0e-48f5-b4c5-bca8d2887cb7",
+            "parent": "ses_e91447893ffeJiamBs3ZSZEtTL",
+            "callID": "call_1_1",
+            "childID": "ses_e9144755effeS9CfzkF0qw8eAK",
+            "userID": "msg_16ebb8aa2001rcLrkrb7iSPTWk",
+            "freezeAt": 1792859146931
+          }
+        }
+      ],
+      "chains": [
+        {
+          "ref": "cea21f18-cb50-4845-b374-a6f019b92818",
+          "parent": "ses_e91447893ffeJiamBs3ZSZEtTL",
+          "callID": "call_1_0",
+          "childID": "ses_e9144756affe9DztBk51bvzcwW",
+          "userID": "msg_16ebb8a9f001BTLO2IQIXBNGF8",
+          "freezeAt": 1792859146930,
+          "userRole": "user",
+          "assistants": [
+            {
+              "id": "msg_16ebb8ab7001Z2PapK7d81MKCh",
+              "role": "assistant",
+              "parentID": "msg_16ebb8a9f001BTLO2IQIXBNGF8",
+              "finish": "length",
+              "time": {
+                "created": 1792859146935,
+                "completed": 1792859146969
+              },
+              "textChars": 7
+            }
+          ],
+          "finalClassification": "incomplete",
+          "noticeAt": 1792859146972,
+          "classificationFromLastPreNoticePoll": "unknown:no-pre-notice-poll",
+          "modelCallCrossCheck": true
+        },
+        {
+          "ref": "cac562e3-ca0e-48f5-b4c5-bca8d2887cb7",
+          "parent": "ses_e91447893ffeJiamBs3ZSZEtTL",
+          "callID": "call_1_1",
+          "childID": "ses_e9144755effeS9CfzkF0qw8eAK",
+          "userID": "msg_16ebb8aa2001rcLrkrb7iSPTWk",
+          "freezeAt": 1792859146931,
+          "userRole": "user",
+          "assistants": [
+            {
+              "id": "msg_16ebb8ab8001Coqkgz4tyBdMPb",
+              "role": "assistant",
+              "parentID": "msg_16ebb8aa2001rcLrkrb7iSPTWk",
+              "finish": "length",
+              "time": {
+                "created": 1792859146936,
+                "completed": 1792859146965
+              },
+              "textChars": 7
+            }
+          ],
+          "finalClassification": "incomplete",
+          "noticeAt": 1792859146967,
+          "classificationFromLastPreNoticePoll": "unknown:no-pre-notice-poll",
+          "modelCallCrossCheck": true
+        }
+      ],
+      "finalExecutions": [
+        {
+          "ref": "cea21f18-cb50-4845-b374-a6f019b92818",
+          "run": "run",
+          "parent": "ses_e91447893ffeJiamBs3ZSZEtTL",
+          "callID": "call_1_0",
+          "role": "intake",
+          "childID": "ses_e9144756affe9DztBk51bvzcwW",
+          "state": "completed",
+          "delivered": true,
+          "noticeMessageID": "msg_16ebb8adb0013DdvIUGA5KXfZn",
+          "delivery": "consumed"
+        },
+        {
+          "ref": "cac562e3-ca0e-48f5-b4c5-bca8d2887cb7",
+          "run": "run",
+          "parent": "ses_e91447893ffeJiamBs3ZSZEtTL",
+          "callID": "call_1_1",
+          "role": "strategy",
+          "childID": "ses_e9144755effeS9CfzkF0qw8eAK",
+          "state": "completed",
+          "delivered": true,
+          "noticeMessageID": "msg_16ebb8ad6001XHubUlvwrs286q",
+          "delivery": "suppressed"
+        }
+      ],
+      "noticeReads": [],
+      "correlationAudit": [
+        {
+          "seq": 1,
+          "t": 97,
+          "at": 1792859146095,
+          "sessionID": "ses_e91447893ffeJiamBs3ZSZEtTL",
+          "op": "bind",
+          "allow": true,
+          "detail": {
+            "role": "coordinator",
+            "via": "root"
+          },
+          "role": "coordinator"
+        },
+        {
+          "seq": 4,
+          "t": 901,
+          "at": 1792859146899,
+          "sessionID": "ses_e91447893ffeJiamBs3ZSZEtTL",
+          "op": "dispatch.register",
+          "allow": true,
+          "detail": {
+            "role": "intake",
+            "callID": "call_1_0",
+            "argsFingerprint": "218c63fa83e6e95d8b4355a86453299b3689922d47271e62e5788db4959515d3"
+          },
+          "role": "coordinator"
+        },
+        {
+          "seq": 5,
+          "t": 901,
+          "at": 1792859146899,
+          "sessionID": "ses_e91447893ffeJiamBs3ZSZEtTL",
+          "op": "task.execution",
+          "allow": true,
+          "detail": {
+            "ref": "cea21f18-cb50-4845-b374-a6f019b92818",
+            "run": "run",
+            "parent": "ses_e91447893ffeJiamBs3ZSZEtTL",
+            "callID": "call_1_0",
+            "role": "intake",
+            "state": "starting",
+            "delivered": false
+          },
+          "role": "coordinator"
+        },
+        {
+          "seq": 7,
+          "t": 902,
+          "at": 1792859146900,
+          "sessionID": "ses_e91447893ffeJiamBs3ZSZEtTL",
+          "op": "dispatch.register",
+          "allow": true,
+          "detail": {
+            "role": "strategy",
+            "callID": "call_1_1",
+            "argsFingerprint": "3fecfe9ccc78330f24521b769ef755ca5f7faf2a79390ed3e1bb50b54d60dcfd"
+          },
+          "role": "coordinator"
+        },
+        {
+          "seq": 8,
+          "t": 902,
+          "at": 1792859146900,
+          "sessionID": "ses_e91447893ffeJiamBs3ZSZEtTL",
+          "op": "task.execution",
+          "allow": true,
+          "detail": {
+            "ref": "cac562e3-ca0e-48f5-b4c5-bca8d2887cb7",
+            "run": "run",
+            "parent": "ses_e91447893ffeJiamBs3ZSZEtTL",
+            "callID": "call_1_1",
+            "role": "strategy",
+            "state": "starting",
+            "delivered": false
+          },
+          "role": "coordinator"
+        },
+        {
+          "seq": 10,
+          "t": 915,
+          "at": 1792859146913,
+          "sessionID": "ses_e91447893ffeJiamBs3ZSZEtTL",
+          "op": "task.correlate",
+          "allow": true,
+          "detail": {
+            "callID": "call_1_0",
+            "childSessionID": "ses_e9144756affe9DztBk51bvzcwW",
+            "childBoundToCaller": false
+          },
+          "role": "coordinator"
+        },
+        {
+          "seq": 12,
+          "t": 917,
+          "at": 1792859146915,
+          "sessionID": "ses_e91447893ffeJiamBs3ZSZEtTL",
+          "op": "task.correlate",
+          "allow": true,
+          "detail": {
+            "callID": "call_1_1",
+            "childSessionID": "ses_e9144755effeS9CfzkF0qw8eAK",
+            "childBoundToCaller": false
+          },
+          "role": "coordinator"
+        },
+        {
+          "seq": 14,
+          "t": 932,
+          "at": 1792859146930,
+          "sessionID": "ses_e9144756affe9DztBk51bvzcwW",
+          "op": "bind",
+          "allow": true,
+          "detail": {
+            "role": "intake",
+            "via": "dispatch",
+            "sdkParentID": "ses_e91447893ffeJiamBs3ZSZEtTL",
+            "sdkAgent": "intake",
+            "callID": "call_1_0",
+            "sdkMs": 18
+          },
+          "role": "intake"
+        },
+        {
+          "seq": 16,
+          "t": 933,
+          "at": 1792859146931,
+          "sessionID": "ses_e9144755effeS9CfzkF0qw8eAK",
+          "op": "bind",
+          "allow": true,
+          "detail": {
+            "role": "strategy",
+            "via": "dispatch",
+            "sdkParentID": "ses_e91447893ffeJiamBs3ZSZEtTL",
+            "sdkAgent": "strategy",
+            "callID": "call_1_1",
+            "sdkMs": 16
+          },
+          "role": "strategy"
+        },
+        {
+          "seq": 19,
+          "t": 950,
+          "at": 1792859146948,
+          "sessionID": "ses_e91447893ffeJiamBs3ZSZEtTL",
+          "op": "tool.before",
+          "allow": false,
+          "reason": "denied: dispatch",
+          "detail": {
+            "tool": "task",
+            "callID": "call_2_0",
+            "error": "execution still active"
+          },
+          "role": "coordinator"
+        },
+        {
+          "seq": 22,
+          "t": 969,
+          "at": 1792859146967,
+          "sessionID": "ses_e91447893ffeJiamBs3ZSZEtTL",
+          "op": "task.completion",
+          "allow": true,
+          "detail": {
+            "ref": "cac562e3-ca0e-48f5-b4c5-bca8d2887cb7",
+            "childID": "ses_e9144755effeS9CfzkF0qw8eAK",
+            "callID": "call_1_1",
+            "state": "completed",
+            "messageID": "msg_16ebb8ad6001XHubUlvwrs286q",
+            "wake": true
+          },
+          "role": "coordinator"
+        },
+        {
+          "seq": 24,
+          "t": 974,
+          "at": 1792859146972,
+          "sessionID": "ses_e91447893ffeJiamBs3ZSZEtTL",
+          "op": "task.completion",
+          "allow": true,
+          "detail": {
+            "ref": "cea21f18-cb50-4845-b374-a6f019b92818",
+            "childID": "ses_e9144756affe9DztBk51bvzcwW",
+            "callID": "call_1_0",
+            "state": "completed",
+            "messageID": "msg_16ebb8adb0013DdvIUGA5KXfZn",
+            "wake": true
+          },
+          "role": "coordinator"
+        },
+        {
+          "seq": 27,
+          "t": 999,
+          "at": 1792859146997,
+          "sessionID": "ses_e91447893ffeJiamBs3ZSZEtTL",
+          "op": "task.delivered",
+          "allow": true,
+          "detail": {
+            "ref": "cea21f18-cb50-4845-b374-a6f019b92818",
+            "messageID": "msg_16ebb8adb0013DdvIUGA5KXfZn",
+            "admitNo": 6
+          },
+          "role": "coordinator"
+        }
+      ],
+      "requests": [
+        {
+          "at": 1792859146837,
+          "isRoot": true,
+          "isChild": false,
+          "rootStep": 1,
+          "childCount": 0,
+          "finish": "tool_calls",
+          "calls": [
+            {
+              "name": "task",
+              "subagent_type": "intake",
+              "background": true,
+              "promptChars": 11,
+              "promptSHA256": "66fddd00ccb86fb21cdba02ac7bdda0449cd8c00622ffeaed38f241dadf03e1a",
+              "descriptionChars": 16,
+              "descriptionSHA256": "aba0243578212720268332e8d6dc48e513385c035ef626f2b2138b2925e46970"
+            },
+            {
+              "name": "task",
+              "subagent_type": "strategy",
+              "background": true,
+              "promptChars": 11,
+              "promptSHA256": "66fddd00ccb86fb21cdba02ac7bdda0449cd8c00622ffeaed38f241dadf03e1a",
+              "descriptionChars": 16,
+              "descriptionSHA256": "aba0243578212720268332e8d6dc48e513385c035ef626f2b2138b2925e46970"
+            }
+          ],
+          "max_tokens": 128
+        },
+        {
+          "at": 1792859146945,
+          "isRoot": true,
+          "isChild": false,
+          "rootStep": 2,
+          "childCount": 0,
+          "finish": "tool_calls",
+          "calls": [
+            {
+              "name": "task",
+              "subagent_type": "intake",
+              "task_id": "ses_e9144756affe9DztBk51bvzcwW",
+              "background": true,
+              "promptChars": 11,
+              "promptSHA256": "66fddd00ccb86fb21cdba02ac7bdda0449cd8c00622ffeaed38f241dadf03e1a",
+              "descriptionChars": 16,
+              "descriptionSHA256": "aba0243578212720268332e8d6dc48e513385c035ef626f2b2138b2925e46970"
+            }
+          ],
+          "max_tokens": 128
+        },
+        {
+          "at": 1792859146961,
+          "isRoot": false,
+          "isChild": true,
+          "rootStep": 2,
+          "childCount": 1,
+          "finish": "length",
+          "calls": [],
+          "max_tokens": 128
+        },
+        {
+          "at": 1792859146961,
+          "isRoot": false,
+          "isChild": true,
+          "rootStep": 2,
+          "childCount": 2,
+          "finish": "length",
+          "calls": [],
+          "max_tokens": 128
+        },
+        {
+          "at": 1792859146986,
+          "isRoot": true,
+          "isChild": false,
+          "rootStep": 2,
+          "childCount": 2,
+          "finish": "stop",
+          "calls": [],
+          "max_tokens": 128
+        },
+        {
+          "at": 1792859146998,
+          "isRoot": true,
+          "isChild": false,
+          "rootStep": 2,
+          "childCount": 2,
+          "finish": "stop",
+          "calls": [],
+          "max_tokens": 128
+        }
+      ]
+    },
+    {
+      "case": "failure-early-resume-empty",
+      "result": {
+        "code": 1,
+        "status": "deadline_exceeded",
+        "runDir": "/private/var/folders/tn/x1hbkfy17sx0w1lb8kjzzr340000gn/T/ctf-child-correlation-km69t97l/empty/runs/run"
+      },
+      "version": "1.19.3",
+      "admittedModelCalls": 6,
+      "usageTotal": {
+        "availability": "reported",
+        "input_tokens": 6,
+        "output_tokens": 6,
+        "reasoning_tokens": 0,
+        "lowerBound": true
+      },
+      "captures": [
+        {
+          "hook": {
+            "at": 1792859173485,
+            "phase": "return",
+            "sessionID": "ses_e91440de3ffeJqZfYc78cPdL72",
+            "operation": "chat.message",
+            "messageID": "msg_16ebbf21d001ujQ8fiS5Dk65a5",
+            "agent": "strategy",
+            "executions": [
+              {
+                "ref": "a860a872-d32b-42cc-a5cf-b2882efb156a",
+                "parent": "ses_e9144105effeC4nb0hUCsQu1eJ",
+                "callID": "call_1_0",
+                "childID": "ses_e91440de8ffeyNH0lAdcWUViT4",
+                "state": "starting",
+                "delivered": false
+              },
+              {
+                "ref": "7f58ac16-1aaf-49d8-9573-c1efd62113da",
+                "parent": "ses_e9144105effeC4nb0hUCsQu1eJ",
+                "callID": "call_1_1",
+                "childID": "ses_e91440de3ffeJqZfYc78cPdL72",
+                "state": "running",
+                "delivered": false
+              }
+            ],
+            "binding": {
+              "parentID": "ses_e9144105effeC4nb0hUCsQu1eJ",
+              "role": "strategy",
+              "dispatchCallID": "call_1_1"
+            }
+          },
+          "candidate": {
+            "ref": "7f58ac16-1aaf-49d8-9573-c1efd62113da",
+            "parent": "ses_e9144105effeC4nb0hUCsQu1eJ",
+            "callID": "call_1_1",
+            "childID": "ses_e91440de3ffeJqZfYc78cPdL72",
+            "userID": "msg_16ebbf21d001ujQ8fiS5Dk65a5",
+            "freezeAt": 1792859173485
+          }
+        },
+        {
+          "hook": {
+            "at": 1792859173486,
+            "phase": "return",
+            "sessionID": "ses_e91440de8ffeyNH0lAdcWUViT4",
+            "operation": "chat.message",
+            "messageID": "msg_16ebbf21a001pajYORohk6iL4w",
+            "agent": "intake",
+            "executions": [
+              {
+                "ref": "a860a872-d32b-42cc-a5cf-b2882efb156a",
+                "parent": "ses_e9144105effeC4nb0hUCsQu1eJ",
+                "callID": "call_1_0",
+                "childID": "ses_e91440de8ffeyNH0lAdcWUViT4",
+                "state": "running",
+                "delivered": false
+              },
+              {
+                "ref": "7f58ac16-1aaf-49d8-9573-c1efd62113da",
+                "parent": "ses_e9144105effeC4nb0hUCsQu1eJ",
+                "callID": "call_1_1",
+                "childID": "ses_e91440de3ffeJqZfYc78cPdL72",
+                "state": "running",
+                "delivered": false
+              }
+            ],
+            "binding": {
+              "parentID": "ses_e9144105effeC4nb0hUCsQu1eJ",
+              "role": "intake",
+              "dispatchCallID": "call_1_0"
+            }
+          },
+          "candidate": {
+            "ref": "a860a872-d32b-42cc-a5cf-b2882efb156a",
+            "parent": "ses_e9144105effeC4nb0hUCsQu1eJ",
+            "callID": "call_1_0",
+            "childID": "ses_e91440de8ffeyNH0lAdcWUViT4",
+            "userID": "msg_16ebbf21a001pajYORohk6iL4w",
+            "freezeAt": 1792859173486
+          }
+        }
+      ],
+      "chains": [
+        {
+          "ref": "7f58ac16-1aaf-49d8-9573-c1efd62113da",
+          "parent": "ses_e9144105effeC4nb0hUCsQu1eJ",
+          "callID": "call_1_1",
+          "childID": "ses_e91440de3ffeJqZfYc78cPdL72",
+          "userID": "msg_16ebbf21d001ujQ8fiS5Dk65a5",
+          "freezeAt": 1792859173485,
+          "userRole": "user",
+          "assistants": [
+            {
+              "id": "msg_16ebbf2720018lDMLP3syUwX5q",
+              "role": "assistant",
+              "parentID": "msg_16ebbf21d001ujQ8fiS5Dk65a5",
+              "finish": "length",
+              "time": {
+                "created": 1792859173490,
+                "completed": 1792859173519
+              },
+              "textChars": 0
+            }
+          ],
+          "finalClassification": "incomplete",
+          "noticeAt": 1792859173521,
+          "classificationFromLastPreNoticePoll": "unknown",
+          "modelCallCrossCheck": true
+        },
+        {
+          "ref": "a860a872-d32b-42cc-a5cf-b2882efb156a",
+          "parent": "ses_e9144105effeC4nb0hUCsQu1eJ",
+          "callID": "call_1_0",
+          "childID": "ses_e91440de8ffeyNH0lAdcWUViT4",
+          "userID": "msg_16ebbf21a001pajYORohk6iL4w",
+          "freezeAt": 1792859173486,
+          "userRole": "user",
+          "assistants": [
+            {
+              "id": "msg_16ebbf2730012Ptkui2RudGe1N",
+              "role": "assistant",
+              "parentID": "msg_16ebbf21a001pajYORohk6iL4w",
+              "finish": "length",
+              "time": {
+                "created": 1792859173491,
+                "completed": 1792859173523
+              },
+              "textChars": 0
+            }
+          ],
+          "finalClassification": "incomplete",
+          "noticeAt": 1792859173524,
+          "classificationFromLastPreNoticePoll": "unknown",
+          "modelCallCrossCheck": true
+        }
+      ],
+      "finalExecutions": [
+        {
+          "ref": "a860a872-d32b-42cc-a5cf-b2882efb156a",
+          "run": "run",
+          "parent": "ses_e9144105effeC4nb0hUCsQu1eJ",
+          "callID": "call_1_0",
+          "role": "intake",
+          "childID": "ses_e91440de8ffeyNH0lAdcWUViT4",
+          "state": "completed",
+          "delivered": true,
+          "noticeMessageID": "msg_16ebbf2940019U9FLcnpa4T1AV",
+          "delivery": "consumed"
+        },
+        {
+          "ref": "7f58ac16-1aaf-49d8-9573-c1efd62113da",
+          "run": "run",
+          "parent": "ses_e9144105effeC4nb0hUCsQu1eJ",
+          "callID": "call_1_1",
+          "role": "strategy",
+          "childID": "ses_e91440de3ffeJqZfYc78cPdL72",
+          "state": "completed",
+          "delivered": true,
+          "noticeMessageID": "msg_16ebbf291001Pd2MxQtWP78EkN",
+          "delivery": "suppressed"
+        }
+      ],
+      "noticeReads": [],
+      "correlationAudit": [
+        {
+          "seq": 1,
+          "t": 76,
+          "at": 1792859172772,
+          "sessionID": "ses_e9144105effeC4nb0hUCsQu1eJ",
+          "op": "bind",
+          "allow": true,
+          "detail": {
+            "role": "coordinator",
+            "via": "root"
+          },
+          "role": "coordinator"
+        },
+        {
+          "seq": 4,
+          "t": 699,
+          "at": 1792859173395,
+          "sessionID": "ses_e9144105effeC4nb0hUCsQu1eJ",
+          "op": "dispatch.register",
+          "allow": true,
+          "detail": {
+            "role": "intake",
+            "callID": "call_1_0",
+            "argsFingerprint": "218c63fa83e6e95d8b4355a86453299b3689922d47271e62e5788db4959515d3"
+          },
+          "role": "coordinator"
+        },
+        {
+          "seq": 5,
+          "t": 699,
+          "at": 1792859173395,
+          "sessionID": "ses_e9144105effeC4nb0hUCsQu1eJ",
+          "op": "task.execution",
+          "allow": true,
+          "detail": {
+            "ref": "a860a872-d32b-42cc-a5cf-b2882efb156a",
+            "run": "run",
+            "parent": "ses_e9144105effeC4nb0hUCsQu1eJ",
+            "callID": "call_1_0",
+            "role": "intake",
+            "state": "starting",
+            "delivered": false
+          },
+          "role": "coordinator"
+        },
+        {
+          "seq": 7,
+          "t": 701,
+          "at": 1792859173397,
+          "sessionID": "ses_e9144105effeC4nb0hUCsQu1eJ",
+          "op": "dispatch.register",
+          "allow": true,
+          "detail": {
+            "role": "strategy",
+            "callID": "call_1_1",
+            "argsFingerprint": "3fecfe9ccc78330f24521b769ef755ca5f7faf2a79390ed3e1bb50b54d60dcfd"
+          },
+          "role": "coordinator"
+        },
+        {
+          "seq": 8,
+          "t": 701,
+          "at": 1792859173397,
+          "sessionID": "ses_e9144105effeC4nb0hUCsQu1eJ",
+          "op": "task.execution",
+          "allow": true,
+          "detail": {
+            "ref": "7f58ac16-1aaf-49d8-9573-c1efd62113da",
+            "run": "run",
+            "parent": "ses_e9144105effeC4nb0hUCsQu1eJ",
+            "callID": "call_1_1",
+            "role": "strategy",
+            "state": "starting",
+            "delivered": false
+          },
+          "role": "coordinator"
+        },
+        {
+          "seq": 10,
+          "t": 708,
+          "at": 1792859173404,
+          "sessionID": "ses_e9144105effeC4nb0hUCsQu1eJ",
+          "op": "task.correlate",
+          "allow": true,
+          "detail": {
+            "callID": "call_1_0",
+            "childSessionID": "ses_e91440de8ffeyNH0lAdcWUViT4",
+            "childBoundToCaller": false
+          },
+          "role": "coordinator"
+        },
+        {
+          "seq": 12,
+          "t": 710,
+          "at": 1792859173406,
+          "sessionID": "ses_e9144105effeC4nb0hUCsQu1eJ",
+          "op": "task.correlate",
+          "allow": true,
+          "detail": {
+            "callID": "call_1_1",
+            "childSessionID": "ses_e91440de3ffeJqZfYc78cPdL72",
+            "childBoundToCaller": false
+          },
+          "role": "coordinator"
+        },
+        {
+          "seq": 14,
+          "t": 789,
+          "at": 1792859173485,
+          "sessionID": "ses_e91440de3ffeJqZfYc78cPdL72",
+          "op": "bind",
+          "allow": true,
+          "detail": {
+            "role": "strategy",
+            "via": "dispatch",
+            "sdkParentID": "ses_e9144105effeC4nb0hUCsQu1eJ",
+            "sdkAgent": "strategy",
+            "callID": "call_1_1",
+            "sdkMs": 79
+          },
+          "role": "strategy"
+        },
+        {
+          "seq": 16,
+          "t": 790,
+          "at": 1792859173486,
+          "sessionID": "ses_e91440de8ffeyNH0lAdcWUViT4",
+          "op": "bind",
+          "allow": true,
+          "detail": {
+            "role": "intake",
+            "via": "dispatch",
+            "sdkParentID": "ses_e9144105effeC4nb0hUCsQu1eJ",
+            "sdkAgent": "intake",
+            "callID": "call_1_0",
+            "sdkMs": 83
+          },
+          "role": "intake"
+        },
+        {
+          "seq": 19,
+          "t": 812,
+          "at": 1792859173508,
+          "sessionID": "ses_e9144105effeC4nb0hUCsQu1eJ",
+          "op": "tool.before",
+          "allow": false,
+          "reason": "denied: dispatch",
+          "detail": {
+            "tool": "task",
+            "callID": "call_2_0",
+            "error": "execution still active"
+          },
+          "role": "coordinator"
+        },
+        {
+          "seq": 22,
+          "t": 825,
+          "at": 1792859173521,
+          "sessionID": "ses_e9144105effeC4nb0hUCsQu1eJ",
+          "op": "task.completion",
+          "allow": true,
+          "detail": {
+            "ref": "7f58ac16-1aaf-49d8-9573-c1efd62113da",
+            "childID": "ses_e91440de3ffeJqZfYc78cPdL72",
+            "callID": "call_1_1",
+            "state": "completed",
+            "messageID": "msg_16ebbf291001Pd2MxQtWP78EkN",
+            "wake": true
+          },
+          "role": "coordinator"
+        },
+        {
+          "seq": 24,
+          "t": 828,
+          "at": 1792859173524,
+          "sessionID": "ses_e9144105effeC4nb0hUCsQu1eJ",
+          "op": "task.completion",
+          "allow": true,
+          "detail": {
+            "ref": "a860a872-d32b-42cc-a5cf-b2882efb156a",
+            "childID": "ses_e91440de8ffeyNH0lAdcWUViT4",
+            "callID": "call_1_0",
+            "state": "completed",
+            "messageID": "msg_16ebbf2940019U9FLcnpa4T1AV",
+            "wake": true
+          },
+          "role": "coordinator"
+        },
+        {
+          "seq": 27,
+          "t": 851,
+          "at": 1792859173547,
+          "sessionID": "ses_e9144105effeC4nb0hUCsQu1eJ",
+          "op": "task.delivered",
+          "allow": true,
+          "detail": {
+            "ref": "a860a872-d32b-42cc-a5cf-b2882efb156a",
+            "messageID": "msg_16ebbf2940019U9FLcnpa4T1AV",
+            "admitNo": 6
+          },
+          "role": "coordinator"
+        }
+      ],
+      "requests": [
+        {
+          "at": 1792859173388,
+          "isRoot": true,
+          "isChild": false,
+          "rootStep": 1,
+          "childCount": 0,
+          "finish": "tool_calls",
+          "calls": [
+            {
+              "name": "task",
+              "subagent_type": "intake",
+              "background": true,
+              "promptChars": 11,
+              "promptSHA256": "66fddd00ccb86fb21cdba02ac7bdda0449cd8c00622ffeaed38f241dadf03e1a",
+              "descriptionChars": 16,
+              "descriptionSHA256": "aba0243578212720268332e8d6dc48e513385c035ef626f2b2138b2925e46970"
+            },
+            {
+              "name": "task",
+              "subagent_type": "strategy",
+              "background": true,
+              "promptChars": 11,
+              "promptSHA256": "66fddd00ccb86fb21cdba02ac7bdda0449cd8c00622ffeaed38f241dadf03e1a",
+              "descriptionChars": 16,
+              "descriptionSHA256": "aba0243578212720268332e8d6dc48e513385c035ef626f2b2138b2925e46970"
+            }
+          ],
+          "max_tokens": 128
+        },
+        {
+          "at": 1792859173500,
+          "isRoot": true,
+          "isChild": false,
+          "rootStep": 2,
+          "childCount": 0,
+          "finish": "tool_calls",
+          "calls": [
+            {
+              "name": "task",
+              "subagent_type": "intake",
+              "task_id": "ses_e91440de8ffeyNH0lAdcWUViT4",
+              "background": true,
+              "promptChars": 11,
+              "promptSHA256": "66fddd00ccb86fb21cdba02ac7bdda0449cd8c00622ffeaed38f241dadf03e1a",
+              "descriptionChars": 16,
+              "descriptionSHA256": "aba0243578212720268332e8d6dc48e513385c035ef626f2b2138b2925e46970"
+            }
+          ],
+          "max_tokens": 128
+        },
+        {
+          "at": 1792859173516,
+          "isRoot": false,
+          "isChild": true,
+          "rootStep": 2,
+          "childCount": 1,
+          "finish": "length",
+          "calls": [],
+          "max_tokens": 128
+        },
+        {
+          "at": 1792859173517,
+          "isRoot": false,
+          "isChild": true,
+          "rootStep": 2,
+          "childCount": 2,
+          "finish": "length",
+          "calls": [],
+          "max_tokens": 128
+        },
+        {
+          "at": 1792859173537,
+          "isRoot": true,
+          "isChild": false,
+          "rootStep": 2,
+          "childCount": 2,
+          "finish": "stop",
+          "calls": [],
+          "max_tokens": 128
+        },
+        {
+          "at": 1792859173553,
+          "isRoot": true,
+          "isChild": false,
+          "rootStep": 2,
+          "childCount": 2,
+          "finish": "stop",
+          "calls": [],
+          "max_tokens": 128
+        }
+      ]
+    }
+  ],
+  "candidateTests": [
+    {
+      "case": "wrong-child",
+      "actual": "unknown:execution-not-unique",
+      "expected": "unknown:execution-not-unique"
+    },
+    {
+      "case": "wrong-parent",
+      "actual": "unknown:execution-not-unique",
+      "expected": "unknown:execution-not-unique"
+    },
+    {
+      "case": "missing-user-id",
+      "actual": "unknown:missing-binding-or-user",
+      "expected": "unknown:missing-binding-or-user"
+    },
+    {
+      "case": "multiple-active",
+      "actual": "unknown:execution-not-unique",
+      "expected": "unknown:execution-not-unique"
+    },
+    {
+      "case": "no-active-sync",
+      "actual": "unknown:execution-not-unique",
+      "expected": "unknown:execution-not-unique"
+    },
+    {
+      "case": "stopped-hook",
+      "actual": "unknown:stopped",
+      "expected": "unknown:stopped"
+    },
+    {
+      "case": "missing-messages",
+      "actual": "unknown",
+      "expected": "unknown"
+    },
+    {
+      "case": "wrong-user-assistant",
+      "actual": "unknown",
+      "expected": "unknown"
+    },
+    {
+      "case": "duplicate-same-message",
+      "actual": "incomplete",
+      "expected": "incomplete"
+    },
+    {
+      "case": "multiple-assistants",
+      "actual": "unknown",
+      "expected": "unknown"
+    },
+    {
+      "case": "late-stop",
+      "actual": "suppressed",
+      "expected": "suppressed"
+    },
+    {
+      "case": "assistant-error",
+      "actual": "unknown",
+      "expected": "unknown"
+    },
+    {
+      "case": "duplicate-hook-idempotent",
+      "actual": {
+        "ref": "a133c861-be28-44be-9d52-a6132e0cb10f",
+        "parent": "ses_e9142a07affeDDwscft8gUBgL7",
+        "callID": "call_1_0",
+        "childID": "ses_e91429dc6ffewV0oeVzWvaBx6a",
+        "userID": "msg_16ebd623c001hZj12bf6rJYaI0",
+        "freezeAt": 1792859267661,
+        "conflict": true
+      },
+      "expected": {
+        "ref": "a133c861-be28-44be-9d52-a6132e0cb10f",
+        "parent": "ses_e9142a07affeDDwscft8gUBgL7",
+        "callID": "call_1_0",
+        "childID": "ses_e91429dc6ffewV0oeVzWvaBx6a",
+        "userID": "msg_16ebd623c001hZj12bf6rJYaI0",
+        "freezeAt": 1792859267661,
+        "conflict": true
+      }
+    },
+    {
+      "case": "conflicting-user",
+      "actual": "unknown:user-conflict",
+      "expected": "unknown:user-conflict"
+    },
+    {
+      "case": "conflict-then-read-stays-unknown",
+      "actual": "unknown",
+      "expected": "unknown"
+    },
+    {
+      "case": "conflict-then-repeat-stays-unknown",
+      "actual": "unknown:user-conflict",
+      "expected": "unknown:user-conflict"
+    },
+    {
+      "case": "old-notice-after-resume-stays-first",
+      "actual": "incomplete",
+      "expected": "incomplete"
+    }
+  ]
+}

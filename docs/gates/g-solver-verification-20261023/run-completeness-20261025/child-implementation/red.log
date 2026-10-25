@@ -1,0 +1,337 @@
+
+ RUN  v2.1.9 /Users/caihaoming/.codex/worktrees/child-result-validation/pentest-agent
+
+stderr | tests/contract/g-async-lifecycle.test.ts > SDK wait holds no state lock and stop suppresses its pending wake
+Promise returned by `expect(actual).rejects.toThrow(expected)` was not awaited. Vitest currently auto-awaits hanging assertions at the end of the test, but this will cause the test to fail in Vitest 3. Please remember to await the assertion.
+    at /Users/caihaoming/.codex/worktrees/child-result-validation/pentest-agent/tests/contract/g-async-lifecycle.test.ts:65:357
+
+ ❯ tests/contract/g-async-lifecycle.test.ts (33 tests | 20 failed) 25631ms
+   ✓ default job.run returns terminal without wait/completion modes 5566ms
+   × background result classifies partial length independently of envelope 7ms
+     → expected { …(13) } to match object { state: 'completed', …(2) }
+(12 matching properties omitted from actual)
+   × background result classifies empty length independently of envelope 2ms
+     → expected { …(13) } to match object { state: 'completed', …(2) }
+(12 matching properties omitted from actual)
+   × background result classifies empty stop independently of envelope 1ms
+     → expected { …(13) } to match object { state: 'completed', …(2) }
+(12 matching properties omitted from actual)
+   × background result classifies complete stop independently of envelope 1ms
+     → expected { …(13) } to match object { state: 'completed', …(2) }
+(12 matching properties omitted from actual)
+   × background result classifies error independently of envelope 1ms
+     → expected { …(13) } to match object { state: 'completed', …(2) }
+(12 matching properties omitted from actual)
+   × background result classifies unfinished independently of envelope 1ms
+     → expected { …(13) } to match object { state: 'completed', …(2) }
+(12 matching properties omitted from actual)
+   × background result classifies unknown finish independently of envelope 1ms
+     → expected { …(13) } to match object { state: 'completed', …(2) }
+(12 matching properties omitted from actual)
+   × same child resume freezes a new source despite old binding call ID; old notice cannot overwrite it 2ms
+     → expected [ { …(14) }, { …(13) } ] to match object [ { source: { …(1) }, …(1) }, …(1) ]
+(27 matching properties omitted from actual)
+   × conflicting hook source stays conflict after repeats and result reading 1ms
+     → expected { …(13) } to match object { Object (source, resultFacts) }
+(13 matching properties omitted from actual)
+   × ambiguous or missing SDK result remains unknown: missing_user 1ms
+     → expected { …(13) } to match object { Object (resultFacts) }
+(13 matching properties omitted from actual)
+   × ambiguous or missing SDK result remains unknown: wrong_parent 1ms
+     → expected { …(13) } to match object { Object (resultFacts) }
+(13 matching properties omitted from actual)
+   × ambiguous or missing SDK result remains unknown: duplicate_conflict 1ms
+     → expected { …(13) } to match object { Object (resultFacts) }
+(13 matching properties omitted from actual)
+   × ambiguous or missing SDK result remains unknown: multiple_assistants 1ms
+     → expected { …(13) } to match object { Object (resultFacts) }
+(13 matching properties omitted from actual)
+   × ambiguous or missing SDK result remains unknown: missing_id 2ms
+     → expected { …(13) } to match object { Object (resultFacts) }
+(13 matching properties omitted from actual)
+   × ambiguous or missing SDK result remains unknown: wrong_session 1ms
+     → expected { …(13) } to match object { Object (resultFacts) }
+(13 matching properties omitted from actual)
+   × ambiguous or missing SDK result remains unknown: sdk_missing 1ms
+     → expected { …(13) } to match object { Object (resultFacts) }
+(13 matching properties omitted from actual)
+   × ambiguous or missing SDK result remains unknown: sdk_error 1ms
+     → expected { …(13) } to match object { Object (resultFacts) }
+(13 matching properties omitted from actual)
+   × identical repeated messages and hooks are idempotent; snapshot metadata cannot mutate state 1ms
+     → Cannot read properties of undefined (reading 'completeness')
+   × missing hook ID is unknown and sync resume never reclaims the old execution 1ms
+     → expected { …(13) } to match object { resultFacts: { …(2) } }
+(13 matching properties omitted from actual)
+   × SDK wait holds no state lock and stop suppresses its pending wake 20007ms
+     → Test timed out in 20000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+
+⎯⎯⎯⎯⎯⎯ Failed Tests 20 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/contract/g-async-lifecycle.test.ts > background result classifies partial length independently of envelope
+ FAIL  tests/contract/g-async-lifecycle.test.ts > background result classifies empty length independently of envelope
+ FAIL  tests/contract/g-async-lifecycle.test.ts > background result classifies empty stop independently of envelope
+ FAIL  tests/contract/g-async-lifecycle.test.ts > background result classifies complete stop independently of envelope
+ FAIL  tests/contract/g-async-lifecycle.test.ts > background result classifies error independently of envelope
+ FAIL  tests/contract/g-async-lifecycle.test.ts > background result classifies unfinished independently of envelope
+ FAIL  tests/contract/g-async-lifecycle.test.ts > background result classifies unknown finish independently of envelope
+AssertionError: expected { …(13) } to match object { state: 'completed', …(2) }
+(12 matching properties omitted from actual)
+
+- Expected
++ Received
+
+  Object {
+-   "resultFacts": Object {
+-     "assistantMessageID": "reply-1",
+-     "completeness": "incomplete",
+-     "finish": "length",
+-     "reason": "length",
+-   },
+-   "source": Object {
+-     "status": "associated",
+-     "userMessageID": "source-1",
+-   },
+    "state": "completed",
+  }
+
+ ❯ tests/contract/g-async-lifecycle.test.ts:59:289
+
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/20]⎯
+
+ FAIL  tests/contract/g-async-lifecycle.test.ts > same child resume freezes a new source despite old binding call ID; old notice cannot overwrite it
+AssertionError: expected [ { …(14) }, { …(13) } ] to match object [ { source: { …(1) }, …(1) }, …(1) ]
+(27 matching properties omitted from actual)
+
+- Expected
++ Received
+
+  Array [
+    Object {
+-     "resultFacts": Object {
+-       "completeness": "incomplete",
+-       "finish": "length",
+-     },
+-     "source": Object {
+-       "userMessageID": "source-1",
+-     },
++     "callID": "dispatch-1",
++     "challengeId": "X",
++     "childID": "a",
++     "delivered": true,
++     "delivery": "queued",
++     "lateResult": "<task id=\"a\" state=\"completed\">
++ <summary>Background task completed: [ctf:a23f3dc9-4a48-41b9-9b0c-5b167ddd0906]</summary>
++ <task_result>envelope</task_result>
++ </task>",
++     "noticeMessageID": "notice",
++     "parent": "root",
++     "ref": "a23f3dc9-4a48-41b9-9b0c-5b167ddd0906",
++     "result": "<task id=\"a\" state=\"completed\">
++ <summary>Background task completed: [ctf:a23f3dc9-4a48-41b9-9b0c-5b167ddd0906]</summary>
++ <task_result>envelope</task_result>
++ </task>",
++     "role": "recon",
++     "run": "run",
++     "state": "completed",
++     "version": undefined,
+    },
+    Object {
+-     "resultFacts": Object {
+-       "assistantMessageID": "reply-2",
+-       "completeness": "complete",
+-     },
+-     "source": Object {
+-       "userMessageID": "source-2",
+-     },
++     "callID": "resume",
++     "challengeId": "X",
++     "childID": "a",
++     "delivered": true,
++     "delivery": "queued",
++     "noticeMessageID": "notice-2",
++     "parent": "root",
++     "ref": "ceb459f7-e17e-4351-acec-c29bdbeadd0e",
++     "result": "<task id=\"a\" state=\"completed\">
++ <summary>Background task completed: [ctf:ceb459f7-e17e-4351-acec-c29bdbeadd0e]</summary>
++ <task_result>envelope</task_result>
++ </task>",
++     "role": "recon",
++     "run": "run",
++     "state": "completed",
++     "version": undefined,
+    },
+  ]
+
+ ❯ tests/contract/g-async-lifecycle.test.ts:60:973
+
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/20]⎯
+
+ FAIL  tests/contract/g-async-lifecycle.test.ts > conflicting hook source stays conflict after repeats and result reading
+AssertionError: expected { …(13) } to match object { Object (source, resultFacts) }
+(13 matching properties omitted from actual)
+
+- Expected
++ Received
+
+  Object {
+-   "resultFacts": Object {
+-     "completeness": "unknown",
+-     "reason": "source_conflict",
+-   },
+-   "source": Object {
+-     "status": "conflict",
+-   },
++   "callID": "dispatch-1",
++   "challengeId": "X",
++   "childID": "a",
++   "delivered": true,
++   "delivery": "queued",
++   "noticeMessageID": "notice",
++   "parent": "root",
++   "ref": "671fc722-6ba7-4b3b-b8d1-cafe8a508d9e",
++   "result": "<task id=\"a\" state=\"completed\">
++ <summary>Background task completed: [ctf:671fc722-6ba7-4b3b-b8d1-cafe8a508d9e]</summary>
++ <task_result>envelope</task_result>
++ </task>",
++   "role": "recon",
++   "run": "run",
++   "state": "completed",
++   "version": undefined,
+  }
+
+ ❯ tests/contract/g-async-lifecycle.test.ts:61:354
+
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/20]⎯
+
+ FAIL  tests/contract/g-async-lifecycle.test.ts > ambiguous or missing SDK result remains unknown: missing_user
+ FAIL  tests/contract/g-async-lifecycle.test.ts > ambiguous or missing SDK result remains unknown: wrong_parent
+ FAIL  tests/contract/g-async-lifecycle.test.ts > ambiguous or missing SDK result remains unknown: duplicate_conflict
+ FAIL  tests/contract/g-async-lifecycle.test.ts > ambiguous or missing SDK result remains unknown: multiple_assistants
+ FAIL  tests/contract/g-async-lifecycle.test.ts > ambiguous or missing SDK result remains unknown: missing_id
+ FAIL  tests/contract/g-async-lifecycle.test.ts > ambiguous or missing SDK result remains unknown: wrong_session
+ FAIL  tests/contract/g-async-lifecycle.test.ts > ambiguous or missing SDK result remains unknown: sdk_missing
+ FAIL  tests/contract/g-async-lifecycle.test.ts > ambiguous or missing SDK result remains unknown: sdk_error
+AssertionError: expected { …(13) } to match object { Object (resultFacts) }
+(13 matching properties omitted from actual)
+
+- Expected
++ Received
+
+  Object {
+-   "resultFacts": Object {
+-     "completeness": "unknown",
+-   },
++   "callID": "dispatch-1",
++   "challengeId": "X",
++   "childID": "a",
++   "delivered": true,
++   "delivery": "queued",
++   "noticeMessageID": "notice",
++   "parent": "root",
++   "ref": "65391765-2af1-465e-b085-f9bf6e04b94f",
++   "result": "<task id=\"a\" state=\"completed\">
++ <summary>Background task completed: [ctf:65391765-2af1-465e-b085-f9bf6e04b94f]</summary>
++ <task_result>envelope</task_result>
++ </task>",
++   "role": "recon",
++   "run": "run",
++   "state": "completed",
++   "version": undefined,
+  }
+
+ ❯ tests/contract/g-async-lifecycle.test.ts:62:996
+
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[4/20]⎯
+
+ FAIL  tests/contract/g-async-lifecycle.test.ts > identical repeated messages and hooks are idempotent; snapshot metadata cannot mutate state
+TypeError: Cannot read properties of undefined (reading 'completeness')
+ ❯ tests/contract/g-async-lifecycle.test.ts:63:428
+
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[5/20]⎯
+
+ FAIL  tests/contract/g-async-lifecycle.test.ts > missing hook ID is unknown and sync resume never reclaims the old execution
+AssertionError: expected { …(13) } to match object { resultFacts: { …(2) } }
+(13 matching properties omitted from actual)
+
+- Expected
++ Received
+
+  Object {
+-   "resultFacts": Object {
+-     "completeness": "unknown",
+-     "reason": "missing_source",
+-   },
++   "callID": "dispatch-1",
++   "challengeId": "X",
++   "childID": "a",
++   "delivered": true,
++   "delivery": "queued",
++   "noticeMessageID": "notice",
++   "parent": "root",
++   "ref": "7cb111e6-8bd0-4ddb-aa88-8079b601eda1",
++   "result": "<task id=\"a\" state=\"completed\">
++ <summary>Background task completed: [ctf:7cb111e6-8bd0-4ddb-aa88-8079b601eda1]</summary>
++ <task_result>envelope</task_result>
++ </task>",
++   "role": "recon",
++   "run": "run",
++   "state": "completed",
++   "version": undefined,
+  }
+
+ ❯ tests/contract/g-async-lifecycle.test.ts:64:252
+
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[6/20]⎯
+
+ FAIL  tests/contract/g-async-lifecycle.test.ts > SDK wait holds no state lock and stop suppresses its pending wake
+Error: Test timed out in 20000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[7/20]⎯
+
+⎯⎯⎯⎯⎯⎯ Unhandled Errors ⎯⎯⎯⎯⎯⎯
+
+Vitest caught 1 unhandled error during the test run.
+This might cause false positive tests. Resolve unhandled errors to make sure your tests are not affected.
+
+⎯⎯⎯⎯ Unhandled Rejection ⎯⎯⎯⎯⎯
+AssertionError: promise resolved "{ bound: true }" instead of rejecting
+
+- Expected
++ Received
+
+- [Error: rejected promise]
++ Object {
++   "bound": true,
++ }
+
+ ❯ Assertion.__VITEST_REJECTS__ ../../../../Documents/pentest-agent/node_modules/@vitest/expect/dist/index.js:1805:21
+ ❯ Assertion.propertyGetter ../../../../Documents/pentest-agent/node_modules/chai/index.js:1557:27
+ ❯ Object.proxyGetter [as get] ../../../../Documents/pentest-agent/node_modules/chai/index.js:1645:22
+ ❯ tests/contract/g-async-lifecycle.test.ts:65:357
+
+ ❯ ../../../../Documents/pentest-agent/node_modules/@vitest/runner/dist/index.js:533:5
+ ❯ runTest ../../../../Documents/pentest-agent/node_modules/@vitest/runner/dist/index.js:1056:11
+ ❯ runSuite ../../../../Documents/pentest-agent/node_modules/@vitest/runner/dist/index.js:1205:15
+ ❯ runFiles ../../../../Documents/pentest-agent/node_modules/@vitest/runner/dist/index.js:1262:5
+ ❯ startTests ../../../../Documents/pentest-agent/node_modules/@vitest/runner/dist/index.js:1271:3
+
+This error originated in "tests/contract/g-async-lifecycle.test.ts" test file. It doesn't mean the error was thrown inside the file itself, but while it was running.
+The latest test that might've caused the error is "SDK wait holds no state lock and stop suppresses its pending wake". It might mean one of the following:
+- The error was thrown, while Vitest was running this test.
+- If the error occurred after the test had been completed, this was the last documented test before it was thrown.
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯
+
+ Test Files  1 failed (1)
+      Tests  20 failed | 13 passed (33)
+     Errors  1 error
+   Start at  10:52:33
+   Duration  25.94s (transform 69ms, setup 0ms, collect 89ms, tests 25.63s, environment 0ms, prepare 36ms)
+

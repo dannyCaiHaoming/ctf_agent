@@ -1,0 +1,34 @@
+
+ RUN  v2.1.9 /Users/caihaoming/.codex/worktrees/child-result-validation/pentest-agent
+
+ ❯ tests/contract/g-async-lifecycle.test.ts (39 tests | 1 failed | 38 skipped) 12ms
+   × host revoke during result SDK wait rejects the pending parent hook without changing natural terminal state 12ms
+     → expected { value: { bound: true } } to match object { error: Any<Error> }
+(2 matching properties omitted from actual)
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/contract/g-async-lifecycle.test.ts > host revoke during result SDK wait rejects the pending parent hook without changing natural terminal state
+AssertionError: expected { value: { bound: true } } to match object { error: Any<Error> }
+(2 matching properties omitted from actual)
+
+- Expected
++ Received
+
+  Object {
+-   "error": Any<Error>,
++   "value": Object {
++     "bound": true,
++   },
+  }
+
+ ❯ tests/contract/g-async-lifecycle.test.ts:69:551
+
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 38 skipped (39)
+   Start at  10:56:28
+   Duration  289ms (transform 73ms, setup 0ms, collect 90ms, tests 12ms, environment 0ms, prepare 29ms)
+

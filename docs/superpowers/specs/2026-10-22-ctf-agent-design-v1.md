@@ -126,7 +126,7 @@ OpenCode 工作目錄由宿主為每次 run 新建並控制，只含宿主寫入
 
 既有前台 task 的首次綁定與准入已驗證；G 異步分派、完成喚醒與等待中停止已在隔離原型完成聯合無模型驗證（G §9、C §6.2），並已接入主區（G §9.2）。父下一輪准入不得清理仍在啟動的 pending，父 idle 不等於 run 完成。若原生 `task` 確實不滿足邊界，再提出有界 SDK 接線方案或設計 blocker，不自行另造分派循環、不維護 fork。控制服務、插件接線、會話綁定、預算准入與角色能力的細節以 [C 詳細 design](2026-10-23-design-v1-c-control-service.md) 為準。
 
-本次 throwback 调试暴露的空／未完整交接与 root 收束判定，见 [环境就绪与结果完整性子设计](2026-10-25-design-v1-run-readiness-and-result-completeness.md) §7–8；Root 完整性与展示已接入并通过主区430项及固定 OpenCode 1.19.3 四例本地替身验证，生命周期与报告完整性分开记录。子任务执行到消息的可靠关联仍 unknown，不以原生 completed 证明报告完整，也不外推为真实模型能力。
+本次 throwback 调试暴露的空／未完整交接与 root 收束判定，见 [环境就绪与结果完整性子设计](2026-10-25-design-v1-run-readiness-and-result-completeness.md) §7–10；Root 完整性与展示已接入并通过主区430项及固定 OpenCode 1.19.3 四例本地替身验证，生命周期与报告完整性分开记录。子任务后台关联与可审计完整性事实已按 §10 接入主区，typecheck/build及458项、两组原生本地替身两轮验证通过；同步无 ref、并发通知收束和父上下文展示仍保留限制。不以原生 completed 证明报告完整，也不外推为真实模型能力。
 
 #### C.1 原生 task 的綁定時序（已定稿：採原生 `task`）
 

@@ -1,0 +1,167 @@
+{
+  "result": {
+    "code": 0,
+    "status": "completed",
+    "runDir": "/private/var/folders/tn/x1hbkfy17sx0w1lb8kjzzr340000gn/T/ctf-child-correlation-km69t97l/sync-resume/runs/run"
+  },
+  "version": "1.19.3",
+  "admittedModelCalls": 6,
+  "usageTotal": {
+    "availability": "reported",
+    "input_tokens": 6,
+    "output_tokens": 6,
+    "reasoning_tokens": 0,
+    "lowerBound": false
+  },
+  "finalExecutions": [
+    {
+      "ref": "faa97a4b-2398-45e0-b118-383dcea834d1",
+      "run": "run",
+      "parent": "ses_e9141f3f9ffexYfpLJ85lMWPZA",
+      "callID": "call_1_0",
+      "role": "intake",
+      "childID": "ses_e9141f006ffetYajNH5m8RNS33",
+      "state": "completed",
+      "delivered": true,
+      "noticeMessageID": "msg_16ebe10270015SXhfRXM7wejpX",
+      "delivery": "consumed"
+    }
+  ],
+  "correlationAudit": [
+    {
+      "seq": 1,
+      "t": 71,
+      "at": 1792859311113,
+      "sessionID": "ses_e9141f3f9ffexYfpLJ85lMWPZA",
+      "op": "bind",
+      "allow": true,
+      "detail": {
+        "role": "coordinator",
+        "via": "root"
+      },
+      "role": "coordinator"
+    },
+    {
+      "seq": 4,
+      "t": 1072,
+      "at": 1792859312114,
+      "sessionID": "ses_e9141f3f9ffexYfpLJ85lMWPZA",
+      "op": "dispatch.register",
+      "allow": true,
+      "detail": {
+        "role": "intake",
+        "callID": "call_1_0",
+        "argsFingerprint": "218c63fa83e6e95d8b4355a86453299b3689922d47271e62e5788db4959515d3"
+      },
+      "role": "coordinator"
+    },
+    {
+      "seq": 5,
+      "t": 1072,
+      "at": 1792859312114,
+      "sessionID": "ses_e9141f3f9ffexYfpLJ85lMWPZA",
+      "op": "task.execution",
+      "allow": true,
+      "detail": {
+        "ref": "faa97a4b-2398-45e0-b118-383dcea834d1",
+        "run": "run",
+        "parent": "ses_e9141f3f9ffexYfpLJ85lMWPZA",
+        "callID": "call_1_0",
+        "role": "intake",
+        "state": "starting",
+        "delivered": false
+      },
+      "role": "coordinator"
+    },
+    {
+      "seq": 7,
+      "t": 1084,
+      "at": 1792859312126,
+      "sessionID": "ses_e9141f3f9ffexYfpLJ85lMWPZA",
+      "op": "task.correlate",
+      "allow": true,
+      "detail": {
+        "callID": "call_1_0",
+        "childSessionID": "ses_e9141f006ffetYajNH5m8RNS33",
+        "childBoundToCaller": false
+      },
+      "role": "coordinator"
+    },
+    {
+      "seq": 9,
+      "t": 1098,
+      "at": 1792859312140,
+      "sessionID": "ses_e9141f006ffetYajNH5m8RNS33",
+      "op": "bind",
+      "allow": true,
+      "detail": {
+        "role": "intake",
+        "via": "dispatch",
+        "sdkParentID": "ses_e9141f3f9ffexYfpLJ85lMWPZA",
+        "sdkAgent": "intake",
+        "callID": "call_1_0",
+        "sdkMs": 15
+      },
+      "role": "intake"
+    },
+    {
+      "seq": 13,
+      "t": 1126,
+      "at": 1792859312168,
+      "sessionID": "ses_e9141f3f9ffexYfpLJ85lMWPZA",
+      "op": "task.completion",
+      "allow": true,
+      "detail": {
+        "ref": "faa97a4b-2398-45e0-b118-383dcea834d1",
+        "childID": "ses_e9141f006ffetYajNH5m8RNS33",
+        "callID": "call_1_0",
+        "state": "completed",
+        "messageID": "msg_16ebe10270015SXhfRXM7wejpX",
+        "wake": true
+      },
+      "role": "coordinator"
+    },
+    {
+      "seq": 15,
+      "t": 1133,
+      "at": 1792859312175,
+      "sessionID": "ses_e9141f3f9ffexYfpLJ85lMWPZA",
+      "op": "task.delivered",
+      "allow": true,
+      "detail": {
+        "ref": "faa97a4b-2398-45e0-b118-383dcea834d1",
+        "messageID": "msg_16ebe10270015SXhfRXM7wejpX",
+        "admitNo": 4
+      },
+      "role": "coordinator"
+    },
+    {
+      "seq": 17,
+      "t": 1141,
+      "at": 1792859312183,
+      "sessionID": "ses_e9141f3f9ffexYfpLJ85lMWPZA",
+      "op": "dispatch.resume",
+      "allow": true,
+      "detail": {
+        "role": "intake",
+        "taskId": "ses_e9141f006ffetYajNH5m8RNS33",
+        "declarationConsumed": false
+      },
+      "role": "coordinator"
+    },
+    {
+      "seq": 21,
+      "t": 1156,
+      "at": 1792859312198,
+      "sessionID": "ses_e9141f3f9ffexYfpLJ85lMWPZA",
+      "op": "task.correlate",
+      "allow": true,
+      "detail": {
+        "callID": "call_4_0",
+        "childSessionID": "ses_e9141f006ffetYajNH5m8RNS33",
+        "childBoundToCaller": true
+      },
+      "role": "coordinator"
+    }
+  ]
+}

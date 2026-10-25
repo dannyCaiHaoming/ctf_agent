@@ -1,0 +1,11 @@
+
+> ctf-agent@0.1.0 typecheck
+> tsc --noEmit
+
+apps/launcher/src/control-service.ts(966,44): error TS2345: Argument of type '{ info: Message; parts: Part[]; }[]' is not assignable to parameter of type 'readonly ChildMessage[]'.
+  Type '{ info: Message; parts: Part[]; }' is not assignable to type 'ChildMessage'.
+    Types of property 'info' are incompatible.
+      Type 'Message' is not assignable to type '{ id?: string | undefined; sessionID?: string | undefined; role: string; parentID?: string | undefined; finish?: string | undefined; error?: unknown; time?: { completed?: number | undefined; } | undefined; }'.
+        Type 'UserMessage' is not assignable to type '{ id?: string | undefined; sessionID?: string | undefined; role: string; parentID?: string | undefined; finish?: string | undefined; error?: unknown; time?: { completed?: number | undefined; } | undefined; }'.
+          Types of property 'time' are incompatible.
+            Type '{ created: number; }' has no properties in common with type '{ completed?: number | undefined; }'.

@@ -1,0 +1,211 @@
+--- /dev/null
++++ b/apps/launcher/src/child-result.ts
+@@ -0,0 +1,43 @@
++/** Background execution facts only: never persist text, reasoning or error payloads. */
++export interface ChildSource {
++  status: 'unknown' | 'associated' | 'conflict'; userMessageID: string | null;
++  observedAt: number | null; reason: string;
++}
++export interface ChildResult {
++  userMessageID: string | null; assistantMessageID: string | null;
++  finish: string | null; completed: boolean; textChars: number; hasError: boolean;
++  completeness: 'complete' | 'incomplete' | 'unknown'; reason: string; observedAt: number;
++}
++export type ChildMessage = { info: { id?: string; sessionID?: string; role: string; parentID?: string; finish?: string; error?: unknown; time?: { created?: number; completed?: number } }; parts?: Array<{ type: string; text?: string }> };
++export const unknownChildResult = (source: ChildSource, reason: string): ChildResult => ({userMessageID:source.userMessageID,assistantMessageID:null,finish:null,completed:false,textChars:0,hasError:false,completeness:'unknown',reason,observedAt:Date.now()});
++export function classifyChildResult(messages: readonly ChildMessage[], childID: string, source: ChildSource): ChildResult {
++  const result = unknownChildResult(source, 'missing_user');
++  if (source.status !== 'associated' || !source.userMessageID) return unknownChildResult(source, source.status === 'conflict' ? 'source_conflict' : 'missing_source');
++  // Only project fields used by this decision; duplicates must agree, never last-write-wins.
++  const projection = (m: ChildMessage) => ({id:m.info.id??null,sessionID:m.info.sessionID??null,role:m.info.role,parentID:m.info.parentID??null,finish:m.info.finish??null,completed:m.info.time?.completed??null,hasError:!!m.info.error,text:(m.parts??[]).filter(p=>p.type==='text').map(p=>p.text??'').join('')});
++  const relevant = messages.filter(m=>m.info.id===source.userMessageID || m.info.role==='assistant'&&m.info.parentID===source.userMessageID);
++  const selectedIDs = new Set(relevant.map(m=>m.info.id));
++  const unique = new Map<string, ReturnType<typeof projection>>();
++  for (const m of messages.filter(m=>selectedIDs.has(m.info.id))) {
++    const p=projection(m);
++    if (!p.id) return {...result,reason:'message_identity'};
++    const prior=unique.get(p.id);
++    if(prior && JSON.stringify(prior)!==JSON.stringify(p)) return {...result,reason:'message_conflict'};
++    unique.set(p.id,p);
++  }
++  if([...unique.values()].some(m=>m.sessionID!==null && m.sessionID!==childID))return {...result,reason:'message_identity'};
++  const user=unique.get(source.userMessageID);
++  if(!user || user.role!=='user') return result;
++  const assistants=[...unique.values()].filter(m=>m.role==='assistant'&&m.parentID===source.userMessageID);
++  if(assistants.length!==1) return {...result,reason:assistants.length?'multiple_assistants':'missing_assistant'};
++  const assistant=assistants[0]!;
++  result.assistantMessageID=assistant.id;result.finish=assistant.finish;
++  result.completed=typeof assistant.completed==='number'&&Number.isFinite(assistant.completed);
++  result.textChars=assistant.text.length;result.hasError=assistant.hasError;
++  if(result.hasError){result.completeness='incomplete';result.reason='error';}
++  else if(!result.completed)result.reason='not_completed';
++  else if(result.finish==='length'){result.completeness='incomplete';result.reason='length';}
++  else if(result.finish==='stop'){result.completeness=assistant.text.trim()?'complete':'incomplete';result.reason=assistant.text.trim()?'stop':'missing_text';}
++  else result.reason='unknown_finish';
++  return result;
++}
+--- a/apps/launcher/src/control-service.ts
++++ b/apps/launcher/src/control-service.ts
+@@ -1,3 +1,4 @@
++import { classifyChildResult, unknownChildResult, type ChildSource, type ChildResult } from './child-result.js';
+ import {CompletionRequests,type CompletionJudge} from './completion-tools.js';
+ // Control service (design v1 C): lives in the launcher process, owns the session binding table, the run budget
+ // ledger, the role capability table and the stop sequence. The product plugin inside OpenCode only forwards hook
+@@ -102,7 +103,7 @@
+ export const MANAGED_TOOLS = [...INTAKE_TOOLS, 'challenge.assign', 'challenge.unassign', 'task.stop', 'verification.read', 'completion.request', ...PROGRESS_TOOLS, ...SOLVER_TOOLS];
+ interface Resource { run: string; sessionID: string; challengeId: string; callID: string; tool: string; state: 'active' | 'settled' | 'unknown'; result?: string; job?: string; controller: AbortController; deadline: number; execution?: string; timer?: ReturnType<typeof setTimeout>; done?: Promise<unknown>; detachRpc?: () => void }
+ interface TaskStopResult { state: 'stopped' | 'unknown' | 'completed' | 'failed'; resources: 'settled' | 'unknown'; sessionAbort: 'confirmed' | 'unknown' | 'not_required'; executionRef?: string }
+-interface Execution { version?: string; ref: string; run: string; parent: string; callID: string; role: Role; challengeId?: string; childID?: string; state: 'starting' | 'running' | 'completed' | 'failed' | 'cancelled'; delivered: boolean; noticeMessageID?: string; delivery?: 'queued' | 'consumed' | 'suppressed' | 'stop_reply'; lateResult?: string; initialOutput?: string; result?: string }
++interface Execution { source: ChildSource; resultFacts: ChildResult | null; version?: string; ref: string; run: string; parent: string; callID: string; role: Role; challengeId?: string; childID?: string; state: 'starting' | 'running' | 'completed' | 'failed' | 'cancelled'; delivered: boolean; noticeMessageID?: string; delivery?: 'queued' | 'consumed' | 'suppressed' | 'stop_reply'; lateResult?: string; initialOutput?: string; result?: string }
+ interface Preparation {sessionID:string;execution:string;version:string;directory:string;metadata:{path:string;sha256:string;size:number}[];files:{path:string;sha256:string;size:number}[]}
+ interface Outside { execute: () => Promise<unknown> }
+ 
+@@ -174,7 +175,7 @@
+   private readonly rootsReady = new Map<string, Promise<void>>();
+   constructor(private readonly options: ControlOptions) { this.completions=new CompletionRequests(join(options.workdir,'..','state','completion')); this.jobs = new JobManager({ jobsRoot: join(options.workdir, '..', 'state', 'jobs') }); }
+ 
+-  executionSnapshot() { return [...this.executions.values()].map(e => ({...e})); }
++  executionSnapshot() { return [...this.executions.values()].map(e => structuredClone(e)); }
+   hasOutstandingWork(status: Record<string, { type: string }>): boolean {
+     return [...this.executions.values()].some(e => e.state === 'starting' || e.state === 'running' || !e.delivered || e.delivery === 'queued') || [...this.pending.values()].some(p => p.size > 0) ||
+       [...this.resources.values()].some(r => r.state !== 'settled');
+@@ -203,7 +204,7 @@
+       if (!['chat.message', 'model.call', 'tool.before', 'tool.execute', 'tool.after', 'task.event'].includes(operation)) throw new ControlDenied('unknown operation');
+       if (operation === 'task.event') return await this.serial(() => this.taskEvent(sessionID, body));
+       // Runtime-synthetic native completion is consumed once before admission; stopped runs retain it without waking.
+-      if (operation === 'chat.message') await this.serial(() => this.receiveCompletion(sessionID, body));
++      if (operation === 'chat.message') await this.receiveCompletion(sessionID, body);
+       let binding: Binding | undefined;
+       if (operation !== 'tool.after') {
+         const hookAgent = typeof body.agent === 'string' ? body.agent : undefined;
+@@ -227,7 +228,7 @@
+         if (this.stopReason) throw new ControlDenied('run stopped');
+         this.live(binding!);
+         switch (operation) {
+-          case 'chat.message': return { bound: true };
++          case 'chat.message': this.freezeChildSource(binding!, body); return { bound: true };
+           case 'model.call': return this.admit(binding!, body);
+           case 'tool.before': return this.toolBefore(binding!, body);
+           default: return this.executeManaged(binding!, body, signal);
+@@ -505,7 +506,7 @@
+       if (args.background === true) {
+         const ref = randomUUID();
+         const taskID = typeof args.task_id === 'string' ? args.task_id : undefined;
+-        this.executions.set(ref, { ref, run: this.options.runId ?? 'run', parent: binding.sessionID, callID: String(body.callID), role: args.subagent_type as Role, version: this.versions.get(binding.sessionID+'/'+String(args.subagent_type)), challengeId: taskID ? this.bindings.get(taskID)?.challengeId : this.pending.get(binding.sessionID)?.get(args.subagent_type as Role)?.challengeId, childID: taskID, state: taskID ? 'running' : 'starting', delivered: false });
++        this.executions.set(ref, { source: {status:'unknown',userMessageID:null,observedAt:null,reason:'missing_source'}, resultFacts:null, ref, run: this.options.runId ?? 'run', parent: binding.sessionID, callID: String(body.callID), role: args.subagent_type as Role, version: this.versions.get(binding.sessionID+'/'+String(args.subagent_type)), challengeId: taskID ? this.bindings.get(taskID)?.challengeId : this.pending.get(binding.sessionID)?.get(args.subagent_type as Role)?.challengeId, childID: taskID, state: taskID ? 'running' : 'starting', delivered: false });
+         this.versions.delete(binding.sessionID+'/'+String(args.subagent_type));
+         this.record(binding.sessionID, 'task.execution', true, undefined, {...this.executions.get(ref)});
+         return { allowed: true, taskDescription: `[ctf:${ref}]` };
+@@ -917,21 +918,65 @@
+     return {ok: true};
+   }
+ 
+-  private receiveCompletion(parent: string, body: Record<string, unknown>): void {
+-    if (!Array.isArray(body.parts)) return;
+-    for (const part of body.parts as Array<{type?: string; synthetic?: boolean; text?: string}>) {
+-      if (part.type !== 'text' || part.synthetic !== true || typeof part.text !== 'string') continue;
+-      const match = /^<task id="([\w.-]+)" state="(completed|error)">\n<summary>Background task (?:completed|failed): \[ctf:([a-f0-9-]{36})\]<\/summary>/.exec(part.text);
+-      if (!match) continue;
+-      const execution = this.executions.get(match[3]!);
+-      if (!execution || execution.parent !== parent || execution.childID !== match[1]) throw new ControlDenied('completion correlation');
+-      if (execution.delivered) { execution.lateResult = part.text; this.record(parent, 'task.completion.ignored', true, undefined, { ref: execution.ref, reason: 'duplicate or late', messageID: body.messageID }); throw new ControlDenied('duplicate completion'); }
+-      execution.state = match[2] === 'completed' ? 'completed' : 'failed'; execution.result = part.text;
+-      execution.noticeMessageID = typeof body.messageID === 'string' ? body.messageID : undefined;
+-      execution.delivered = true; execution.delivery = this.stopReason ? 'suppressed' : 'queued';
+-      this.record(parent, 'task.completion', true, undefined, { ref: execution.ref, childID: execution.childID, callID: execution.callID, state: execution.state, messageID: execution.noticeMessageID, wake: !this.stopReason });
+-      if (this.stopReason) throw new ControlDenied('run stopped');
+-    }
++  private freezeChildSource(binding: Binding, body: Record<string, unknown>): void {
++    if (binding.via !== 'dispatch') return;
++    const candidates = [...this.executions.values()].filter(e => e.childID === binding.sessionID && !e.delivered && (e.state === 'starting' || e.state === 'running'));
++    if (!candidates.length) return; // Synchronous resume has no background execution to claim.
++    for (const e of candidates) {
++      if (e.source.status === 'conflict') continue;
++      const id = typeof body.messageID === 'string' && body.messageID.length ? body.messageID : null;
++      let reason: string | undefined;
++      if (candidates.length !== 1) reason = 'multiple_executions';
++      else if (e.parent !== binding.parentID || e.role !== binding.role) reason = 'binding_identity';
++      else if (id && e.source.userMessageID && id !== e.source.userMessageID) reason = 'different_user';
++      if (reason) e.source = {...e.source,status:'conflict',reason,observedAt:Date.now()};
++      else if (!id) { if(e.source.status!=='associated')e.source={status:'unknown',userMessageID:null,reason:'missing_source',observedAt:Date.now()}; }
++      else if (e.source.status !== 'associated') e.source={status:'associated',userMessageID:id,reason:'hook',observedAt:Date.now()};
++      else continue;
++      this.record(binding.sessionID, 'task.source', true, undefined, {ref:e.ref,source:{...e.source}});
++    }
++  }
++
++  private async receiveCompletion(parent: string, body: Record<string, unknown>): Promise<void> {
++    let suppressed = false;
++    const reads = await this.serial(() => {
++      const pending: Array<{ref:string;childID:string;source:ChildSource}> = [];
++      if (!Array.isArray(body.parts)) return pending;
++      for (const part of body.parts as Array<{type?: string; synthetic?: boolean; text?: string}>) {
++        if (part.type !== 'text' || part.synthetic !== true || typeof part.text !== 'string') continue;
++        const match = /^<task id="([\w.-]+)" state="(completed|error)">\n<summary>Background task (?:completed|failed): \[ctf:([a-f0-9-]{36})\]<\/summary>/.exec(part.text);
++        if (!match) continue;
++        const e = this.executions.get(match[3]!);
++        if (!e || e.parent !== parent || e.childID !== match[1]) throw new ControlDenied('completion correlation');
++        if (e.delivered) { e.lateResult=part.text;this.record(parent,'task.completion.ignored',true,undefined,{ref:e.ref,reason:'duplicate or late',messageID:body.messageID});throw new ControlDenied('duplicate completion'); }
++        e.state=match[2]==='completed'?'completed':'failed';e.result=part.text;
++        e.noticeMessageID=typeof body.messageID==='string'?body.messageID:undefined;
++        e.delivered=true;e.delivery=this.stopReason?'suppressed':'queued';
++        e.resultFacts=unknownChildResult(e.source,this.stopReason?'stopped':e.source.status==='conflict'?'source_conflict':'missing_source');
++        this.record(parent,'task.completion',true,undefined,{ref:e.ref,childID:e.childID,callID:e.callID,state:e.state,messageID:e.noticeMessageID,wake:!this.stopReason});
++        if(!this.stopReason && e.source.status==='associated') pending.push({ref:e.ref,childID:e.childID!,source:{...e.source}});
++        else this.record(parent,'task.result',true,undefined,{ref:e.ref,source:{...e.source},resultFacts:{...e.resultFacts}});
++      }
++      return pending;
++    });
++    // Public SDK I/O must not occupy the trusted state queue: stop and duplicate notices stay responsive.
++    for (const read of reads) {
++      let facts: ChildResult;
++      try {
++        const messages=(await this.options.client.session.messages({sessionID:read.childID},{throwOnError:true})).data;
++        facts=messages?classifyChildResult(messages,read.childID,read.source):unknownChildResult(read.source,'sdk_missing');
++      } catch { facts=unknownChildResult(read.source,'sdk_error'); }
++      await this.serial(() => {
++        const e=this.executions.get(read.ref);
++        if(!e || e.parent!==parent || e.childID!==read.childID) return;
++        const child=this.bindings.get(read.childID);
++        if(this.stopReason || child?.state!=='active' || Date.now()>=child.expiresAt) { suppressed=true;e.delivery='suppressed';facts=unknownChildResult(e.source,'stopped'); }
++        else if(e.source.status!=='associated' || e.source.userMessageID!==read.source.userMessageID) facts=unknownChildResult(e.source,'source_conflict');
++        e.resultFacts=facts;
++        this.record(parent,'task.result',true,undefined,{ref:e.ref,source:{...e.source},resultFacts:{...facts}});
++      });
++    }
++    if(this.stopReason || suppressed) throw new ControlDenied('run stopped');
+   }
+ 
+   /** Audit correlation only: ties the task call to the child session reported by OpenCode, and releases an unconsumed pending slot. */
+--- a/tests/contract/g-async-lifecycle.test.ts
++++ b/tests/contract/g-async-lifecycle.test.ts
+@@ -43,3 +43,29 @@
+ it('stop after natural completion reports original terminal without revoking or rewriting first reply',async()=>{const c=await fixture();await c.handle('a','chat.message',{agent:'recon'});const e=c.executionSnapshot()[0]!;await c.handle('root','chat.message',{messageID:'done',parts:[{type:'text',synthetic:true,text:`<task id="a" state="completed">\n<summary>Background task completed: [ctf:${e.ref}]</summary>\n<task_result>done</task_result>\n</task>`}]});await expect(c.handle('root','tool.execute',{tool:'task.stop',args:{task_id:'a'}})).resolves.toMatchObject({state:'completed',sessionAbort:'not_required'});expect(c.bindings.get('a')?.state).toBe('active');});
+ it('initial task reply is immutable and another child cannot overwrite its execution mapping',async()=>{const c=await fixture();await c.handle('root','tool.after',{tool:'task',callID:'dispatch-1',metadata:{sessionId:'a'},output:'original-running'});await expect(c.handle('root','tool.after',{tool:'task',callID:'dispatch-1',metadata:{sessionId:'late'},output:'different'})).rejects.toThrow('completion correlation');expect(c.executionSnapshot()[0]).toMatchObject({childID:'a',initialOutput:'original-running'});});
+ it('host revoke still revokes a naturally completed child session',async()=>{const c=await fixture();await c.handle('a','chat.message',{agent:'recon'});const e=c.executionSnapshot()[0]!;await c.handle('root','chat.message',{parts:[{type:'text',synthetic:true,text:`<task id="a" state="completed">\n<summary>Background task completed: [ctf:${e.ref}]</summary>\n<task_result>done</task_result>\n</task>`}]});await c.revoke('a');await expect(c.handle('a','model.call',{agent:'recon'})).rejects.toThrow('session revoked');expect(c.executionSnapshot()[0]?.state).toBe('completed');});
++
++// The production change under test is freezing each background user and reading only its reply.
++const childMessage=(finish='stop',text='done',extra:any={})=>({info:{id:'reply-1',sessionID:'a',role:'assistant',parentID:'source-1',finish,time:{completed:1},...extra},parts:[{type:'text',text}]});
++async function resultFixture(){const c=await fixture();await c.handle('a','chat.message',{agent:'recon',messageID:'source-1'});let messages:any[]=[{info:{id:'source-1',sessionID:'a',role:'user'}},childMessage()];let reads=0;let read:()=>Promise<any>=async()=>({data:messages});(c as any).options.client.session.messages=async({sessionID}:any)=>{if(sessionID==='a'){reads++;return read();}return {data:[]};};return {c,set:(m:any[])=>{messages=m;},setRead:(r:()=>Promise<any>)=>{read=r;},reads:()=>reads};}
++function completion(c:ControlService,index=0,messageID='notice'){const e=c.executionSnapshot()[index]!;return {messageID,parts:[{type:'text',synthetic:true,text:`<task id="${e.childID}" state="completed">\n<summary>Background task completed: [ctf:${e.ref}]</summary>\n<task_result>envelope</task_result>\n</task>`}]};}
++it.each([
++ ['partial length',childMessage('length','PARTIAL'),'incomplete','length'],
++ ['empty length',childMessage('length',''),'incomplete','length'],
++ ['empty stop',childMessage('stop','  '),'incomplete','missing_text'],
++ ['complete stop',childMessage(),'complete','stop'],
++ ['error',childMessage('stop','done',{error:{name:'Failure'}}),'incomplete','error'],
++ ['unfinished',childMessage('stop','done',{time:{}}),'unknown','not_completed'],
++ ['unknown finish',childMessage('other'),'unknown','unknown_finish'],
++] as const)('background result classifies %s independently of envelope',async(_,reply,status,reason)=>{const f=await resultFixture();f.set([{info:{id:'source-1',role:'user',sessionID:'a'}},reply]);await f.c.handle('root','chat.message',completion(f.c));expect(f.c.executionSnapshot()[0]).toMatchObject({state:'completed',source:{status:'associated',userMessageID:'source-1'},resultFacts:{assistantMessageID:'reply-1',finish:reply.info.finish,completeness:status,reason}});expect(f.reads()).toBe(1);});
++it('same child resume freezes a new source despite old binding call ID; old notice cannot overwrite it',async()=>{const f=await resultFixture();f.set([{info:{id:'source-1',role:'user',sessionID:'a'}},childMessage('length','PARTIAL')]);const first=completion(f.c);await f.c.handle('root','chat.message',first);await f.c.handle('root','tool.before',{tool:'task',callID:'resume',args:{subagent_type:'recon',task_id:'a',background:true}});await f.c.handle('a','chat.message',{agent:'recon',messageID:'source-2'});f.set([{info:{id:'source-1',role:'user',sessionID:'a'}},childMessage('length','PARTIAL'),{info:{id:'source-2',role:'user',sessionID:'a'}},childMessage('stop','done',{id:'reply-2',parentID:'source-2'})]);await f.c.handle('root','chat.message',completion(f.c,1,'notice-2'));await expect(f.c.handle('root','chat.message',first)).rejects.toThrow('duplicate completion');expect(f.c.bindings.get('a')?.dispatchCallID).toBe('dispatch-1');expect(f.c.executionSnapshot()).toMatchObject([{source:{userMessageID:'source-1'},resultFacts:{completeness:'incomplete',finish:'length'}},{source:{userMessageID:'source-2'},resultFacts:{assistantMessageID:'reply-2',completeness:'complete'}}]);expect(f.reads()).toBe(2);});
++it('conflicting hook source stays conflict after repeats and result reading',async()=>{const f=await resultFixture();await f.c.handle('a','chat.message',{agent:'recon',messageID:'other'});await f.c.handle('a','chat.message',{agent:'recon',messageID:'source-1'});await f.c.handle('root','chat.message',completion(f.c));expect(f.c.executionSnapshot()[0]).toMatchObject({source:{status:'conflict'},resultFacts:{completeness:'unknown',reason:'source_conflict'}});expect(f.reads()).toBe(0);});
++it.each(['missing_user','wrong_parent','duplicate_conflict','multiple_assistants','missing_id','wrong_session','sdk_missing','sdk_error'])('ambiguous or missing SDK result remains unknown: %s',async(kind)=>{const f=await resultFixture();const user={info:{id:'source-1',role:'user',sessionID:'a'}};let ms:any[]=[user,childMessage()];if(kind==='missing_user')ms=[childMessage()];if(kind==='wrong_parent')ms=[user,childMessage('stop','done',{parentID:'other'})];if(kind==='duplicate_conflict')ms.push(childMessage('length','done'));if(kind==='multiple_assistants')ms.push(childMessage('stop','done',{id:'reply-2'}));if(kind==='missing_id')ms=[user,childMessage('stop','done',{id:undefined})];if(kind==='wrong_session')ms=[user,childMessage('stop','done',{sessionID:'other'})];f.set(ms);if(kind==='sdk_missing')f.setRead(async()=>({}));if(kind==='sdk_error')f.setRead(async()=>{throw new Error('offline');});await f.c.handle('root','chat.message',completion(f.c));expect(f.c.executionSnapshot()[0]).toMatchObject({resultFacts:{completeness:'unknown'}});});
++it('identical repeated messages and hooks are idempotent; snapshot metadata cannot mutate state',async()=>{const f=await resultFixture();await f.c.handle('a','chat.message',{agent:'recon',messageID:'source-1'});const u={info:{id:'source-1',role:'user',sessionID:'a'}};f.set([u,u,childMessage(),childMessage()]);await f.c.handle('root','chat.message',completion(f.c));const e:any=f.c.executionSnapshot()[0];expect(e.resultFacts.completeness).toBe('complete');e.source.status='conflict';e.resultFacts.completeness='unknown';expect(f.c.executionSnapshot()[0]).toMatchObject({source:{status:'associated'},resultFacts:{completeness:'complete'}});});
++it('missing hook ID is unknown and sync resume never reclaims the old execution',async()=>{const c=await fixture();await c.handle('a','chat.message',{agent:'recon'});await c.handle('root','chat.message',completion(c));expect(c.executionSnapshot()[0]).toMatchObject({resultFacts:{completeness:'unknown',reason:'missing_source'}});await c.handle('root','tool.before',{tool:'task',callID:'sync',args:{subagent_type:'recon',task_id:'a'}});await c.handle('a','chat.message',{agent:'recon',messageID:'sync-user'});expect(c.executionSnapshot()).toHaveLength(1);expect((c.executionSnapshot()[0] as any).source.userMessageID).toBeNull();});
++it('SDK wait holds no state lock and stop suppresses its pending wake',async()=>{const f=await resultFixture();let release!:(x:any)=>void;let entered!:()=>void;const started=new Promise<void>(r=>entered=r);f.setRead(()=>{entered();return new Promise(r=>release=r);});const notice=f.c.handle('root','chat.message',completion(f.c));const denied=expect(notice).rejects.toThrow('run stopped');await started;await f.c.stopAll('budget');expect(f.c.executionSnapshot()[0]?.delivery).toBe('suppressed');release({data:[{info:{id:'source-1',role:'user',sessionID:'a'}},childMessage()]});await denied;expect(f.c.admitted).toBe(0);expect(f.c.executionSnapshot()[0]).toMatchObject({delivery:'suppressed',resultFacts:{completeness:'unknown',reason:'stopped'}});});
++it.each([{parentID:'other'},{role:'user'},{sessionID:'other'}])('same reply ID cannot conceal contradictory identity outside selected parent: %j',async(extra)=>{const f=await resultFixture();f.set([{info:{id:'source-1',role:'user',sessionID:'a'}},childMessage(),childMessage('stop','done',extra)]);await f.c.handle('root','chat.message',completion(f.c));expect(f.c.executionSnapshot()[0]).toMatchObject({resultFacts:{completeness:'unknown',reason:'message_conflict'}});});
++it('multiple active candidates and mismatched binding identity remain persistently conflicted',async()=>{for(const kind of ['multiple','parent','role']){const f=await resultFixture();const e=f.c.executionSnapshot()[0]!;if(kind==='multiple')(f.c as any).executions.set('extra',{...structuredClone(e),ref:'extra'});else (f.c.bindings.get('a') as any)[kind==='parent'?'parentID':'role']='different';await f.c.handle('a','chat.message',{messageID:'source-1'});if(kind==='multiple')(f.c as any).executions.delete('extra');else (f.c.bindings.get('a') as any)[kind==='parent'?'parentID':'role']=kind==='parent'?'root':'recon';await f.c.handle('a','chat.message',{messageID:'source-1'});await f.c.handle('root','chat.message',completion(f.c));expect(f.c.executionSnapshot()[0]).toMatchObject({source:{status:'conflict'},resultFacts:{completeness:'unknown',reason:'source_conflict'}});}});
++it('same prompt on different children never shares source or reply facts',async()=>{const f=await resultFixture();await f.c.handle('root','tool.before',{tool:'task',callID:'other-role',args:{subagent_type:'intake',background:true,prompt:'same'}});await f.c.handle('root','tool.after',{tool:'task',callID:'other-role',metadata:{sessionId:'b'}});(f.c as any).options.client.session.get=async()=>({data:{parentID:'root',agent:'intake'}});await f.c.handle('b','chat.message',{agent:'intake',messageID:'source-b'});const original=(f.c as any).options.client.session.messages;(f.c as any).options.client.session.messages=async(args:any)=>args.sessionID==='b'?{data:[{info:{id:'source-b',sessionID:'b',role:'user'}},childMessage('stop','B',{id:'reply-b',sessionID:'b',parentID:'source-b'})]}:original(args);await f.c.handle('root','chat.message',completion(f.c,1,'notice-b'));await f.c.handle('root','chat.message',completion(f.c));expect(f.c.executionSnapshot()).toMatchObject([{source:{userMessageID:'source-1'},resultFacts:{assistantMessageID:'reply-1',textChars:4}},{source:{userMessageID:'source-b'},resultFacts:{assistantMessageID:'reply-b',textChars:1}}]);});
++it('host revoke during result SDK wait rejects the pending parent hook without changing natural terminal state',async()=>{const f=await resultFixture();let release!:(x:any)=>void;let entered!:()=>void;const started=new Promise<void>(r=>entered=r);f.setRead(()=>{entered();return new Promise(r=>release=r);});const notice=f.c.handle('root','chat.message',completion(f.c)).then(value=>({value}),error=>({error}));await started;await f.c.revoke('a');release({data:[{info:{id:'source-1',role:'user',sessionID:'a'}},childMessage()]});expect(await notice).toMatchObject({error:expect.any(Error)});expect(f.c.executionSnapshot()[0]).toMatchObject({state:'completed',delivery:'suppressed',resultFacts:{completeness:'unknown',reason:'stopped'}});});
++it('duplicate notice during pending SDK read cannot read or deliver twice',async()=>{const f=await resultFixture();let release!:(x:any)=>void;let entered!:()=>void;const started=new Promise<void>(r=>entered=r);f.setRead(()=>{entered();return new Promise(r=>release=r);});const first=f.c.handle('root','chat.message',completion(f.c));await started;await expect(f.c.handle('root','chat.message',completion(f.c,0,'duplicate'))).rejects.toThrow('duplicate completion');expect(f.reads()).toBe(1);release({data:[{info:{id:'source-1',role:'user',sessionID:'a'}},childMessage()]});await first;expect(f.c.audit.filter(a=>a.op==='task.result')).toHaveLength(1);});
++it('untrusted notice parent or child cannot start a result SDK read',async()=>{const f=await resultFixture();await expect(f.c.handle('other','chat.message',completion(f.c))).rejects.toThrow('completion correlation');const notice=completion(f.c);notice.parts[0]!.text=notice.parts[0]!.text.replace('id="a"','id="other"');await expect(f.c.handle('root','chat.message',notice)).rejects.toThrow('completion correlation');expect(f.reads()).toBe(0);expect(f.c.executionSnapshot()[0]?.state).toBe('running');});

@@ -1,3 +1,4 @@
+import { classifyChildResult, unknownChildResult, type ChildSource, type ChildResult } from './child-result.js';
 import {CompletionRequests,type CompletionJudge} from './completion-tools.js';
 // Control service (design v1 C): lives in the launcher process, owns the session binding table, the run budget
 // ledger, the role capability table and the stop sequence. The product plugin inside OpenCode only forwards hook
@@ -100,7 +101,7 @@ export const SOLVER_TOOLS = ['workspace.list', 'workspace.read', 'workspace.sear
 export const MANAGED_TOOLS = [...INTAKE_TOOLS, 'challenge.assign', 'challenge.unassign', 'task.stop', 'verification.read', 'completion.request', ...SOLVER_TOOLS];
 interface Resource { run: string; sessionID: string; challengeId: string; callID: string; tool: string; state: 'active' | 'settled' | 'unknown'; result?: string; job?: string; controller: AbortController; deadline: number; execution?: string; timer?: ReturnType<typeof setTimeout>; done?: Promise<unknown>; detachRpc?: () => void }
 interface TaskStopResult { state: 'stopped' | 'unknown' | 'completed' | 'failed'; resources: 'settled' | 'unknown'; sessionAbort: 'confirmed' | 'unknown' | 'not_required'; executionRef?: string }
-interface Execution { version?: string; ref: string; run: string; parent: string; callID: string; role: Role; challengeId?: string; childID?: string; state: 'starting' | 'running' | 'completed' | 'failed' | 'cancelled'; delivered: boolean; noticeMessageID?: string; delivery?: 'queued' | 'consumed' | 'suppressed' | 'stop_reply'; lateResult?: string; initialOutput?: string; result?: string }
+interface Execution { source: ChildSource; resultFacts: ChildResult | null; version?: string; ref: string; run: string; parent: string; callID: string; role: Role; challengeId?: string; childID?: string; state: 'starting' | 'running' | 'completed' | 'failed' | 'cancelled'; delivered: boolean; noticeMessageID?: string; delivery?: 'queued' | 'consumed' | 'suppressed' | 'stop_reply'; lateResult?: string; initialOutput?: string; result?: string }
 interface Preparation {sessionID:string;execution:string;version:string;directory:string;metadata:{path:string;sha256:string;size:number}[];files:{path:string;sha256:string;size:number}[]}
 interface Outside { execute: () => Promise<unknown> }
 
@@ -172,7 +173,7 @@ export class ControlService {
   private readonly rootsReady = new Map<string, Promise<void>>();
   constructor(private readonly options: ControlOptions) { this.completions=new CompletionRequests(join(options.workdir,'..','state','completion')); this.jobs = new JobManager({ jobsRoot: join(options.workdir, '..', 'state', 'jobs') }); }
 
-  executionSnapshot() { return [...this.executions.values()].map(e => ({...e})); }
+  executionSnapshot() { return [...this.executions.values()].map(e => structuredClone(e)); }
   hasOutstandingWork(status: Record<string, { type: string }>): boolean {
     return [...this.executions.values()].some(e => e.state === 'starting' || e.state === 'running' || !e.delivered || e.delivery === 'queued') || [...this.pending.values()].some(p => p.size > 0) ||
       [...this.resources.values()].some(r => r.state !== 'settled');
@@ -201,7 +202,7 @@ export class ControlService {
       if (!['chat.message', 'model.call', 'tool.before', 'tool.execute', 'tool.after', 'task.event'].includes(operation)) throw new ControlDenied('unknown operation');
       if (operation === 'task.event') return await this.serial(() => this.taskEvent(sessionID, body));
       // Runtime-synthetic native completion is consumed once before admission; stopped runs retain it without waking.
-      if (operation === 'chat.message') await this.serial(() => this.receiveCompletion(sessionID, body));
+      if (operation === 'chat.message') await this.receiveCompletion(sessionID, body);
       let binding: Binding | undefined;
       if (operation !== 'tool.after') {
         const hookAgent = typeof body.agent === 'string' ? body.agent : undefined;
@@ -225,7 +226,7 @@ export class ControlService {
         if (this.stopReason) throw new ControlDenied('run stopped');
         this.live(binding!);
         switch (operation) {
-          case 'chat.message': return { bound: true };
+          case 'chat.message': this.freezeChildSource(binding!, body); return { bound: true };
           case 'model.call': return this.admit(binding!, body);
           case 'tool.before': return this.toolBefore(binding!, body);
           default: return this.executeManaged(binding!, body, signal);
@@ -501,7 +502,7 @@ export class ControlService {
       if (args.background === true) {
         const ref = randomUUID();
         const taskID = typeof args.task_id === 'string' ? args.task_id : undefined;
-        this.executions.set(ref, { ref, run: this.options.runId ?? 'run', parent: binding.sessionID, callID: String(body.callID), role: args.subagent_type as Role, version: this.versions.get(binding.sessionID+'/'+String(args.subagent_type)), challengeId: taskID ? this.bindings.get(taskID)?.challengeId : this.pending.get(binding.sessionID)?.get(args.subagent_type as Role)?.challengeId, childID: taskID, state: taskID ? 'running' : 'starting', delivered: false });
+        this.executions.set(ref, { source: {status:'unknown',userMessageID:null,observedAt:null,reason:'missing_source'}, resultFacts:null, ref, run: this.options.runId ?? 'run', parent: binding.sessionID, callID: String(body.callID), role: args.subagent_type as Role, version: this.versions.get(binding.sessionID+'/'+String(args.subagent_type)), challengeId: taskID ? this.bindings.get(taskID)?.challengeId : this.pending.get(binding.sessionID)?.get(args.subagent_type as Role)?.challengeId, childID: taskID, state: taskID ? 'running' : 'starting', delivered: false });
         this.versions.delete(binding.sessionID+'/'+String(args.subagent_type));
         this.record(binding.sessionID, 'task.execution', true, undefined, {...this.executions.get(ref)});
         return { allowed: true, taskDescription: `[ctf:${ref}]` };
@@ -896,21 +897,65 @@ export class ControlService {
     return {ok: true};
   }
 
-  private receiveCompletion(parent: string, body: Record<string, unknown>): void {
-    if (!Array.isArray(body.parts)) return;
-    for (const part of body.parts as Array<{type?: string; synthetic?: boolean; text?: string}>) {
-      if (part.type !== 'text' || part.synthetic !== true || typeof part.text !== 'string') continue;
-      const match = /^<task id="([\w.-]+)" state="(completed|error)">\n<summary>Background task (?:completed|failed): \[ctf:([a-f0-9-]{36})\]<\/summary>/.exec(part.text);
-      if (!match) continue;
-      const execution = this.executions.get(match[3]!);
-      if (!execution || execution.parent !== parent || execution.childID !== match[1]) throw new ControlDenied('completion correlation');
-      if (execution.delivered) { execution.lateResult = part.text; this.record(parent, 'task.completion.ignored', true, undefined, { ref: execution.ref, reason: 'duplicate or late', messageID: body.messageID }); throw new ControlDenied('duplicate completion'); }
-      execution.state = match[2] === 'completed' ? 'completed' : 'failed'; execution.result = part.text;
-      execution.noticeMessageID = typeof body.messageID === 'string' ? body.messageID : undefined;
-      execution.delivered = true; execution.delivery = this.stopReason ? 'suppressed' : 'queued';
-      this.record(parent, 'task.completion', true, undefined, { ref: execution.ref, childID: execution.childID, callID: execution.callID, state: execution.state, messageID: execution.noticeMessageID, wake: !this.stopReason });
-      if (this.stopReason) throw new ControlDenied('run stopped');
+  private freezeChildSource(binding: Binding, body: Record<string, unknown>): void {
+    if (binding.via !== 'dispatch') return;
+    const candidates = [...this.executions.values()].filter(e => e.childID === binding.sessionID && !e.delivered && (e.state === 'starting' || e.state === 'running'));
+    if (!candidates.length) return; // Synchronous resume has no background execution to claim.
+    for (const e of candidates) {
+      if (e.source.status === 'conflict') continue;
+      const id = typeof body.messageID === 'string' && body.messageID.length ? body.messageID : null;
+      let reason: string | undefined;
+      if (candidates.length !== 1) reason = 'multiple_executions';
+      else if (e.parent !== binding.parentID || e.role !== binding.role) reason = 'binding_identity';
+      else if (id && e.source.userMessageID && id !== e.source.userMessageID) reason = 'different_user';
+      if (reason) e.source = {...e.source,status:'conflict',reason,observedAt:Date.now()};
+      else if (!id) { if(e.source.status!=='associated')e.source={status:'unknown',userMessageID:null,reason:'missing_source',observedAt:Date.now()}; }
+      else if (e.source.status !== 'associated') e.source={status:'associated',userMessageID:id,reason:'hook',observedAt:Date.now()};
+      else continue;
+      this.record(binding.sessionID, 'task.source', true, undefined, {ref:e.ref,source:{...e.source}});
     }
+  }
+
+  private async receiveCompletion(parent: string, body: Record<string, unknown>): Promise<void> {
+    let suppressed = false;
+    const reads = await this.serial(() => {
+      const pending: Array<{ref:string;childID:string;source:ChildSource}> = [];
+      if (!Array.isArray(body.parts)) return pending;
+      for (const part of body.parts as Array<{type?: string; synthetic?: boolean; text?: string}>) {
+        if (part.type !== 'text' || part.synthetic !== true || typeof part.text !== 'string') continue;
+        const match = /^<task id="([\w.-]+)" state="(completed|error)">\n<summary>Background task (?:completed|failed): \[ctf:([a-f0-9-]{36})\]<\/summary>/.exec(part.text);
+        if (!match) continue;
+        const e = this.executions.get(match[3]!);
+        if (!e || e.parent !== parent || e.childID !== match[1]) throw new ControlDenied('completion correlation');
+        if (e.delivered) { e.lateResult=part.text;this.record(parent,'task.completion.ignored',true,undefined,{ref:e.ref,reason:'duplicate or late',messageID:body.messageID});throw new ControlDenied('duplicate completion'); }
+        e.state=match[2]==='completed'?'completed':'failed';e.result=part.text;
+        e.noticeMessageID=typeof body.messageID==='string'?body.messageID:undefined;
+        e.delivered=true;e.delivery=this.stopReason?'suppressed':'queued';
+        e.resultFacts=unknownChildResult(e.source,this.stopReason?'stopped':e.source.status==='conflict'?'source_conflict':'missing_source');
+        this.record(parent,'task.completion',true,undefined,{ref:e.ref,childID:e.childID,callID:e.callID,state:e.state,messageID:e.noticeMessageID,wake:!this.stopReason});
+        if(!this.stopReason && e.source.status==='associated') pending.push({ref:e.ref,childID:e.childID!,source:{...e.source}});
+        else this.record(parent,'task.result',true,undefined,{ref:e.ref,source:{...e.source},resultFacts:{...e.resultFacts}});
+      }
+      return pending;
+    });
+    // Public SDK I/O must not occupy the trusted state queue: stop and duplicate notices stay responsive.
+    for (const read of reads) {
+      let facts: ChildResult;
+      try {
+        const messages=(await this.options.client.session.messages({sessionID:read.childID},{throwOnError:true})).data;
+        facts=messages?classifyChildResult(messages,read.childID,read.source):unknownChildResult(read.source,'sdk_missing');
+      } catch { facts=unknownChildResult(read.source,'sdk_error'); }
+      await this.serial(() => {
+        const e=this.executions.get(read.ref);
+        if(!e || e.parent!==parent || e.childID!==read.childID) return;
+        const child=this.bindings.get(read.childID);
+        if(this.stopReason || child?.state!=='active' || Date.now()>=child.expiresAt) { suppressed=true;e.delivery='suppressed';facts=unknownChildResult(e.source,'stopped'); }
+        else if(e.source.status!=='associated' || e.source.userMessageID!==read.source.userMessageID) facts=unknownChildResult(e.source,'source_conflict');
+        e.resultFacts=facts;
+        this.record(parent,'task.result',true,undefined,{ref:e.ref,source:{...e.source},resultFacts:{...facts}});
+      });
+    }
+    if(this.stopReason || suppressed) throw new ControlDenied('run stopped');
   }
 
   /** Audit correlation only: ties the task call to the child session reported by OpenCode, and releases an unconsumed pending slot. */

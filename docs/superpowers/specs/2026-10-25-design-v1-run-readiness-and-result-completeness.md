@@ -1,6 +1,6 @@
 # 本地调试：环境就绪与会话结果完整性
 
-日期：2026-10-25。状态：**Root 最终报告完整性与展示已接入主区并通过无模型验收（§8）；readiness 与子任务可靠关联仍 unknown，未扩展实作**。
+日期：2026-10-25。状态：**Root 最终报告完整性与展示已接入主区并通过无模型验收（§8）；子任务后台执行关联及可审计完整性事实已接入主区、通过无模型验收（§10）；readiness 仍 unknown**。
 
 本文件是[核心设计 v1](2026-10-22-ctf-agent-design-v1.md) C／E／H 的子设计，仅补充本次调试暴露的环境准备、结果完整性与停滞反馈边界。原有会话绑定、预算、独立验证及可信完成契约保持有效。本文不授权真实模型调用、部署、commit 或 push。
 
@@ -60,7 +60,7 @@ Root 最后消息：`msg_16e73fd29001eDvFWx4cx2qUKN`。只核对元数据和 tex
 
 ## 3. 设计选择与待验证分支
 
-本节至 §5 保留验证前的问题与候选分支；当前选择、已定范围及未决项以 §7 的验证回写为准。以下候选不能独立当作已定实作要求。
+本节至 §5 保留验证前的问题与候选分支；当前选择、已定范围及未决项以 §7–§10 的验证回写为准。以下候选不能独立当作已定实作要求。
 
 ### 3.1 本地题目准备：可信准备过程负责，Agent 不猜测
 
@@ -167,7 +167,7 @@ OS `sandbox-exec` 对运行探针及其 OpenCode 后代拒绝外连，只允许 
 
 **选择 B 仅限子任务完整性事实的可见性，并入 §7.4，不新增独立 Critic 改动。** host 不判定语义停滞，不自动派发 Critic，不添加固定频率、全局去重器或新角色权限。现有 digest 按全 audit 聚合且没有推送，不扩大到跨题停滞判定；若未来需要该行为须另有证据。Critic 调用效果仍未验证。
 
-### 7.4 子任务：能读取两轮事实，执行到消息的可靠绑定未证实
+### 7.4 子任务：首次验证未证实可靠绑定，后续结论见 §9
 
 固定 OpenCode 1.19.3＋公开 SDK，在仅本地确定性 provider 下真实运行原生 background task；这是 probe-root/probe-child 的纯原生探针，未加载产品 plugin／ControlService，不能和下述替身测试拼接成产品联合验收。两组均恢复同 child 一次：第一组 length／13 字符 → stop／15 字符；第二组 length／无 text → stop／15 字符。原生通知均可为 completed，正文分别对应部分／空／正常结果。没有观察到完整文字在传输中丢失。
 
@@ -176,6 +176,8 @@ SDK 中 assistant.parentID 可关联到各自 child user 消息；但原生 task
 运行探针按 200ms 读取；一次间隔内可能已收到通知并恢复，因此只证明最终两轮消息可读，未证明通知到达时 SDK 原子可见。自然重复通知、停止竞争、暂缺消息／延迟尚未覆盖。既有 3 文件／26 项 SDK 替身测试通过，支持现有幂等／停止边界；不能升级为上述自然 runtime 证明。探针最初有隔离 profile 与标题请求分类失败，正式样本在修正并验证外连 EPERM 后运行；失败单列，不混入通过样本。
 
 **选择结果：不直接实现读取 child 最新消息作为结果，不新增 result-ref。** 若后续推进，候选是派发前后冻结消息游标，在唯一活动 execution 范围内绑定 child user 和 assistant；该策略必须先验证歧义、缺消息和恢复并发，不能先假定成立。无法唯一绑定时 unknown，原包络保留，停止后不唤醒／续跑。此次子任务信息缺口已定位，但可靠补取机制尚未定稿，**不纳入本轮最小可实作集合**。§7.3 的 B 仅确定事实应可见这一方向，须等待本节绑定可行性；不能为立即推送事实而猜测消息来源。
+
+2026-10-25 后续聚焦验证（待验证候选）：现有产品 `chat.message` 已传递 input.messageID／output.message.id，`model.call` 也可携带消息ID；先核实这些ID在原生运行时分别指什么，以及接收时能否由可信parent/child绑定和唯一活动execution关联。若能证明，优先在既有hook边界冻结child user ID，再以assistant.parentID取对应结果；否则继续评估派发前后游标。两者都不能消歧时保留unknown，不凭prompt相同、时间接近或child最新消息认领结果。此验证仅决定最小机制，不授权接入实作。
 
 ### 7.5 证据与收口
 
@@ -222,3 +224,95 @@ SDK读取与导出不是原子操作；`exportedSourceMatches` 显示导出的�
 用户随后授权提交本修复，并明确允许包含其尚未提交的必要底座：progress-ledger.ts，以及 control-service.ts 的审计 role/challengeId 字段、redactions/onAudit 配置和 record 回调三处接线。未包含 progress.read/note 工具注册、插件、角色文案或其他调试改动；工作区完整快照与此次提交树须分开。
 
 从 cfa950fd 导出基础并叠加上述最小提交文件后，typecheck/build通过，独立提交候选全套48文件／424项通过。初次临时导出目录没有.git导致唯一git check-ignore测试失败（其他423项通过）；补建临时Git元数据后，源码不变重跑整套424项通过。此结果不能与工作区430项计数混为同一集合。记录见 implementation/scoped-commit-validation.json；原生四例仍是§8.2的工作区接线证据，未另跑真实模型。本次只提交上述范围及对应design、索引与证据，不push。
+
+
+## 9. 2026-10-25 子任务关联的聚焦无模型验证
+
+本节记录取代 §7.4 机制待选状态的验证结论，当时仅确定后台 task 的最小实作范围；随后授权的实作结果见 §10。readiness、同步 task 的统一执行记录、并发通知消费／收束和真实模型效果不随此定稿。GPT 6.1 Sol 在独立工作区执行，主会话核对元数据和候选，另由独立 GPT 6.1 Sol 复核。
+
+### 9.1 同源运行与可证明范围
+
+输入来自主区 `7f0ad97b` 加既有未提交改动的138文件快照；隔离工作区 HEAD 仍为 `cfa950fd`，不能以其 HEAD 代替实际输入。固定 OpenCode 1.19.3，使用产品 launcher、plugin、ControlService 和仅本地确定性 provider；空环境、隔离 HOME/XDG、系统 loopback-only 网络策略，外连预检为 EPERM。产品副本只加元数据观测包装；同步日志和通知前 SDK 读取会影响时序，不能据此证明无观测干扰的原子时序。
+
+| 样本 | 实际观察 | 限制 |
+| --- | --- | --- |
+| 单 child 后台两轮，分别以 partial length／empty length 开始、stop 结束 | 两组均 completed／code0；每轮独立 ref、callID、child userID，assistant.parentID 匹配该轮 user；chat.message 与 model.call 中的 ID 均对应 SDK user | 证明固定版本下关联输入可取得；不证明模型报告质量 |
+| 两角色同 prompt／description 并发，再恢复其中一 child | 已观察的链分别绑定各自 child/user，没有按文字猜测；第二轮使用新 ref/user | 两组均 deadline_exceeded；存在未消费的 queued 通知观察，因果未定，不能称并发整链通过，也不在本片修复调度 |
+| 同步恢复对照 | run completed；新 chat.message 没有对应活动 execution，旧 ref 已完成 | 必须 unknown，不沿用旧 ref；本片不新增同步执行框架 |
+| 通知到达后、receiveCompletion 处理前追加 SDK 读取 | 两组单 child 两轮均 completed；可读到相应消息元数据 | 包装只按 notice child 读取会话，不按 ref 分类；这是可读性观察，不是新结果分类器在通知边界的联合验收 |
+
+关键次序：子 `chat.message` 入站时可能尚无 binding；现有 `bindFromSdk` 依据 SDK parent/role 及原生 task call 的 child metadata 完成校验后，处理返回时存在唯一活动 execution。因此选择**绑定完成后的可信控制边界冻结 user ID**，不在原始 hook 入站时凭 agent 名认领。`model.call.messageID` 在本批对应同一 user，只作一致性佐证，不是另一个 assistant ID。后台 resume 沿用 child，但创建新 execution/ref 和 user，旧结果必须按旧映射保存。恢复后 binding.dispatchCallID 仍为首轮值，不能拿它认领新轮；须使用唯一当前 execution 的 callID/ref。
+
+原生完成通知仍不携带源 user/assistant ID；现有 `receiveCompletion` 用 `[ctf:ref]` 校验 parent/child 的逻辑与上述 user 冻结结合，才构成拟实作的关联机制。观测包装未把该机制接入产品。轮询中的通知前结果多为 unknown，不能把最终 snapshot 当成通知瞬间已可见，也不能将空／延迟读取认定为没有生成。
+
+### 9.2 最小机制与拒绝猜测的边界
+
+选择 hook 冻结方案；本次不增加派发前后游标机制。未来实作必须满足：
+
+1. 在已验证的 binding 下、控制服务串行状态边界内，将唯一活动后台 execution 的 parent/callID/ref/childID 与 `chat.message` user ID 一次关联，记录观测时间及关联状态。不得匹配 prompt、时间接近或 child 最新消息。
+2. 重复相同 user ID 幂等；不同 user ID、多个活动候选、身份矛盾必须持久标记 conflict/unknown，后续读取或重复 hook 不得恢复成旧的有效关联。缺失或停止也不能补猜；同步恢复无 execution 时不借用旧 ref。
+3. 处理完成通知时先依原有 ref 校验 execution，再按冻结 user ID 和 assistant.parentID 取对应事实。SDK 读取在串行锁外，返回后重查 ref、关联状态与停止状态；不在等待中占用控制状态队列。
+4. 一次读取缺失／未终止／多个候选或同 ID 互相矛盾时记录 unknown，原始包络保留。本片不自动轮询补取、不借后续恢复消息覆盖旧结果、不补叫模型、不在停止后唤醒父会话。
+5. 报告完整性与原生执行 state/delivered 分开。沿用 §3.2 的事实判据：length／空白 stop 为 incomplete，正常已完成 stop 且有非空 text、无 error 才能 complete，其他不明情况 unknown；complete 不代表正确或 solved。原始 finish、关联 ID、观测时间和失败原因可审计，不暴露 reasoning。
+6. 一次通知及重复／过期通知沿用既有幂等和停止抑制；结果读取不得重复执行任务或外部副作用。晚到的旧 ref 仍只处理旧记录。冻结的关联身份不等于原子最终结果快照。
+
+候选脚本只验证上述关联分支与列举反例，不是生产分类器。主会话指出其初版冲突只返回 unknown 却保留旧有效映射；候选已改为保留冲突状态，并增加冲突后读取／重放检查。按 ID 去重时遇到矛盾记录应 unknown，亦是未来实作条件，不能从普通重复样例外推。自然重复通知、自然停止竞争、实际 SDK/HTTP 故障恢复仍未证明；候选注入与既有替身测试不升级为这些 runtime 结论。
+
+### 9.3 最小实作范围与验收边界
+
+最小可实作切片是**后台 execution 的源消息关联及可审计的完整性事实**：
+
+- `apps/launcher/src/control-service.ts`：扩展既有 Execution 的关联／结果事实；绑定后冻结、通知关联读取、冲突与停止防护，沿用原包络和现有状态机。
+- 复用既有 execution snapshot／审计导出保存上述事实；现有 plugin 已传 user messageID，关联切片无需新增插件字段。§7.3 的父交接可见性方向仍保留，但本批未验证新事实如何注入父上下文，不把摘要／插件展示改动一并宣称已定稿或已接线。
+- 既有 `tests/contract/g-async-lifecycle.test.ts`、`g-team-integration.test.ts` 及相关控制测试：覆盖原始空／partial length、同 child 两轮、唯一关联、持续冲突、SDK 缺失与错误、同步无 ref、重复／旧通知、停止后的不唤醒。原生验收使用相同产品接线，不能只以离线候选代替。
+
+不修改角色提示词、Skill、output limit、Critic 调度、Root 收束或成功标准，不新增 result-ref 工具。若以后要解决并发 queued 消费或同步恢复归属，须分别定位，不能作为本片偷偷扩大的实现项。本次只完成机制验证与范围定稿，尚未生成或执行实施 plan。
+
+
+### 9.4 复核、证据与收口
+
+既有三文件26项定向基线通过；离线候选17项断言通过，二者与原生样本分层记录，不相加冒充整链验收。主会话核对关联链、指出并修正候选冲突后仍可读旧映射的问题；独立复核的计划合规与证据质量在上述限定范围内通过。并发两组 deadline、早期过早恢复被拒绝、探针启动／汇总失败均保留，不从成功统计中消失。
+
+最小资料在既有证据目录的 [child-correlation 子目录](../../gates/g-solver-verification-20261023/run-completeness-20261025/child-correlation/)：报告、独立review、源码版本/hash映射、脱敏hook／可信审计与消息投影、候选及失败记录。重复轮询仅保留每个会话相同状态的首尾样本，原始与保留hash/数量见 projection-manifest.json；主会话用保留数据重跑17断言通过，输出与原完整脱敏轮询汇总逐字节一致。完整脱敏轮询仍留在报告所列本机审计目录。早期失败probe由后续版本反转单一等待条件重建，明确不是执行前源码快照。
+
+主区没有接入产品代码，故本轮不重复全仓typecheck/build/test；不以此前430项证明本机制已实现。临时观测仅在隔离副本，结束后恢复为输入快照；自有进程已清理，原始临时运行目录在提取脱敏证据后清理，保留工作区及审计材料。验证plan结论转入本节后删除，核心design与README同步。本轮未运行真实模型或目标，未commit/push；下一步若获授权，可从本节最小范围生成实施plan。
+
+
+## 10. 2026-10-25 后台关联最小实作与主区验收
+
+用户按 §9 授权实施后，GPT 6.1 Sol 在隔离工作区完成实作；独立 GPT 6.1 Sol 复核规格与代码质量通过，主会话核对输入hash、原生消息投影及精确增量后接入主区。只修改以下三份文件，既有未提交工作保留：
+
+- `apps/launcher/src/control-service.ts`：可信 binding 后冻结唯一后台 execution 的来源；完成通知按原 ref/parent/child 认领一次，在串行锁外读取一次 SDK，再串行核对来源、停止、撤销及有效期并保存事实。snapshot 深拷贝新增嵌套元数据，复用既有导出。
+- `apps/launcher/src/child-result.ts`：小型来源／完整性分类辅助函数；根据被冻结 user 及 assistant.parentID 分类，不选 child 最新消息。
+- `tests/contract/g-async-lifecycle.test.ts`：补充28项确定性测试，包括旧轮保留、冲突、缺失、重复、SDK故障及停止／撤销竞争。
+
+### 10.1 已接入的事实与边界
+
+`evidence/task-executions.json` 每个后台 execution 新增 `source` 与 `resultFacts`。source 包含 status（unknown/associated/conflict）、userMessageID、observedAt、reason；resultFacts 在尚未处理结果时为 null，处理后包含 userMessageID、assistantMessageID、原始finish、completed、textChars、hasError、completeness、reason、observedAt。身份不可确定时为null，unknown的默认计数不能单独解读成实测空报告；须联合completeness/reason。textChars使用JavaScript字符串length，只计算text。审计新增 `task.source` 与 `task.result`，使用同一份事实。
+
+新元数据不保存正文、reasoning或error payload；**既有原始通知包络仍保留**，因此不能称整个execution导出都没有正文。state/delivered/delivery仍描述生命周期与通知交付，不改为报告质量或solved。事实在通知处理中观测，不是原子最终快照。
+
+同一ref出现不同user、多个活动候选或绑定身份矛盾后持久conflict，后续重复hook不恢复旧映射。相同消息ID的所有相关记录须一致：先取得相关ID，再检查SDK整个返回中的同ID记录，跨parent/role/session矛盾不能藏在过滤外。完全相同重复可幂等；多个assistant、缺来源、未完成或无法判断的finish保持unknown。已完成length、空白stop、含error结果为incomplete；已完成stop且非空text且无error才complete，仍不代表内容正确。
+
+SDK只读一次；失败／缺失为unknown，无轮询、重试、补叫或后轮覆盖。先接收原包络、标记delivered，再锁外读取，因此重复notice不会重复读或交付；读取期间stop仍可执行。返回时若停止／撤销／过期则suppressed并拒绝本次父hook放行，原自然执行终态保留。普通对自然完成任务的task.stop语义不变。同步恢复无新execution时仍不认领旧ref；未新增同步记录。
+
+### 10.2 验证及独立复核
+
+- 原有3文件26项基线通过；新增测试先失败后修复。主会话发现同ID跨归属矛盾过滤缺口，执行端用3条red复现后修为全SDK同ID核对；另以red复现读取期间revoke仍放行的问题并修正。初版SDK user时间类型不兼容的typecheck失败也保留。
+- 执行端typecheck/build通过；先49文件456项，补充两条通知防护测试后最终49文件458项通过。独立review再次核对补测，无阻断项；生产源码在补测与原生批次之间未变。
+- 主区接入后实际运行 `npm run typecheck`、`npm run build`、`npm test`，退出码均为0，全套49文件／458项通过。主区三文件hash与review／原生源码一致，未把旧测试数拼成新结果。
+- 固定OpenCode1.19.3，实际产品launcher/plugin/ControlService、仅本地确定性provider，空环境及系统loopback-only策略，外连预检EPERM。最终生产代码没有旧observer或额外SDK轮询。partial与empty两组均completed/code0：首轮length、textChars分别7/0、incomplete；同child第二轮stop、textChars8、complete。每轮ref/callID/user/assistant不同，两轮delivery均consumed，旧轮事实保持。
+- 直接核对产品执行导出和task.source/task.result审计，再与导出的child消息ID/parentID/finish/text长度逐项交叉核对；不是以之前离线Python候选代替新实现。原生两组只证明该接线，停止／冲突／SDK故障等分支仍为确定性测试证据，未证明自然HTTP故障或所有竞态。
+
+### 10.3 收口与剩余限制
+
+证据在既有目录的 [child-implementation 子目录](../../gates/g-solver-verification-20261023/run-completeness-20261025/child-implementation/)：精确patch、输入／源码hash、red/green、主区验收、独立review及原生脱敏投影。原始临时运行目录在提取投影后清理，自有进程已结束，隔离工作区保留。实施plan结论已转入本节后删除，核心design及README同步。
+
+本切片已达到无模型完成条件。同步恢复统一关联、并发通知收束、向父上下文展示新增事实、readiness及真实模型报告效果仍未处理；不因本次458项通过宣称这些已解决。未改角色、Skill、output限制、Root、Critic或成功标准，未新增工具/result-ref。本轮未跑真实模型或目标，未commit/push。
+
+
+### 10.4 独立提交范围核对
+
+随后用户授权只提交本次后台关联实作、验证记录及design/README，不push。提交候选从 `7f0ad97b` 提取：control-service只叠加本片增量，核心design只更新C的相关段落；未带入progress工具、插件、角色及其他未提交产品修改。§9的关联验证证据与§10实作证据一并保留，证据中的dirty输入快照仅用于说明当时验证条件，不代表这些其他功能在本提交接入。
+
+独立候选实际运行typecheck/build通过，全套48文件／452项通过；完整主区的49文件／458项是另一输入集合，两者分开陈述。原生两案仍为§10.2的dirty工作区同源接线证据，未把它冒充独立提交树另跑的原生验收。记录见child-implementation/scoped-commit-validation.json及scoped-*.log。
