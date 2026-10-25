@@ -1,0 +1,27 @@
+
+ RUN  v2.1.9 /Users/caihaoming/.codex/worktrees/result-joint-validation/pentest-agent
+
+ ✓ tests/contract/opencode.test.ts (10 tests) 33ms
+ ❯ tests/contract/g-async-lifecycle.test.ts (55 tests | 1 failed) 5618ms
+   ✓ default job.run returns terminal without wait/completion modes 5552ms
+   × R4 first synchronous call error before binding releases only its pending role 4ms
+     → expected [Function] to throw error including 'pending dispatch exists' but got 'denied: dispatch'
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/contract/g-async-lifecycle.test.ts > R4 first synchronous call error before binding releases only its pending role
+AssertionError: expected [Function] to throw error including 'pending dispatch exists' but got 'denied: dispatch'
+
+Expected: "pending dispatch exists"
+Received: "denied: dispatch"
+
+ ❯ tests/contract/g-async-lifecycle.test.ts:102:538
+
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+ Test Files  1 failed | 1 passed (2)
+      Tests  1 failed | 64 passed (65)
+   Start at  12:10:17
+   Duration  5.94s (transform 174ms, setup 0ms, collect 264ms, tests 5.65s, environment 0ms, prepare 65ms)
+

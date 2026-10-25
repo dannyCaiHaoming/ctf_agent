@@ -31,7 +31,7 @@
 | 修改 workspace／HTTP／job、异步交付、恢复或执行边界 | [G 最小版](specs/2026-10-23-design-v1-g-solver-minimal.md) | 已定部分接入主区并有无模型验收，单题真实运行观察见 §9.2；整体未定稿，隔离、网络 scope、资源总量与剩余契约见 §10。 |
 | 排查模型误用 workspace 路径或改进工具说明 | [G run 复盘与路径可发现性](specs/2026-10-24-design-v1-g-run-review-and-path-affordance.md) | 路径说明与示例已修正，既有 guard 保留，定向回归通过；修正后的模型遵循未验证。 |
 | 修改进度记录、停滞信号、Critic 判断，或准备练习批次 | [本地三题练习与进度帐本](specs/2026-10-24-design-v1-local-practice-suite-and-progress-ledger.md) | 进度帐本最小切片已接入并通过无模型验证；三题真实模型批次未授权，部分题目 oracle 未核实，不设正式成功率门槛。 |
-| 排查本地题目未准备、空交接、length 结束或 Critic 未介入 | [环境就绪与结果完整性](specs/2026-10-25-design-v1-run-readiness-and-result-completeness.md) | Root 报告与后台源消息关联已实现、通过无模型验收（§4、§6）。readiness 仍 unknown；父上下文展示、同步关联及并发通知收束未解决（§5）。完整性不等于 solved，真实模型效果未验证。 |
+| 排查空交接、length 结束、结果归属或父上下文缺信息 | [结果完整性与交接可见性](specs/2026-10-25-design-v1-run-readiness-and-result-completeness.md) | 已按最小范围接入：同步关联、父展示、多通知消费及 Critic 条件澄清；无模型验收与独立 review 通过，见[实施证据](../gates/g-solver-verification-20261023/run-completeness-20261025/final-implementation/README.md)。8000 未调；报告质量与 Critic 实际调用效果未验证。实作 plan 已完成回补并删除。 |
 | 追溯旧架构取舍、迁移原因或已知教训 | [现状、教训与迁移记录](specs/2026-10-22-ctf-agent-current-state-and-migration.md) | 历史参考，部分状态已过期；优先核对当前实现与详细 design。旧待办、冻结轨迹和里程碑不自动继承。 |
 
 ## 当前能力边界

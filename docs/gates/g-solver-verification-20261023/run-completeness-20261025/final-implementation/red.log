@@ -1,0 +1,276 @@
+
+ RUN  v2.1.9 /Users/caihaoming/.codex/worktrees/result-completeness-implementation/pentest-agent
+
+ ❯ tests/contract/opencode.test.ts (10 tests | 1 failed) 59ms
+   × R2 transform snapshots require matching current user, clear after use/rejection and reject mixed/empty input 4ms
+     → h.experimental.chat.messages.transform is not a function
+ ❯ tests/contract/g-async-lifecycle.test.ts (55 tests | 14 failed) 45655ms
+   ✓ default job.run returns terminal without wait/completion modes 5565ms
+   × R2 prepared input consumes exact same-parent registered notices; active work still blocks idle 4ms
+     → expected 'queued' to be 'consumed' // Object.is equality
+   × R4 sync facts preserve old ref and repeated before/after are idempotent 2ms
+     → expected { ok: true } to match object { syncDisplay: { …(3) } }
+(1 matching property omitted from actual)
+   × R4 different sync user is persistent unknown and cannot consume queued background 1ms
+     → expected { ok: true } to match object { syncDisplay: { …(3) } }
+(1 matching property omitted from actual)
+   × R4 wrong sync metadata refuses SDK read and leaves background queued 1ms
+     → expected { ok: true } to match object { syncDisplay: { …(2) } }
+(1 matching property omitted from actual)
+   × R4 incomplete second assistant remains ambiguous 1ms
+     → expected { ok: true } to match object { syncDisplay: { …(2) } }
+(1 matching property omitted from actual)
+   × R4 SDK error remains scoped to sync call 1ms
+     → expected { ok: true } to match object { syncDisplay: { …(2) } }
+(1 matching property omitted from actual)
+   × R4 SDK await rechecks stop before display 20003ms
+     → Test timed out in 20000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+   × R4 SDK await rechecks conflict before display 20003ms
+     → Test timed out in 20000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+   × R4 simultaneous sync call makes prior conflict persistent 4ms
+     → promise resolved "{ allowed: true }" instead of rejecting
+   × R4 failed background notice receives facts and exact prepared ID consumption 3ms
+     → expected { bound: true } to match object { Object (completionDisplays) }
+(1 matching property omitted from actual)
+   × R4 conflicting duplicate call is denied before new native dispatch and prior conflict persists 3ms
+     → expected [Function] to throw error including 'sync call conflict' but got 'denied: dispatch'
+   × R4 trusted native error terminates only sync call and permits a new call 3ms
+     → expected [] to have a length of 1 but got +0
+   × R4 terminal sync before replay is denied while after replay has no side effect 2ms
+     → promise resolved "{ allowed: true }" instead of rejecting
+   × R4 first synchronous call error before binding releases only its pending role 5ms
+     → promise rejected "Error: denied: dispatch { detail: 'p…' }" instead of resolving
+
+⎯⎯⎯⎯⎯⎯ Failed Tests 15 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/contract/g-async-lifecycle.test.ts > R2 prepared input consumes exact same-parent registered notices; active work still blocks idle
+AssertionError: expected 'queued' to be 'consumed' // Object.is equality
+
+Expected: "consumed"
+Received: "queued"
+
+ ❯ tests/contract/g-async-lifecycle.test.ts:80:139
+
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/15]⎯
+
+ FAIL  tests/contract/g-async-lifecycle.test.ts > R4 sync facts preserve old ref and repeated before/after are idempotent
+AssertionError: expected { ok: true } to match object { syncDisplay: { …(3) } }
+(1 matching property omitted from actual)
+
+- Expected
++ Received
+
+  Object {
+-   "syncDisplay": Object {
+-     "callID": "sync-1",
+-     "completeness": "complete",
+-     "textChars": 4,
+-   },
++   "ok": true,
+  }
+
+ ❯ tests/contract/g-async-lifecycle.test.ts:86:323
+
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/15]⎯
+
+ FAIL  tests/contract/g-async-lifecycle.test.ts > R4 different sync user is persistent unknown and cannot consume queued background
+AssertionError: expected { ok: true } to match object { syncDisplay: { …(3) } }
+(1 matching property omitted from actual)
+
+- Expected
++ Received
+
+  Object {
+-   "syncDisplay": Object {
+-     "completeness": "unknown",
+-     "reason": "source_conflict",
+-     "textChars": null,
+-   },
++   "ok": true,
+  }
+
+ ❯ tests/contract/g-async-lifecycle.test.ts:87:441
+
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/15]⎯
+
+ FAIL  tests/contract/g-async-lifecycle.test.ts > R4 wrong sync metadata refuses SDK read and leaves background queued
+AssertionError: expected { ok: true } to match object { syncDisplay: { …(2) } }
+(1 matching property omitted from actual)
+
+- Expected
++ Received
+
+  Object {
+-   "syncDisplay": Object {
+-     "completeness": "unknown",
+-     "reason": "binding_identity",
+-   },
++   "ok": true,
+  }
+
+ ❯ tests/contract/g-async-lifecycle.test.ts:88:194
+
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[4/15]⎯
+
+ FAIL  tests/contract/g-async-lifecycle.test.ts > R4 incomplete second assistant remains ambiguous
+AssertionError: expected { ok: true } to match object { syncDisplay: { …(2) } }
+(1 matching property omitted from actual)
+
+- Expected
++ Received
+
+  Object {
+-   "syncDisplay": Object {
+-     "completeness": "unknown",
+-     "reason": "multiple_assistants",
+-   },
++   "ok": true,
+  }
+
+ ❯ tests/contract/g-async-lifecycle.test.ts:89:409
+
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[5/15]⎯
+
+ FAIL  tests/contract/g-async-lifecycle.test.ts > R4 SDK error remains scoped to sync call
+AssertionError: expected { ok: true } to match object { syncDisplay: { …(2) } }
+(1 matching property omitted from actual)
+
+- Expected
++ Received
+
+  Object {
+-   "syncDisplay": Object {
+-     "completeness": "unknown",
+-     "reason": "sdk_error",
+-   },
++   "ok": true,
+  }
+
+ ❯ tests/contract/g-async-lifecycle.test.ts:90:154
+
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[6/15]⎯
+
+ FAIL  tests/contract/g-async-lifecycle.test.ts > R4 SDK await rechecks stop before display
+ FAIL  tests/contract/g-async-lifecycle.test.ts > R4 SDK await rechecks conflict before display
+Error: Test timed out in 20000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[7/15]⎯
+
+ FAIL  tests/contract/g-async-lifecycle.test.ts > R4 simultaneous sync call makes prior conflict persistent
+AssertionError: promise resolved "{ allowed: true }" instead of rejecting
+
+- Expected
++ Received
+
+- [Error: rejected promise]
++ Object {
++   "allowed": true,
++ }
+
+ ❯ tests/contract/g-async-lifecycle.test.ts:92:235
+
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[8/15]⎯
+
+ FAIL  tests/contract/g-async-lifecycle.test.ts > R4 failed background notice receives facts and exact prepared ID consumption
+AssertionError: expected { bound: true } to match object { Object (completionDisplays) }
+(1 matching property omitted from actual)
+
+- Expected
++ Received
+
+  Object {
+-   "completionDisplays": Array [
+-     Object {
+-       "ref": "f754816a-d825-4a98-8b42-ab4039c1e60e",
+-     },
+-   ],
++   "bound": true,
+  }
+
+ ❯ tests/contract/g-async-lifecycle.test.ts:94:340
+
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[9/15]⎯
+
+ FAIL  tests/contract/g-async-lifecycle.test.ts > R4 conflicting duplicate call is denied before new native dispatch and prior conflict persists
+AssertionError: expected [Function] to throw error including 'sync call conflict' but got 'denied: dispatch'
+
+Expected: "sync call conflict"
+Received: "denied: dispatch"
+
+ ❯ tests/contract/g-async-lifecycle.test.ts:96:139
+
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[10/15]⎯
+
+ FAIL  tests/contract/g-async-lifecycle.test.ts > R4 trusted native error terminates only sync call and permits a new call
+AssertionError: expected [] to have a length of 1 but got +0
+
+- Expected
++ Received
+
+- 1
++ 0
+
+ ❯ tests/contract/g-async-lifecycle.test.ts:98:508
+
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[11/15]⎯
+
+ FAIL  tests/contract/g-async-lifecycle.test.ts > R4 terminal sync before replay is denied while after replay has no side effect
+AssertionError: promise resolved "{ allowed: true }" instead of rejecting
+
+- Expected
++ Received
+
+- [Error: rejected promise]
++ Object {
++   "allowed": true,
++ }
+
+ ❯ tests/contract/g-async-lifecycle.test.ts:100:272
+
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[12/15]⎯
+
+ FAIL  tests/contract/g-async-lifecycle.test.ts > R4 first synchronous call error before binding releases only its pending role
+AssertionError: promise rejected "Error: denied: dispatch { detail: 'p…' }" instead of resolving
+ ❯ tests/contract/g-async-lifecycle.test.ts:102:431
+
+
+Caused by: Error: denied: dispatch
+ ❯ ControlService.registerDispatch apps/launcher/src/control-service.ts:902:33
+ ❯ ControlService.toolBefore apps/launcher/src/control-service.ts:505:12
+ ❯ apps/launcher/src/control-service.ts:233:43
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯
+Serialized Error: { detail: 'pending dispatch exists for role' }
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[13/15]⎯
+
+ FAIL  tests/contract/opencode.test.ts > R2 transform snapshots require matching current user, clear after use/rejection and reject mixed/empty input
+TypeError: h.experimental.chat.messages.transform is not a function
+ ❯ transform tests/contract/opencode.test.ts:162:81
+    160|  const h=createCtfAgentHooks({controlUrl:'http://127.0.0.1:12345',cont…
+    161|  const msg=(id:string,sessionID='root',ignored=false)=>({info:{id,sess…
+    162|  const transform=async(messages:any[])=>h['experimental.chat.messages.…
+       |                                                                                 ^
+    163|  const params=async(id:string)=>h['chat.params']!({sessionID:'root',me…
+    164|  await transform([msg('one'),msg('two')]);await params('two');expect(r…
+ ❯ tests/contract/opencode.test.ts:164:8
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[14/15]⎯
+
+ Test Files  2 failed (2)
+      Tests  15 failed | 50 passed (65)
+   Start at  16:05:18
+   Duration  45.95s (transform 168ms, setup 0ms, collect 243ms, tests 45.71s, environment 0ms, prepare 90ms)
+

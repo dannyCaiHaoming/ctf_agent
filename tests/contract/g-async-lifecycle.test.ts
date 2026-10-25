@@ -69,3 +69,89 @@ it('same prompt on different children never shares source or reply facts',async(
 it('host revoke during result SDK wait rejects the pending parent hook without changing natural terminal state',async()=>{const f=await resultFixture();let release!:(x:any)=>void;let entered!:()=>void;const started=new Promise<void>(r=>entered=r);f.setRead(()=>{entered();return new Promise(r=>release=r);});const notice=f.c.handle('root','chat.message',completion(f.c)).then(value=>({value}),error=>({error}));await started;await f.c.revoke('a');release({data:[{info:{id:'source-1',role:'user',sessionID:'a'}},childMessage()]});expect(await notice).toMatchObject({error:expect.any(Error)});expect(f.c.executionSnapshot()[0]).toMatchObject({state:'completed',delivery:'suppressed',resultFacts:{completeness:'unknown',reason:'stopped'}});});
 it('duplicate notice during pending SDK read cannot read or deliver twice',async()=>{const f=await resultFixture();let release!:(x:any)=>void;let entered!:()=>void;const started=new Promise<void>(r=>entered=r);f.setRead(()=>{entered();return new Promise(r=>release=r);});const first=f.c.handle('root','chat.message',completion(f.c));await started;await expect(f.c.handle('root','chat.message',completion(f.c,0,'duplicate'))).rejects.toThrow('duplicate completion');expect(f.reads()).toBe(1);release({data:[{info:{id:'source-1',role:'user',sessionID:'a'}},childMessage()]});await first;expect(f.c.audit.filter(a=>a.op==='task.result')).toHaveLength(1);});
 it('untrusted notice parent or child cannot start a result SDK read',async()=>{const f=await resultFixture();await expect(f.c.handle('other','chat.message',completion(f.c))).rejects.toThrow('completion correlation');const notice=completion(f.c);notice.parts[0]!.text=notice.parts[0]!.text.replace('id="a"','id="other"');await expect(f.c.handle('root','chat.message',notice)).rejects.toThrow('completion correlation');expect(f.reads()).toBe(0);expect(f.c.executionSnapshot()[0]?.state).toBe('running');});
+
+it('R2 prepared input consumes exact same-parent registered notices; active work still blocks idle',async()=>{
+ const c=await fixture();await c.handle('a','chat.message',{agent:'recon'});const first=c.executionSnapshot()[0]!;
+ const notice={messageID:'notice-one',parts:[{type:'text',synthetic:true,text:`<task id="a" state="completed">\n<summary>Background task completed: [ctf:${first.ref}]</summary>\n<task_result>done</task_result>\n</task>`}]};
+ await c.handle('root','chat.message',notice);
+ await c.handle('a','model.call',{requestMessageIDs:['notice-one']});expect(c.executionSnapshot()[0]?.delivery).toBe('queued');
+ await c.handle('root','model.call',{requestMessageIDs:['missing','wrong-parent']});expect(c.executionSnapshot()[0]?.delivery).toBe('queued');
+ await c.handle('root','tool.before',{tool:'task',callID:'active',args:{subagent_type:'intake',background:true}});
+ await c.handle('root','model.call',{requestMessageIDs:['notice-one','notice-one','missing']});expect(c.executionSnapshot()[0]?.delivery).toBe('consumed');expect(c.hasOutstandingWork({root:{type:'idle'}})).toBe(true);
+ const n=c.audit.filter(r=>r.op==='task.delivered').length;await c.handle('root','model.call',{requestMessageIDs:['notice-one']});expect(c.audit.filter(r=>r.op==='task.delivered')).toHaveLength(n);
+ await c.stopAll('budget');await expect(c.handle('root','model.call',{requestMessageIDs:['notice-one']})).rejects.toThrow('run stopped');
+});
+
+async function syncFixture(){const f=await resultFixture();await f.c.handle('root','chat.message',completion(f.c));await f.c.handle('root','tool.before',{tool:'task',callID:'sync-1',args:{subagent_type:'recon',task_id:'a',background:false}});await f.c.handle('a','chat.message',{agent:'recon',messageID:'sync-user'});f.set([{info:{id:'sync-user',role:'user',sessionID:'a'}},{info:{id:'sync-reply',sessionID:'a',role:'assistant',parentID:'sync-user',finish:'stop',time:{completed:1}},parts:[{type:'text',text:'done'}]}]);return {...f,after:(md:any={parentSessionId:'root',sessionId:'a'})=>f.c.handle('root','tool.after',{tool:'task',callID:'sync-1',metadata:md,output:'native envelope'})};}
+it('R4 sync facts preserve old ref and repeated before/after are idempotent',async()=>{const f=await syncFixture();const old=f.c.executionSnapshot()[0]!;await f.c.handle('root','tool.before',{tool:'task',callID:'sync-1',args:{subagent_type:'recon',task_id:'a',background:false}});const n=f.reads();expect(await f.after()).toMatchObject({syncDisplay:{callID:'sync-1',completeness:'complete',textChars:4}});expect(await f.after()).toEqual({ok:true});expect(f.reads()).toBe(n+1);expect(f.c.executionSnapshot()).toHaveLength(1);expect(f.c.executionSnapshot()[0]).toEqual(old);});
+it('R4 different sync user is persistent unknown and cannot consume queued background',async()=>{const f=await syncFixture();await f.c.handle('a','chat.message',{agent:'recon',messageID:'other'});await f.c.handle('root','tool.before',{tool:'task',callID:'sync-1',args:{subagent_type:'recon',task_id:'a',background:false}});await f.c.handle('a','chat.message',{agent:'recon',messageID:'sync-user'});const n=f.reads();expect(await f.after()).toMatchObject({syncDisplay:{completeness:'unknown',reason:'source_conflict',textChars:null}});expect(f.reads()).toBe(n);expect(f.c.executionSnapshot()[0]?.delivery).toBe('queued');});
+it('R4 wrong sync metadata refuses SDK read and leaves background queued',async()=>{const f=await syncFixture();const n=f.reads();expect(await f.after({parentSessionId:'other',sessionId:'a'})).toMatchObject({syncDisplay:{completeness:'unknown',reason:'binding_identity'}});expect(f.reads()).toBe(n);expect(f.c.executionSnapshot()[0]?.delivery).toBe('queued');});
+it('R4 incomplete second assistant remains ambiguous',async()=>{const f=await syncFixture();f.set([{info:{id:'sync-user',role:'user',sessionID:'a'}},{info:{id:'one',role:'assistant',sessionID:'a',parentID:'sync-user',finish:'stop',time:{completed:1}},parts:[{type:'text',text:'done'}]},{info:{id:'two',role:'assistant',sessionID:'a',parentID:'sync-user',time:{created:2}},parts:[]}]);expect(await f.after()).toMatchObject({syncDisplay:{completeness:'unknown',reason:'multiple_assistants'}});});
+it('R4 SDK error remains scoped to sync call',async()=>{const f=await syncFixture();f.setRead(async()=>{throw Error('offline')});expect(await f.after()).toMatchObject({syncDisplay:{completeness:'unknown',reason:'sdk_error'}});expect(f.c.executionSnapshot()[0]?.delivery).toBe('queued');});
+it.each(['stop','conflict'])('R4 SDK await rechecks %s before display',async(mode)=>{const f=await syncFixture();let entered!:()=>void,release!:(v:any)=>void;const started=new Promise<void>(r=>entered=r);f.setRead(()=>{entered();return new Promise(r=>release=r)});const pending=f.after();await started;if(mode==='stop')await f.c.stopAll('deadline');else await f.c.handle('a','chat.message',{agent:'recon',messageID:'changed'});release({data:[{info:{id:'sync-user',role:'user',sessionID:'a'}},{info:{id:'one',role:'assistant',sessionID:'a',parentID:'sync-user',finish:'stop',time:{completed:1}},parts:[{type:'text',text:'done'}]}]});if(mode==='stop')expect(await pending).toEqual({ok:true});else expect(await pending).toMatchObject({syncDisplay:{completeness:'unknown',reason:'source_conflict'}});});
+it('R4 simultaneous sync call makes prior conflict persistent',async()=>{const f=await syncFixture();await expect(f.c.handle('root','tool.before',{tool:'task',callID:'sync-2',args:{subagent_type:'recon',task_id:'a',background:false}})).rejects.toThrow('sync active call');expect(await f.after()).toMatchObject({syncDisplay:{reason:'source_conflict'}});});
+
+it('R4 failed background notice receives facts and exact prepared ID consumption',async()=>{const f=await resultFixture();const n=completion(f.c);n.parts[0]!.text=n.parts[0]!.text.replace('state="completed"','state="error"').replace('Background task completed:','Background task failed:');expect(await f.c.handle('root','chat.message',n)).toMatchObject({completionDisplays:[{ref:f.c.executionSnapshot()[0]!.ref}]});await f.c.handle('root','model.call',{requestMessageIDs:[n.messageID]});expect(f.c.executionSnapshot()[0]).toMatchObject({state:'failed',delivery:'consumed'});});
+
+it('R4 conflicting duplicate call is denied before new native dispatch and prior conflict persists',async()=>{const f=await syncFixture();await expect(f.c.handle('root','tool.before',{tool:'task',callID:'sync-1',args:{subagent_type:'unknown',task_id:'foreign',background:false}})).rejects.toThrow('sync call conflict');expect(await f.after()).toMatchObject({syncDisplay:{completeness:'unknown',reason:'source_conflict'}});expect(f.c.executionSnapshot()).toHaveLength(1);});
+
+it('R4 trusted native error terminates only sync call and permits a new call',async()=>{const f=await syncFixture();await f.c.handle('root','task.event',{callID:'sync-1',state:'error'});expect(await f.after()).toEqual({ok:true});await expect(f.c.handle('root','tool.before',{tool:'task',callID:'sync-2',args:{subagent_type:'recon',task_id:'a',background:false}})).resolves.toEqual({allowed:true});expect(f.c.executionSnapshot()[0]?.delivery).toBe('queued');expect(f.c.audit.filter(a=>a.op==='sync.failed')).toHaveLength(1);});
+
+it('R4 terminal sync before replay is denied while after replay has no side effect',async()=>{const f=await syncFixture();await f.after();await expect(f.c.handle('root','tool.before',{tool:'task',callID:'sync-1',args:{subagent_type:'recon',task_id:'a',background:false}})).rejects.toThrow('sync call terminal');expect(await f.after()).toEqual({ok:true});expect(f.c.audit.filter(a=>a.op==='sync.result')).toHaveLength(1);});
+
+it('R4 first synchronous call error before binding releases only its pending role',async()=>{const c=await fixture();await c.handle('root','tool.before',{tool:'task',callID:'sync-first',args:{subagent_type:'intake',background:false}});await c.handle('root','task.event',{callID:'sync-first',state:'error'});await expect(c.handle('root','tool.before',{tool:'task',callID:'sync-next',args:{subagent_type:'intake',background:false}})).resolves.toEqual({allowed:true});await c.handle('root','task.event',{callID:'sync-first',state:'error'});await expect(c.handle('root','tool.before',{tool:'task',callID:'sync-third',args:{subagent_type:'intake',background:false}})).rejects.toMatchObject({message:'denied: dispatch',detail:'pending dispatch exists for role'});expect(c.executionSnapshot()[0]?.state).toBe('starting');});
+
+it('sync call cannot change to background mode under the same identity',async()=>{
+ const f=await syncFixture();
+ await expect(f.c.handle('root','tool.before',{tool:'task',callID:'sync-1',args:{subagent_type:'recon',task_id:'a',background:true}})).rejects.toThrow('sync call conflict');
+ expect(f.c.executionSnapshot()).toHaveLength(1);
+ expect(await f.after()).toMatchObject({syncDisplay:{completeness:'unknown',reason:'source_conflict'}});
+});
+it('sync source is audited without text or error payload',async()=>{
+ const f=await syncFixture();
+ expect(f.c.audit.filter(a=>a.op==='sync.source')).toContainEqual(expect.objectContaining({detail:expect.objectContaining({callID:'sync-1',source:expect.objectContaining({userMessageID:'sync-user'})})}));
+});
+it('sync SDK return rechecks binding role before releasing facts',async()=>{
+ const f=await syncFixture();let entered!:()=>void,release!:(v:any)=>void;const started=new Promise<void>(r=>entered=r);
+ f.setRead(()=>{entered();return new Promise(r=>release=r)});const pending=f.after();await started;
+ (f.c.bindings.get('a') as any).role='intake';release({data:[]});
+ expect(await pending).toMatchObject({syncDisplay:{completeness:'unknown',reason:'binding_identity'}});
+});
+it('sync same-ID contradictory assistant remains unknown',async()=>{
+ const f=await syncFixture();const reply={info:{id:'reply',sessionID:'a',role:'assistant',parentID:'sync-user',finish:'stop',time:{completed:1}},parts:[{type:'text',text:'done'}]};
+ f.set([{info:{id:'sync-user',role:'user',sessionID:'a'}},reply,{...reply,info:{...reply.info,parentID:'foreign'}}]);
+ expect(await f.after()).toMatchObject({syncDisplay:{completeness:'unknown',reason:'message_conflict'}});
+});
+it('active synchronous resume remains outstanding after every queued notice is consumed',async()=>{
+ const f=await syncFixture();await f.c.handle('root','model.call',{requestMessageIDs:['notice']});
+ expect(f.c.executionSnapshot()[0]?.delivery).toBe('consumed');
+ expect(f.c.hasOutstandingWork({root:{type:'idle'},a:{type:'idle'}})).toBe(true);
+ await f.after();expect(f.c.hasOutstandingWork({root:{type:'idle'},a:{type:'idle'}})).toBe(false);
+});
+it('admission message ID alone cannot consume a notice without a prepared context snapshot',async()=>{
+ const f=await resultFixture();await f.c.handle('root','chat.message',completion(f.c));
+ await f.c.handle('root','model.call',{messageID:'notice'});expect(f.c.executionSnapshot()[0]?.delivery).toBe('queued');
+});
+
+it('two completed synchronous resumes on the same child keep independent users and call facts',async()=>{
+ const f=await syncFixture();
+ expect(await f.after()).toMatchObject({syncDisplay:{callID:'sync-1',completeness:'complete',textChars:4}});
+ const first=structuredClone(f.c.audit.find(a=>a.op==='sync.result'&&(a.detail as any).callID==='sync-1'));
+ await f.c.handle('root','tool.before',{tool:'task',callID:'sync-2',args:{subagent_type:'recon',task_id:'a',background:false}});
+ await f.c.handle('a','chat.message',{agent:'recon',messageID:'sync-user-2'});
+ f.set([
+  {info:{id:'sync-user',role:'user',sessionID:'a'}},
+  {info:{id:'sync-reply',role:'assistant',sessionID:'a',parentID:'sync-user',finish:'stop',time:{completed:1}},parts:[{type:'text',text:'done'}]},
+  {info:{id:'sync-user-2',role:'user',sessionID:'a'}},
+  {info:{id:'sync-reply-2',role:'assistant',sessionID:'a',parentID:'sync-user-2',finish:'stop',time:{completed:2}},parts:[{type:'text',text:'second report'}]},
+ ]);
+ expect(await f.c.handle('root','tool.after',{tool:'task',callID:'sync-2',metadata:{parentSessionId:'root',sessionId:'a'},output:'native second envelope'})).toMatchObject({syncDisplay:{callID:'sync-2',completeness:'complete',textChars:13}});
+ const results=f.c.audit.filter(a=>a.op==='sync.result').map(a=>a.detail as any);
+ expect(results).toMatchObject([
+  {callID:'sync-1',source:{userMessageID:'sync-user'},facts:{assistantMessageID:'sync-reply',textChars:4}},
+  {callID:'sync-2',source:{userMessageID:'sync-user-2'},facts:{assistantMessageID:'sync-reply-2',textChars:13}},
+ ]);
+ expect(f.c.audit.find(a=>a.op==='sync.result'&&(a.detail as any).callID==='sync-1')).toEqual(first);
+ const reads=f.reads();expect(await f.after()).toEqual({ok:true});expect(f.reads()).toBe(reads);
+ expect(f.c.executionSnapshot()).toHaveLength(1);expect(f.c.bindings.get('a')?.dispatchCallID).toBe('dispatch-1');
+});

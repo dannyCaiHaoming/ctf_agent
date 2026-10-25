@@ -1,0 +1,190 @@
+{
+  "result": {
+    "code": 0,
+    "status": "completed",
+    "runDir": "/private/tmp/ctf-final-implementation.ll6baY/runs/pure-partial/run"
+  },
+  "rootStep": 1,
+  "childCount": 1,
+  "requests": [
+    {
+      "at": 1792912218826,
+      "isRoot": true,
+      "isChild": false,
+      "rootStep": 1,
+      "childCount": 0,
+      "finish": "tool_calls",
+      "calls": [
+        {
+          "name": "task",
+          "role": "intake",
+          "task_id": null,
+          "background": false
+        }
+      ],
+      "max_tokens": 128,
+      "toolOutputs": [],
+      "nativeNotices": [],
+      "messageCount": 2,
+      "notices": 0,
+      "refs": [],
+      "displays": []
+    },
+    {
+      "at": 1792912218910,
+      "isRoot": false,
+      "isChild": true,
+      "rootStep": 1,
+      "childCount": 1,
+      "finish": "length",
+      "calls": [],
+      "max_tokens": 128,
+      "toolOutputs": [],
+      "nativeNotices": [],
+      "messageCount": 2,
+      "notices": 0,
+      "refs": [],
+      "displays": []
+    },
+    {
+      "at": 1792912218940,
+      "isRoot": true,
+      "isChild": false,
+      "rootStep": 1,
+      "childCount": 1,
+      "finish": "stop",
+      "calls": [],
+      "max_tokens": 128,
+      "toolOutputs": [
+        {
+          "tool_call_id": "call_1_0",
+          "content": "<task id=\"ses_e8e1aa4fdffea9lDLPWxyLnzu9\" state=\"completed\">\n<task_result>\nPARTIAL\n</task_result>\n</task>\n[CTF host synchronous result facts] {\"callID\":\"call_1_0\",\"role\":\"intake\",\"completeness\":\"incomplete\",\"reason\":\"length\",\"finish\":\"length\",\"textChars\":7,\"source\":\"associated\"}\nExecution ended does not imply a complete report; complete does not imply correct or solved."
+        }
+      ],
+      "nativeNotices": [],
+      "messageCount": 4,
+      "notices": 0,
+      "refs": [],
+      "displays": [
+        {
+          "messageRole": "tool",
+          "synchronous": true,
+          "facts": {
+            "callID": "call_1_0",
+            "role": "intake",
+            "completeness": "incomplete",
+            "reason": "length",
+            "finish": "length",
+            "textChars": 7,
+            "source": "associated"
+          }
+        }
+      ]
+    }
+  ],
+  "executions": [],
+  "audits": [
+    {
+      "seq": 1,
+      "t": 138,
+      "at": 1792912217950,
+      "sessionID": "ses_e8e1aa8aaffe2EvJkO38DGWZID",
+      "op": "bind",
+      "allow": true,
+      "detail": {
+        "role": "coordinator",
+        "via": "root"
+      },
+      "role": "coordinator"
+    },
+    {
+      "seq": 3,
+      "t": 1007,
+      "at": 1792912218819,
+      "sessionID": "ses_e8e1aa8aaffe2EvJkO38DGWZID",
+      "op": "model.call",
+      "allow": true,
+      "detail": {
+        "maxOutputTokens": 30000,
+        "admitNo": 1,
+        "role": "coordinator"
+      },
+      "role": "coordinator"
+    },
+    {
+      "seq": 6,
+      "t": 1078,
+      "at": 1792912218890,
+      "sessionID": "ses_e8e1aa4fdffea9lDLPWxyLnzu9",
+      "op": "bind",
+      "allow": true,
+      "detail": {
+        "role": "intake",
+        "via": "dispatch",
+        "sdkParentID": "ses_e8e1aa8aaffe2EvJkO38DGWZID",
+        "sdkAgent": "intake",
+        "callID": "call_1_0",
+        "sdkMs": 3
+      },
+      "role": "intake"
+    },
+    {
+      "seq": 9,
+      "t": 1094,
+      "at": 1792912218906,
+      "sessionID": "ses_e8e1aa4fdffea9lDLPWxyLnzu9",
+      "op": "model.call",
+      "allow": true,
+      "detail": {
+        "maxOutputTokens": 30000,
+        "admitNo": 2,
+        "role": "intake"
+      },
+      "role": "intake"
+    },
+    {
+      "seq": 11,
+      "t": 1110,
+      "at": 1792912218922,
+      "sessionID": "ses_e8e1aa8aaffe2EvJkO38DGWZID",
+      "op": "sync.result",
+      "allow": true,
+      "detail": {
+        "callID": "call_1_0",
+        "childID": "ses_e8e1aa4fdffea9lDLPWxyLnzu9",
+        "source": {
+          "status": "associated",
+          "userMessageID": "msg_171e55b05001NwMhZH3FjQpsF0",
+          "reason": "hook",
+          "observedAt": 1792912218890
+        },
+        "facts": {
+          "userMessageID": "msg_171e55b05001NwMhZH3FjQpsF0",
+          "assistantMessageID": "msg_171e55b13001btYwZ6O2yIw9h5",
+          "finish": "length",
+          "completed": true,
+          "textChars": 7,
+          "hasError": false,
+          "completeness": "incomplete",
+          "reason": "length",
+          "observedAt": 1792912218922
+        }
+      },
+      "role": "coordinator"
+    },
+    {
+      "seq": 13,
+      "t": 1126,
+      "at": 1792912218938,
+      "sessionID": "ses_e8e1aa8aaffe2EvJkO38DGWZID",
+      "op": "model.call",
+      "allow": true,
+      "detail": {
+        "maxOutputTokens": 29996,
+        "admitNo": 3,
+        "role": "coordinator"
+      },
+      "role": "coordinator"
+    }
+  ]
+}

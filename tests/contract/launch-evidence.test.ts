@@ -77,7 +77,10 @@ async function run(failInStart = false, deadlineMs?: number) {
     await fetch(opts.controlUrl, { method: 'POST', headers: { authorization: `Bearer ${opts.controlToken}` },
       body: JSON.stringify({ sessionID: rootId, operation: 'tool.execute', input: { tool: 'challenge.assign', args: { role: 'recon', challenge: 'offline' } } }) });
     await hooks['tool.execute.before']!({ sessionID: rootId, tool: 'task', callID: 'dispatch' }, { args: { subagent_type: 'recon' } });
-    if (mode !== 'pending') await hooks['chat.message']!({ sessionID: 'child', agent: 'recon' } as never, {} as never);
+    if (mode !== 'pending') {
+      await hooks['chat.message']!({ sessionID: 'child', agent: 'recon' } as never, {} as never);
+      await hooks['tool.execute.after']!({ sessionID: rootId, tool: 'task', callID: 'dispatch', args: {} }, {title:'done', output:'native terminal', metadata:{parentSessionId:rootId, sessionId:'child'}});
+    }
     if (failInStart) throw error('original run failed');
   } });
 }

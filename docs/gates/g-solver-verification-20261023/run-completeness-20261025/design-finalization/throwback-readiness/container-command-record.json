@@ -1,0 +1,96 @@
+{
+  "provenance": "Accurately transcribed from this agent actual functions.exec/exec_command Python subprocess and direct shell tool calls. Not a container inspect projection.",
+  "records": [
+    {
+      "operation": "create",
+      "container_ordinal": 1,
+      "argv": [
+        "docker",
+        "create",
+        "--pull=never",
+        "--network=none",
+        "--label",
+        "ctf.readiness.owner=ctf-readiness-6c89ea851762",
+        "--name",
+        "ctf-readiness-6c89ea851762",
+        "sha256:ec0deee9a8a45ac74494e7dfc92357711fcf0b1e1c58543f09d6f824f3d9be98"
+      ],
+      "returned_id": "c7cbcb4e835cbf0dddab8e6632a6005dd478d7f8d7a5d86967663feb9bc16b63",
+      "evidence_kind": "transcribed_actual_tool_execution_command",
+      "note": "No command or entrypoint override argument was supplied."
+    },
+    {
+      "operation": "start",
+      "container_ordinal": 1,
+      "argv": [
+        "docker",
+        "start",
+        "c7cbcb4e835cbf0dddab8e6632a6005dd478d7f8d7a5d86967663feb9bc16b63"
+      ],
+      "evidence_kind": "transcribed_actual_tool_execution_command"
+    },
+    {
+      "operation": "create",
+      "container_ordinal": 2,
+      "argv": [
+        "docker",
+        "create",
+        "--pull=never",
+        "--network=none",
+        "--label",
+        "ctf.readiness.owner=ctf-readiness-fa978a7d5a6e",
+        "--name",
+        "ctf-readiness-fa978a7d5a6e",
+        "sha256:ec0deee9a8a45ac74494e7dfc92357711fcf0b1e1c58543f09d6f824f3d9be98"
+      ],
+      "returned_id": "317eac7a39c09e0f6fc753814e720c169993a5dce7937305f7b7d32802a79c83",
+      "evidence_kind": "transcribed_actual_tool_execution_command",
+      "note": "No command or entrypoint override argument was supplied."
+    },
+    {
+      "operation": "start",
+      "container_ordinal": 2,
+      "argv": [
+        "docker",
+        "start",
+        "317eac7a39c09e0f6fc753814e720c169993a5dce7937305f7b7d32802a79c83"
+      ],
+      "evidence_kind": "transcribed_actual_tool_execution_command"
+    },
+    {
+      "operation": "restart",
+      "container_ordinal": 1,
+      "argv": [
+        "docker",
+        "restart",
+        "c7cbcb4e835cbf0dddab8e6632a6005dd478d7f8d7a5d86967663feb9bc16b63"
+      ],
+      "evidence_kind": "transcribed_actual_tool_execution_command"
+    },
+    {
+      "operation": "remove",
+      "container_ordinal": 1,
+      "argv": [
+        "docker",
+        "rm",
+        "-f",
+        "c7cbcb4e835cbf0dddab8e6632a6005dd478d7f8d7a5d86967663feb9bc16b63"
+      ],
+      "evidence_kind": "transcribed_actual_tool_execution_command",
+      "precondition": "Exact ID inspected and ctf.readiness.owner label matched the recorded unique name before removal."
+    },
+    {
+      "operation": "remove",
+      "container_ordinal": 2,
+      "argv": [
+        "docker",
+        "rm",
+        "-f",
+        "317eac7a39c09e0f6fc753814e720c169993a5dce7937305f7b7d32802a79c83"
+      ],
+      "evidence_kind": "transcribed_actual_tool_execution_command",
+      "precondition": "Exact ID inspected and ctf.readiness.owner label matched the recorded unique name before removal."
+    }
+  ],
+  "limitation": "Containers already removed. Actual per-container Config.Cmd, Config.Entrypoint and Config.WorkingDir were not retained. Commands show no overrides and fixed image metadata is independently inspected; no surviving direct container configuration projection is claimed."
+}

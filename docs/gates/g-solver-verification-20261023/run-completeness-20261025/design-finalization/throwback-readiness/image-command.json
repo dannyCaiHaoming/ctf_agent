@@ -1,0 +1,26 @@
+{
+  "evidence_kind": "read_only_image_inspect_after_container_cleanup",
+  "observedAt": "2026-10-25T04:06:57.318919+00:00",
+  "command_argv": [
+    "docker",
+    "image",
+    "inspect",
+    "sha256:ec0deee9a8a45ac74494e7dfc92357711fcf0b1e1c58543f09d6f824f3d9be98",
+    "--format",
+    "{{json .Id}} {{json .Config.WorkingDir}} {{json .Config.Cmd}} {{json (index .Config \"Entrypoint\")}}"
+  ],
+  "image": "sha256:ec0deee9a8a45ac74494e7dfc92357711fcf0b1e1c58543f09d6f824f3d9be98",
+  "workingDir": "/root/throwback",
+  "cmd": [
+    "python",
+    "serve.py"
+  ],
+  "entrypoint": null,
+  "entrypoint_note": "index lookup returns null for absent/null Entrypoint; direct field lookup failed because key was absent.",
+  "scope_limit": "Image configuration only; not a retained container Config.Cmd inspection.",
+  "probe_failure": {
+    "attempts": 2,
+    "reason": "template direct .Config.Entrypoint lookup failed: map has no entry for key Entrypoint",
+    "recovery": "Use template index lookup for the same whitelisted field; no image or container mutation."
+  }
+}

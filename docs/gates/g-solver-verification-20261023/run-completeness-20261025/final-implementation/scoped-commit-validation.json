@@ -1,0 +1,29 @@
+{
+  "base": "81cc7fc06497088d9391c9ed93cc405694f6cf2e",
+  "scope": "HEAD plus reviewed implementation increment; exclude other uncommitted progress tools/roles and unrelated fixes",
+  "necessaryDependency": "Only fingerprintJson import from already committed progress-ledger.ts; other progress imports/wiring excluded",
+  "coordinator": "Only corrected condition paragraph and heading included; pre-existing uncommitted progress tool guidance excluded",
+  "checks": {
+    "typecheck": 0,
+    "build": 0,
+    "test": 0,
+    "files": 48,
+    "tests": 476
+  },
+  "initialFailures": [
+    "isolated increment missed fingerprintJson import; fixed staging with only necessary import",
+    "archive validation directory lacked .git; git init in temporary directory restored git check-ignore harness, no commit created"
+  ],
+  "sourceHashes": {
+    "apps/launcher/src/control-service.ts": "4e6361da482431056b7662fd30ef2d3628f754e84d3dbd3c71115766ba5e4e5b",
+    "apps/opencode-plugin/src/index.ts": "d2ff1f235ec3954dc6d81a2c47fd7a70ee71444aacf6e81edd91601da24469a4",
+    "product/opencode/agents/coordinator.md": "4b91567a4fc1efdaaaf659a65e2ea23952c52751dad86824c4587e08fa223bac",
+    "tests/contract/g-async-lifecycle.test.ts": "c06705de5b2748bf0be4b9c60dca0cccee22164cf0e89a850baf77a3fb3277b5",
+    "tests/contract/opencode.test.ts": "9487d84d7713f454ca18dd8c00bb39455a7882e130fefe41e012ee8f295b7744",
+    "tests/contract/launch-evidence.test.ts": "7ed01cf996d0bb52631a039fcd17e6b89c94b55d1dab6a924b86d8d769b62a26",
+    "tests/contract/control-service.test.ts": "32bf1094b2805022637fc62a57e2f6879516f3b3eff16ebf146a9d2f5b0d874d"
+  },
+  "nativeSixCases": "Earlier dirty-workspace six-case evidence retained; not rerun against this scoped commit. Separate from fresh scoped checks.",
+  "realModels": false,
+  "push": false
+}

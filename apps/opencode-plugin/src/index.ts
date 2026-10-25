@@ -68,6 +68,7 @@ export function createCtfAgentHooks(options: CTFPluginOptions): Hooks {
   if (options.tools.some(name => !Object.hasOwn(schemas, name))) throw new Error('tool is not in the managed tool manifest');
   // The plugin decides nothing: it forwards and obeys. Any transport failure, bad reply or silence is a denial.
   const callMarker = Symbol('ctf trusted call');
+  const preparedMessages=new Map<string,{currentUserID?:string;ids:string[]}>();
   type Marked = Record<symbol, { sessionID: string; callID: string; tool: string; timeoutMs: number } | undefined>;
   const control = async (sessionID: string, operation: string, input: unknown, signal?: AbortSignal, timeoutMs?: number): Promise<unknown> => {
     let response: Response;
@@ -106,9 +107,19 @@ export function createCtfAgentHooks(options: CTFPluginOptions): Hooks {
       if (part.type === 'tool' && part.tool === 'task' && part.state.status === 'error')
         await control(part.sessionID, 'task.event', {callID: part.callID, state: part.state.status, error: part.state.error});
     },
-    async 'chat.message'(input, output) { await control(input.sessionID, 'chat.message', { agent: input.agent, messageID: input.messageID ?? output.message?.id, parts: output.parts }); },
+    async 'chat.message'(input, output) {
+      const reply = await control(input.sessionID, 'chat.message', { agent: input.agent, messageID: input.messageID ?? output.message?.id, parts: output.parts }) as { completionDisplays?: Array<{ref:string;role:string;completeness:string;reason:string;finish:string|null;textChars:number|null;source:string}> };
+      for (const fact of reply.completionDisplays ?? []) output.parts.push({ id: 'prt_' + crypto.randomUUID().replaceAll('-', ''), sessionID: input.sessionID, messageID: output.message.id, type: 'text', synthetic: true, text: '[CTF host result facts] ' + JSON.stringify(fact) + '\nExecution ended does not imply a complete report; complete does not imply correct or solved.' });
+    },
+    async 'experimental.chat.messages.transform'(_input,output) {
+      const sessions=new Set(output.messages.map(m=>m.info.sessionID));
+      if(!sessions.size)preparedMessages.clear();
+      for(const session of sessions)preparedMessages.delete(session);
+      if(sessions.size===1)preparedMessages.set([...sessions][0]!,{currentUserID:output.messages.filter(m=>m.info.role==='user').at(-1)?.info.id,ids:output.messages.filter(m=>m.info.role==='user'&&m.parts.some(p=>p.type==='text'&&p.synthetic===true&&!p.ignored&&/Background task (?:completed|failed):/.test(p.text))).map(m=>m.info.id)});
+    },
     async 'chat.params'(input, output) {
-      const admitted = await control(input.sessionID, 'model.call', { agent: input.agent, provider: input.model.providerID, model: input.model.id, messageID: input.message?.id }) as { maxOutputTokens: number };
+      const prepared=preparedMessages.get(input.sessionID);preparedMessages.delete(input.sessionID);
+      const admitted = await control(input.sessionID, 'model.call', { agent: input.agent, provider: input.model.providerID, model: input.model.id, messageID: input.message?.id, requestMessageIDs:prepared && prepared.currentUserID===input.message?.id?prepared.ids:[] }) as { maxOutputTokens: number };
       if (!Number.isFinite(admitted?.maxOutputTokens) || admitted.maxOutputTokens < 1) throw new Error('denied: control reply');
       output.maxOutputTokens = Math.min(output.maxOutputTokens ?? admitted.maxOutputTokens, admitted.maxOutputTokens);
     },
@@ -121,7 +132,10 @@ export function createCtfAgentHooks(options: CTFPluginOptions): Hooks {
         (output.args as Marked)[callMarker] = { sessionID: input.sessionID, callID: input.callID, tool: input.tool, timeoutMs };
       }
     },
-    async 'tool.execute.after'(input, output) { await control(input.sessionID, 'tool.after', { tool: input.tool, callID: input.callID, metadata: output.metadata, output: output.output }); }
+    async 'tool.execute.after'(input, output) {
+      const reply=await control(input.sessionID,'tool.after',{tool:input.tool,callID:input.callID,metadata:output.metadata,output:output.output}) as {syncDisplay?:unknown};
+      if(reply.syncDisplay)output.output += '\n[CTF host synchronous result facts] '+JSON.stringify(reply.syncDisplay)+'\nExecution ended does not imply a complete report; complete does not imply correct or solved.';
+    }
   };
 }
 

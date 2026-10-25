@@ -1,0 +1,421 @@
+
+> ctf-agent@0.1.0 test
+> vitest run
+
+
+ RUN  v2.1.9 /Users/caihaoming/.codex/worktrees/result-completeness-implementation/pentest-agent
+
+ ❯ tests/contract/control-service.test.ts (31 tests | 3 failed) 81ms
+   × plugin denies when the control service cannot answer > rejects a wrong transport credential and accepts the right one 9ms
+     → expected [Function] to throw error including 'denied' but got 'Cannot read properties of undefined (…'
+   × plugin denies when the control service cannot answer > rejects when the service never replies, is unreachable, or replies with something unusable 3ms
+     → expected [Function] to throw error including 'denied' but got 'Cannot read properties of undefined (…'
+   × G-V1 cross-round challenge binding > T5 resume keeps topic; no/same declaration creates no pending, foreign/conflict preserves declaration 3ms
+     → denied: sync active call
+stdout | tests/contract/d-artifact-handoff.test.ts > D deterministic phase-controlled races and failures (not runtime) > H5 same-length-in-place rejects modified or out-of-root source with exact phase order
+{"criterion":"H5","kind":"same-length-in-place","order":["ancestry-validated","descriptor-validated","source-mutated-before-read","read-chunk","read-chunk"],"result":"refused","timing":"explicit awaited phase, no sleep"}
+
+stdout | tests/contract/d-artifact-handoff.test.ts > D deterministic phase-controlled races and failures (not runtime) > H5 rename-file rejects modified or out-of-root source with exact phase order
+{"criterion":"H5","kind":"rename-file","order":["ancestry-validated","descriptor-validated","source-mutated-before-read","read-chunk","read-chunk"],"result":"refused","timing":"explicit awaited phase, no sleep"}
+
+stdout | tests/contract/d-artifact-handoff.test.ts > D deterministic phase-controlled races and failures (not runtime) > H5 replace-parent rejects modified or out-of-root source with exact phase order
+{"criterion":"H5","kind":"replace-parent","order":["ancestry-validated","parent-swapped"],"result":"refused","timing":"explicit awaited phase, no sleep"}
+
+stdout | tests/contract/d-artifact-handoff.test.ts > D deterministic phase-controlled races and failures (not runtime) > H5 symlink-parent rejects modified or out-of-root source with exact phase order
+{"criterion":"H5","kind":"symlink-parent","order":["ancestry-validated","parent-swapped"],"result":"refused","timing":"explicit awaited phase, no sleep"}
+
+stdout | tests/contract/d-artifact-handoff.test.ts > D deterministic phase-controlled races and failures (not runtime) > H5 symlink-leaf rejects modified or out-of-root source with exact phase order
+{"criterion":"H5","kind":"symlink-leaf","order":["ancestry-validated","leaf-swapped"],"result":"refused","timing":"explicit awaited phase, no sleep"}
+
+stdout | tests/contract/d-artifact-handoff.test.ts > D deterministic phase-controlled races and failures (not runtime) > H5 quiescent atomic rename selects a whole version; hash does not stop same-uid writes
+{"criterion":"H5","osCounterexample":"same uid directly rewrote published bytes; managed read detects but cannot prevent","isolation":false}
+
+stdout | tests/contract/d-artifact-handoff.test.ts > D deterministic phase-controlled races and failures (not runtime) > H7 write-failure leaves no half ref or implicit source replay
+{"criterion":"H7","kind":"write-failure","order":["check-live","write"],"commits":0,"visibleRefs":0,"sourceReplay":0}
+
+stdout | tests/contract/d-artifact-handoff.test.ts > D deterministic phase-controlled races and failures (not runtime) > H7 cancel-before-write leaves no half ref or implicit source replay
+{"criterion":"H7","kind":"cancel-before-write","order":["check-live"],"commits":0,"visibleRefs":0,"sourceReplay":0}
+
+stdout | tests/contract/d-artifact-handoff.test.ts > D deterministic phase-controlled races and failures (not runtime) > H7 cancel-after-rename leaves no half ref or implicit source replay
+{"criterion":"H7","kind":"cancel-after-rename","order":["check-live","write","check-live","rename","check-live"],"commits":1,"visibleRefs":0,"sourceReplay":0}
+
+stdout | tests/contract/d-artifact-handoff.test.ts > D deterministic phase-controlled races and failures (not runtime) > H7 deadline-after-rename leaves no half ref or implicit source replay
+{"criterion":"H7","kind":"deadline-after-rename","order":["check-live","write","check-live","rename","check-live"],"commits":1,"visibleRefs":0,"sourceReplay":0}
+
+stdout | tests/contract/d-artifact-handoff.test.ts > D deterministic phase-controlled races and failures (not runtime) > H7 reply-lost leaves no half ref or implicit source replay
+{"criterion":"H7","kind":"reply-lost","order":["check-live","write","check-live","rename","check-live"],"commits":1,"visibleRefs":1,"sourceReplay":0}
+
+stdout | tests/contract/d-artifact-handoff.test.ts > H5 external writer rendezvous between reads rejects a mixed buffer with deterministic order
+{"criterion":"H5","barrier":"awaited external writer between chunks","order":["read-1","second-read-blocked","external-write-completed","second-read-released","read-2"],"result":"mixed buffer refused before publication"}
+
+stdout | tests/contract/d-artifact-handoff.test.ts > H3 concurrent publication audit attaches each own ref rather than last registry entry
+{"criterion":"H3","interleaving":"two real commits before either C reply resumes","order":["committed:34125753-6c2e-46fd-a6df-588a17acdf3f","committed:13f67c29-c3b5-44b6-bb9f-8d69d70452b1","reply:34125753-6c2e-46fd-a6df-588a17acdf3f","reply:13f67c29-c3b5-44b6-bb9f-8d69d70452b1"],"result":"audit source matched own ref"}
+
+ ✓ tests/contract/d-artifact-handoff.test.ts (22 tests) 324ms
+ ✓ tests/contract/d-candidate-package.test.ts (14 tests) 731ms
+   ✓ D interface two minimal package > P1 reconstructs multi-page manifest, candidate and file with exact bytes and hashes 360ms
+ ✓ tests/integration/candidate-verification.test.ts (7 tests) 206ms
+ ✓ tests/contract/d-verifier-handoff.test.ts (10 tests) 861ms
+ ✓ tests/contract/http-lifecycle.test.ts (10 tests) 50ms
+ ✓ tests/contract/opencode.test.ts (11 tests) 34ms
+ ✓ tests/contract/runtime-interactive-sessions.test.ts (10 tests) 937ms
+ ✓ tests/contract/http-tools.test.ts (10 tests) 175ms
+ ✓ tests/contract/g-team-integration.test.ts (4 tests) 326ms
+ ✓ tests/contract/hypothesis-lifecycle.test.ts (18 tests) 19ms
+ ✓ tests/contract/run-prep.test.ts (13 tests) 1026ms
+ ✓ tests/contract/intake-tools.test.ts (8 tests) 14ms
+ ✓ tests/contract/responsibility-sessions.test.ts (10 tests) 9ms
+ ✓ tests/contract/d-trusted-completion.test.ts (13 tests) 2477ms
+   ✓ D5 admission, outcome and failure boundaries > rejects roles, extra authority/candidate, wrong binding and usable rejected before dispatch 512ms
+   ✓ D5 admission, outcome and failure boundaries > maps only correlated explicit accepted whole completion; no judge candidate_only 894ms
+ ✓ tests/contract/hypothesis-progress.test.ts (8 tests) 13ms
+ ✓ tests/contract/workspace-tools.test.ts (9 tests) 43ms
+ ✓ tests/integration/compaction-evidence.test.ts (7 tests) 611ms
+ ✓ tests/contract/progress-ledger.test.ts (3 tests) 13ms
+ ✓ tests/integration/verified-multiflag-candidate.test.ts (3 tests) 579ms
+ ✓ tests/contract/hypothesis-routes.test.ts (7 tests) 10ms
+ ✓ tests/contract/d-h7-rpc-stop.test.ts (3 tests) 90ms
+ ✓ tests/integration/runtime-tar-gzip.test.ts (4 tests) 109ms
+ ✓ tests/contract/job-tools.test.ts (9 tests) 2040ms
+   ✓ G-V5 managed jobs > kills the grandchild with the process group on timeout 1526ms
+ ✓ tests/integration/compaction-local-guards.test.ts (5 tests) 630ms
+ ✓ tests/integration/runtime-http-session.test.ts (2 tests) 65ms
+ ✓ tests/integration/multiflag-continuation.test.ts (4 tests) 33ms
+ ✓ tests/contract/responsibility-handoff.test.ts (37 tests) 8ms
+ ✓ tests/contract/contracts.test.ts (5 tests) 5ms
+ ✓ tests/contract/state.test.ts (4 tests) 18ms
+ ✓ tests/integration/long-job-continuation.test.ts (3 tests) 396ms
+   ✓ durable long-job continuation > releases the Worker, wakes from a terminal event, and claims one saved continuation 330ms
+ ✓ tests/integration/compaction-hypotheses.test.ts (3 tests) 16ms
+ ✓ tests/contract/policy.test.ts (4 tests) 5ms
+ ✓ tests/bootstrap/test-harness.test.ts (4 tests) 34ms
+ ✓ tests/contract/opencode-config.test.ts (2 tests) 7ms
+ ✓ tests/contract/runtime.test.ts (5 tests) 387ms
+ ✓ tests/contract/responsibility-artifacts.test.ts (1 test) 23ms
+ ✓ tests/contract/model.test.ts (4 tests) 40ms
+ ✓ tests/contract/platform.test.ts (2 tests) 11ms
+ ✓ tests/integration/compaction-process-restart.test.ts (2 tests) 1319ms
+   ✓ ctf-agent canonical local process restart > kills the original process, ignores misleading JSON export, resumes original raw range and exact next action once 852ms
+   ✓ ctf-agent canonical local process restart > two fresh CLI processes race for one canonical dispatch and execute once 466ms
+ ✓ tests/contract/g-coordinator-stop.test.ts (9 tests) 3509ms
+   ✓ completed jobs remain exited when stopped; abort failure and unknown reap never claim stopped 3076ms
+ ✓ tests/contract/d-verification-result.test.ts (18 tests) 4945ms
+   ✓ D fourth interface > Q2 preserves rejected and missing-evidence proposals without equality-based promotion 313ms
+   ✓ D fourth interface > Q2 records echo/wrong-input equal-output/audit-string semantic counterexamples rather than claiming a classifier 466ms
+   ✓ D fourth interface > Q3 retains known mutation, unknown premises, replay and necessary truncation as blockers 626ms
+   ✓ D fourth interface > review R1 bounds every read while retaining a report larger than actual native tool output limit 1087ms
+   ✓ D fourth interface > review R1 rejects invalid cursors and pages metadata too large for a single native reply 304ms
+ ✓ tests/contract/artifacts.test.ts (2 tests) 18ms
+ ✓ tests/integration/compaction-snapshot.test.ts (2 tests) 6ms
+ ✓ tests/contract/job-start-cleanup.test.ts (1 test) 257ms
+ ✓ tests/contract/runtime-batch-output.test.ts (2 tests) 213ms
+ ✓ tests/contract/g-async-lifecycle.test.ts (61 tests) 5662ms
+   ✓ default job.run returns terminal without wait/completion modes 5570ms
+ ✓ tests/contract/slow-tools.test.ts (21 tests) 14312ms
+   ✓ stop during registered workspace preparation returns bounded unknown and prevents a late job spawn 4005ms
+   ✓ C retains HTTP cleanup_unknown reservation when response persistence is blocked 1005ms
+   ✓ expiry cancels an already delivered job and refuses its handle after expiry 1073ms
+   ✓ unknown process-group cleanup keeps its session quota reserved 3029ms
+   ✓ terminal candidate keeps one execute pending beyond wait_ms, permits admission and incremental reads, then returns final result once 759ms
+   ✓ terminal candidate timeout and binding expiry do not return an early running handle 699ms
+   ✓ terminal candidate reports incomplete reaping as unknown and keeps its slot reserved 3083ms
+ ❯ tests/contract/launch-evidence.test.ts (33 tests | 12 failed) 16570ms
+   × launch failure evidence with SDK stand-in only > keeps normal success and complete reported usage 150ms
+     → expected { code: 1, status: 'failed', …(1) } to match object { code: +0, status: 'completed' }
+(1 matching property omitted from actual)
+   × launch failure evidence with SDK stand-in only > retains admitted calls and known usage after SDK read failure 124ms
+     → expected false to be true // Object.is equality
+   × launch failure evidence with SDK stand-in only > continues other bound sessions after children failure 115ms
+     → expected false to be true // Object.is equality
+   × launch failure evidence with SDK stand-in only > continues other bound sessions after export failure 104ms
+     → expected false to be true // Object.is equality
+   × launch failure evidence with SDK stand-in only > does not settle while a dispatch remains pending 94ms
+     → expected 'failed' to be 'deadline_exceeded' // Object.is equality
+   × launch failure evidence with SDK stand-in only > keeps original and close errors plus memory evidence 115ms
+     → expected false to be true // Object.is equality
+   × launch failure evidence with SDK stand-in only > records real per-session abort results and continues remaining aborts 122ms
+     → expected false to be true // Object.is equality
+   × launch failure evidence with SDK stand-in only > does not fabricate messages or idle status when export reads fail 107ms
+     → expected false to be true // Object.is equality
+   × launch failure evidence with SDK stand-in only > keeps retained message consumption in the actual run file after abort zeroes it 107ms
+     → expected false to be true // Object.is equality
+   × launch failure evidence with SDK stand-in only > marks completely missing usage unavailable in the run file 122ms
+     → expected false to be true // Object.is equality
+   × launch failure evidence with SDK stand-in only > includes known SDK descendant usage even if the descendant never bound 121ms
+     → expected { code: 1, status: 'failed', …(1) } to match object { code: +0, status: 'completed' }
+(1 matching property omitted from actual)
+   × launch failure evidence with SDK stand-in only > marks total as a lower bound if an unbound descendant export fails 99ms
+     → expected false to be true // Object.is equality
+   ✓ root final report provenance > records length report with text  583ms
+   ✓ root final report provenance > records length report with text partial 584ms
+   ✓ root final report provenance > records stop report with text unsolved 582ms
+   ✓ root final report provenance > records stop report with text    582ms
+   ✓ root final report provenance > records other report with text text 609ms
+   ✓ root final report provenance > records stop report with text partial 1137ms
+   ✓ root final report provenance > records tool-calls report with text partial 1059ms
+   ✓ root final report provenance > does not settle uncertain new-user provenance 1065ms
+   ✓ root final report provenance > does not settle uncertain wrong-parent provenance 1076ms
+   ✓ root final report provenance > does not settle uncertain tie provenance 1074ms
+   ✓ root final report provenance > does not settle uncertain missing-id provenance 1063ms
+   ✓ root final report provenance > does not settle uncertain missing-created provenance 1062ms
+   ✓ root final report provenance > does not settle uncertain historical provenance 1085ms
+   ✓ root final report provenance > restarts idle confirmation when source changes and freezes before cleanup 1079ms
+   ✓ root final report provenance > accepts uniquely parent-linked messages created within the same millisecond 564ms
+   ✓ root final report provenance > marks unavailable exported root evidence unknown without inventing a path 558ms
+   ✓ root final report provenance > does not invent a pre-stop snapshot when budget cleanup already began 587ms
+   ✓ root final report provenance > does not hide a historical real abort behind a later normal report 587ms
+
+⎯⎯⎯⎯⎯⎯ Failed Tests 15 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/contract/control-service.test.ts > plugin denies when the control service cannot answer > rejects a wrong transport credential and accepts the right one
+ FAIL  tests/contract/control-service.test.ts > plugin denies when the control service cannot answer > rejects when the service never replies, is unreachable, or replies with something unusable
+AssertionError: expected [Function] to throw error including 'denied' but got 'Cannot read properties of undefined (…'
+
+Expected: "denied"
+Received: "Cannot read properties of undefined (reading 'ids')"
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/15]⎯
+
+ FAIL  tests/contract/control-service.test.ts > G-V1 cross-round challenge binding > T5 resume keeps topic; no/same declaration creates no pending, foreign/conflict preserves declaration
+Error: denied: sync active call
+ ❯ ControlService.toolBefore apps/launcher/src/control-service.ts:537:15
+    535|           this.record(c.parent, 'sync.source', true, undefined, {callI…
+    536|         }
+    537|         throw new ControlDenied('sync active call');
+       |               ^
+    538|       }
+    539|       this.registerDispatch(binding, typeof body.callID === 'string' ?…
+ ❯ apps/launcher/src/control-service.ts:246:43
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/15]⎯
+
+ FAIL  tests/contract/launch-evidence.test.ts > launch failure evidence with SDK stand-in only > keeps normal success and complete reported usage
+AssertionError: expected { code: 1, status: 'failed', …(1) } to match object { code: +0, status: 'completed' }
+(1 matching property omitted from actual)
+
+- Expected
++ Received
+
+  Object {
+-   "code": 0,
+-   "status": "completed",
++   "code": 1,
++   "status": "failed",
+  }
+
+ ❯ tests/contract/launch-evidence.test.ts:101:25
+     99| describe('launch failure evidence with SDK stand-in only', () => {
+    100|   it('keeps normal success and complete reported usage', async () => {
+    101|     expect(await run()).toMatchObject({ code: 0, status: 'completed' }…
+       |                         ^
+    102|     const record = await checkEvidence();
+    103|     expect(record.usageTotal).toMatchObject({ availability: 'reported'…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/15]⎯
+
+ FAIL  tests/contract/launch-evidence.test.ts > launch failure evidence with SDK stand-in only > retains admitted calls and known usage after SDK read failure
+AssertionError: expected false to be true // Object.is equality
+
+- Expected
++ Received
+
+- true
++ false
+
+ ❯ checkEvidence tests/contract/launch-evidence.test.ts:93:93
+     91|   expect(progressJsonl).not.toContain(SECRET);
+     92|   expect(progressMarkdown).not.toContain(SECRET);
+     93|   expect((await json('evidence/admissions.json')).some((r: { allow: bo…
+       |                                                                                             ^
+     94|   for (const folder of ['state', 'evidence']) for (const name of await…
+     95|     expect(await readFile(join(dir, 'runs/run', folder, name), 'utf8')…
+ ❯ tests/contract/launch-evidence.test.ts:109:20
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[4/15]⎯
+
+ FAIL  tests/contract/launch-evidence.test.ts > launch failure evidence with SDK stand-in only > continues other bound sessions after children failure
+ FAIL  tests/contract/launch-evidence.test.ts > launch failure evidence with SDK stand-in only > continues other bound sessions after export failure
+AssertionError: expected false to be true // Object.is equality
+
+- Expected
++ Received
+
+- true
++ false
+
+ ❯ checkEvidence tests/contract/launch-evidence.test.ts:93:93
+     91|   expect(progressJsonl).not.toContain(SECRET);
+     92|   expect(progressMarkdown).not.toContain(SECRET);
+     93|   expect((await json('evidence/admissions.json')).some((r: { allow: bo…
+       |                                                                                             ^
+     94|   for (const folder of ['state', 'evidence']) for (const name of await…
+     95|     expect(await readFile(join(dir, 'runs/run', folder, name), 'utf8')…
+ ❯ tests/contract/launch-evidence.test.ts:117:20
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[5/15]⎯
+
+ FAIL  tests/contract/launch-evidence.test.ts > launch failure evidence with SDK stand-in only > does not settle while a dispatch remains pending
+AssertionError: expected 'failed' to be 'deadline_exceeded' // Object.is equality
+
+Expected: "deadline_exceeded"
+Received: "failed"
+
+ ❯ tests/contract/launch-evidence.test.ts:126:43
+    124|   it('does not settle while a dispatch remains pending', async () => {
+    125|     mode = 'pending';
+    126|     expect((await run(false, 20)).status).toBe('deadline_exceeded');
+       |                                           ^
+    127|     expect((await json('state/run.json')).rootResult.completeness).toB…
+    128|   });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[6/15]⎯
+
+ FAIL  tests/contract/launch-evidence.test.ts > launch failure evidence with SDK stand-in only > keeps original and close errors plus memory evidence
+AssertionError: expected false to be true // Object.is equality
+
+- Expected
++ Received
+
+- true
++ false
+
+ ❯ checkEvidence tests/contract/launch-evidence.test.ts:93:93
+     91|   expect(progressJsonl).not.toContain(SECRET);
+     92|   expect(progressMarkdown).not.toContain(SECRET);
+     93|   expect((await json('evidence/admissions.json')).some((r: { allow: bo…
+       |                                                                                             ^
+     94|   for (const folder of ['state', 'evidence']) for (const name of await…
+     95|     expect(await readFile(join(dir, 'runs/run', folder, name), 'utf8')…
+ ❯ tests/contract/launch-evidence.test.ts:132:20
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[7/15]⎯
+
+ FAIL  tests/contract/launch-evidence.test.ts > launch failure evidence with SDK stand-in only > records real per-session abort results and continues remaining aborts
+AssertionError: expected false to be true // Object.is equality
+
+- Expected
++ Received
+
+- true
++ false
+
+ ❯ checkEvidence tests/contract/launch-evidence.test.ts:93:93
+     91|   expect(progressJsonl).not.toContain(SECRET);
+     92|   expect(progressMarkdown).not.toContain(SECRET);
+     93|   expect((await json('evidence/admissions.json')).some((r: { allow: bo…
+       |                                                                                             ^
+     94|   for (const folder of ['state', 'evidence']) for (const name of await…
+     95|     expect(await readFile(join(dir, 'runs/run', folder, name), 'utf8')…
+ ❯ tests/contract/launch-evidence.test.ts:141:5
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[8/15]⎯
+
+ FAIL  tests/contract/launch-evidence.test.ts > launch failure evidence with SDK stand-in only > does not fabricate messages or idle status when export reads fail
+AssertionError: expected false to be true // Object.is equality
+
+- Expected
++ Received
+
+- true
++ false
+
+ ❯ checkEvidence tests/contract/launch-evidence.test.ts:93:93
+     91|   expect(progressJsonl).not.toContain(SECRET);
+     92|   expect(progressMarkdown).not.toContain(SECRET);
+     93|   expect((await json('evidence/admissions.json')).some((r: { allow: bo…
+       |                                                                                             ^
+     94|   for (const folder of ['state', 'evidence']) for (const name of await…
+     95|     expect(await readFile(join(dir, 'runs/run', folder, name), 'utf8')…
+ ❯ tests/contract/launch-evidence.test.ts:150:20
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[9/15]⎯
+
+ FAIL  tests/contract/launch-evidence.test.ts > launch failure evidence with SDK stand-in only > keeps retained message consumption in the actual run file after abort zeroes it
+AssertionError: expected false to be true // Object.is equality
+
+- Expected
++ Received
+
+- true
++ false
+
+ ❯ checkEvidence tests/contract/launch-evidence.test.ts:93:93
+     91|   expect(progressJsonl).not.toContain(SECRET);
+     92|   expect(progressMarkdown).not.toContain(SECRET);
+     93|   expect((await json('evidence/admissions.json')).some((r: { allow: bo…
+       |                                                                                             ^
+     94|   for (const folder of ['state', 'evidence']) for (const name of await…
+     95|     expect(await readFile(join(dir, 'runs/run', folder, name), 'utf8')…
+ ❯ tests/contract/launch-evidence.test.ts:164:20
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[10/15]⎯
+
+ FAIL  tests/contract/launch-evidence.test.ts > launch failure evidence with SDK stand-in only > marks completely missing usage unavailable in the run file
+AssertionError: expected false to be true // Object.is equality
+
+- Expected
++ Received
+
+- true
++ false
+
+ ❯ checkEvidence tests/contract/launch-evidence.test.ts:93:93
+     91|   expect(progressJsonl).not.toContain(SECRET);
+     92|   expect(progressMarkdown).not.toContain(SECRET);
+     93|   expect((await json('evidence/admissions.json')).some((r: { allow: bo…
+       |                                                                                             ^
+     94|   for (const folder of ['state', 'evidence']) for (const name of await…
+     95|     expect(await readFile(join(dir, 'runs/run', folder, name), 'utf8')…
+ ❯ tests/contract/launch-evidence.test.ts:170:20
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[11/15]⎯
+
+ FAIL  tests/contract/launch-evidence.test.ts > launch failure evidence with SDK stand-in only > includes known SDK descendant usage even if the descendant never bound
+AssertionError: expected { code: 1, status: 'failed', …(1) } to match object { code: +0, status: 'completed' }
+(1 matching property omitted from actual)
+
+- Expected
++ Received
+
+  Object {
+-   "code": 0,
+-   "status": "completed",
++   "code": 1,
++   "status": "failed",
+  }
+
+ ❯ tests/contract/launch-evidence.test.ts:175:25
+    173|   it('includes known SDK descendant usage even if the descendant never…
+    174|     mode = 'unbound';
+    175|     expect(await run()).toMatchObject({ code: 0, status: 'completed' }…
+       |                         ^
+    176|     const record = await checkEvidence();
+    177|     expect(record.usageTotal).toMatchObject({ input_tokens: 1200, outp…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[12/15]⎯
+
+ FAIL  tests/contract/launch-evidence.test.ts > launch failure evidence with SDK stand-in only > marks total as a lower bound if an unbound descendant export fails
+AssertionError: expected false to be true // Object.is equality
+
+- Expected
++ Received
+
+- true
++ false
+
+ ❯ checkEvidence tests/contract/launch-evidence.test.ts:93:93
+     91|   expect(progressJsonl).not.toContain(SECRET);
+     92|   expect(progressMarkdown).not.toContain(SECRET);
+     93|   expect((await json('evidence/admissions.json')).some((r: { allow: bo…
+       |                                                                                             ^
+     94|   for (const folder of ['state', 'evidence']) for (const name of await…
+     95|     expect(await readFile(join(dir, 'runs/run', folder, name), 'utf8')…
+ ❯ tests/contract/launch-evidence.test.ts:182:20
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[13/15]⎯
+
+ Test Files  2 failed | 47 passed (49)
+      Tests  15 failed | 465 passed (480)
+   Start at  16:10:12
+   Duration  17.18s (transform 822ms, setup 0ms, collect 2.89s, tests 59.27s, environment 5ms, prepare 1.77s)
+

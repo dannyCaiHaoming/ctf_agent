@@ -1,0 +1,42 @@
+
+ RUN  v2.1.9 /Users/caihaoming/.codex/worktrees/result-completeness-implementation/pentest-agent
+
+ ✓ tests/contract/opencode.test.ts (12 tests) 27ms
+ ✓ tests/contract/control-service.test.ts (31 tests) 491ms
+   ✓ plugin denies when the control service cannot answer > rejects when the service never replies, is unreachable, or replies with something unusable 414ms
+ ✓ tests/contract/g-async-lifecycle.test.ts (61 tests) 5626ms
+   ✓ default job.run returns terminal without wait/completion modes 5555ms
+ ✓ tests/contract/launch-evidence.test.ts (33 tests) 21131ms
+   ✓ launch failure evidence with SDK stand-in only > keeps normal success and complete reported usage 581ms
+   ✓ launch failure evidence with SDK stand-in only > continues other bound sessions after children failure 565ms
+   ✓ launch failure evidence with SDK stand-in only > continues other bound sessions after export failure 571ms
+   ✓ launch failure evidence with SDK stand-in only > does not settle while a dispatch remains pending 1074ms
+   ✓ launch failure evidence with SDK stand-in only > records real per-session abort results and continues remaining aborts 569ms
+   ✓ launch failure evidence with SDK stand-in only > includes known SDK descendant usage even if the descendant never bound 564ms
+   ✓ launch failure evidence with SDK stand-in only > marks total as a lower bound if an unbound descendant export fails 583ms
+   ✓ launch failure evidence with SDK stand-in only > marks the run failed when the final progress report cannot be written but keeps existing evidence 581ms
+   ✓ launch failure evidence with SDK stand-in only > continues evidence writes and records a single-file write failure 588ms
+   ✓ root final report provenance > records length report with text  611ms
+   ✓ root final report provenance > records length report with text partial 581ms
+   ✓ root final report provenance > records stop report with text unsolved 576ms
+   ✓ root final report provenance > records stop report with text    581ms
+   ✓ root final report provenance > records other report with text text 582ms
+   ✓ root final report provenance > records stop report with text partial 1085ms
+   ✓ root final report provenance > records tool-calls report with text partial 1091ms
+   ✓ root final report provenance > does not settle uncertain new-user provenance 1087ms
+   ✓ root final report provenance > does not settle uncertain wrong-parent provenance 1084ms
+   ✓ root final report provenance > does not settle uncertain tie provenance 1081ms
+   ✓ root final report provenance > does not settle uncertain missing-id provenance 1091ms
+   ✓ root final report provenance > does not settle uncertain missing-created provenance 1083ms
+   ✓ root final report provenance > does not settle uncertain historical provenance 1082ms
+   ✓ root final report provenance > restarts idle confirmation when source changes and freezes before cleanup 1082ms
+   ✓ root final report provenance > accepts uniquely parent-linked messages created within the same millisecond 582ms
+   ✓ root final report provenance > marks unavailable exported root evidence unknown without inventing a path 554ms
+   ✓ root final report provenance > does not invent a pre-stop snapshot when budget cleanup already began 581ms
+   ✓ root final report provenance > does not hide a historical real abort behind a later normal report 582ms
+
+ Test Files  4 passed (4)
+      Tests  137 passed (137)
+   Start at  16:11:35
+   Duration  21.54s (transform 295ms, setup 0ms, collect 671ms, tests 27.27s, environment 0ms, prepare 157ms)
+

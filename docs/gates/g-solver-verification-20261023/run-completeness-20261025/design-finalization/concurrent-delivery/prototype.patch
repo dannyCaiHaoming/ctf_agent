@@ -1,0 +1,91 @@
+--- a/apps/launcher/src/control-service.ts
++++ b/apps/launcher/src/control-service.ts
+@@ -477,7 +477,8 @@
+     }
+     if(binding.role==='verifier')this.verifierExecution(binding);
+     this.admitted++;
+-    for (const e of this.executions.values()) if (e.parent === binding.sessionID && e.delivery === 'queued' && e.noticeMessageID === body.messageID) { e.delivery = 'consumed'; this.record(binding.sessionID, 'task.delivered', true, undefined, {ref: e.ref, messageID: body.messageID, admitNo: this.admitted}); }
++    const requestMessageIDs = new Set(Array.isArray(body.requestMessageIDs) ? body.requestMessageIDs.filter((id): id is string => typeof id === 'string') : [body.messageID]);
++    for (const e of this.executions.values()) if (e.parent === binding.sessionID && e.delivery === 'queued' && requestMessageIDs.has(e.noticeMessageID!)) { e.delivery = 'consumed'; this.record(binding.sessionID, 'task.delivered', true, undefined, {ref: e.ref, messageID: e.noticeMessageID, admitNo: this.admitted}); }
+     return { maxOutputTokens: maxObservableTokens - this.observed, admitNo: this.admitted, role: binding.role };
+   }
+ 
+--- a/apps/opencode-plugin/src/index.ts
++++ b/apps/opencode-plugin/src/index.ts
+@@ -1,3 +1,4 @@
++import {appendFileSync} from 'node:fs';
+ import { tool, type Hooks } from '@opencode-ai/plugin';
+ 
+ export interface CTFPluginOptions {
+@@ -84,6 +85,7 @@
+   if (options.tools.some(name => !Object.hasOwn(schemas, name))) throw new Error('tool is not in the managed tool manifest');
+   // The plugin decides nothing: it forwards and obeys. Any transport failure, bad reply or silence is a denial.
+   const callMarker = Symbol('ctf trusted call');
++  const preparedMessages = new Map<string, {currentUserID?: string; ids: string[]}>();
+   type Marked = Record<symbol, { sessionID: string; callID: string; tool: string; timeoutMs: number } | undefined>;
+   const control = async (sessionID: string, operation: string, input: unknown, signal?: AbortSignal, timeoutMs?: number): Promise<unknown> => {
+     let response: Response;
+@@ -123,8 +125,18 @@
+         await control(part.sessionID, 'task.event', {callID: part.callID, state: part.state.status, error: part.state.error});
+     },
+     async 'chat.message'(input, output) { await control(input.sessionID, 'chat.message', { agent: input.agent, messageID: input.messageID ?? output.message?.id, parts: output.parts }); },
++    async 'experimental.chat.messages.transform'(_input, output) {
++      const sessions = new Set(output.messages.map(m=>m.info.sessionID));
++      if(sessions.size === 0) preparedMessages.clear();
++      for(const session of sessions) preparedMessages.delete(session);
++      if(sessions.size === 1) preparedMessages.set([...sessions][0]!, {currentUserID: output.messages.filter(m=>m.info.role==='user').at(-1)?.info.id, ids: output.messages.filter(m=>m.info.role==='user' && m.parts.some(p=>p.type==='text' && p.synthetic===true && !p.ignored && p.text.includes('Background task completed:'))).map(m=>m.info.id)});
++      appendFileSync('/var/folders/tn/x1hbkfy17sx0w1lb8kjzzr340000gn/T/ctf-design-validation-acydgwx0/concurrent-delivery/hooks.jsonl', JSON.stringify({hook:'transform',at:Date.now(),messages:output.messages.map(m=>({id:m.info.id,sessionID:m.info.sessionID,role:m.info.role,notices:m.parts.filter(p=>p.type==='text'&&p.text.includes('Background task completed:')).length}))})+'\n');
++    },
+     async 'chat.params'(input, output) {
+-      const admitted = await control(input.sessionID, 'model.call', { agent: input.agent, provider: input.model.providerID, model: input.model.id, messageID: input.message?.id }) as { maxOutputTokens: number };
++      appendFileSync('/var/folders/tn/x1hbkfy17sx0w1lb8kjzzr340000gn/T/ctf-design-validation-acydgwx0/concurrent-delivery/hooks.jsonl', JSON.stringify({hook:'params',at:Date.now(),sessionID:input.sessionID,messageID:input.message?.id})+'\n');
++      const prepared = preparedMessages.get(input.sessionID);
++      preparedMessages.delete(input.sessionID);
++      const admitted = await control(input.sessionID, 'model.call', { agent: input.agent, provider: input.model.providerID, model: input.model.id, messageID: input.message?.id, requestMessageIDs: prepared?.currentUserID === input.message?.id ? prepared.ids : [] }) as { maxOutputTokens: number };
+       if (!Number.isFinite(admitted?.maxOutputTokens) || admitted.maxOutputTokens < 1) throw new Error('denied: control reply');
+       output.maxOutputTokens = Math.min(output.maxOutputTokens ?? admitted.maxOutputTokens, admitted.maxOutputTokens);
+     },
+--- a/tests/contract/g-async-lifecycle.test.ts
++++ b/tests/contract/g-async-lifecycle.test.ts
+@@ -69,3 +69,15 @@
+ it('host revoke during result SDK wait rejects the pending parent hook without changing natural terminal state',async()=>{const f=await resultFixture();let release!:(x:any)=>void;let entered!:()=>void;const started=new Promise<void>(r=>entered=r);f.setRead(()=>{entered();return new Promise(r=>release=r);});const notice=f.c.handle('root','chat.message',completion(f.c)).then(value=>({value}),error=>({error}));await started;await f.c.revoke('a');release({data:[{info:{id:'source-1',role:'user',sessionID:'a'}},childMessage()]});expect(await notice).toMatchObject({error:expect.any(Error)});expect(f.c.executionSnapshot()[0]).toMatchObject({state:'completed',delivery:'suppressed',resultFacts:{completeness:'unknown',reason:'stopped'}});});
+ it('duplicate notice during pending SDK read cannot read or deliver twice',async()=>{const f=await resultFixture();let release!:(x:any)=>void;let entered!:()=>void;const started=new Promise<void>(r=>entered=r);f.setRead(()=>{entered();return new Promise(r=>release=r);});const first=f.c.handle('root','chat.message',completion(f.c));await started;await expect(f.c.handle('root','chat.message',completion(f.c,0,'duplicate'))).rejects.toThrow('duplicate completion');expect(f.reads()).toBe(1);release({data:[{info:{id:'source-1',role:'user',sessionID:'a'}},childMessage()]});await first;expect(f.c.audit.filter(a=>a.op==='task.result')).toHaveLength(1);});
+ it('untrusted notice parent or child cannot start a result SDK read',async()=>{const f=await resultFixture();await expect(f.c.handle('other','chat.message',completion(f.c))).rejects.toThrow('completion correlation');const notice=completion(f.c);notice.parts[0]!.text=notice.parts[0]!.text.replace('id="a"','id="other"');await expect(f.c.handle('root','chat.message',notice)).rejects.toThrow('completion correlation');expect(f.reads()).toBe(0);expect(f.c.executionSnapshot()[0]?.state).toBe('running');});
++
++it('R2 prepared input consumes exact same-parent registered notices; active work still blocks idle',async()=>{
++ const c=await fixture();await c.handle('a','chat.message',{agent:'recon'});const first=c.executionSnapshot()[0]!;
++ const notice={messageID:'notice-one',parts:[{type:'text',synthetic:true,text:`<task id="a" state="completed">\n<summary>Background task completed: [ctf:${first.ref}]</summary>\n<task_result>done</task_result>\n</task>`}]};
++ await c.handle('root','chat.message',notice);
++ await c.handle('a','model.call',{requestMessageIDs:['notice-one']});expect(c.executionSnapshot()[0]?.delivery).toBe('queued');
++ await c.handle('root','model.call',{requestMessageIDs:['missing','wrong-parent']});expect(c.executionSnapshot()[0]?.delivery).toBe('queued');
++ await c.handle('root','tool.before',{tool:'task',callID:'active',args:{subagent_type:'intake',background:true}});
++ await c.handle('root','model.call',{requestMessageIDs:['notice-one','notice-one','missing']});expect(c.executionSnapshot()[0]?.delivery).toBe('consumed');expect(c.hasOutstandingWork({root:{type:'idle'}})).toBe(true);
++ const n=c.audit.filter(r=>r.op==='task.delivered').length;await c.handle('root','model.call',{requestMessageIDs:['notice-one']});expect(c.audit.filter(r=>r.op==='task.delivered')).toHaveLength(n);
++ await c.stopAll('budget');await expect(c.handle('root','model.call',{requestMessageIDs:['notice-one']})).rejects.toThrow('run stopped');
++});
+--- a/tests/contract/opencode.test.ts
++++ b/tests/contract/opencode.test.ts
+@@ -150,3 +150,23 @@
+   });
+ 
+ });
++
++
++it('R2 transform snapshots require matching current user, clear after use/rejection and reject mixed/empty input',async()=>{
++ const {createCtfAgentHooks}=await import('../../apps/opencode-plugin/src/index.js');
++ const requests:any[]=[];let denied=false;
++ const mocked=vi.spyOn(globalThis,'fetch').mockImplementation(async(_url,init)=>{requests.push(JSON.parse(String(init?.body)));if(denied)throw Error('offline');return new Response(JSON.stringify({result:{maxOutputTokens:100}}),{status:200});});
++ try {
++ const h=createCtfAgentHooks({controlUrl:'http://127.0.0.1:12345',controlToken:'x'.repeat(40),tools:[]});
++ const msg=(id:string,sessionID='root',ignored=false)=>({info:{id,sessionID,role:'user'},parts:[{type:'text',synthetic:true,ignored,text:'Background task completed:'}]});
++ const transform=async(messages:any[])=>h['experimental.chat.messages.transform']!({}, {messages} as never);
++ const params=async(id:string)=>h['chat.params']!({sessionID:'root',message:{id},model:{providerID:'stub',id:'scripted'}} as never,{} as never);
++ await transform([msg('one'),msg('two')]);await params('two');expect(requests.at(-1).input.requestMessageIDs).toEqual(['one','two']);
++ await params('two');expect(requests.at(-1).input.requestMessageIDs).toEqual([]);
++ await transform([msg('one')]);await params('new');expect(requests.at(-1).input.requestMessageIDs).toEqual([]);
++ await transform([msg('one')]);await transform([msg('one'),msg('other','other')]);await params('one');expect(requests.at(-1).input.requestMessageIDs).toEqual([]);
++ await transform([msg('one')]);await transform([]);await params('one');expect(requests.at(-1).input.requestMessageIDs).toEqual([]);
++ await transform([msg('one', 'root',true)]);await params('one');expect(requests.at(-1).input.requestMessageIDs).toEqual([]);
++ await transform([msg('one')]);denied=true;await expect(params('one')).rejects.toThrow('denied');denied=false;await params('one');expect(requests.at(-1).input.requestMessageIDs).toEqual([]);
++ } finally {mocked.mockRestore();}
++});

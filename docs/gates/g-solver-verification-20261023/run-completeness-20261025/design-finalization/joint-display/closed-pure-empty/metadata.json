@@ -1,0 +1,179 @@
+{
+  "result": {
+    "code": 0,
+    "status": "completed",
+    "runDir": "/private/var/folders/tn/x1hbkfy17sx0w1lb8kjzzr340000gn/T/ctf-design-validation-acydgwx0/joint-display/closed-pure-empty/runs/run"
+  },
+  "rootStep": 1,
+  "childCount": 1,
+  "requests": [
+    {
+      "at": 1792897816662,
+      "isRoot": true,
+      "isChild": false,
+      "rootStep": 1,
+      "childCount": 0,
+      "finish": "tool_calls",
+      "calls": [
+        {
+          "name": "task",
+          "role": "intake",
+          "task_id": null,
+          "background": false
+        }
+      ],
+      "max_tokens": 128,
+      "messageCount": 2,
+      "notices": 0,
+      "refs": [],
+      "displays": []
+    },
+    {
+      "at": 1792897816746,
+      "isRoot": false,
+      "isChild": true,
+      "rootStep": 1,
+      "childCount": 1,
+      "finish": "length",
+      "calls": [],
+      "max_tokens": 128,
+      "messageCount": 2,
+      "notices": 0,
+      "refs": [],
+      "displays": []
+    },
+    {
+      "at": 1792897816770,
+      "isRoot": true,
+      "isChild": false,
+      "rootStep": 1,
+      "childCount": 1,
+      "finish": "stop",
+      "calls": [],
+      "max_tokens": 128,
+      "messageCount": 4,
+      "notices": 0,
+      "refs": [],
+      "displays": [
+        {
+          "messageRole": "tool",
+          "synchronous": true,
+          "facts": {
+            "callID": "call_1_0",
+            "role": "intake",
+            "completeness": "incomplete",
+            "reason": "length",
+            "finish": "length",
+            "textChars": 0,
+            "source": "associated"
+          }
+        }
+      ]
+    }
+  ],
+  "executions": [],
+  "audits": [
+    {
+      "seq": 1,
+      "t": 74,
+      "at": 1792897815989,
+      "sessionID": "ses_e8ef66a4effeIHJkxI6Op1SHHW",
+      "op": "bind",
+      "allow": true,
+      "detail": {
+        "role": "coordinator",
+        "via": "root"
+      },
+      "role": "coordinator"
+    },
+    {
+      "seq": 3,
+      "t": 740,
+      "at": 1792897816655,
+      "sessionID": "ses_e8ef66a4effeIHJkxI6Op1SHHW",
+      "op": "model.call",
+      "allow": true,
+      "detail": {
+        "maxOutputTokens": 30000,
+        "admitNo": 1,
+        "role": "coordinator"
+      },
+      "role": "coordinator"
+    },
+    {
+      "seq": 6,
+      "t": 818,
+      "at": 1792897816733,
+      "sessionID": "ses_e8ef66768ffedeUOF0zHG8QWkE",
+      "op": "bind",
+      "allow": true,
+      "detail": {
+        "role": "intake",
+        "via": "dispatch",
+        "sdkParentID": "ses_e8ef66a4effeIHJkxI6Op1SHHW",
+        "sdkAgent": "intake",
+        "callID": "call_1_0",
+        "sdkMs": 2
+      },
+      "role": "intake"
+    },
+    {
+      "seq": 8,
+      "t": 830,
+      "at": 1792897816745,
+      "sessionID": "ses_e8ef66768ffedeUOF0zHG8QWkE",
+      "op": "model.call",
+      "allow": true,
+      "detail": {
+        "maxOutputTokens": 30000,
+        "admitNo": 2,
+        "role": "intake"
+      },
+      "role": "intake"
+    },
+    {
+      "seq": 10,
+      "t": 840,
+      "at": 1792897816755,
+      "sessionID": "ses_e8ef66a4effeIHJkxI6Op1SHHW",
+      "op": "sync.result",
+      "allow": true,
+      "detail": {
+        "callID": "call_1_0",
+        "childID": "ses_e8ef66768ffedeUOF0zHG8QWkE",
+        "source": {
+          "status": "associated",
+          "userMessageID": "msg_1710998990012Hc9aRRPCpTblt",
+          "reason": "hook",
+          "observedAt": 1792897816733
+        },
+        "facts": {
+          "userMessageID": "msg_1710998990012Hc9aRRPCpTblt",
+          "assistantMessageID": "msg_17109989f0010LMe9A8IVmQ7Ck",
+          "finish": "length",
+          "completed": true,
+          "textChars": 0,
+          "hasError": false,
+          "completeness": "incomplete",
+          "reason": "length",
+          "observedAt": 1792897816755
+        }
+      },
+      "role": "coordinator"
+    },
+    {
+      "seq": 12,
+      "t": 853,
+      "at": 1792897816768,
+      "sessionID": "ses_e8ef66a4effeIHJkxI6Op1SHHW",
+      "op": "model.call",
+      "allow": true,
+      "detail": {
+        "maxOutputTokens": 29996,
+        "admitNo": 3,
+        "role": "coordinator"
+      },
+      "role": "coordinator"
+    }
+  ]
+}

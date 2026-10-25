@@ -1,48 +1,49 @@
-# design v1 C／E／H 详细 design：本地调试、环境就绪与会话结果完整性
+# design v1 C／E／H 详细 design：结果完整性与交接可见性
 
 记录日期：2026-10-25（Asia/Tokyo）。
 
-**状态：Root 最终报告与子任务后台关联已实现并通过无模型验收；readiness、父上下文中的完整性展示及并发通知收束仍有缺口。** 本文是 [核心设计 v1](2026-10-22-ctf-agent-design-v1.md) C／E／H 的子文件。当前契约见 §4，未决问题见 §5，验证条件与证据见 §6；历史执行报告不作为当前待办清单。
+**状态：本文限定的工程修复已实作、独立 review 通过并接入主区；Root／后台来源、父上下文展示、同步关联和多通知消费已有无模型验收。原调试中报告缺失／截断与 Critic 决策问题尚未解决；七次恢复并非均无效，不能将工程方案定稿写成原问题全部修复。** 本文是[核心设计 v1](2026-10-22-ctf-agent-design-v1.md) C／E／H 的子文件。文件路径保留以兼容既有引用。
 
 ## 1. 目标与范围
 
-让用户与父 Agent 能区分运行结束、报告完整和解题成功；在需要 seed 的本地练习中，明确题目是否具备可信准备证据，避免在未知环境上继续消耗预算。
+这份设计来自 Throwback 调试中的空交接、截断报告及 Root 无正文却正常结束。当前工程目标是：可靠关联每轮结果，将缺失／截断事实交给正确父会话，并让用户区分运行结束、报告完整与解题成功。
 
-| 能力 | 当前状态 | 阅读位置 |
-| --- | --- | --- |
-| Root 最终报告完整性与摘要 | 已实现；生命周期与报告完整性分别记录 | §4.1 |
-| 后台 execution 与源消息关联 | 已实现；完整性事实进入执行记录及审计 | §4.2 |
-| 向父上下文展示新增完整性事实 | 尚未接入；审计可读不等于父模型已收到或理解 | §5.2 |
-| 本地题目 readiness | unknown；准备来源和检查判据未定，代码尚无相应准入 guard | §5.1 |
-| 同步恢复关联、并发通知收束 | 不在已交付范围；不能借后台单 child 验收宣称解决 | §5.3 |
+| 范围 | 状态 |
+| --- | --- |
+| Root 最终报告关联、完整性与 host 摘要 | 已实现，见 §4.1 |
+| 后台任务本轮来源与结果事实 | 已实现，见 §4.2 |
+| 后台／同步结果事实进入父上下文 | 已实现并无模型验收，见 §5.2、§6 |
+| 同步逐 call 关联、多条通知消费 | 已实现并无模型验收，见 §5.3、§6 |
 
-不改变独立验证、可信完成或 solved 标准；不增加角色、Skill、result-ref 工具或求解循环。自动补报告、扩大 output 上限和自动 Critic 调度均不属于本设计已选方案。授权与真实模型预算沿用 AGENTS.md，不由本文状态推导。
+**原始用户目标仍有缺口：** 子任务在截断前留下有效交接、Coordinator 区分补交失败与有进展的恢复、Root 产出有用的最终报告，以及 Critic 在语义停滞时作出适当判断。这些不能由“显示 incomplete”或确定性 provider 通过推导成立；本设计没有确定新的生成／恢复策略，也不把它们另排成验证计划。后续须根据实际行为证据判断，真实模型验证需另有明确预算授权。
+
+本次不增加角色、Skill、result-ref 工具、自动补报告、output 上限调整或自动 Critic 调度，不改变 solved 标准。readiness 只保留原诊断纠正（§5.1），不建设新准入机制；压缩当前禁用，不列入本次实施与验证目标。
+
+### 1.1 推进与验收边界
+
+沿用用户确认的流程：先将本设计范围内的未知接口验证并回补，再统一编写剩余工程实作 plan；不再逐项验证后立即实作。已有 Root／后台实现保留，不重复开发。原型通过不能代替正式实现的同源验收；完成后回补本文及 README，已转入的验证 plan 删除，原始证据保留。
+
+当前工程实作已覆盖原始空／截断样例和必要错误边界，无需继续拆 readiness、压缩或重复关联验证 plan。无模型验证只证明来源关联、事实可见及生命周期行为，不证明模型理解或解题效果；本轮没有真实模型、commit 或 push。
 
 ## 2. 问题依据与已知边界
 
-问题来自 throwback 调试 run `throwback-debug-20261024-r2-1`（下称 R），来源对话 `01a16d38-6063-7532-aeab-a9521de9d066`。R 使用 OpenCode 1.19.3、`volcano-coding/deepseek-v4-1-flash-261017`，基线 `cfa950fd` 且 `productDirty=true`；104 次准入，reported tokens 合计 561088。该历史消耗与配置不是新运行授权，也不能仅凭 HEAD 复原当时输入。
+来源为调试 run `throwback-debug-20261024-r2-1`（R），对话 `01a16d38-6063-7532-aeab-a9521de9d066`。R 使用 OpenCode 1.19.3，基线 `cfa950fd` 且 `productDirty=true`；完整配置、消耗与消息索引见[证据入口](../../gates/g-solver-verification-20261023/run-completeness-20261025/README.md)，不能只凭 HEAD 复原输入。
 
 | 已核对的观察 | 支持的判断 |
 | --- | --- |
-| run 为 completed；publication、verification、completion 结果均为空 | 生命周期结束不等于有报告或 solved |
-| 四个后台任务均 completed／delivered；三个交回为空，一个只有部分文字；对应子 assistant 均 finish=length | 已确认原始生成不完整，未证明“完整报告在传输中丢失” |
-| Root 最后 assistant 为 length、无 text、无 info.error；旧 launcher 可据任意历史 completed 消息收束 | 需要关联最终输入与报告，完整性不能只看 error 或 completed |
-| 四个通知已出现在父消息；Root 未调用 progress.read 或 Critic；重建计数没有达到角色规定的三次相同工具参数阈值 | 不能写成父完全没收到通知，也不能仅因 Critic 未介入就判定权限或提示词失效 |
-| 来源对话称目标 CTFd 业务表为空；后续部署只读检查未找到绑定当前实例、材料版本及 judge 的 seed 完成记录 | readiness 仍 unknown；未独立复证空表，不据此断言整个镜像没有其他 seed 来源 |
-
-原始 run、消息定位和 hash 索引见[证据入口](../../gates/g-solver-verification-20261023/run-completeness-20261025/README.md)。正文不重复完整 ID 清单；原始 reasoning、凭据及私有答案不作为开发文档内容。
+| run completed，可信产物／验证／完成结果为空；Root 最后 assistant 为 length、无 text | 生命周期结束不等于报告完整或 solved；不能据历史 completed 消息判断最终报告 |
+| 四个后台任务 completed／delivered，三个空交接、一个部分文字；对应子 assistant 均 finish=length | 已确认生成不完整，未证明完整报告在传输中丢失；增加结果引用或分段读取不能恢复未生成的正文 |
+| 通知已出现在父消息，随后存在多次恢复；没有 progress.read 或 Critic 调用 | 原问题包含恢复效果，但不能写成父完全没收到通知 |
+| 重建记录未达到既定“三次相同工具参数”阈值 | 只能排除这一条触发依据；角色还列了连续两次交接无新产物、交接缺口需换路等条件，不能据此解释 Critic 完全未介入 |
+| 后续固定上游与镜像初始数据库同样包含空业务表 | 反证“空表即缺 seed”；不据新实例倒推历史 R 的全部状态或可解性 |
 
 ## 3. 方案取舍
 
-| 问题 | 选择与理由 | 未采用或未定部分 |
-| --- | --- | --- |
-| Root 报告缺失 | 增加独立完整性事实，保留既有退出码；可暴露空／部分报告而不把正常未解题写成程序失败 | 不自动续跑或补叫模型 |
-| 后台报告属于哪一轮 | 可信 binding 后，用现有 chat.message 的 user ID 冻结唯一活动 execution，再按 assistant.parentID 读取 | 不使用 prompt 匹配、时间近邻或 child 最新消息；无需另建派发游标或 result-ref |
-| output 上限是否接线错误 | 固定版本首次请求实测符合 model limit 与准入上界，不改 provider／plugin 上限逻辑 | 不外推到其他 adapter、后续预算变化或 R 中实际 8000 的来源 |
-| readiness 如何证明 | 优先复用可信准备记录；没有记录时才评估题目专用只读检查 | 两者目前均缺成立条件，见 §5.1 |
-| Critic 为何未介入 | 已有触发说明，不追加重复提示；先保留交接完整性事实可见性的方向 | 事实自动展示、语义停滞判断和调用效果尚未验证，见 §5.2 |
-
-后台关联曾只有纯 OpenCode 的两轮消息读取证据，不能支持产品 call/ref→user 绑定。后续产品联合探针确认 hook ID 是 user ID，并在可信绑定后可选唯一活动 execution，才确定当前方案。该结论不依赖通知瞬间的原子可见性：缺消息仍应 unknown。
+- **使用 host 已知事实。** 身份与完整性由程序关联，保留原通知／同步输出；不要求模型手填来源，也不代写模型结论。
+- **沿现有原生路径展示。** 仅依赖 progress.read 无法覆盖不调用它的父 Agent；另发 prompt 或新增读取工具会增加交付与调度契约，因此选随原生结果追加事实。
+- **保留同步恢复的准确归属。** 原调试实际使用同步恢复，不能只修后台后宣称交接链路完整；但正确归属不保证恢复有效。
+- **修复已复现的多通知漏消费。** 后续探针发现同轮两条通知只消费最后一条、其余 queued 导致 deadline。这是相关工程缺陷，不是已证实的原始 R 根因。
+- **不继续围绕被反证的原因建设。** 历史配置 hash 已确认模型 output=8000，host 剩余额度远高于此值；固定版本接线符合配置与准入上界，不据此直接调整上限；不因空表新增 readiness gate，也不叠加重复提示；Critic 条件的必要澄清见 §5.4。
 
 ## 4. 已定契约与实现
 
@@ -89,49 +90,65 @@ SDK 读取和导出非原子，exportedSourceMatches 只说明导出是否匹配
 
 实现位于 `apps/launcher/src/control-service.ts`、`child-result.ts`，回归位于 `tests/contract/g-async-lifecycle.test.ts`，提交 `a6d9390b`。未修改 plugin、角色、Skill、Root 或 progress 展示。
 
-## 5. 未决问题与结果去向
+## 5. 当前契约与适用边界
 
-### 5.1 Readiness：先确定可信准备来源
+### 5.1 Readiness：原诊断纠正，不新增产品机制
 
-当前 `prepareRun` 只检查可达性；离线矩阵确认仅端口通可 accepted，新增 readiness 字段会被严格解析拒绝，也没有实例版本检查。材料题无 target 时仍可准备。这些是现有接口事实，不是 readiness 已实现。
+固定 NYU CTF Bench 提交 `4c5744f55a31a58e03d6118c9dbb1c18e5bbdfa9` 的 Throwback 自带初始数据库，其 challenges／keys／files／solves 为空；本地材料和指定镜像中的直接运行文件与初始 DB 已核对一致。上游默认准备方式不要求 `populate.py`，两次隔离默认启动及一次重启的应用检查通过。此前“缺少额外 seed”的推断不再作为修复依据。
 
-| 候选 | 成立前提 | 当前缺口与去向 |
-| --- | --- | --- |
-| A. 复用部署／准备记录 | 能证明 seed 已完成，并绑定当前实例、材料版本和 judge | 未找到可信记录生产者；先核实实际部署材料与 seed 约定 |
-| B. 题目专用只读检查 | 有明确预期 seed 及不泄密的验证判据 | 判据不足，不能以“CTFd 表非空”代替题目已就绪 |
+这些证据只支持固定版本的部署与初始状态一致，不证明历史 R 可解、judge 可用或 solved。当前 `prepareRun` 仍只有 TCP／材料检查；不新增 readiness schema、registry、自动 guard 或专门验收流程。未来实际调试仍应检查当次目标与应用状态，不能将旧准备记录当作当前就绪证明。版本、hash、检查过程及失败保留在[准备核对证据](../../gates/g-solver-verification-20261023/run-completeness-20261025/design-finalization/throwback-readiness/README.md)，不再作为本设计的产品接口展开。
 
-两者均不足时保持 unknown。需要 readiness 的未来真实 run 在实现 guard 前，应由可信准备流程阻止重跑；不能声称代码已自动拒绝。若前提成立，最小潜在范围是 `challenges.ts` 的声明、`run-prep.ts` 及既有测试，不先扩平台框架或向模型开放 Docker／DB。
+### 5.2 父上下文展示与 Critic 边界
 
-应区分“不适用”和“要求检查但缺证据”；实例重建／重置后不得复用旧 ready，检查失败不自动部署或修 seed。下一次验证应覆盖 required 缺 seed、仅端口通、有效准备、实例／版本变化和 not applicable；当前没有可信有效 ready 样本，也没有进行实际重建验证。
+后台 source/resultFacts 现随原生完成通知追加到父上下文，并保留执行记录与审计。ControlService 仅返回本次接受的 notice refs 的白名单事实，末次串行检查 parent、noticeMessageID、queued、child 有效性及停止状态。plugin 在同一消息追加完整 synthetic text Part，程序生成 part ID 并绑定 sessionID/messageID，保留原包络与正文。普通消息不能凭 messageID 读取历史 facts。
 
-### 5.2 父上下文展示与 Critic：记录事实不等于消费事实
+展示字段为 `ref`、`role`、`completeness`、`reason`、`finish`、`textChars`、`source`；unknown 的 textChars 为 null，不从默认 0 推断空报告。同步结果沿本次原生 tool.after 输出追加相同语义事实，以 callID 取代 ref，保留原输出与等待语义。每个 notice/call 只追加一次，后续上下文自然保留历史不算重复注入。
 
-后台 source/resultFacts 已进入执行记录和审计，但本片没有把新增事实注入父上下文。后续如处理可见性，须验证通知 ref 对应的事实确实送到正确父轮次；不以审计存在、delivered 或模型自述代替消费证据。
+事实说明“执行结束不代表报告完整，complete 不代表正确或 solved”，不自动要求续跑或调用 Critic。复核纠正：既有 Critic 触发规则不只有“三次相同参数”，还包括“连续两次交接没有新 artifact／package／verification”及“交接缺口需要换路”。此前仅重建重复参数计数不足以排除其他触发条件。无新产物不等于无新知识，尤其 Strategy／Reference 可以只交文字；需要按原记录逐边界区分事实可见、条件满足与实际调用。权限存在不能证明模型遵循规则。本方案只补信息可见性，不承诺模型理解、有效恢复或 Critic 实际决策。
 
-R 中无达到既定三次阈值的相同工具参数组；digest 从两次开始返回 repeated，不等于列表为空。七次恢复、空交接或没有 artifact 都不能单独证明语义停滞。因此保留 host 记录确定性事实、Critic 判断、Coordinator 决策的职责，不新增自动调度、固定调用频率或重复提示。
+**验收：** 实际 launcher/plugin/ControlService 与固定 OpenCode 的本地确定性 provider 请求中，原结果及 host 事实须同时存在，ref/call、角色与完整性须和同源记录一致；仅 hook 返回、审计或消息保存不算到达请求。覆盖同 child 两轮 empty/partial length→stop、unknown 与重复／错身份／停止拒绝边界；旧轮不得改写，unknown 不冒充空报告。SDK 替身只证明相应分支，不冒充真实传输故障。
 
-完整性事实如何展示仍未定；Critic 实际调用效果也未验证。只有具体信息缺口或接口问题成立时才修改现有交接／progress 路径，不借此扩展角色或 Skill。
+正式实现已核对实际父请求与持久化来源；缺 Part 身份字段的初版失败仍作为历史证据保留。host 检查与 plugin 保存之间仍非原子。早期证据见[父展示验证](../../gates/g-solver-verification-20261023/run-completeness-20261025/parent-display/README.md)与 §6 联合验证。
 
-### 5.3 同步与并发边界
+### 5.3 同步关联与多通知消费
 
-同步恢复没有新 execution/ref，当前保持不支持关联，不能借后台实现宣称已覆盖。两角色并发验证曾观察到：首轮两个通知均收到，但下一次 root model.call 只携带最后一个 notice 的 user ID，另一记录保持 queued，最终 deadline_exceeded。已观察链没有串绑，但并发收束未通过，具体修复需单独定位；本片未修改通知消费或 Root 调度。
+**同步来源。** 在可信 dispatch 后以 `(parentSessionID, callID)` 区分每轮，可信 binding 后由 chat.message 冻结唯一 user，再按 assistant.parentID 分类。不得复用首轮 dispatchCallID、最新消息或旧后台 ref；同步不创建后台 execution/ref。同 call/user 幂等，不同 user 或多个活动候选持久 conflict/unknown；同 call 改参数拒绝，终态 call 不再派发。
 
-自然重复通知、自然停止竞争、实际 HTTP 故障及真实模型报告质量均未完成验收。当前无模型结果不授权自动恢复真实调试。
+SDK 读取前核对 parent/child、来源与有效性，读取后重查停止及当前记录；不能筛掉未完成或身份矛盾的 assistant 来制造唯一结果。原生 task.error 结束对应同步 call，并只释放该 call 的 pending；重复旧 error 不得清理新 call。after 缺失不回退旧报告。新增审计只保存来源／结果白名单事实，不保存正文、reasoning 或 error payload。
 
-## 6. 验证结论与证据索引
+**多通知消费。** 从公开 `experimental.chat.messages.transform` 保存逐 session、匹配当前 user 的一次性上下文快照，提取 synthetic、未 ignored 的 completed／failed 通知；chat.params 取出即删除。host 仅在准入成功后，消费同 parent、已 queued 且 noticeMessageID 确在集合中的记录，逐 ref 记录 noticeID/admitNo；不清空全部 queued，不借 SDK 全历史冒充本轮输入。
 
-2026-10-25 的原生验证固定 OpenCode **1.19.3**，仅本地确定性 provider；使用干净环境、隔离 HOME/XDG 和系统 loopback-only 策略，启动前外连断言 EPERM。该隔离仅用于开发探针，不证明产品 Solver 的完整安全隔离。输入由各批源码 hash 固定，dirty 工作区、独立提交树与纯 OpenCode 探针分别陈述。
+consumed 表示可信通知出现在本轮获准上下文，不代表网络 ACK 或模型理解。实际父请求的展示另按 §5.2 验收。保留 starting/running、pending、resource 与预算／停止防护，不能因消费通知而提前收束。
 
-| 验证对象 | 关键结果 | 证据与限制 |
-| --- | --- | --- |
-| Root 缺陷与上限接线 | 空／部分 length 可自然 completed；output=64、准入=1000 时请求64，output=2048、准入=512 时请求512 | [首次验证](../../gates/g-solver-verification-20261023/run-completeness-20261025/root/report.md)；只核对固定版本首次请求，不归因 R 的历史上限 |
-| Root 最终实现 | 原生四例均通过：空／部分 length 为 incomplete，正常 unsolved stop／小预算 stop 为 complete；主区 typecheck/build、430项，独立提交范围424项通过 | [实现与复核](../../gates/g-solver-verification-20261023/run-completeness-20261025/implementation/README.md)；来源变化测试经 mutation 证明确实捕获提前收束，SDK分支测试不等于自然竞态 |
-| 后台关联可行性 | 单 child 两轮及同步对照完成；并发两案 deadline；hook 绑定方案可行，通知瞬时原子可见未证明 | [关联验证](../../gates/g-solver-verification-20261023/run-completeness-20261025/child-correlation/report.md)；早期纯原生探针不能与替身拼接成产品联合验收，观测包装会影响时序 |
-| 后台最终实现 | 无 observer／额外轮询的产品接线两案均 completed/0；首轮 length 的 textChars=7/0、incomplete，次轮 stop=8、complete，两轮均 consumed且旧轮未覆盖 | [实现报告](../../gates/g-solver-verification-20261023/run-completeness-20261025/child-implementation/report.md)、[独立复核](../../gates/g-solver-verification-20261023/run-completeness-20261025/child-implementation/review.md)；主区 typecheck/build、458项，独立提交范围452项通过 |
-| readiness／Critic | 准备来源与 seed 判据不足；当前记录不足以要求追加 Critic 提示 | [准备核对](../../gates/g-solver-verification-20261023/run-completeness-20261025/readiness/report.md)、[Critic 核对](../../gates/g-solver-verification-20261023/run-completeness-20261025/critic/report.md)；没有重启目标、读取 DB 或私有答案 |
+**验收：** 正式实现统一覆盖后台 empty/partial 后同步 stop、纯同步 empty/partial、双后台通知与同步等待共存、后台失败通知；核对原输出保留、每轮唯一归属、每身份一次展示、逐 notice 消费和未提前结束。必要负例覆盖身份冲突、SDK 错误、await 期间停止、改参／重放、错误释放 pending。正式实现已按最终运行源码完成上述六案验收；必要负例由既有测试覆盖，不另开可行性计划。
 
-Root 与后台实现均经独立规格／质量复核和主区验收。后台原生事实直接来自产品执行导出与审计，并与导出的 child 消息身份、parentID、finish、text长度交叉核对；停止、撤销、冲突、SDK缺失／错误等另由确定性测试覆盖，不冒充真实传输故障或自然竞态。
+### 5.4 历史原因复核与最小行为修正
 
-测试计数对应各自源码集合，不能相加；原生实现样本来自当时 dirty 工作区，并未在独立提交树另跑。提交范围记录分别见 [Root](../../gates/g-solver-verification-20261023/run-completeness-20261025/implementation/scoped-commit-validation.json) 与 [后台关联](../../gates/g-solver-verification-20261023/run-completeness-20261025/child-implementation/scoped-commit-validation.json)。真实模型效果未验证，本地替身 usage 不代表真实模型消耗。
+**单次输出上限来源已确定。** 原 profile 引用的模型配置为 `limit.output=8000`，按 launcher 合并规则重建配置的 hash 与原 run 完全一致；host 全程单次准入上界仍为 4,451,538–5,000,000。多条 length 消息的 output＋reasoning 恰为 8000，Root 最后为 0＋8000。因此问题与单次额度触顶一致，不是总预算耗尽。原 HTTP 参数未留存，不能声称已验证 provider 实际请求／内部策略；现有证据也不能决定应调到哪个值。
 
-失败尝试、red/green、源码清单、独立 review 和原生投影保留在上述既有证据目录；临时工作区路径及清理过程不再重复写入设计契约。历史报告中的旧章节号对应当时版本，当前结论按本文件主题章节读取。
+**七次恢复不是七次无效重试。** 按发生顺序：Recon 补交有正文；Solver 补交有正文；Solver 第二轮为新实验；Strategy 首次补交为空（stop，不是 length）；Strategy 再补交有正文；Reference 补交有正文但仍 length；Solver 第三轮为新实验。五次补交中四次返回正文，正文不等于正确／完整。Recon 同一恢复 user 下存在多个 assistant，仍须按既有规则保留 unknown；不得为了显示成功而改成取最后一条。
+
+原补交 prompt 已明确要求总结已有信息、不重做实验；新增同义提示没有独立修复依据。父保存输出和下一步 prompt 可支持其看到了空／截断和部分已恢复结论；缺少原请求快照，不把保存消息等同每轮完整送达。Critic 全程未调用，故没有 Critic 自身判断记录。Coordinator 的 seq807 已记录 redirect 和被否定路线；未调用不能归因于完全缺少信号或未发现问题。
+
+**本次已实现的最小范围：** §5.2–§5.3 的工程接线，以及 Coordinator 现有 Critic 条件澄清：阶段交回是评估时点，无 artifact 不能代替无新信息，持续交接失败或已有路线需换路时应明确评估 Critic。保留 Critic 提建议、Coordinator 作最终决策，不新建自动调度／重复计数／强制调用机制。此前仅凭相同参数计数排除触发依据的判断作废；该文字修正仍不能保证模型遵循。
+
+不新增统一恢复次数限制、不提高同步发布权限、不自动补叫 Root。8000 上限不在本次工程修复中直接调高：先保留配置来源证据，后续若验证调整须固定其他输入并有明确模型预算，评估报告完整性与成本／时延，不能仅看正文长度。Strategy 的空 stop 是独立反例，不能把所有空报告归于输出限额。
+
+关联与展示用既有无模型验收即可；角色规则只做一致性检查，不冒称行为通过。后续有预算的行为验证应覆盖无 artifact 但有新信息、连续补交失败、已否定路线需换路三类场景，检查误触发／漏触发、有效报告和消耗；不新增验证 plan 或通用 gate。逐次来源、观察和限制见[追加复核](../../gates/g-solver-verification-20261023/run-completeness-20261025/critic/report.md)。
+
+## 6. 证据与完成声明
+
+2026-10-25 原生探针固定 OpenCode **1.19.3**，使用实际产品链路或明确标注的隔离原型、本地确定性 provider、隔离 HOME/XDG 与 loopback-only 策略。源码版本、dirty 输入 hash、失败和独立复核均在下列既有记录中；不同批次不得拼成同源验收，测试数量不能相加。
+
+| 对象 | 当前结论与证据 |
+| --- | --- |
+| 原始失败与 output 接线 | [Root 初查](../../gates/g-solver-verification-20261023/run-completeness-20261025/root/report.md)、[Critic 核对](../../gates/g-solver-verification-20261023/run-completeness-20261025/critic/report.md)；未证实传输丢失或上限接线错误；8000 配置来源已匹配历史 hash，Critic 多条件判断已纠正 |
+| 已实现基线 | [Root 实现与复核](../../gates/g-solver-verification-20261023/run-completeness-20261025/implementation/README.md)、[后台实现](../../gates/g-solver-verification-20261023/run-completeness-20261025/child-implementation/report.md)及[复核](../../gates/g-solver-verification-20261023/run-completeness-20261025/child-implementation/review.md)；已接入并有无模型验收 |
+| 当前工程实现 | [父展示](../../gates/g-solver-verification-20261023/run-completeness-20261025/parent-display/README.md)、[联合报告](../../gates/g-solver-verification-20261023/run-completeness-20261025/design-finalization/joint-display/report.md)及[复核](../../gates/g-solver-verification-20261023/run-completeness-20261025/design-finalization/joint-display/review.md)；早期原型供追溯；正式实现及独立 review 见[实施证据](../../gates/g-solver-verification-20261023/run-completeness-20261025/final-implementation/README.md)，最终同源六案通过并接入主区 |
+| 环境误判纠正 | [固定上游与准备核对](../../gates/g-solver-verification-20261023/run-completeness-20261025/design-finalization/throwback-readiness/README.md)；不构成新 readiness 功能 |
+
+本轮交付完成本设计范围内的关联、展示、消费修复及 Coordinator 条件澄清。有效交接内容、避免无效恢复、最终报告质量与 Critic 决策仍按 §1 明示未解决；本地替身不能证明这些行为。自然竞态、所有 adapter 及启用压缩后的兼容性也未完成验收，不扩成当前新增任务。
+
+实施中补齐了同 call 改参／终态重放、SDK 后身份重查、同步错误只释放本 call、active 同步阻止提前收束、缺快照不消费和空 prepared 分支。独立 review 无阻断；其要求的同 child 连续两次同步来源回归已补足。主区接入后 typecheck／build 及全套 49 文件、482 测试通过；主区与原生验收运行时代码 hash 一致，六案投影重放通过。正式六案使用 OpenCode 1.19.3 与本地确定性 provider，env-i／独立 HOME/XDG、外连 EPERM；部分／空报告、failed 通知及同步等待都在实际父请求中核对。实现、失败日志、版本与源码 hash 见[实施证据](../../gates/g-solver-verification-20261023/run-completeness-20261025/final-implementation/README.md)。
+
+历史探索、失败及细分验证留在原证据目录，正文不再重复执行日记；历史报告中的旧范围与章节号不作为当前待办或权威契约。

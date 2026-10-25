@@ -1,0 +1,30 @@
+--- baseline/apps/launcher/src/control-service.ts
++++ candidate/apps/launcher/src/control-service.ts
+@@ -1,3 +1,5 @@
++import { appendFileSync } from 'node:fs';
++const r3Calls = new Map<string, any>();
+ import { classifyChildResult, unknownChildResult, type ChildSource, type ChildResult } from './child-result.js';
+ import {CompletionRequests,type CompletionJudge} from './completion-tools.js';
+ // Control service (design v1 C): lives in the launcher process, owns the session binding table, the run budget
+@@ -199,6 +201,8 @@
+   /** Only trusted state transitions use the queue. SDK, filesystem and resource waits happen outside it. */
+   async handle(sessionID: string, operation: string, input: unknown, signal?: AbortSignal): Promise<unknown> {
+     const body = (input && typeof input === 'object' ? input : {}) as Record<string, unknown>;
++    const probe = (phase: string) => { if(process.env.CTF_CORRELATION_LOG) {const md=body.metadata as Record<string,unknown>|undefined; appendFileSync(process.env.CTF_CORRELATION_LOG,JSON.stringify({at:Date.now(),phase,sessionID,operation,messageID:body.messageID,callID:body.callID,tool:body.tool,agent:body.agent,taskId:(body.args as any)?.task_id,background:(body.args as any)?.background,metadataKeys:md?Object.keys(md):[],metadataSessionId:md?.sessionId,metadataSessionID:md?.sessionID,outputChars:typeof body.output==='string'?body.output.length:null,binding:this.bindings.get(sessionID)?{parentID:this.bindings.get(sessionID)!.parentID,role:this.bindings.get(sessionID)!.role,dispatchCallID:this.bindings.get(sessionID)!.dispatchCallID}:null})+'\n'); }}; probe('entry');
++
+     try {
+       if (!sessionID || !/^[\w.-]{1,128}$/.test(sessionID)) throw new ControlDenied('unbound session');
+       if (!['chat.message', 'model.call', 'tool.before', 'tool.execute', 'tool.after', 'task.event'].includes(operation)) throw new ControlDenied('unknown operation');
+@@ -236,6 +240,12 @@
+       });
+       const result = prepared && typeof prepared === 'object' && 'execute' in prepared ? await (prepared as Outside).execute() : prepared;
+       this.record(sessionID, operation, true, undefined, operation === 'model.call' ? result : { tool: body.tool, callID: body.callID, result: 'returned' });
++      probe('return');
++      if(process.env.CTF_CORRELATION_LOG) {
++        if(operation==='tool.before' && body.tool==='task' && (body.args as any)?.background!==true) r3Calls.set(sessionID+'/'+body.callID,{parent:sessionID,callID:body.callID,childID:(body.args as any)?.task_id,userID:null,conflict:false});
++        if(operation==='chat.message') {const b=this.bindings.get(sessionID);if(b?.parentID){const candidates=[...r3Calls.values()].filter(c=>c.parent===b.parentID&&!c.done&&(c.childID===sessionID||!c.childID&&c.callID===b.dispatchCallID));if(candidates.length===1){const c=candidates[0];c.childID=sessionID;if(c.userID&&c.userID!==body.messageID)c.conflict=true;else c.userID=body.messageID;}}}
++        if(operation==='tool.after'&&body.tool==='task') {const c=r3Calls.get(sessionID+'/'+body.callID);if(c){const md=body.metadata as any;let messages:any[]=[];let readError=false;try{const ms=(await this.options.client.session.messages({sessionID:md.sessionId},{throwOnError:true})).data??[];messages=ms.filter(m=>m.info.id===c.userID||('parentID'in m.info&&m.info.parentID===c.userID)).map(m=>({id:m.info.id,role:m.info.role,parentID:'parentID'in m.info?m.info.parentID:null,finish:'finish'in m.info?m.info.finish:null,completed:'completed'in m.info.time&&!!m.info.time.completed,error:'error'in m.info&&!!m.info.error,textChars:m.parts.filter(p=>p.type==='text').reduce((n,p)=>n+(p as any).text.length,0)}));}catch{readError=true;}c.done=true;appendFileSync(process.env.CTF_CORRELATION_LOG,JSON.stringify({phase:'sync-after-exact-read',at:Date.now(),...c,metadataChildMatches:c.childID===md.sessionId,metadataParentMatches:c.parent===md.parentSessionId,stopped:!!this.stopReason,readError,messages})+'\n');}}
++      }
+       return result;
+     } catch (error) {
+       const denied = error instanceof ControlDenied ? error : new ControlDenied(error instanceof HttpRefused || error instanceof JobRefused || error instanceof WorkspaceRefused ? error.code : 'control error', String(error));

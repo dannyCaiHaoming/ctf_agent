@@ -1,10 +1,14 @@
 # 2026-10-25 无模型验证最小证据
 
-结论及实施边界以 [详细 design §4–§6](../../../superpowers/specs/2026-10-25-design-v1-run-readiness-and-result-completeness.md) 为准。本目录是既有 G 验证资料的追加证据，不是新增产品 gate。
+结论及实施边界以 [详细 design §4–§6](../../../superpowers/specs/2026-10-25-design-v1-run-readiness-and-result-completeness.md) 为准。本目录是既有 G 验证资料的追加证据，不是新增产品 gate。当前范围已收窄为结果关联、事实展示与通知消费；下列 readiness／压缩探索保留为历史证据，不是新增待办，也不表示原调试的报告质量与恢复决策已修复。
 
 - root：固定 1.19.3 四例本地 provider 请求/finish 元数据，五例 SDK 替身与执行报告。
 - readiness：当前 prepareRun 五种输入的实际接口行为、部署只读核对及来源hash。未证明 seed 就绪。
 - child：纯 OpenCode 两轮 task + SDK 读取的最小投影，未加载产品 plugin／ControlService；无可靠 call/ref→child user 关联证明，不与替身测试拼接为产品联合验收。
+- design-finalization/readiness-source：整体定稿前的准备来源核对及独立复核；用户确认尚无认可来源，不证明真实ready。
+- design-finalization/throwback-readiness：后续固定上游及两次默认镜像准备核对，反证“空表即缺seed”；含独立复核、实际实例／重启观测及15项分层判据。当前结论以此及详细design§5.1为准。
+- design-finalization/concurrent-delivery、synchronous-source：并发消费与同步归属的隔离候选、失败、源码hash及独立复核；不代表产品实作或联合验收。
+- design-finalization/joint-display：六个最终运行源码样本、65项定向检查与独立复核；同步／后台事实到达实际父请求。compaction入口500未进入hook，仍未验证压缩内部边界。
 - critic：原始R的只读工具/通知元数据统计，没有 prompt/body/reasoning 内容。
 - source-snapshot-sha256.json：主区当前快照137文件的hash；不能只凭HEAD复原源码。
 - manifest.json：证据文件hash；报告中的临时绝对路径是当次来源，不要求以后仍存在。
@@ -37,3 +41,7 @@ Root 最后消息：`msg_16e73fd29001eDvFWx4cx2qUKN`。只核对元数据和 tex
 - `evidence/publications.json`、`verification-results.json`、`completion-results.json` 均为 `[]`，各为 `4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945`。
 
 原始 run 留在仓库外，没有复制敏感运行材料。后续验证若需长期可移植证据，只保留脱敏的最小元数据到既有 docs/gates 位置，不复制凭据、私有答案或 reasoning。
+
+追加只读复核见 [Critic 报告追加章节](critic/report.md)与 [元数据投影](critic/recheck.json)：确认 8000 配置来源，区分七次恢复的目的／结果，纠正只按重复参数阈值判断 Critic 的结论；没有新增验证 plan。
+
+正式实施见 [final-implementation](final-implementation/README.md)：7 文件增量经独立 review 接入，六案确定性原生路径验收通过；同步来源、事实展示、通知消费与 Critic 条件澄清已落地，真实模型效果仍未验证。

@@ -1,0 +1,181 @@
+{
+  "result": {
+    "code": 1,
+    "status": "deadline_exceeded",
+    "runDir": "/private/var/folders/tn/x1hbkfy17sx0w1lb8kjzzr340000gn/T/ctf-parent-display-3a2th7ko/single-partial/runs/run"
+  },
+  "rootStep": 1,
+  "childCount": 1,
+  "requests": [
+    {
+      "at": 1792895742414,
+      "isRoot": true,
+      "isChild": false,
+      "rootStep": 1,
+      "childCount": 0,
+      "finish": "tool_calls",
+      "calls": [
+        {
+          "name": "task",
+          "role": "intake",
+          "task_id": null,
+          "background": true
+        }
+      ],
+      "max_tokens": 128,
+      "displayProjection": [],
+      "notices": 0
+    },
+    {
+      "at": 1792895742508,
+      "isRoot": true,
+      "isChild": false,
+      "rootStep": 1,
+      "childCount": 0,
+      "finish": "stop",
+      "calls": [],
+      "max_tokens": 128,
+      "displayProjection": [],
+      "notices": 0
+    },
+    {
+      "at": 1792895742514,
+      "isRoot": false,
+      "isChild": true,
+      "rootStep": 1,
+      "childCount": 1,
+      "finish": "length",
+      "calls": [],
+      "max_tokens": 128,
+      "displayProjection": [],
+      "notices": 0
+    }
+  ],
+  "executions": [
+    {
+      "source": {
+        "status": "associated",
+        "userMessageID": "msg_170e9f213001262N6wkbC1ICFA",
+        "reason": "hook",
+        "observedAt": 1792895742494
+      },
+      "resultFacts": {
+        "userMessageID": "msg_170e9f213001262N6wkbC1ICFA",
+        "assistantMessageID": "msg_170e9f225001kzaP6Big0tDWMa",
+        "finish": "length",
+        "completed": true,
+        "textChars": 7,
+        "hasError": false,
+        "completeness": "incomplete",
+        "reason": "length",
+        "observedAt": 1792895742526
+      },
+      "ref": "4432bb1b-e208-4f35-ae11-2b6a2dc12298",
+      "run": "run",
+      "parent": "ses_e8f1610c5ffe5XmWVe4SZJGRmW",
+      "callID": "call_1_0",
+      "role": "intake",
+      "childID": "ses_e8f160defffe46LVb6hguXODlI",
+      "state": "completed",
+      "delivered": true,
+      "noticeMessageID": "msg_170e9f23b001SDJEM3JswZs7gV",
+      "delivery": "suppressed"
+    }
+  ],
+  "audits": [
+    {
+      "seq": 1,
+      "t": 85,
+      "at": 1792895741758,
+      "sessionID": "ses_e8f1610c5ffe5XmWVe4SZJGRmW",
+      "op": "bind",
+      "allow": true,
+      "detail": {
+        "role": "coordinator",
+        "via": "root"
+      },
+      "role": "coordinator"
+    },
+    {
+      "seq": 9,
+      "t": 821,
+      "at": 1792895742494,
+      "sessionID": "ses_e8f160defffe46LVb6hguXODlI",
+      "op": "bind",
+      "allow": true,
+      "detail": {
+        "role": "intake",
+        "via": "dispatch",
+        "sdkParentID": "ses_e8f1610c5ffe5XmWVe4SZJGRmW",
+        "sdkAgent": "intake",
+        "callID": "call_1_0",
+        "sdkMs": 10
+      },
+      "role": "intake"
+    },
+    {
+      "seq": 10,
+      "t": 821,
+      "at": 1792895742494,
+      "sessionID": "ses_e8f160defffe46LVb6hguXODlI",
+      "op": "task.source",
+      "allow": true,
+      "detail": {
+        "ref": "4432bb1b-e208-4f35-ae11-2b6a2dc12298",
+        "source": {
+          "status": "associated",
+          "userMessageID": "msg_170e9f213001262N6wkbC1ICFA",
+          "reason": "hook",
+          "observedAt": 1792895742494
+        }
+      },
+      "role": "intake"
+    },
+    {
+      "seq": 14,
+      "t": 851,
+      "at": 1792895742524,
+      "sessionID": "ses_e8f1610c5ffe5XmWVe4SZJGRmW",
+      "op": "task.completion",
+      "allow": true,
+      "detail": {
+        "ref": "4432bb1b-e208-4f35-ae11-2b6a2dc12298",
+        "childID": "ses_e8f160defffe46LVb6hguXODlI",
+        "callID": "call_1_0",
+        "state": "completed",
+        "messageID": "msg_170e9f23b001SDJEM3JswZs7gV",
+        "wake": true
+      },
+      "role": "coordinator"
+    },
+    {
+      "seq": 15,
+      "t": 853,
+      "at": 1792895742526,
+      "sessionID": "ses_e8f1610c5ffe5XmWVe4SZJGRmW",
+      "op": "task.result",
+      "allow": true,
+      "detail": {
+        "ref": "4432bb1b-e208-4f35-ae11-2b6a2dc12298",
+        "source": {
+          "status": "associated",
+          "userMessageID": "msg_170e9f213001262N6wkbC1ICFA",
+          "reason": "hook",
+          "observedAt": 1792895742494
+        },
+        "resultFacts": {
+          "userMessageID": "msg_170e9f213001262N6wkbC1ICFA",
+          "assistantMessageID": "msg_170e9f225001kzaP6Big0tDWMa",
+          "finish": "length",
+          "completed": true,
+          "textChars": 7,
+          "hasError": false,
+          "completeness": "incomplete",
+          "reason": "length",
+          "observedAt": 1792895742526
+        }
+      },
+      "role": "coordinator"
+    }
+  ]
+}

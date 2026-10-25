@@ -343,8 +343,12 @@ describe('G-V1 cross-round challenge binding', () => {
   });
   it('T5 resume keeps topic; no/same declaration creates no pending, foreign/conflict preserves declaration', async () => {
     const s = fixture(); await assign(s); await dispatch(s); await bind(s);
-    await dispatch(s, { task_id: 'child' });
-    await assign(s); await dispatch(s, { task_id: 'child' });
+    const finish = async () => {
+      const callID = s.audit.filter(a => a.op === 'dispatch.register' || a.op === 'tool.before').map(a => a.detail as {callID?:string}).filter(d => d?.callID).at(-1)!.callID;
+      await s.handle('root','tool.after',{tool:'task',callID,metadata:{parentSessionId:'root',sessionId:'child'}});
+    };
+    await finish(); await dispatch(s, { task_id: 'child' }); await finish();
+    await assign(s); await dispatch(s, { task_id: 'child' }); await finish();
     await assign(s, 'Y'); // same declaration was consumed, no pending
     await expect(dispatch(s, { task_id: 'foreign' })).rejects.toThrow('denied: dispatch');
     await expect(dispatch(s, { task_id: 'child' })).rejects.toThrow('denied: dispatch');

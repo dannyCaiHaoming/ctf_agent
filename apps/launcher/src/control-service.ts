@@ -1,3 +1,4 @@
+import { fingerprintJson } from './progress-ledger.js';
 import { classifyChildResult, unknownChildResult, type ChildSource, type ChildResult } from './child-result.js';
 import {CompletionRequests,type CompletionJudge} from './completion-tools.js';
 // Control service (design v1 C): lives in the launcher process, owns the session binding table, the run budget
@@ -102,6 +103,7 @@ export const MANAGED_TOOLS = [...INTAKE_TOOLS, 'challenge.assign', 'challenge.un
 interface Resource { run: string; sessionID: string; challengeId: string; callID: string; tool: string; state: 'active' | 'settled' | 'unknown'; result?: string; job?: string; controller: AbortController; deadline: number; execution?: string; timer?: ReturnType<typeof setTimeout>; done?: Promise<unknown>; detachRpc?: () => void }
 interface TaskStopResult { state: 'stopped' | 'unknown' | 'completed' | 'failed'; resources: 'settled' | 'unknown'; sessionAbort: 'confirmed' | 'unknown' | 'not_required'; executionRef?: string }
 interface Execution { source: ChildSource; resultFacts: ChildResult | null; version?: string; ref: string; run: string; parent: string; callID: string; role: Role; challengeId?: string; childID?: string; state: 'starting' | 'running' | 'completed' | 'failed' | 'cancelled'; delivered: boolean; noticeMessageID?: string; delivery?: 'queued' | 'consumed' | 'suppressed' | 'stop_reply'; lateResult?: string; initialOutput?: string; result?: string }
+interface SyncCall {parent:string;callID:string;role:Role;childID?:string;source:ChildSource;state: 'active' | 'reading' | 'done'; fingerprint:string;displayed:boolean;facts?:ChildResult}
 interface Preparation {sessionID:string;execution:string;version:string;directory:string;metadata:{path:string;sha256:string;size:number}[];files:{path:string;sha256:string;size:number}[]}
 interface Outside { execute: () => Promise<unknown> }
 
@@ -138,6 +140,7 @@ export class ControlService {
   private readonly pending = new Map<string, Map<Role, { callID: string; challengeId?: string; childID?: string; background?: boolean; version?: string }>>();
   private readonly versions = new Map<string, string>();
   private readonly declarations = new Map<string, Map<Role, string>>();
+  private readonly syncCalls = new Map<string,SyncCall>();
   private readonly executions = new Map<string, Execution>();
   private readonly childStops = new Map<string, Promise<TaskStopResult>>();
   private readonly dispatched = new Map<string, { parent: string; role: Role }>();
@@ -176,7 +179,7 @@ export class ControlService {
   executionSnapshot() { return [...this.executions.values()].map(e => structuredClone(e)); }
   hasOutstandingWork(status: Record<string, { type: string }>): boolean {
     return [...this.executions.values()].some(e => e.state === 'starting' || e.state === 'running' || !e.delivered || e.delivery === 'queued') || [...this.pending.values()].some(p => p.size > 0) ||
-      [...this.resources.values()].some(r => r.state !== 'settled');
+      [...this.resources.values()].some(r => r.state !== 'settled') || [...this.syncCalls.values()].some(c => c.state !== 'done');
   }
 
   resourceSnapshot() { return [...this.resources.values()].map(({ controller: _c, timer: _t, done: _d, detachRpc: _detach, ...record }) => record); }
@@ -202,7 +205,7 @@ export class ControlService {
       if (!['chat.message', 'model.call', 'tool.before', 'tool.execute', 'tool.after', 'task.event'].includes(operation)) throw new ControlDenied('unknown operation');
       if (operation === 'task.event') return await this.serial(() => this.taskEvent(sessionID, body));
       // Runtime-synthetic native completion is consumed once before admission; stopped runs retain it without waking.
-      if (operation === 'chat.message') await this.receiveCompletion(sessionID, body);
+      const completionRefs = operation === 'chat.message' ? await this.receiveCompletion(sessionID, body) : [];
       let binding: Binding | undefined;
       if (operation !== 'tool.after') {
         const hookAgent = typeof body.agent === 'string' ? body.agent : undefined;
@@ -226,7 +229,18 @@ export class ControlService {
         if (this.stopReason) throw new ControlDenied('run stopped');
         this.live(binding!);
         switch (operation) {
-          case 'chat.message': this.freezeChildSource(binding!, body); return { bound: true };
+          case 'chat.message': {
+            this.freezeChildSource(binding!, body);
+            this.freezeSyncSource(binding!, body);
+            const completionDisplays = completionRefs.map(ref => {
+              const e = this.executions.get(ref)!;
+              const child = e.childID ? this.bindings.get(e.childID) : undefined;
+              if (e.parent !== sessionID || e.noticeMessageID !== body.messageID || e.delivery !== 'queued' || !child || child.state !== 'active' || Date.now() >= child.expiresAt) throw new ControlDenied('completion correlation');
+              const f = e.resultFacts!;
+              return { ref: e.ref, role: e.role, completeness: f.completeness, reason: f.reason, finish: f.finish, textChars: f.completeness === 'unknown' ? null : f.textChars, source: e.source.status };
+            });
+            return completionDisplays.length ? { bound: true, completionDisplays } : { bound: true };
+          }
           case 'model.call': return this.admit(binding!, body);
           case 'tool.before': return this.toolBefore(binding!, body);
           default: return this.executeManaged(binding!, body, signal);
@@ -475,7 +489,8 @@ export class ControlService {
     }
     if(binding.role==='verifier')this.verifierExecution(binding);
     this.admitted++;
-    for (const e of this.executions.values()) if (e.parent === binding.sessionID && e.delivery === 'queued' && e.noticeMessageID === body.messageID) { e.delivery = 'consumed'; this.record(binding.sessionID, 'task.delivered', true, undefined, {ref: e.ref, messageID: body.messageID, admitNo: this.admitted}); }
+    const requestMessageIDs = new Set(Array.isArray(body.requestMessageIDs) ? body.requestMessageIDs.filter((id): id is string => typeof id === 'string') : []);
+    for (const e of this.executions.values()) if (e.parent === binding.sessionID && e.delivery === 'queued' && requestMessageIDs.has(e.noticeMessageID!)) { e.delivery = 'consumed'; this.record(binding.sessionID, 'task.delivered', true, undefined, {ref: e.ref, messageID: e.noticeMessageID, admitNo: this.admitted}); }
     return { maxOutputTokens: maxObservableTokens - this.observed, admitNo: this.admitted, role: binding.role };
   }
 
@@ -498,7 +513,33 @@ export class ControlService {
 
     if (tool === 'task') {
       if ([...this.executions.values()].some(e => e.parent === binding.sessionID && e.callID === body.callID)) throw new ControlDenied('duplicate dispatch call');
+      const key = binding.sessionID + '/' + body.callID;
+      const prior = this.syncCalls.get(key);
+      const fingerprint = fingerprintJson(args);
+      if (prior) {
+        if (prior.state === 'done') throw new ControlDenied('sync call terminal');
+        if (prior.fingerprint !== fingerprint) {
+          prior.source = {...prior.source, status:'conflict', reason:'different_call', observedAt:Date.now()};
+          this.record(prior.parent, 'sync.source', true, undefined, {callID:prior.callID, childID:prior.childID, source:{...prior.source}});
+          throw new ControlDenied('sync call conflict');
+        }
+        return {allowed:true};
+      }
+      const active = [...this.syncCalls.values()].filter(c => c.parent === binding.sessionID && c.state !== 'done' && typeof args.task_id === 'string' && c.childID === args.task_id);
+      if (active.length) {
+        for (const c of active) {
+          c.source = {...c.source, status:'conflict', reason:'multiple_calls', observedAt:Date.now()};
+          this.record(c.parent, 'sync.source', true, undefined, {callID:c.callID, childID:c.childID, source:{...c.source}});
+        }
+        throw new ControlDenied('sync active call');
+      }
       this.registerDispatch(binding, typeof body.callID === 'string' ? body.callID : '', args);
+      if (args.background !== true) {
+        this.syncCalls.set(key, {parent:binding.sessionID, callID:String(body.callID), role:args.subagent_type as Role,
+          childID:typeof args.task_id === 'string' ? args.task_id : undefined,
+          source:{status:'unknown', userMessageID:null, reason:'missing_source', observedAt:null},
+          state:'active', fingerprint, displayed:false});
+      }
       if (args.background === true) {
         const ref = randomUUID();
         const taskID = typeof args.task_id === 'string' ? args.task_id : undefined;
@@ -889,6 +930,8 @@ export class ControlService {
   }
 
   private taskEvent(parent: string, body: Record<string, unknown>): {ok: true} {
+    const sync=this.syncCalls.get(parent+'/'+body.callID);
+    if(sync && body.state==='error' && sync.state!=='done'){sync.state='done';sync.facts=unknownChildResult(sync.source,'native_error');for(const [role,waiting] of this.pending.get(parent)??[])if(waiting.callID===sync.callID)this.pending.get(parent)!.delete(role);this.record(parent,'sync.failed',true,undefined,{callID:sync.callID,childID:sync.childID,source:{...sync.source},facts:{...sync.facts}});}
     const execution = [...this.executions.values()].find(e => e.parent === parent && e.callID === body.callID);
     if (!execution || body.state !== 'error' || execution.state !== 'starting') return {ok: true};
     execution.state = 'failed'; execution.delivered = true; execution.delivery = 'stop_reply'; execution.result = typeof body.error === 'string' ? body.error : 'native task error';
@@ -916,7 +959,27 @@ export class ControlService {
     }
   }
 
-  private async receiveCompletion(parent: string, body: Record<string, unknown>): Promise<void> {
+  private freezeSyncSource(binding: Binding, body: Record<string, unknown>): void {
+    if (binding.via !== 'dispatch' || !binding.parentID) return;
+    const candidates = [...this.syncCalls.values()].filter(c => c.parent === binding.parentID && c.state !== 'done' &&
+      (c.childID === binding.sessionID || !c.childID && c.callID === binding.dispatchCallID));
+    for (const c of candidates) {
+      c.childID = binding.sessionID;
+      if (c.source.status === 'conflict') continue;
+      const id = typeof body.messageID === 'string' && body.messageID.length ? body.messageID : null;
+      let reason: string | undefined;
+      if (candidates.length !== 1) reason = 'multiple_calls';
+      else if (c.role !== binding.role) reason = 'binding_identity';
+      else if (id && c.source.userMessageID && id !== c.source.userMessageID) reason = 'different_user';
+      if (reason) c.source = {...c.source, status:'conflict', reason, observedAt:Date.now()};
+      else if (id && c.source.status !== 'associated') c.source = {status:'associated', userMessageID:id, reason:'hook', observedAt:Date.now()};
+      else continue;
+      this.record(c.parent, 'sync.source', true, undefined, {callID:c.callID, childID:c.childID, source:{...c.source}});
+    }
+  }
+
+  private async receiveCompletion(parent: string, body: Record<string, unknown>): Promise<string[]> {
+    const accepted: string[] = [];
     let suppressed = false;
     const reads = await this.serial(() => {
       const pending: Array<{ref:string;childID:string;source:ChildSource}> = [];
@@ -928,6 +991,7 @@ export class ControlService {
         const e = this.executions.get(match[3]!);
         if (!e || e.parent !== parent || e.childID !== match[1]) throw new ControlDenied('completion correlation');
         if (e.delivered) { e.lateResult=part.text;this.record(parent,'task.completion.ignored',true,undefined,{ref:e.ref,reason:'duplicate or late',messageID:body.messageID});throw new ControlDenied('duplicate completion'); }
+        accepted.push(e.ref);
         e.state=match[2]==='completed'?'completed':'failed';e.result=part.text;
         e.noticeMessageID=typeof body.messageID==='string'?body.messageID:undefined;
         e.delivered=true;e.delivery=this.stopReason?'suppressed':'queued';
@@ -956,10 +1020,11 @@ export class ControlService {
       });
     }
     if(this.stopReason || suppressed) throw new ControlDenied('run stopped');
+    return accepted;
   }
 
   /** Audit correlation only: ties the task call to the child session reported by OpenCode, and releases an unconsumed pending slot. */
-  private toolAfter(sessionID: string, body: Record<string, unknown>): { ok: true } {
+  private toolAfter(sessionID: string, body: Record<string, unknown>): { ok: true } | Outside {
     if (body.tool === 'task') {
       const metadata = (body.metadata && typeof body.metadata === 'object' ? body.metadata : {}) as Record<string, unknown>;
       const child = typeof metadata.sessionId === 'string' ? metadata.sessionId : undefined;
@@ -969,6 +1034,30 @@ export class ControlService {
       const execution = [...this.executions.values()].find(e => e.parent === sessionID && e.callID === callID);
       if (execution) { if (child && execution.childID && execution.childID !== child) throw new ControlDenied('completion correlation'); if (child) execution.childID = child; if (execution.initialOutput === undefined && typeof body.output === 'string') execution.initialOutput = body.output; }
       for (const [, waiting] of this.pending.get(sessionID) ?? []) if (waiting.callID === callID && child) waiting.childID = child;
+      const c=this.syncCalls.get(sessionID+'/'+callID);
+      if(c && c.state==='active') {
+        c.state='reading';
+        const binding=child?this.bindings.get(child):undefined, parent=this.bindings.get(sessionID);
+        const trusted=!!child && metadata.parentSessionId===sessionID && c.childID===child && binding?.parentID===sessionID && binding.role===c.role && parent?.state==='active' && binding.state==='active' && Date.now()<Math.min(parent.expiresAt,binding.expiresAt);
+        const source={...c.source};
+        return {execute:async()=>{
+          let facts=unknownChildResult(source,trusted?'missing_source':'binding_identity');
+          if(trusted && !this.stopReason && source.status==='associated') {
+            try {const ms=(await this.options.client.session.messages({sessionID:child!},{throwOnError:true})).data;facts=ms?classifyChildResult(ms,child!,source):unknownChildResult(source,'sdk_missing');}catch{facts=unknownChildResult(source,'sdk_error');}
+          } else if(source.status==='conflict')facts=unknownChildResult(source,'source_conflict');
+          return this.serial(()=>{
+            const current=this.syncCalls.get(sessionID+'/'+callID), b=child?this.bindings.get(child):undefined, p=this.bindings.get(sessionID);
+            if(current!==c || c.state!=='reading')return {ok:true};
+            c.state='done';
+            if(this.stopReason || p?.state!=='active' || b?.state!=='active' || Date.now()>=Math.min(p.expiresAt,b.expiresAt)){c.facts=unknownChildResult(c.source,'stopped');this.record(sessionID,'sync.result',true,undefined,{callID:c.callID,childID:c.childID,source:{...c.source},facts:{...c.facts}});return {ok:true};}
+            if (b.parentID !== sessionID || b.role !== c.role || this.dispatched.get(child!)?.parent !== sessionID || this.dispatched.get(child!)?.role !== c.role) facts=unknownChildResult(c.source,'binding_identity');
+            else if(c.source.status!==source.status || c.source.userMessageID!==source.userMessageID || c.childID!==child)facts=unknownChildResult(c.source,'source_conflict');
+            c.facts=facts;const display={callID:c.callID,role:c.role,completeness:facts.completeness,reason:facts.reason,finish:facts.finish,textChars:facts.completeness==='unknown'?null:facts.textChars,source:c.source.status};
+            this.record(sessionID,'sync.result',true,undefined,{callID:c.callID,childID:c.childID,source:{...c.source},facts:{...facts}});
+            if(c.displayed)return {ok:true};c.displayed=true;return {ok:true,syncDisplay:display};
+          });
+        }};
+      }
     }
     return { ok: true };
   }

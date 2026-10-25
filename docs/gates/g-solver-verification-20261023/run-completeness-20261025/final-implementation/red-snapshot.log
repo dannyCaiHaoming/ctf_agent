@@ -1,0 +1,30 @@
+
+ RUN  v2.1.9 /Users/caihaoming/.codex/worktrees/result-completeness-implementation/pentest-agent
+
+ ❯ tests/contract/g-async-lifecycle.test.ts (61 tests | 1 failed | 60 skipped) 12ms
+   × admission message ID alone cannot consume a notice without a prepared context snapshot 12ms
+     → expected 'consumed' to be 'queued' // Object.is equality
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/contract/g-async-lifecycle.test.ts > admission message ID alone cannot consume a notice without a prepared context snapshot
+AssertionError: expected 'consumed' to be 'queued' // Object.is equality
+
+Expected: "queued"
+Received: "consumed"
+
+ ❯ tests/contract/g-async-lifecycle.test.ts:133:106
+    131| it('admission message ID alone cannot consume a notice without a prepa…
+    132|  const f=await resultFixture();await f.c.handle('root','chat.message',…
+    133|  await f.c.handle('root','model.call',{messageID:'notice'});expect(f.c…
+       |                                                                                                          ^
+    134| });
+    135| 
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 60 skipped (61)
+   Start at  16:08:48
+   Duration  302ms (transform 72ms, setup 0ms, collect 92ms, tests 12ms, environment 0ms, prepare 23ms)
+

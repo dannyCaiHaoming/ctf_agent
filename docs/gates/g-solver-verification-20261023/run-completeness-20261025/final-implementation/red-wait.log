@@ -1,0 +1,33 @@
+
+ RUN  v2.1.9 /Users/caihaoming/.codex/worktrees/result-completeness-implementation/pentest-agent
+
+ ❯ tests/contract/g-async-lifecycle.test.ts (60 tests | 1 failed | 59 skipped) 13ms
+   × active synchronous resume remains outstanding after every queued notice is consumed 12ms
+     → expected false to be true // Object.is equality
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/contract/g-async-lifecycle.test.ts > active synchronous resume remains outstanding after every queued notice is consumed
+AssertionError: expected false to be true // Object.is equality
+
+- Expected
++ Received
+
+- true
++ false
+
+ ❯ tests/contract/g-async-lifecycle.test.ts:128:71
+    126|  const f=await syncFixture();await f.c.handle('root','model.call',{req…
+    127|  expect(f.c.executionSnapshot()[0]?.delivery).toBe('consumed');
+    128|  expect(f.c.hasOutstandingWork({root:{type:'idle'},a:{type:'idle'}})).…
+       |                                                                       ^
+    129|  await f.after();expect(f.c.hasOutstandingWork({root:{type:'idle'},a:{…
+    130| });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 59 skipped (60)
+   Start at  16:08:29
+   Duration  288ms (transform 71ms, setup 0ms, collect 91ms, tests 13ms, environment 0ms, prepare 26ms)
+

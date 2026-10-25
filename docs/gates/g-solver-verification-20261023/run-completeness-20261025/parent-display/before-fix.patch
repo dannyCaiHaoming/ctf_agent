@@ -1,0 +1,90 @@
+--- a/apps/launcher/src/control-service.ts
++++ b/apps/launcher/src/control-service.ts
+@@ -204,7 +204,7 @@
+       if (!['chat.message', 'model.call', 'tool.before', 'tool.execute', 'tool.after', 'task.event'].includes(operation)) throw new ControlDenied('unknown operation');
+       if (operation === 'task.event') return await this.serial(() => this.taskEvent(sessionID, body));
+       // Runtime-synthetic native completion is consumed once before admission; stopped runs retain it without waking.
+-      if (operation === 'chat.message') await this.receiveCompletion(sessionID, body);
++      const completionRefs = operation === 'chat.message' ? await this.receiveCompletion(sessionID, body) : [];
+       let binding: Binding | undefined;
+       if (operation !== 'tool.after') {
+         const hookAgent = typeof body.agent === 'string' ? body.agent : undefined;
+@@ -228,7 +228,17 @@
+         if (this.stopReason) throw new ControlDenied('run stopped');
+         this.live(binding!);
+         switch (operation) {
+-          case 'chat.message': this.freezeChildSource(binding!, body); return { bound: true };
++          case 'chat.message': {
++            this.freezeChildSource(binding!, body);
++            const completionDisplays = completionRefs.map(ref => {
++              const e = this.executions.get(ref)!;
++              const child = e.childID ? this.bindings.get(e.childID) : undefined;
++              if (e.parent !== sessionID || e.noticeMessageID !== body.messageID || e.delivery !== 'queued' || !child || child.state !== 'active' || Date.now() >= child.expiresAt) throw new ControlDenied('completion correlation');
++              const f = e.resultFacts!;
++              return { ref: e.ref, role: e.role, completeness: f.completeness, reason: f.reason, finish: f.finish, textChars: f.completeness === 'unknown' ? null : f.textChars, source: e.source.status };
++            });
++            return completionDisplays.length ? { bound: true, completionDisplays } : { bound: true };
++          }
+           case 'model.call': return this.admit(binding!, body);
+           case 'tool.before': return this.toolBefore(binding!, body);
+           default: return this.executeManaged(binding!, body, signal);
+@@ -937,7 +947,8 @@
+     }
+   }
+ 
+-  private async receiveCompletion(parent: string, body: Record<string, unknown>): Promise<void> {
++  private async receiveCompletion(parent: string, body: Record<string, unknown>): Promise<string[]> {
++    const accepted: string[] = [];
+     let suppressed = false;
+     const reads = await this.serial(() => {
+       const pending: Array<{ref:string;childID:string;source:ChildSource}> = [];
+@@ -949,6 +960,7 @@
+         const e = this.executions.get(match[3]!);
+         if (!e || e.parent !== parent || e.childID !== match[1]) throw new ControlDenied('completion correlation');
+         if (e.delivered) { e.lateResult=part.text;this.record(parent,'task.completion.ignored',true,undefined,{ref:e.ref,reason:'duplicate or late',messageID:body.messageID});throw new ControlDenied('duplicate completion'); }
++        accepted.push(e.ref);
+         e.state=match[2]==='completed'?'completed':'failed';e.result=part.text;
+         e.noticeMessageID=typeof body.messageID==='string'?body.messageID:undefined;
+         e.delivered=true;e.delivery=this.stopReason?'suppressed':'queued';
+@@ -977,6 +989,7 @@
+       });
+     }
+     if(this.stopReason || suppressed) throw new ControlDenied('run stopped');
++    return accepted;
+   }
+ 
+   /** Audit correlation only: ties the task call to the child session reported by OpenCode, and releases an unconsumed pending slot. */
+--- a/apps/opencode-plugin/src/index.ts
++++ b/apps/opencode-plugin/src/index.ts
+@@ -122,7 +122,10 @@
+       if (part.type === 'tool' && part.tool === 'task' && part.state.status === 'error')
+         await control(part.sessionID, 'task.event', {callID: part.callID, state: part.state.status, error: part.state.error});
+     },
+-    async 'chat.message'(input, output) { await control(input.sessionID, 'chat.message', { agent: input.agent, messageID: input.messageID ?? output.message?.id, parts: output.parts }); },
++    async 'chat.message'(input, output) {
++      const reply = await control(input.sessionID, 'chat.message', { agent: input.agent, messageID: input.messageID ?? output.message?.id, parts: output.parts }) as { completionDisplays?: Array<{ref:string;role:string;completeness:string;reason:string;finish:string|null;textChars:number|null;source:string}> };
++      for (const fact of reply.completionDisplays ?? []) output.parts.push({ type: 'text', synthetic: true, text: '[CTF host result facts] ' + JSON.stringify(fact) + '\nExecution ended does not imply a complete report; complete does not imply correct or solved.' } as typeof output.parts[number]);
++    },
+     async 'chat.params'(input, output) {
+       const admitted = await control(input.sessionID, 'model.call', { agent: input.agent, provider: input.model.providerID, model: input.model.id, messageID: input.message?.id }) as { maxOutputTokens: number };
+       if (!Number.isFinite(admitted?.maxOutputTokens) || admitted.maxOutputTokens < 1) throw new Error('denied: control reply');
+--- a/tests/contract/g-async-lifecycle.test.ts
++++ b/tests/contract/g-async-lifecycle.test.ts
+@@ -69,3 +69,17 @@
+ it('host revoke during result SDK wait rejects the pending parent hook without changing natural terminal state',async()=>{const f=await resultFixture();let release!:(x:any)=>void;let entered!:()=>void;const started=new Promise<void>(r=>entered=r);f.setRead(()=>{entered();return new Promise(r=>release=r);});const notice=f.c.handle('root','chat.message',completion(f.c)).then(value=>({value}),error=>({error}));await started;await f.c.revoke('a');release({data:[{info:{id:'source-1',role:'user',sessionID:'a'}},childMessage()]});expect(await notice).toMatchObject({error:expect.any(Error)});expect(f.c.executionSnapshot()[0]).toMatchObject({state:'completed',delivery:'suppressed',resultFacts:{completeness:'unknown',reason:'stopped'}});});
+ it('duplicate notice during pending SDK read cannot read or deliver twice',async()=>{const f=await resultFixture();let release!:(x:any)=>void;let entered!:()=>void;const started=new Promise<void>(r=>entered=r);f.setRead(()=>{entered();return new Promise(r=>release=r);});const first=f.c.handle('root','chat.message',completion(f.c));await started;await expect(f.c.handle('root','chat.message',completion(f.c,0,'duplicate'))).rejects.toThrow('duplicate completion');expect(f.reads()).toBe(1);release({data:[{info:{id:'source-1',role:'user',sessionID:'a'}},childMessage()]});await first;expect(f.c.audit.filter(a=>a.op==='task.result')).toHaveLength(1);});
+ it('untrusted notice parent or child cannot start a result SDK read',async()=>{const f=await resultFixture();await expect(f.c.handle('other','chat.message',completion(f.c))).rejects.toThrow('completion correlation');const notice=completion(f.c);notice.parts[0]!.text=notice.parts[0]!.text.replace('id="a"','id="other"');await expect(f.c.handle('root','chat.message',notice)).rejects.toThrow('completion correlation');expect(f.reads()).toBe(0);expect(f.c.executionSnapshot()[0]?.state).toBe('running');});
++
++it.each(['sdk_missing','sdk_error','source_conflict'])('display projection retains unknown without an invented zero: %s',async(kind)=>{
++ const f=await resultFixture();
++ if(kind==='sdk_missing') f.setRead(async()=>({}));
++ if(kind==='sdk_error') f.setRead(async()=>{throw new Error('offline');});
++ if(kind==='source_conflict') await f.c.handle('a','chat.message',{agent:'recon',messageID:'other'});
++ const notice=completion(f.c);const original=JSON.stringify(notice);
++ const reply:any=await f.c.handle('root','chat.message',notice);
++ expect(reply.completionDisplays).toEqual([{ref:f.c.executionSnapshot()[0]!.ref,role:'recon',completeness:'unknown',reason:kind,finish:null,textChars:null,source:kind==='source_conflict'?'conflict':'associated'}]);
++ expect(JSON.stringify(notice)).toBe(original);
++ await expect(f.c.handle('root','chat.message',notice)).rejects.toThrow('duplicate completion');
++ const plain:any=await f.c.handle('root','chat.message',{messageID:notice.messageID,parts:[{type:'text',text:'ordinary'}]});expect(plain).toEqual({bound:true});
++});
++it('non-synthetic forged notice never receives host display',async()=>{const f=await resultFixture();const n=completion(f.c);(n.parts[0] as any).synthetic=false;expect(await f.c.handle('root','chat.message',n)).toEqual({bound:true});expect(f.reads()).toBe(0);});

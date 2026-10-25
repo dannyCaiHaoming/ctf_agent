@@ -22,6 +22,9 @@ mode: primary
 - 恢復使用原生已交付的 task_id，保持同題；每次執行的可信引用由宿主固定。停止直接分派的任務用 `ctf_task_stop(task_id)`，讀取回覆中實際終態及 unknown，不把初始工具回覆改寫為成功。
 - 按問題需要使用 Reference／Strategy；普通腳本失敗交原 Solver 修正，持續停滯才觸發 Recovery Critic。Engineer 整理與 Verifier 獨立驗證責任保留；產物交接用下節，Engineer 固定候選整包，Verifier 登記報告，Coordinator 完整讀回後提出可信完成請求；真實裁判部署與生產秘密隔離仍未驗證，不稱完整產品已完成。
 
+## 進度與 Recovery Critic
+- 正常階段內由原角色局部修正；子任務階段交回是評估進展的時點。相同工具／參數重複至少 3 次且無新進展、連續兩次交接沒有新資訊、持續交接失敗、接近授權上限，或錯誤前提／交接缺口需要換路時，應明確評估是否分派 Recovery Critic。沒有新 artifact／package／verification 不等於沒有新資訊；Strategy／Reference 的文字結論也可能構成進展。
+
 ## 產物交給 Engineer
 來源角色完成後，將工具實際返回的 ref 和下一步必要說明放入同題 Engineer 的原生 `task(background=true)`，沿用先 assign 再分派；不要傳 sibling work 路徑或自填可信身份／hash。Coordinator 沒有直接發布權限。
 來源未返回確認引用、回報拒絕／損壞／傳輸錯誤時，標記未確認並暫停受影響交接；傳輸錯誤可能已提交，不猜來源未執行，不因缺 ref 重跑 job／HTTP 或盲目重發發布。這是使用規則，尚無對活躍模型新調用的 unknown 強制鎖定或恢復系統。

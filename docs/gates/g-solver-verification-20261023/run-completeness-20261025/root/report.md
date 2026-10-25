@@ -1,5 +1,7 @@
 # Root 结果完整性无模型验证
 
+后续状态：本文是首次接线探针，关于“历史 8000 来源未明”的检索边界已由 [Critic 报告的追加复核](../critic/report.md)更新：历史配置 hash 匹配 output=8000，原 HTTP 请求参数仍未留存。原探针结果不改写。
+
 结论：在固定 OpenCode 1.19.3、强制仅 loopback 外连、纯本地确定性 provider 下复现原始类别：空 length 和部分文字 length 都返回 code=0/status=completed/stopReason=completed。正常 stop 的 unsolved 文字同样 completed，说明生命周期和报告完整性需要分开记录。当前观察没有证明 output 上限接线缺陷。
 
 ## 环境、隔离与版本

@@ -122,3 +122,49 @@ describe('OpenCode public adapter', () => {
   });
 
 });
+
+
+it('R2 transform snapshots require matching current user, clear after use/rejection and reject mixed/empty input',async()=>{
+ const {createCtfAgentHooks}=await import('../../apps/opencode-plugin/src/index.js');
+ const requests:any[]=[];let denied=false;
+ const mocked=vi.spyOn(globalThis,'fetch').mockImplementation(async(_url,init)=>{requests.push(JSON.parse(String(init?.body)));if(denied)throw Error('offline');return new Response(JSON.stringify({result:{maxOutputTokens:100}}),{status:200});});
+ try {
+ const h=createCtfAgentHooks({controlUrl:'http://127.0.0.1:12345',controlToken:'x'.repeat(40),tools:[]});
+ const msg=(id:string,sessionID='root',ignored=false)=>({info:{id,sessionID,role:'user'},parts:[{type:'text',synthetic:true,ignored,text:'Background task completed:'}]});
+ const transform=async(messages:any[])=>h['experimental.chat.messages.transform']!({}, {messages} as never);
+ const params=async(id:string)=>h['chat.params']!({sessionID:'root',message:{id},model:{providerID:'stub',id:'scripted'}} as never,{} as never);
+ await transform([msg('one'),msg('two')]);await params('two');expect(requests.at(-1).input.requestMessageIDs).toEqual(['one','two']);
+ await params('two');expect(requests.at(-1).input.requestMessageIDs).toEqual([]);
+ const failed=msg('failed');failed.parts[0]!.text='Background task failed:';await transform([failed]);await params('failed');expect(requests.at(-1).input.requestMessageIDs).toEqual(['failed']);
+ await transform([msg('one')]);await params('new');expect(requests.at(-1).input.requestMessageIDs).toEqual([]);
+ await transform([msg('one')]);await transform([msg('one'),msg('other','other')]);await params('one');expect(requests.at(-1).input.requestMessageIDs).toEqual([]);
+ await transform([msg('one')]);await transform([]);await params('one');expect(requests.at(-1).input.requestMessageIDs).toEqual([]);
+ await transform([msg('one', 'root',true)]);await params('one');expect(requests.at(-1).input.requestMessageIDs).toEqual([]);
+ await transform([msg('one')]);denied=true;await expect(params('one')).rejects.toThrow('denied');denied=false;await params('one');expect(requests.at(-1).input.requestMessageIDs).toEqual([]);
+ } finally {mocked.mockRestore();}
+});
+
+it('appends complete native TextParts and preserves synchronous output and metadata',async()=>{
+ const {createCtfAgentHooks}=await import('../../apps/opencode-plugin/src/index.js');
+ const fact={role:'intake',completeness:'incomplete',reason:'length',finish:'length',textChars:0,source:'associated'};
+ const mocked=vi.spyOn(globalThis,'fetch').mockImplementation(async(_url,init)=>{
+  const body=JSON.parse(String(init?.body));
+  return new Response(JSON.stringify({result:body.operation==='chat.message'?{completionDisplays:[{ref:'ref',...fact}]}:{syncDisplay:{callID:'call',...fact}}}),{status:200});
+ });
+ try {
+  const h=createCtfAgentHooks({controlUrl:'http://127.0.0.1:12345',controlToken:'x'.repeat(40),tools:[]});
+  const original={type:'text',text:'native notice',synthetic:true};const output:any={message:{id:'notice'},parts:[original]};
+  await h['chat.message']!({sessionID:'root',messageID:'notice'} as never,output);
+  expect(output.parts[0]).toBe(original);expect(output.parts[1]).toMatchObject({id:expect.stringMatching(/^prt_/),sessionID:'root',messageID:'notice',type:'text',synthetic:true});
+  expect(output.parts[1].text).toContain(JSON.stringify({ref:'ref',...fact}));
+  const metadata={sessionId:'child',parentSessionId:'root',truncated:false};const after={title:'native',output:'native envelope\n<task_result>PARTIAL</task_result>',metadata};
+  await h['tool.execute.after']!({sessionID:'root',tool:'task',callID:'call',args:{}},after);
+  expect(after.metadata).toBe(metadata);expect(after.output.startsWith('native envelope\n<task_result>PARTIAL</task_result>\n')).toBe(true);
+  expect(after.output).toContain('[CTF host synchronous result facts]');
+ }finally{mocked.mockRestore();}
+});
+it('admission without a user or prepared snapshot still reaches authenticated control',async()=>{
+ const {createCtfAgentHooks}=await import('../../apps/opencode-plugin/src/index.js');
+ const requests:any[]=[];const mocked=vi.spyOn(globalThis,'fetch').mockImplementation(async(_url,init)=>{requests.push(JSON.parse(String(init?.body)));return new Response(JSON.stringify({result:{maxOutputTokens:100}}),{status:200});});
+ try {const h=createCtfAgentHooks({controlUrl:'http://127.0.0.1:12345',controlToken:'x'.repeat(40),tools:[]});await h['chat.params']!({sessionID:'root',model:{providerID:'stub',id:'scripted'}} as never,{} as never);expect(requests[0].input.requestMessageIDs).toEqual([]);}finally{mocked.mockRestore();}
+});

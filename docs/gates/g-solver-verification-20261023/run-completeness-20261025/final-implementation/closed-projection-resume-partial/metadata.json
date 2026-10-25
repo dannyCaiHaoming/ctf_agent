@@ -1,0 +1,460 @@
+{
+  "result": {
+    "code": 0,
+    "status": "completed",
+    "runDir": "/private/tmp/ctf-final-implementation.7jJQLb/runs/resume-partial/run"
+  },
+  "rootStep": 2,
+  "childCount": 2,
+  "requests": [
+    {
+      "at": 1792912330001,
+      "isRoot": true,
+      "isChild": false,
+      "rootStep": 1,
+      "childCount": 0,
+      "finish": "tool_calls",
+      "calls": [
+        {
+          "name": "task",
+          "role": "intake",
+          "task_id": null,
+          "background": true
+        }
+      ],
+      "max_tokens": 128,
+      "toolOutputs": [],
+      "nativeNotices": [],
+      "messageCount": 2,
+      "notices": 0,
+      "refs": [],
+      "displays": []
+    },
+    {
+      "at": 1792912330111,
+      "isRoot": true,
+      "isChild": false,
+      "rootStep": 1,
+      "childCount": 0,
+      "finish": "stop",
+      "calls": [],
+      "max_tokens": 128,
+      "toolOutputs": [
+        {
+          "tool_call_id": "call_1_0",
+          "content": "<task id=\"ses_e8e18f2adffetz6xFf4bOVxqza\" state=\"running\">\n<summary>Background task started</summary>\n<task_result>\nThe task is working in the background. You will be notified automatically when it finishes.\nDO NOT sleep, poll for progress, ask the task for status, or duplicate this task's work — avoid working with the same files or topics it is using.\nWork on non-overlapping tasks, or briefly tell the user what you launched and end your response.\n</task_result>\n</task>"
+        }
+      ],
+      "nativeNotices": [],
+      "messageCount": 4,
+      "notices": 0,
+      "refs": [
+        "c0264d2b-342c-486c-88a7-25aa53631b30"
+      ],
+      "displays": []
+    },
+    {
+      "at": 1792912330127,
+      "isRoot": false,
+      "isChild": true,
+      "rootStep": 1,
+      "childCount": 1,
+      "finish": "length",
+      "calls": [],
+      "max_tokens": 128,
+      "toolOutputs": [],
+      "nativeNotices": [],
+      "messageCount": 2,
+      "notices": 0,
+      "refs": [],
+      "displays": []
+    },
+    {
+      "at": 1792912330153,
+      "isRoot": true,
+      "isChild": false,
+      "rootStep": 2,
+      "childCount": 1,
+      "finish": "tool_calls",
+      "calls": [
+        {
+          "name": "task",
+          "role": "intake",
+          "task_id": "ses_e8e18f2adffetz6xFf4bOVxqza",
+          "background": false
+        }
+      ],
+      "max_tokens": 128,
+      "toolOutputs": [
+        {
+          "tool_call_id": "call_1_0",
+          "content": "<task id=\"ses_e8e18f2adffetz6xFf4bOVxqza\" state=\"running\">\n<summary>Background task started</summary>\n<task_result>\nThe task is working in the background. You will be notified automatically when it finishes.\nDO NOT sleep, poll for progress, ask the task for status, or duplicate this task's work — avoid working with the same files or topics it is using.\nWork on non-overlapping tasks, or briefly tell the user what you launched and end your response.\n</task_result>\n</task>"
+        }
+      ],
+      "nativeNotices": [
+        "<task id=\"ses_e8e18f2adffetz6xFf4bOVxqza\" state=\"completed\">\n<summary>Background task completed: [ctf:c0264d2b-342c-486c-88a7-25aa53631b30]</summary>\n<task_result>\nPARTIAL\n</task_result>\n</task>"
+      ],
+      "messageCount": 6,
+      "notices": 1,
+      "refs": [
+        "c0264d2b-342c-486c-88a7-25aa53631b30"
+      ],
+      "displays": [
+        {
+          "messageRole": "user",
+          "synchronous": false,
+          "facts": {
+            "ref": "c0264d2b-342c-486c-88a7-25aa53631b30",
+            "role": "intake",
+            "completeness": "incomplete",
+            "reason": "length",
+            "finish": "length",
+            "textChars": 7,
+            "source": "associated"
+          }
+        }
+      ]
+    },
+    {
+      "at": 1792912330173,
+      "isRoot": false,
+      "isChild": true,
+      "rootStep": 2,
+      "childCount": 2,
+      "finish": "stop",
+      "calls": [],
+      "max_tokens": 128,
+      "toolOutputs": [],
+      "nativeNotices": [],
+      "messageCount": 4,
+      "notices": 0,
+      "refs": [],
+      "displays": []
+    },
+    {
+      "at": 1792912330197,
+      "isRoot": true,
+      "isChild": false,
+      "rootStep": 2,
+      "childCount": 2,
+      "finish": "stop",
+      "calls": [],
+      "max_tokens": 128,
+      "toolOutputs": [
+        {
+          "tool_call_id": "call_1_0",
+          "content": "<task id=\"ses_e8e18f2adffetz6xFf4bOVxqza\" state=\"running\">\n<summary>Background task started</summary>\n<task_result>\nThe task is working in the background. You will be notified automatically when it finishes.\nDO NOT sleep, poll for progress, ask the task for status, or duplicate this task's work — avoid working with the same files or topics it is using.\nWork on non-overlapping tasks, or briefly tell the user what you launched and end your response.\n</task_result>\n</task>"
+        },
+        {
+          "tool_call_id": "call_4_0",
+          "content": "<task id=\"ses_e8e18f2adffetz6xFf4bOVxqza\" state=\"completed\">\n<task_result>\nCOMPLETE\n</task_result>\n</task>\n[CTF host synchronous result facts] {\"callID\":\"call_4_0\",\"role\":\"intake\",\"completeness\":\"complete\",\"reason\":\"stop\",\"finish\":\"stop\",\"textChars\":8,\"source\":\"associated\"}\nExecution ended does not imply a complete report; complete does not imply correct or solved."
+        }
+      ],
+      "nativeNotices": [
+        "<task id=\"ses_e8e18f2adffetz6xFf4bOVxqza\" state=\"completed\">\n<summary>Background task completed: [ctf:c0264d2b-342c-486c-88a7-25aa53631b30]</summary>\n<task_result>\nPARTIAL\n</task_result>\n</task>"
+      ],
+      "messageCount": 8,
+      "notices": 1,
+      "refs": [
+        "c0264d2b-342c-486c-88a7-25aa53631b30"
+      ],
+      "displays": [
+        {
+          "messageRole": "user",
+          "synchronous": false,
+          "facts": {
+            "ref": "c0264d2b-342c-486c-88a7-25aa53631b30",
+            "role": "intake",
+            "completeness": "incomplete",
+            "reason": "length",
+            "finish": "length",
+            "textChars": 7,
+            "source": "associated"
+          }
+        },
+        {
+          "messageRole": "tool",
+          "synchronous": true,
+          "facts": {
+            "callID": "call_4_0",
+            "role": "intake",
+            "completeness": "complete",
+            "reason": "stop",
+            "finish": "stop",
+            "textChars": 8,
+            "source": "associated"
+          }
+        }
+      ]
+    }
+  ],
+  "executions": [
+    {
+      "source": {
+        "status": "associated",
+        "userMessageID": "msg_171e70d55001NDRk5yVCNmIPC6",
+        "reason": "hook",
+        "observedAt": 1792912330095
+      },
+      "resultFacts": {
+        "userMessageID": "msg_171e70d55001NDRk5yVCNmIPC6",
+        "assistantMessageID": "msg_171e70d76001Eff5ghOm2WZMMy",
+        "finish": "length",
+        "completed": true,
+        "textChars": 7,
+        "hasError": false,
+        "completeness": "incomplete",
+        "reason": "length",
+        "observedAt": 1792912330136
+      },
+      "ref": "c0264d2b-342c-486c-88a7-25aa53631b30",
+      "run": "run",
+      "parent": "ses_e8e18f5a1ffecgVyi3Z3wac2Ur",
+      "callID": "call_1_0",
+      "role": "intake",
+      "childID": "ses_e8e18f2adffetz6xFf4bOVxqza",
+      "state": "completed",
+      "delivered": true,
+      "noticeMessageID": "msg_171e70d95001nDU3vgz3ERcE43",
+      "delivery": "consumed"
+    }
+  ],
+  "audits": [
+    {
+      "seq": 1,
+      "t": 84,
+      "at": 1792912329313,
+      "sessionID": "ses_e8e18f5a1ffecgVyi3Z3wac2Ur",
+      "op": "bind",
+      "allow": true,
+      "detail": {
+        "role": "coordinator",
+        "via": "root"
+      },
+      "role": "coordinator"
+    },
+    {
+      "seq": 3,
+      "t": 763,
+      "at": 1792912329992,
+      "sessionID": "ses_e8e18f5a1ffecgVyi3Z3wac2Ur",
+      "op": "model.call",
+      "allow": true,
+      "detail": {
+        "maxOutputTokens": 30000,
+        "admitNo": 1,
+        "role": "coordinator"
+      },
+      "role": "coordinator"
+    },
+    {
+      "seq": 9,
+      "t": 865,
+      "at": 1792912330094,
+      "sessionID": "ses_e8e18f2adffetz6xFf4bOVxqza",
+      "op": "bind",
+      "allow": true,
+      "detail": {
+        "role": "intake",
+        "via": "dispatch",
+        "sdkParentID": "ses_e8e18f5a1ffecgVyi3Z3wac2Ur",
+        "sdkAgent": "intake",
+        "callID": "call_1_0",
+        "sdkMs": 22
+      },
+      "role": "intake"
+    },
+    {
+      "seq": 10,
+      "t": 866,
+      "at": 1792912330095,
+      "sessionID": "ses_e8e18f2adffetz6xFf4bOVxqza",
+      "op": "task.source",
+      "allow": true,
+      "detail": {
+        "ref": "c0264d2b-342c-486c-88a7-25aa53631b30",
+        "source": {
+          "status": "associated",
+          "userMessageID": "msg_171e70d55001NDRk5yVCNmIPC6",
+          "reason": "hook",
+          "observedAt": 1792912330095
+        }
+      },
+      "role": "intake"
+    },
+    {
+      "seq": 12,
+      "t": 880,
+      "at": 1792912330109,
+      "sessionID": "ses_e8e18f5a1ffecgVyi3Z3wac2Ur",
+      "op": "model.call",
+      "allow": true,
+      "detail": {
+        "maxOutputTokens": 29998,
+        "admitNo": 2,
+        "role": "coordinator"
+      },
+      "role": "coordinator"
+    },
+    {
+      "seq": 13,
+      "t": 891,
+      "at": 1792912330120,
+      "sessionID": "ses_e8e18f2adffetz6xFf4bOVxqza",
+      "op": "model.call",
+      "allow": true,
+      "detail": {
+        "maxOutputTokens": 29998,
+        "admitNo": 3,
+        "role": "intake"
+      },
+      "role": "intake"
+    },
+    {
+      "seq": 14,
+      "t": 904,
+      "at": 1792912330133,
+      "sessionID": "ses_e8e18f5a1ffecgVyi3Z3wac2Ur",
+      "op": "task.completion",
+      "allow": true,
+      "detail": {
+        "ref": "c0264d2b-342c-486c-88a7-25aa53631b30",
+        "childID": "ses_e8e18f2adffetz6xFf4bOVxqza",
+        "callID": "call_1_0",
+        "state": "completed",
+        "messageID": "msg_171e70d95001nDU3vgz3ERcE43",
+        "wake": true
+      },
+      "role": "coordinator"
+    },
+    {
+      "seq": 15,
+      "t": 907,
+      "at": 1792912330136,
+      "sessionID": "ses_e8e18f5a1ffecgVyi3Z3wac2Ur",
+      "op": "task.result",
+      "allow": true,
+      "detail": {
+        "ref": "c0264d2b-342c-486c-88a7-25aa53631b30",
+        "source": {
+          "status": "associated",
+          "userMessageID": "msg_171e70d55001NDRk5yVCNmIPC6",
+          "reason": "hook",
+          "observedAt": 1792912330095
+        },
+        "resultFacts": {
+          "userMessageID": "msg_171e70d55001NDRk5yVCNmIPC6",
+          "assistantMessageID": "msg_171e70d76001Eff5ghOm2WZMMy",
+          "finish": "length",
+          "completed": true,
+          "textChars": 7,
+          "hasError": false,
+          "completeness": "incomplete",
+          "reason": "length",
+          "observedAt": 1792912330136
+        }
+      },
+      "role": "coordinator"
+    },
+    {
+      "seq": 17,
+      "t": 922,
+      "at": 1792912330151,
+      "sessionID": "ses_e8e18f5a1ffecgVyi3Z3wac2Ur",
+      "op": "task.delivered",
+      "allow": true,
+      "detail": {
+        "ref": "c0264d2b-342c-486c-88a7-25aa53631b30",
+        "messageID": "msg_171e70d95001nDU3vgz3ERcE43",
+        "admitNo": 4
+      },
+      "role": "coordinator"
+    },
+    {
+      "seq": 18,
+      "t": 922,
+      "at": 1792912330151,
+      "sessionID": "ses_e8e18f5a1ffecgVyi3Z3wac2Ur",
+      "op": "model.call",
+      "allow": true,
+      "detail": {
+        "maxOutputTokens": 29994,
+        "admitNo": 4,
+        "role": "coordinator"
+      },
+      "role": "coordinator"
+    },
+    {
+      "seq": 19,
+      "t": 927,
+      "at": 1792912330156,
+      "sessionID": "ses_e8e18f5a1ffecgVyi3Z3wac2Ur",
+      "op": "dispatch.resume",
+      "allow": true,
+      "detail": {
+        "role": "intake",
+        "taskId": "ses_e8e18f2adffetz6xFf4bOVxqza",
+        "declarationConsumed": false
+      },
+      "role": "coordinator"
+    },
+    {
+      "seq": 23,
+      "t": 942,
+      "at": 1792912330171,
+      "sessionID": "ses_e8e18f2adffetz6xFf4bOVxqza",
+      "op": "model.call",
+      "allow": true,
+      "detail": {
+        "maxOutputTokens": 29994,
+        "admitNo": 5,
+        "role": "intake"
+      },
+      "role": "intake"
+    },
+    {
+      "seq": 25,
+      "t": 951,
+      "at": 1792912330180,
+      "sessionID": "ses_e8e18f5a1ffecgVyi3Z3wac2Ur",
+      "op": "sync.result",
+      "allow": true,
+      "detail": {
+        "callID": "call_4_0",
+        "childID": "ses_e8e18f2adffetz6xFf4bOVxqza",
+        "source": {
+          "status": "associated",
+          "userMessageID": "msg_171e70dae001JVo9LdxcfU8HHv",
+          "reason": "hook",
+          "observedAt": 1792912330159
+        },
+        "facts": {
+          "userMessageID": "msg_171e70dae001JVo9LdxcfU8HHv",
+          "assistantMessageID": "msg_171e70db10011fhSHh6xH63bft",
+          "finish": "stop",
+          "completed": true,
+          "textChars": 8,
+          "hasError": false,
+          "completeness": "complete",
+          "reason": "stop",
+          "observedAt": 1792912330180
+        }
+      },
+      "role": "coordinator"
+    },
+    {
+      "seq": 27,
+      "t": 966,
+      "at": 1792912330195,
+      "sessionID": "ses_e8e18f5a1ffecgVyi3Z3wac2Ur",
+      "op": "model.call",
+      "allow": true,
+      "detail": {
+        "maxOutputTokens": 29990,
+        "admitNo": 6,
+        "role": "coordinator"
+      },
+      "role": "coordinator"
+    }
+  ]
+}

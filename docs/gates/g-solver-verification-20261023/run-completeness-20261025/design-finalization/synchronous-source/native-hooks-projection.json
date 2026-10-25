@@ -1,0 +1,706 @@
+[
+  {
+    "case": "candidate-empty",
+    "events": [
+      {
+        "at": 1792896978260,
+        "phase": "return",
+        "sessionID": "ses_e8f0332beffelt7eYUR6YQwy8G",
+        "operation": "chat.message",
+        "messageID": "msg_170fccd47001l8vlgsm3rSGYWi",
+        "agent": "coordinator",
+        "metadataKeys": [],
+        "outputChars": null,
+        "binding": {
+          "parentID": null,
+          "role": "coordinator"
+        }
+      },
+      {
+        "at": 1792896978843,
+        "phase": "return",
+        "sessionID": "ses_e8f0332beffelt7eYUR6YQwy8G",
+        "operation": "tool.before",
+        "callID": "call_1_0",
+        "tool": "task",
+        "background": true,
+        "metadataKeys": [],
+        "outputChars": null,
+        "binding": {
+          "parentID": null,
+          "role": "coordinator"
+        }
+      },
+      {
+        "at": 1792896978850,
+        "phase": "return",
+        "sessionID": "ses_e8f0332beffelt7eYUR6YQwy8G",
+        "operation": "tool.after",
+        "callID": "call_1_0",
+        "tool": "task",
+        "metadataKeys": [
+          "parentSessionId",
+          "sessionId",
+          "model",
+          "background",
+          "jobId",
+          "truncated"
+        ],
+        "metadataSessionId": "ses_e8f033062ffeziABLQ4NcMpShE",
+        "outputChars": 474,
+        "binding": {
+          "parentID": null,
+          "role": "coordinator"
+        }
+      },
+      {
+        "at": 1792896978903,
+        "phase": "return",
+        "sessionID": "ses_e8f033062ffeziABLQ4NcMpShE",
+        "operation": "chat.message",
+        "messageID": "msg_170fccfa0001P8dd5elZGJngPL",
+        "agent": "intake",
+        "metadataKeys": [],
+        "outputChars": null,
+        "binding": {
+          "parentID": "ses_e8f0332beffelt7eYUR6YQwy8G",
+          "role": "intake",
+          "dispatchCallID": "call_1_0"
+        }
+      },
+      {
+        "at": 1792896978938,
+        "phase": "return",
+        "sessionID": "ses_e8f0332beffelt7eYUR6YQwy8G",
+        "operation": "chat.message",
+        "messageID": "msg_170fccff8001WFCOpWNKbfzbOs",
+        "agent": "coordinator",
+        "metadataKeys": [],
+        "outputChars": null,
+        "binding": {
+          "parentID": null,
+          "role": "coordinator"
+        }
+      },
+      {
+        "at": 1792896978954,
+        "phase": "return",
+        "sessionID": "ses_e8f0332beffelt7eYUR6YQwy8G",
+        "operation": "tool.before",
+        "callID": "call_4_0",
+        "tool": "task",
+        "taskId": "ses_e8f033062ffeziABLQ4NcMpShE",
+        "background": false,
+        "metadataKeys": [],
+        "outputChars": null,
+        "binding": {
+          "parentID": null,
+          "role": "coordinator"
+        }
+      },
+      {
+        "at": 1792896978956,
+        "phase": "return",
+        "sessionID": "ses_e8f033062ffeziABLQ4NcMpShE",
+        "operation": "chat.message",
+        "messageID": "msg_170fcd00b0017xaD4FQmyB8aN8",
+        "agent": "intake",
+        "metadataKeys": [],
+        "outputChars": null,
+        "binding": {
+          "parentID": "ses_e8f0332beffelt7eYUR6YQwy8G",
+          "role": "intake",
+          "dispatchCallID": "call_1_0"
+        }
+      },
+      {
+        "at": 1792896978972,
+        "phase": "return",
+        "sessionID": "ses_e8f0332beffelt7eYUR6YQwy8G",
+        "operation": "tool.after",
+        "callID": "call_4_0",
+        "tool": "task",
+        "metadataKeys": [
+          "parentSessionId",
+          "sessionId",
+          "model",
+          "truncated"
+        ],
+        "metadataSessionId": "ses_e8f033062ffeziABLQ4NcMpShE",
+        "outputChars": 106,
+        "binding": {
+          "parentID": null,
+          "role": "coordinator"
+        }
+      },
+      {
+        "phase": "sync-after-exact-read",
+        "at": 1792896978973,
+        "parent": "ses_e8f0332beffelt7eYUR6YQwy8G",
+        "callID": "call_4_0",
+        "childID": "ses_e8f033062ffeziABLQ4NcMpShE",
+        "userID": "msg_170fcd00b0017xaD4FQmyB8aN8",
+        "conflict": false,
+        "done": true,
+        "metadataChildMatches": true,
+        "metadataParentMatches": true,
+        "stopped": false,
+        "readError": false,
+        "messages": [
+          {
+            "id": "msg_170fcd00b0017xaD4FQmyB8aN8",
+            "role": "user",
+            "parentID": null,
+            "finish": null,
+            "completed": false,
+            "error": false,
+            "textChars": 11
+          },
+          {
+            "id": "msg_170fcd00e001dtyQmQCqSDUHH3",
+            "role": "assistant",
+            "parentID": "msg_170fcd00b0017xaD4FQmyB8aN8",
+            "finish": "stop",
+            "completed": true,
+            "error": false,
+            "textChars": 8
+          }
+        ]
+      }
+    ],
+    "originalHooksSha256": "fa770c2aed67820e52784fc0d3df94e9e56d763cd4b4b6117eb073668bb29f09"
+  },
+  {
+    "case": "candidate-partial",
+    "events": [
+      {
+        "at": 1792896975904,
+        "phase": "return",
+        "sessionID": "ses_e8f033bf6ffermgsXpNE4BVJkR",
+        "operation": "chat.message",
+        "messageID": "msg_170fcc412001HDUzeMfxTa5FLt",
+        "agent": "coordinator",
+        "metadataKeys": [],
+        "outputChars": null,
+        "binding": {
+          "parentID": null,
+          "role": "coordinator"
+        }
+      },
+      {
+        "at": 1792896976539,
+        "phase": "return",
+        "sessionID": "ses_e8f033bf6ffermgsXpNE4BVJkR",
+        "operation": "tool.before",
+        "callID": "call_1_0",
+        "tool": "task",
+        "background": true,
+        "metadataKeys": [],
+        "outputChars": null,
+        "binding": {
+          "parentID": null,
+          "role": "coordinator"
+        }
+      },
+      {
+        "at": 1792896976550,
+        "phase": "return",
+        "sessionID": "ses_e8f033bf6ffermgsXpNE4BVJkR",
+        "operation": "tool.after",
+        "callID": "call_1_0",
+        "tool": "task",
+        "metadataKeys": [
+          "parentSessionId",
+          "sessionId",
+          "model",
+          "background",
+          "jobId",
+          "truncated"
+        ],
+        "metadataSessionId": "ses_e8f03395effegbTWXCnjuVEA7D",
+        "outputChars": 474,
+        "binding": {
+          "parentID": null,
+          "role": "coordinator"
+        }
+      },
+      {
+        "at": 1792896976564,
+        "phase": "return",
+        "sessionID": "ses_e8f03395effegbTWXCnjuVEA7D",
+        "operation": "chat.message",
+        "messageID": "msg_170fcc6a4001L8E4M3515Dr6qr",
+        "agent": "intake",
+        "metadataKeys": [],
+        "outputChars": null,
+        "binding": {
+          "parentID": "ses_e8f033bf6ffermgsXpNE4BVJkR",
+          "role": "intake",
+          "dispatchCallID": "call_1_0"
+        }
+      },
+      {
+        "at": 1792896976593,
+        "phase": "return",
+        "sessionID": "ses_e8f033bf6ffermgsXpNE4BVJkR",
+        "operation": "chat.message",
+        "messageID": "msg_170fcc6cf001AYSTWrk0byQKMl",
+        "agent": "coordinator",
+        "metadataKeys": [],
+        "outputChars": null,
+        "binding": {
+          "parentID": null,
+          "role": "coordinator"
+        }
+      },
+      {
+        "at": 1792896976611,
+        "phase": "return",
+        "sessionID": "ses_e8f033bf6ffermgsXpNE4BVJkR",
+        "operation": "tool.before",
+        "callID": "call_4_0",
+        "tool": "task",
+        "taskId": "ses_e8f03395effegbTWXCnjuVEA7D",
+        "background": false,
+        "metadataKeys": [],
+        "outputChars": null,
+        "binding": {
+          "parentID": null,
+          "role": "coordinator"
+        }
+      },
+      {
+        "at": 1792896976613,
+        "phase": "return",
+        "sessionID": "ses_e8f03395effegbTWXCnjuVEA7D",
+        "operation": "chat.message",
+        "messageID": "msg_170fcc6e4001UPJTDLZYWzLn7o",
+        "agent": "intake",
+        "metadataKeys": [],
+        "outputChars": null,
+        "binding": {
+          "parentID": "ses_e8f033bf6ffermgsXpNE4BVJkR",
+          "role": "intake",
+          "dispatchCallID": "call_1_0"
+        }
+      },
+      {
+        "at": 1792896976631,
+        "phase": "return",
+        "sessionID": "ses_e8f033bf6ffermgsXpNE4BVJkR",
+        "operation": "tool.after",
+        "callID": "call_4_0",
+        "tool": "task",
+        "metadataKeys": [
+          "parentSessionId",
+          "sessionId",
+          "model",
+          "truncated"
+        ],
+        "metadataSessionId": "ses_e8f03395effegbTWXCnjuVEA7D",
+        "outputChars": 106,
+        "binding": {
+          "parentID": null,
+          "role": "coordinator"
+        }
+      },
+      {
+        "phase": "sync-after-exact-read",
+        "at": 1792896976633,
+        "parent": "ses_e8f033bf6ffermgsXpNE4BVJkR",
+        "callID": "call_4_0",
+        "childID": "ses_e8f03395effegbTWXCnjuVEA7D",
+        "userID": "msg_170fcc6e4001UPJTDLZYWzLn7o",
+        "conflict": false,
+        "done": true,
+        "metadataChildMatches": true,
+        "metadataParentMatches": true,
+        "stopped": false,
+        "readError": false,
+        "messages": [
+          {
+            "id": "msg_170fcc6e4001UPJTDLZYWzLn7o",
+            "role": "user",
+            "parentID": null,
+            "finish": null,
+            "completed": false,
+            "error": false,
+            "textChars": 11
+          },
+          {
+            "id": "msg_170fcc6e7001p0K6SLJbOdw4wP",
+            "role": "assistant",
+            "parentID": "msg_170fcc6e4001UPJTDLZYWzLn7o",
+            "finish": "stop",
+            "completed": true,
+            "error": false,
+            "textChars": 8
+          }
+        ]
+      }
+    ],
+    "originalHooksSha256": "0cf04e6a64e754c074d9bdddf9e2117eb7f94fff063a2f090512c2c1994448b4"
+  },
+  {
+    "case": "candidate-pure-abort",
+    "events": [
+      {
+        "at": 1792897009029,
+        "phase": "return",
+        "sessionID": "ses_e8f02ba8effe8cz6oRHOSgJGpC",
+        "operation": "chat.message",
+        "messageID": "msg_170fd4578001ywjy5IDF6sYqP4",
+        "agent": "coordinator",
+        "metadataKeys": [],
+        "outputChars": null,
+        "binding": {
+          "parentID": null,
+          "role": "coordinator"
+        }
+      },
+      {
+        "at": 1792897009637,
+        "phase": "return",
+        "sessionID": "ses_e8f02ba8effe8cz6oRHOSgJGpC",
+        "operation": "tool.before",
+        "callID": "call_1_0",
+        "tool": "task",
+        "background": false,
+        "metadataKeys": [],
+        "outputChars": null,
+        "binding": {
+          "parentID": null,
+          "role": "coordinator"
+        }
+      },
+      {
+        "at": 1792897009687,
+        "phase": "return",
+        "sessionID": "ses_e8f02b817ffedLcUJoMAeKKirg",
+        "operation": "chat.message",
+        "messageID": "msg_170fd47ea0016tu7lSPW2SeVSp",
+        "agent": "intake",
+        "metadataKeys": [],
+        "outputChars": null,
+        "binding": {
+          "parentID": "ses_e8f02ba8effe8cz6oRHOSgJGpC",
+          "role": "intake",
+          "dispatchCallID": "call_1_0"
+        }
+      }
+    ],
+    "originalHooksSha256": "1ac68fc1d5702c7d18dc1c9b678330874143e893bc95f51f052b1fc99f2039db"
+  },
+  {
+    "case": "candidate-pure-empty",
+    "events": [
+      {
+        "at": 1792897006682,
+        "phase": "return",
+        "sessionID": "ses_e8f02c3bdffe1gziD4n1Xh0cDF",
+        "operation": "chat.message",
+        "messageID": "msg_170fd3c4c001MMjUQBGtq276Hh",
+        "agent": "coordinator",
+        "metadataKeys": [],
+        "outputChars": null,
+        "binding": {
+          "parentID": null,
+          "role": "coordinator"
+        }
+      },
+      {
+        "at": 1792897007282,
+        "phase": "return",
+        "sessionID": "ses_e8f02c3bdffe1gziD4n1Xh0cDF",
+        "operation": "tool.before",
+        "callID": "call_1_0",
+        "tool": "task",
+        "background": false,
+        "metadataKeys": [],
+        "outputChars": null,
+        "binding": {
+          "parentID": null,
+          "role": "coordinator"
+        }
+      },
+      {
+        "at": 1792897007338,
+        "phase": "return",
+        "sessionID": "ses_e8f02c11dffePpzfcLlLppx3RM",
+        "operation": "chat.message",
+        "messageID": "msg_170fd3ee50012p383BbyoMm5Wv",
+        "agent": "intake",
+        "metadataKeys": [],
+        "outputChars": null,
+        "binding": {
+          "parentID": "ses_e8f02c3bdffe1gziD4n1Xh0cDF",
+          "role": "intake",
+          "dispatchCallID": "call_1_0"
+        }
+      },
+      {
+        "at": 1792897007360,
+        "phase": "return",
+        "sessionID": "ses_e8f02c3bdffe1gziD4n1Xh0cDF",
+        "operation": "tool.after",
+        "callID": "call_1_0",
+        "tool": "task",
+        "metadataKeys": [
+          "parentSessionId",
+          "sessionId",
+          "model",
+          "truncated"
+        ],
+        "metadataSessionId": "ses_e8f02c11dffePpzfcLlLppx3RM",
+        "outputChars": 98,
+        "binding": {
+          "parentID": null,
+          "role": "coordinator"
+        }
+      },
+      {
+        "phase": "sync-after-exact-read",
+        "at": 1792897007361,
+        "parent": "ses_e8f02c3bdffe1gziD4n1Xh0cDF",
+        "callID": "call_1_0",
+        "childID": "ses_e8f02c11dffePpzfcLlLppx3RM",
+        "userID": "msg_170fd3ee50012p383BbyoMm5Wv",
+        "conflict": false,
+        "done": true,
+        "metadataChildMatches": true,
+        "metadataParentMatches": true,
+        "stopped": false,
+        "readError": false,
+        "messages": [
+          {
+            "id": "msg_170fd3ee50012p383BbyoMm5Wv",
+            "role": "user",
+            "parentID": null,
+            "finish": null,
+            "completed": false,
+            "error": false,
+            "textChars": 11
+          },
+          {
+            "id": "msg_170fd3ef1001DPYV9KTBygJKV8",
+            "role": "assistant",
+            "parentID": "msg_170fd3ee50012p383BbyoMm5Wv",
+            "finish": "length",
+            "completed": true,
+            "error": false,
+            "textChars": 0
+          }
+        ]
+      }
+    ],
+    "originalHooksSha256": "7128265c2e0f8c23969705828e07aedaeb9f158ecc85f89385499563458a525f"
+  },
+  {
+    "case": "candidate-pure-partial",
+    "events": [
+      {
+        "at": 1792896980728,
+        "phase": "return",
+        "sessionID": "ses_e8f03291affev2nPinEcBH1oid",
+        "operation": "chat.message",
+        "messageID": "msg_170fcd6ec001PBoUA7fXcholq4",
+        "agent": "coordinator",
+        "metadataKeys": [],
+        "outputChars": null,
+        "binding": {
+          "parentID": null,
+          "role": "coordinator"
+        }
+      },
+      {
+        "at": 1792896981316,
+        "phase": "return",
+        "sessionID": "ses_e8f03291affev2nPinEcBH1oid",
+        "operation": "tool.before",
+        "callID": "call_1_0",
+        "tool": "task",
+        "background": false,
+        "metadataKeys": [],
+        "outputChars": null,
+        "binding": {
+          "parentID": null,
+          "role": "coordinator"
+        }
+      },
+      {
+        "at": 1792896981368,
+        "phase": "return",
+        "sessionID": "ses_e8f0326b9ffeNwKo39gnGVVJ2r",
+        "operation": "chat.message",
+        "messageID": "msg_170fcd9490012wVyVTSFw7RAv8",
+        "agent": "intake",
+        "metadataKeys": [],
+        "outputChars": null,
+        "binding": {
+          "parentID": "ses_e8f03291affev2nPinEcBH1oid",
+          "role": "intake",
+          "dispatchCallID": "call_1_0"
+        }
+      },
+      {
+        "at": 1792896981396,
+        "phase": "return",
+        "sessionID": "ses_e8f03291affev2nPinEcBH1oid",
+        "operation": "tool.after",
+        "callID": "call_1_0",
+        "tool": "task",
+        "metadataKeys": [
+          "parentSessionId",
+          "sessionId",
+          "model",
+          "truncated"
+        ],
+        "metadataSessionId": "ses_e8f0326b9ffeNwKo39gnGVVJ2r",
+        "outputChars": 105,
+        "binding": {
+          "parentID": null,
+          "role": "coordinator"
+        }
+      },
+      {
+        "phase": "sync-after-exact-read",
+        "at": 1792896981397,
+        "parent": "ses_e8f03291affev2nPinEcBH1oid",
+        "callID": "call_1_0",
+        "childID": "ses_e8f0326b9ffeNwKo39gnGVVJ2r",
+        "userID": "msg_170fcd9490012wVyVTSFw7RAv8",
+        "conflict": false,
+        "done": true,
+        "metadataChildMatches": true,
+        "metadataParentMatches": true,
+        "stopped": false,
+        "readError": false,
+        "messages": [
+          {
+            "id": "msg_170fcd9490012wVyVTSFw7RAv8",
+            "role": "user",
+            "parentID": null,
+            "finish": null,
+            "completed": false,
+            "error": false,
+            "textChars": 11
+          },
+          {
+            "id": "msg_170fcd981001QFteMwAxgx4wqj",
+            "role": "assistant",
+            "parentID": "msg_170fcd9490012wVyVTSFw7RAv8",
+            "finish": "length",
+            "completed": true,
+            "error": false,
+            "textChars": 7
+          }
+        ]
+      }
+    ],
+    "originalHooksSha256": "f12067d36fe5329fd164a48dc11bc98defaabc928d14da2cbcfbec283cb04d2b"
+  },
+  {
+    "case": "candidate-pure-stop",
+    "events": [
+      {
+        "at": 1792896983091,
+        "phase": "return",
+        "sessionID": "ses_e8f031fdfffeDHfGJutELJHpCN",
+        "operation": "chat.message",
+        "messageID": "msg_170fce026001LIePLe0J4IaB8L",
+        "agent": "coordinator",
+        "metadataKeys": [],
+        "outputChars": null,
+        "binding": {
+          "parentID": null,
+          "role": "coordinator"
+        }
+      },
+      {
+        "at": 1792896983748,
+        "phase": "return",
+        "sessionID": "ses_e8f031fdfffeDHfGJutELJHpCN",
+        "operation": "tool.before",
+        "callID": "call_1_0",
+        "tool": "task",
+        "background": false,
+        "metadataKeys": [],
+        "outputChars": null,
+        "binding": {
+          "parentID": null,
+          "role": "coordinator"
+        }
+      },
+      {
+        "at": 1792896983806,
+        "phase": "return",
+        "sessionID": "ses_e8f031d38ffeYI2qLnB5hDqRmW",
+        "operation": "chat.message",
+        "messageID": "msg_170fce2c90019OzF269Q28bxzC",
+        "agent": "intake",
+        "metadataKeys": [],
+        "outputChars": null,
+        "binding": {
+          "parentID": "ses_e8f031fdfffeDHfGJutELJHpCN",
+          "role": "intake",
+          "dispatchCallID": "call_1_0"
+        }
+      },
+      {
+        "at": 1792896983831,
+        "phase": "return",
+        "sessionID": "ses_e8f031fdfffeDHfGJutELJHpCN",
+        "operation": "tool.after",
+        "callID": "call_1_0",
+        "tool": "task",
+        "metadataKeys": [
+          "parentSessionId",
+          "sessionId",
+          "model",
+          "truncated"
+        ],
+        "metadataSessionId": "ses_e8f031d38ffeYI2qLnB5hDqRmW",
+        "outputChars": 105,
+        "binding": {
+          "parentID": null,
+          "role": "coordinator"
+        }
+      },
+      {
+        "phase": "sync-after-exact-read",
+        "at": 1792896983832,
+        "parent": "ses_e8f031fdfffeDHfGJutELJHpCN",
+        "callID": "call_1_0",
+        "childID": "ses_e8f031d38ffeYI2qLnB5hDqRmW",
+        "userID": "msg_170fce2c90019OzF269Q28bxzC",
+        "conflict": false,
+        "done": true,
+        "metadataChildMatches": true,
+        "metadataParentMatches": true,
+        "stopped": false,
+        "readError": false,
+        "messages": [
+          {
+            "id": "msg_170fce2c90019OzF269Q28bxzC",
+            "role": "user",
+            "parentID": null,
+            "finish": null,
+            "completed": false,
+            "error": false,
+            "textChars": 11
+          },
+          {
+            "id": "msg_170fce308001LoVXIBXSw77Sqi",
+            "role": "assistant",
+            "parentID": "msg_170fce2c90019OzF269Q28bxzC",
+            "finish": "stop",
+            "completed": true,
+            "error": false,
+            "textChars": 7
+          }
+        ]
+      }
+    ],
+    "originalHooksSha256": "d6bebfe7db37feb67ac17ec5c6628b3cb75d926f6e332ddccba868fcd3e94d1d"
+  }
+]

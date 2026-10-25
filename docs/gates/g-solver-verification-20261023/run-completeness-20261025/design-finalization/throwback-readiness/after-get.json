@@ -1,0 +1,193 @@
+{
+  "identity": {
+    "id": "c7cbcb4e835cbf0dddab8e6632a6005dd478d7f8d7a5d86967663feb9bc16b63",
+    "image": "sha256:ec0deee9a8a45ac74494e7dfc92357711fcf0b1e1c58543f09d6f824f3d9be98",
+    "startedAt": "2026-10-25T04:02:15.989318425Z",
+    "status": "running",
+    "network": "none",
+    "mounts": 0,
+    "portsPublished": false
+  },
+  "files": {
+    "serve.py": {
+      "sha256": "42c9cf7de1c23d44678c81e026587adcd52283bbf2517a205769b784decb5a03",
+      "git_blob": "aabe4ba47e5f46dc22475a7e08c35ee940536412",
+      "bytes": 94
+    },
+    "CTFd/__init__.py": {
+      "sha256": "fccaf6de403a5635bf1b6cc747c76a67045919cd2d6ab5af406bb35296494e13",
+      "git_blob": "13edbdd27018fc3039dc84b7b299c7b84c06fd58",
+      "bytes": 2536
+    },
+    "CTFd/config.py": {
+      "sha256": "5c1d6a62f0eea6fdbfce1ab4747a5336f0611d7dfce942756329ea81dce07108",
+      "git_blob": "aeee45702ea24f21e7676fa24abe1e9ccb8ccd21",
+      "bytes": 436
+    },
+    "CTFd/ctfd.db": {
+      "sha256": "cd025072f989db229040b70d22b8d2f7c54845825280f3830da863690c5dbb3d",
+      "git_blob": "985961989297abec1130ea99893ad914b418532d",
+      "bytes": 18432
+    },
+    "database": {
+      "path": "/root/throwback/CTFd/ctfd.db",
+      "counts": {
+        "challenges": 0,
+        "keys": 0,
+        "files": 0,
+        "solves": 0,
+        "teams": 1,
+        "config": 5,
+        "pages": 1
+      },
+      "schema": {
+        "challenges": [
+          [
+            "id",
+            "INTEGER"
+          ],
+          [
+            "name",
+            "VARCHAR(80)"
+          ],
+          [
+            "description",
+            "TEXT"
+          ],
+          [
+            "value",
+            "INTEGER"
+          ],
+          [
+            "category",
+            "VARCHAR(80)"
+          ]
+        ],
+        "keys": [
+          [
+            "id",
+            "INTEGER"
+          ],
+          [
+            "chal",
+            "INTEGER"
+          ],
+          [
+            "key_type",
+            "INTEGER"
+          ],
+          [
+            "flag",
+            "TEXT"
+          ]
+        ],
+        "files": [
+          [
+            "id",
+            "INTEGER"
+          ],
+          [
+            "chal",
+            "INTEGER"
+          ],
+          [
+            "location",
+            "TEXT"
+          ]
+        ],
+        "solves": [
+          [
+            "id",
+            "INTEGER"
+          ],
+          [
+            "chalid",
+            "INTEGER"
+          ],
+          [
+            "teamid",
+            "INTEGER"
+          ],
+          [
+            "ip",
+            "INTEGER"
+          ],
+          [
+            "date",
+            "DATETIME"
+          ]
+        ],
+        "teams": [
+          [
+            "id",
+            "INTEGER"
+          ],
+          [
+            "name",
+            "VARCHAR(128)"
+          ],
+          [
+            "email",
+            "VARCHAR(128)"
+          ],
+          [
+            "password",
+            "VARCHAR(128)"
+          ],
+          [
+            "website",
+            "VARCHAR(128)"
+          ],
+          [
+            "affiliation",
+            "VARCHAR(128)"
+          ],
+          [
+            "country",
+            "VARCHAR(32)"
+          ],
+          [
+            "bracket",
+            "VARCHAR(32)"
+          ],
+          [
+            "banned",
+            "BOOLEAN"
+          ],
+          [
+            "admin",
+            "BOOLEAN"
+          ]
+        ],
+        "config": [
+          [
+            "id",
+            "INTEGER"
+          ],
+          [
+            "key",
+            "TEXT"
+          ],
+          [
+            "value",
+            "TEXT"
+          ]
+        ],
+        "pages": [
+          [
+            "id",
+            "INTEGER"
+          ],
+          [
+            "route",
+            "VARCHAR(80)"
+          ],
+          [
+            "html",
+            "TEXT"
+          ]
+        ]
+      }
+    }
+  }
+}

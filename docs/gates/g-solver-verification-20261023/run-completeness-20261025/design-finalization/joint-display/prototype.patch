@@ -1,0 +1,285 @@
+--- a/apps/launcher/src/control-service.ts
++++ b/apps/launcher/src/control-service.ts
+@@ -1,3 +1,4 @@
++import {appendFileSync} from 'node:fs';
+ import { classifyChildResult, unknownChildResult, type ChildSource, type ChildResult } from './child-result.js';
+ import {CompletionRequests,type CompletionJudge} from './completion-tools.js';
+ // Control service (design v1 C): lives in the launcher process, owns the session binding table, the run budget
+@@ -104,6 +105,7 @@
+ interface Resource { run: string; sessionID: string; challengeId: string; callID: string; tool: string; state: 'active' | 'settled' | 'unknown'; result?: string; job?: string; controller: AbortController; deadline: number; execution?: string; timer?: ReturnType<typeof setTimeout>; done?: Promise<unknown>; detachRpc?: () => void }
+ interface TaskStopResult { state: 'stopped' | 'unknown' | 'completed' | 'failed'; resources: 'settled' | 'unknown'; sessionAbort: 'confirmed' | 'unknown' | 'not_required'; executionRef?: string }
+ interface Execution { source: ChildSource; resultFacts: ChildResult | null; version?: string; ref: string; run: string; parent: string; callID: string; role: Role; challengeId?: string; childID?: string; state: 'starting' | 'running' | 'completed' | 'failed' | 'cancelled'; delivered: boolean; noticeMessageID?: string; delivery?: 'queued' | 'consumed' | 'suppressed' | 'stop_reply'; lateResult?: string; initialOutput?: string; result?: string }
++interface SyncCall {parent:string;callID:string;role:Role;childID?:string;source:ChildSource;state: 'active' | 'reading' | 'done'; fingerprint:string;displayed:boolean;facts?:ChildResult}
+ interface Preparation {sessionID:string;execution:string;version:string;directory:string;metadata:{path:string;sha256:string;size:number}[];files:{path:string;sha256:string;size:number}[]}
+ interface Outside { execute: () => Promise<unknown> }
+ 
+@@ -140,6 +142,7 @@
+   private readonly pending = new Map<string, Map<Role, { callID: string; challengeId?: string; childID?: string; background?: boolean; version?: string }>>();
+   private readonly versions = new Map<string, string>();
+   private readonly declarations = new Map<string, Map<Role, string>>();
++  private readonly syncCalls = new Map<string,SyncCall>();
+   private readonly executions = new Map<string, Execution>();
+   private readonly childStops = new Map<string, Promise<TaskStopResult>>();
+   private readonly dispatched = new Map<string, { parent: string; role: Role }>();
+@@ -204,7 +207,7 @@
+       if (!['chat.message', 'model.call', 'tool.before', 'tool.execute', 'tool.after', 'task.event'].includes(operation)) throw new ControlDenied('unknown operation');
+       if (operation === 'task.event') return await this.serial(() => this.taskEvent(sessionID, body));
+       // Runtime-synthetic native completion is consumed once before admission; stopped runs retain it without waking.
+-      if (operation === 'chat.message') await this.receiveCompletion(sessionID, body);
++      const completionRefs = operation === 'chat.message' ? await this.receiveCompletion(sessionID, body) : [];
+       let binding: Binding | undefined;
+       if (operation !== 'tool.after') {
+         const hookAgent = typeof body.agent === 'string' ? body.agent : undefined;
+@@ -228,7 +231,18 @@
+         if (this.stopReason) throw new ControlDenied('run stopped');
+         this.live(binding!);
+         switch (operation) {
+-          case 'chat.message': this.freezeChildSource(binding!, body); return { bound: true };
++          case 'chat.message': {
++            this.freezeChildSource(binding!, body);
++            this.freezeSyncSource(binding!, body);
++            const completionDisplays = completionRefs.map(ref => {
++              const e = this.executions.get(ref)!;
++              const child = e.childID ? this.bindings.get(e.childID) : undefined;
++              if (e.parent !== sessionID || e.noticeMessageID !== body.messageID || e.delivery !== 'queued' || !child || child.state !== 'active' || Date.now() >= child.expiresAt) throw new ControlDenied('completion correlation');
++              const f = e.resultFacts!;
++              return { ref: e.ref, role: e.role, completeness: f.completeness, reason: f.reason, finish: f.finish, textChars: f.completeness === 'unknown' ? null : f.textChars, source: e.source.status };
++            });
++            return completionDisplays.length ? { bound: true, completionDisplays } : { bound: true };
++          }
+           case 'model.call': return this.admit(binding!, body);
+           case 'tool.before': return this.toolBefore(binding!, body);
+           default: return this.executeManaged(binding!, body, signal);
+@@ -236,6 +250,7 @@
+       });
+       const result = prepared && typeof prepared === 'object' && 'execute' in prepared ? await (prepared as Outside).execute() : prepared;
+       this.record(sessionID, operation, true, undefined, operation === 'model.call' ? result : { tool: body.tool, callID: body.callID, result: 'returned' });
++      if(process.env.CTF_R4_TRACE && ['tool.after','chat.message','model.call'].includes(operation))appendFileSync(process.env.CTF_R4_TRACE,JSON.stringify({hook:operation,at:Date.now(),sessionID,callID:body.callID,messageID:body.messageID,result:operation==='tool.after'?result:undefined})+'\n');
+       return result;
+     } catch (error) {
+       const denied = error instanceof ControlDenied ? error : new ControlDenied(error instanceof HttpRefused || error instanceof JobRefused || error instanceof WorkspaceRefused ? error.code : 'control error', String(error));
+@@ -477,7 +492,8 @@
+     }
+     if(binding.role==='verifier')this.verifierExecution(binding);
+     this.admitted++;
+-    for (const e of this.executions.values()) if (e.parent === binding.sessionID && e.delivery === 'queued' && e.noticeMessageID === body.messageID) { e.delivery = 'consumed'; this.record(binding.sessionID, 'task.delivered', true, undefined, {ref: e.ref, messageID: body.messageID, admitNo: this.admitted}); }
++    const requestMessageIDs = new Set(Array.isArray(body.requestMessageIDs) ? body.requestMessageIDs.filter((id): id is string => typeof id === 'string') : [body.messageID]);
++    for (const e of this.executions.values()) if (e.parent === binding.sessionID && e.delivery === 'queued' && requestMessageIDs.has(e.noticeMessageID!)) { e.delivery = 'consumed'; this.record(binding.sessionID, 'task.delivered', true, undefined, {ref: e.ref, messageID: e.noticeMessageID, admitNo: this.admitted}); }
+     return { maxOutputTokens: maxObservableTokens - this.observed, admitNo: this.admitted, role: binding.role };
+   }
+ 
+@@ -502,7 +518,14 @@
+ 
+     if (tool === 'task') {
+       if ([...this.executions.values()].some(e => e.parent === binding.sessionID && e.callID === body.callID)) throw new ControlDenied('duplicate dispatch call');
+-      this.registerDispatch(binding, typeof body.callID === 'string' ? body.callID : '', args);
++      if(args.background!==true) {
++        const key=binding.sessionID+'/'+body.callID, prior=this.syncCalls.get(key), fingerprint=fingerprintJson(args);
++        if(prior) { if(prior.state==='done')throw new ControlDenied('sync call terminal'); if(prior.fingerprint!==fingerprint){prior.source={...prior.source,status:'conflict',reason:'different_call',observedAt:Date.now()};throw new ControlDenied('sync call conflict');} return {allowed:true}; }
++        const active=[...this.syncCalls.values()].filter(c=>c.parent===binding.sessionID&&c.state!=='done'&&typeof args.task_id==='string'&&c.childID===args.task_id);
++        if(active.length){for(const c of active)c.source={...c.source,status:'conflict',reason:'multiple_calls',observedAt:Date.now()};throw new ControlDenied('sync active call');}
++        this.registerDispatch(binding,typeof body.callID==='string'?body.callID:'',args);
++        this.syncCalls.set(key,{parent:binding.sessionID,callID:String(body.callID),role:args.subagent_type as Role,childID:typeof args.task_id==='string'?args.task_id:undefined,source:{status:'unknown',userMessageID:null,reason:'missing_source',observedAt:null},state:'active',fingerprint,displayed:false});
++      } else this.registerDispatch(binding, typeof body.callID === 'string' ? body.callID : '', args);
+       if (args.background === true) {
+         const ref = randomUUID();
+         const taskID = typeof args.task_id === 'string' ? args.task_id : undefined;
+@@ -910,6 +933,8 @@
+   }
+ 
+   private taskEvent(parent: string, body: Record<string, unknown>): {ok: true} {
++    const sync=this.syncCalls.get(parent+'/'+body.callID);
++    if(sync && body.state==='error' && sync.state!=='done'){sync.state='done';sync.facts=unknownChildResult(sync.source,'native_error');for(const [role,waiting] of this.pending.get(parent)??[])if(waiting.callID===sync.callID)this.pending.get(parent)!.delete(role);this.record(parent,'sync.failed',true,undefined,{callID:sync.callID,reason:'native_error'});}
+     const execution = [...this.executions.values()].find(e => e.parent === parent && e.callID === body.callID);
+     if (!execution || body.state !== 'error' || execution.state !== 'starting') return {ok: true};
+     execution.state = 'failed'; execution.delivered = true; execution.delivery = 'stop_reply'; execution.result = typeof body.error === 'string' ? body.error : 'native task error';
+@@ -937,7 +962,19 @@
+     }
+   }
+ 
+-  private async receiveCompletion(parent: string, body: Record<string, unknown>): Promise<void> {
++  private freezeSyncSource(binding:Binding,body:Record<string,unknown>):void {
++    if(!binding.parentID)return;
++    const candidates=[...this.syncCalls.values()].filter(c=>c.parent===binding.parentID&&c.state!=='done'&&(c.childID===binding.sessionID||!c.childID&&c.callID===binding.dispatchCallID));
++    for(const c of candidates){
++      c.childID=binding.sessionID;const id=typeof body.messageID==='string'?body.messageID:null;
++      if(c.source.status==='conflict')continue;
++      if(candidates.length!==1 || c.role!==binding.role || id&&c.source.userMessageID&&id!==c.source.userMessageID)c.source={...c.source,status:'conflict',reason:candidates.length!==1?'multiple_calls':'different_user',observedAt:Date.now()};
++      else if(id)c.source={status:'associated',userMessageID:id,reason:'hook',observedAt:Date.now()};
++    }
++  }
++
++  private async receiveCompletion(parent: string, body: Record<string, unknown>): Promise<string[]> {
++    const accepted: string[] = [];
+     let suppressed = false;
+     const reads = await this.serial(() => {
+       const pending: Array<{ref:string;childID:string;source:ChildSource}> = [];
+@@ -949,6 +986,7 @@
+         const e = this.executions.get(match[3]!);
+         if (!e || e.parent !== parent || e.childID !== match[1]) throw new ControlDenied('completion correlation');
+         if (e.delivered) { e.lateResult=part.text;this.record(parent,'task.completion.ignored',true,undefined,{ref:e.ref,reason:'duplicate or late',messageID:body.messageID});throw new ControlDenied('duplicate completion'); }
++        accepted.push(e.ref);
+         e.state=match[2]==='completed'?'completed':'failed';e.result=part.text;
+         e.noticeMessageID=typeof body.messageID==='string'?body.messageID:undefined;
+         e.delivered=true;e.delivery=this.stopReason?'suppressed':'queued';
+@@ -977,10 +1015,11 @@
+       });
+     }
+     if(this.stopReason || suppressed) throw new ControlDenied('run stopped');
++    return accepted;
+   }
+ 
+   /** Audit correlation only: ties the task call to the child session reported by OpenCode, and releases an unconsumed pending slot. */
+-  private toolAfter(sessionID: string, body: Record<string, unknown>): { ok: true } {
++  private toolAfter(sessionID: string, body: Record<string, unknown>): { ok: true } | Outside {
+     if (body.tool === 'task') {
+       const metadata = (body.metadata && typeof body.metadata === 'object' ? body.metadata : {}) as Record<string, unknown>;
+       const child = typeof metadata.sessionId === 'string' ? metadata.sessionId : undefined;
+@@ -990,6 +1029,29 @@
+       const execution = [...this.executions.values()].find(e => e.parent === sessionID && e.callID === callID);
+       if (execution) { if (child && execution.childID && execution.childID !== child) throw new ControlDenied('completion correlation'); if (child) execution.childID = child; if (execution.initialOutput === undefined && typeof body.output === 'string') execution.initialOutput = body.output; }
+       for (const [, waiting] of this.pending.get(sessionID) ?? []) if (waiting.callID === callID && child) waiting.childID = child;
++      const c=this.syncCalls.get(sessionID+'/'+callID);
++      if(c && c.state==='active') {
++        c.state='reading';
++        const binding=child?this.bindings.get(child):undefined, parent=this.bindings.get(sessionID);
++        const trusted=!!child && metadata.parentSessionId===sessionID && c.childID===child && binding?.parentID===sessionID && binding.role===c.role && parent?.state==='active' && binding.state==='active' && Date.now()<Math.min(parent.expiresAt,binding.expiresAt);
++        const source={...c.source};
++        return {execute:async()=>{
++          let facts=unknownChildResult(source,trusted?'missing_source':'binding_identity');
++          if(trusted && !this.stopReason && source.status==='associated') {
++            try {const ms=(await this.options.client.session.messages({sessionID:child!},{throwOnError:true})).data;facts=ms?classifyChildResult(ms,child!,source):unknownChildResult(source,'sdk_missing');}catch{facts=unknownChildResult(source,'sdk_error');}
++          } else if(source.status==='conflict')facts=unknownChildResult(source,'source_conflict');
++          return this.serial(()=>{
++            const current=this.syncCalls.get(sessionID+'/'+callID), b=child?this.bindings.get(child):undefined, p=this.bindings.get(sessionID);
++            if(current!==c || c.state!=='reading')return {ok:true};
++            c.state='done';
++            if(this.stopReason || p?.state!=='active' || b?.state!=='active' || Date.now()>=Math.min(p.expiresAt,b.expiresAt)){c.facts=unknownChildResult(c.source,'stopped');return {ok:true};}
++            if(c.source.status!==source.status || c.source.userMessageID!==source.userMessageID || c.childID!==child)facts=unknownChildResult(c.source,'source_conflict');
++            c.facts=facts;const display={callID:c.callID,role:c.role,completeness:facts.completeness,reason:facts.reason,finish:facts.finish,textChars:facts.completeness==='unknown'?null:facts.textChars,source:c.source.status};
++            this.record(sessionID,'sync.result',true,undefined,{callID:c.callID,childID:c.childID,source:c.source,facts});
++            if(c.displayed)return {ok:true};c.displayed=true;return {ok:true,syncDisplay:display};
++          });
++        }};
++      }
+     }
+     return { ok: true };
+   }
+--- a/apps/opencode-plugin/src/index.ts
++++ b/apps/opencode-plugin/src/index.ts
+@@ -1,3 +1,4 @@
++import {appendFileSync} from 'node:fs';
+ import { tool, type Hooks } from '@opencode-ai/plugin';
+ 
+ export interface CTFPluginOptions {
+@@ -84,6 +85,8 @@
+   if (options.tools.some(name => !Object.hasOwn(schemas, name))) throw new Error('tool is not in the managed tool manifest');
+   // The plugin decides nothing: it forwards and obeys. Any transport failure, bad reply or silence is a denial.
+   const callMarker = Symbol('ctf trusted call');
++  const preparedMessages=new Map<string,{currentUserID?:string;ids:string[]}>();
++  const trace=(data:unknown)=>{if(process.env.CTF_R4_TRACE)appendFileSync(process.env.CTF_R4_TRACE,JSON.stringify(data)+'\n');};
+   type Marked = Record<symbol, { sessionID: string; callID: string; tool: string; timeoutMs: number } | undefined>;
+   const control = async (sessionID: string, operation: string, input: unknown, signal?: AbortSignal, timeoutMs?: number): Promise<unknown> => {
+     let response: Response;
+@@ -122,9 +125,22 @@
+       if (part.type === 'tool' && part.tool === 'task' && part.state.status === 'error')
+         await control(part.sessionID, 'task.event', {callID: part.callID, state: part.state.status, error: part.state.error});
+     },
+-    async 'chat.message'(input, output) { await control(input.sessionID, 'chat.message', { agent: input.agent, messageID: input.messageID ?? output.message?.id, parts: output.parts }); },
++    async 'chat.message'(input, output) {
++      const reply = await control(input.sessionID, 'chat.message', { agent: input.agent, messageID: input.messageID ?? output.message?.id, parts: output.parts }) as { completionDisplays?: Array<{ref:string;role:string;completeness:string;reason:string;finish:string|null;textChars:number|null;source:string}> };
++      for (const fact of reply.completionDisplays ?? []) output.parts.push({ id: 'prt_' + crypto.randomUUID().replaceAll('-', ''), sessionID: input.sessionID, messageID: output.message.id, type: 'text', synthetic: true, text: '[CTF host result facts] ' + JSON.stringify(fact) + '\nExecution ended does not imply a complete report; complete does not imply correct or solved.' });
++    },
++    async 'experimental.session.compacting'(input) {trace({hook:'compacting',at:Date.now(),sessionID:input.sessionID});},
++    async 'experimental.chat.messages.transform'(_input,output) {
++      const sessions=new Set(output.messages.map(m=>m.info.sessionID));
++      if(!sessions.size)preparedMessages.clear();
++      for(const session of sessions)preparedMessages.delete(session);
++      if(sessions.size===1)preparedMessages.set([...sessions][0]!,{currentUserID:output.messages.filter(m=>m.info.role==='user').at(-1)?.info.id,ids:output.messages.filter(m=>m.info.role==='user'&&m.parts.some(p=>p.type==='text'&&p.synthetic===true&&!p.ignored&&/Background task (?:completed|failed):/.test(p.text))).map(m=>m.info.id)});
++      trace({hook:'transform',at:Date.now(),sessions:[...sessions],messages:output.messages.map(m=>({id:m.info.id,role:m.info.role,notices:m.parts.filter(p=>p.type==='text'&&/Background task (?:completed|failed):/.test(p.text)).length}))});
++    },
+     async 'chat.params'(input, output) {
+-      const admitted = await control(input.sessionID, 'model.call', { agent: input.agent, provider: input.model.providerID, model: input.model.id, messageID: input.message?.id }) as { maxOutputTokens: number };
++      const prepared=preparedMessages.get(input.sessionID);preparedMessages.delete(input.sessionID);
++      trace({hook:'params',at:Date.now(),sessionID:input.sessionID,agent:input.agent,messageID:input.message?.id});
++      const admitted = await control(input.sessionID, 'model.call', { agent: input.agent, provider: input.model.providerID, model: input.model.id, messageID: input.message?.id, requestMessageIDs:prepared?.currentUserID===input.message?.id?prepared.ids:[] }) as { maxOutputTokens: number };
+       if (!Number.isFinite(admitted?.maxOutputTokens) || admitted.maxOutputTokens < 1) throw new Error('denied: control reply');
+       output.maxOutputTokens = Math.min(output.maxOutputTokens ?? admitted.maxOutputTokens, admitted.maxOutputTokens);
+     },
+@@ -137,7 +153,11 @@
+         (output.args as Marked)[callMarker] = { sessionID: input.sessionID, callID: input.callID, tool: input.tool, timeoutMs };
+       }
+     },
+-    async 'tool.execute.after'(input, output) { await control(input.sessionID, 'tool.after', { tool: input.tool, callID: input.callID, metadata: output.metadata, output: output.output }); }
++    async 'tool.execute.after'(input, output) {
++      const original=output.output;const reply=await control(input.sessionID,'tool.after',{tool:input.tool,callID:input.callID,metadata:output.metadata,output:output.output}) as {syncDisplay?:unknown};
++      if(reply.syncDisplay)output.output += '\n[CTF host synchronous result facts] '+JSON.stringify(reply.syncDisplay)+'\nExecution ended does not imply a complete report; complete does not imply correct or solved.';
++      trace({hook:'after-output',at:Date.now(),callID:input.callID,originalChars:original.length,prefixPreserved:output.output.startsWith(original),metadataKeys:Object.keys(output.metadata),addedFacts:reply.syncDisplay??null});
++    }
+   };
+ }
+ 
+--- a/tests/contract/g-async-lifecycle.test.ts
++++ b/tests/contract/g-async-lifecycle.test.ts
+@@ -69,3 +69,34 @@
+ it('host revoke during result SDK wait rejects the pending parent hook without changing natural terminal state',async()=>{const f=await resultFixture();let release!:(x:any)=>void;let entered!:()=>void;const started=new Promise<void>(r=>entered=r);f.setRead(()=>{entered();return new Promise(r=>release=r);});const notice=f.c.handle('root','chat.message',completion(f.c)).then(value=>({value}),error=>({error}));await started;await f.c.revoke('a');release({data:[{info:{id:'source-1',role:'user',sessionID:'a'}},childMessage()]});expect(await notice).toMatchObject({error:expect.any(Error)});expect(f.c.executionSnapshot()[0]).toMatchObject({state:'completed',delivery:'suppressed',resultFacts:{completeness:'unknown',reason:'stopped'}});});
+ it('duplicate notice during pending SDK read cannot read or deliver twice',async()=>{const f=await resultFixture();let release!:(x:any)=>void;let entered!:()=>void;const started=new Promise<void>(r=>entered=r);f.setRead(()=>{entered();return new Promise(r=>release=r);});const first=f.c.handle('root','chat.message',completion(f.c));await started;await expect(f.c.handle('root','chat.message',completion(f.c,0,'duplicate'))).rejects.toThrow('duplicate completion');expect(f.reads()).toBe(1);release({data:[{info:{id:'source-1',role:'user',sessionID:'a'}},childMessage()]});await first;expect(f.c.audit.filter(a=>a.op==='task.result')).toHaveLength(1);});
+ it('untrusted notice parent or child cannot start a result SDK read',async()=>{const f=await resultFixture();await expect(f.c.handle('other','chat.message',completion(f.c))).rejects.toThrow('completion correlation');const notice=completion(f.c);notice.parts[0]!.text=notice.parts[0]!.text.replace('id="a"','id="other"');await expect(f.c.handle('root','chat.message',notice)).rejects.toThrow('completion correlation');expect(f.reads()).toBe(0);expect(f.c.executionSnapshot()[0]?.state).toBe('running');});
++
++it('R2 prepared input consumes exact same-parent registered notices; active work still blocks idle',async()=>{
++ const c=await fixture();await c.handle('a','chat.message',{agent:'recon'});const first=c.executionSnapshot()[0]!;
++ const notice={messageID:'notice-one',parts:[{type:'text',synthetic:true,text:`<task id="a" state="completed">\n<summary>Background task completed: [ctf:${first.ref}]</summary>\n<task_result>done</task_result>\n</task>`}]};
++ await c.handle('root','chat.message',notice);
++ await c.handle('a','model.call',{requestMessageIDs:['notice-one']});expect(c.executionSnapshot()[0]?.delivery).toBe('queued');
++ await c.handle('root','model.call',{requestMessageIDs:['missing','wrong-parent']});expect(c.executionSnapshot()[0]?.delivery).toBe('queued');
++ await c.handle('root','tool.before',{tool:'task',callID:'active',args:{subagent_type:'intake',background:true}});
++ await c.handle('root','model.call',{requestMessageIDs:['notice-one','notice-one','missing']});expect(c.executionSnapshot()[0]?.delivery).toBe('consumed');expect(c.hasOutstandingWork({root:{type:'idle'}})).toBe(true);
++ const n=c.audit.filter(r=>r.op==='task.delivered').length;await c.handle('root','model.call',{requestMessageIDs:['notice-one']});expect(c.audit.filter(r=>r.op==='task.delivered')).toHaveLength(n);
++ await c.stopAll('budget');await expect(c.handle('root','model.call',{requestMessageIDs:['notice-one']})).rejects.toThrow('run stopped');
++});
++
++async function syncFixture(){const f=await resultFixture();await f.c.handle('root','chat.message',completion(f.c));await f.c.handle('root','tool.before',{tool:'task',callID:'sync-1',args:{subagent_type:'recon',task_id:'a',background:false}});await f.c.handle('a','chat.message',{agent:'recon',messageID:'sync-user'});f.set([{info:{id:'sync-user',role:'user',sessionID:'a'}},{info:{id:'sync-reply',sessionID:'a',role:'assistant',parentID:'sync-user',finish:'stop',time:{completed:1}},parts:[{type:'text',text:'done'}]}]);return {...f,after:(md:any={parentSessionId:'root',sessionId:'a'})=>f.c.handle('root','tool.after',{tool:'task',callID:'sync-1',metadata:md,output:'native envelope'})};}
++it('R4 sync facts preserve old ref and repeated before/after are idempotent',async()=>{const f=await syncFixture();const old=f.c.executionSnapshot()[0]!;await f.c.handle('root','tool.before',{tool:'task',callID:'sync-1',args:{subagent_type:'recon',task_id:'a',background:false}});const n=f.reads();expect(await f.after()).toMatchObject({syncDisplay:{callID:'sync-1',completeness:'complete',textChars:4}});expect(await f.after()).toEqual({ok:true});expect(f.reads()).toBe(n+1);expect(f.c.executionSnapshot()).toHaveLength(1);expect(f.c.executionSnapshot()[0]).toEqual(old);});
++it('R4 different sync user is persistent unknown and cannot consume queued background',async()=>{const f=await syncFixture();await f.c.handle('a','chat.message',{agent:'recon',messageID:'other'});await f.c.handle('root','tool.before',{tool:'task',callID:'sync-1',args:{subagent_type:'recon',task_id:'a',background:false}});await f.c.handle('a','chat.message',{agent:'recon',messageID:'sync-user'});const n=f.reads();expect(await f.after()).toMatchObject({syncDisplay:{completeness:'unknown',reason:'source_conflict',textChars:null}});expect(f.reads()).toBe(n);expect(f.c.executionSnapshot()[0]?.delivery).toBe('queued');});
++it('R4 wrong sync metadata refuses SDK read and leaves background queued',async()=>{const f=await syncFixture();const n=f.reads();expect(await f.after({parentSessionId:'other',sessionId:'a'})).toMatchObject({syncDisplay:{completeness:'unknown',reason:'binding_identity'}});expect(f.reads()).toBe(n);expect(f.c.executionSnapshot()[0]?.delivery).toBe('queued');});
++it('R4 incomplete second assistant remains ambiguous',async()=>{const f=await syncFixture();f.set([{info:{id:'sync-user',role:'user',sessionID:'a'}},{info:{id:'one',role:'assistant',sessionID:'a',parentID:'sync-user',finish:'stop',time:{completed:1}},parts:[{type:'text',text:'done'}]},{info:{id:'two',role:'assistant',sessionID:'a',parentID:'sync-user',time:{created:2}},parts:[]}]);expect(await f.after()).toMatchObject({syncDisplay:{completeness:'unknown',reason:'multiple_assistants'}});});
++it('R4 SDK error remains scoped to sync call',async()=>{const f=await syncFixture();f.setRead(async()=>{throw Error('offline')});expect(await f.after()).toMatchObject({syncDisplay:{completeness:'unknown',reason:'sdk_error'}});expect(f.c.executionSnapshot()[0]?.delivery).toBe('queued');});
++it.each(['stop','conflict'])('R4 SDK await rechecks %s before display',async(mode)=>{const f=await syncFixture();let entered!:()=>void,release!:(v:any)=>void;const started=new Promise<void>(r=>entered=r);f.setRead(()=>{entered();return new Promise(r=>release=r)});const pending=f.after();await started;if(mode==='stop')await f.c.stopAll('deadline');else await f.c.handle('a','chat.message',{agent:'recon',messageID:'changed'});release({data:[{info:{id:'sync-user',role:'user',sessionID:'a'}},{info:{id:'one',role:'assistant',sessionID:'a',parentID:'sync-user',finish:'stop',time:{completed:1}},parts:[{type:'text',text:'done'}]}]});if(mode==='stop')expect(await pending).toEqual({ok:true});else expect(await pending).toMatchObject({syncDisplay:{completeness:'unknown',reason:'source_conflict'}});});
++it('R4 simultaneous sync call makes prior conflict persistent',async()=>{const f=await syncFixture();await expect(f.c.handle('root','tool.before',{tool:'task',callID:'sync-2',args:{subagent_type:'recon',task_id:'a',background:false}})).rejects.toThrow('sync active call');expect(await f.after()).toMatchObject({syncDisplay:{reason:'source_conflict'}});});
++
++it('R4 failed background notice receives facts and exact prepared ID consumption',async()=>{const f=await resultFixture();const n=completion(f.c);n.parts[0]!.text=n.parts[0]!.text.replace('state="completed"','state="error"').replace('Background task completed:','Background task failed:');expect(await f.c.handle('root','chat.message',n)).toMatchObject({completionDisplays:[{ref:f.c.executionSnapshot()[0]!.ref}]});await f.c.handle('root','model.call',{requestMessageIDs:[n.messageID]});expect(f.c.executionSnapshot()[0]).toMatchObject({state:'failed',delivery:'consumed'});});
++
++it('R4 conflicting duplicate call is denied before new native dispatch and prior conflict persists',async()=>{const f=await syncFixture();await expect(f.c.handle('root','tool.before',{tool:'task',callID:'sync-1',args:{subagent_type:'unknown',task_id:'foreign',background:false}})).rejects.toThrow('sync call conflict');expect(await f.after()).toMatchObject({syncDisplay:{completeness:'unknown',reason:'source_conflict'}});expect(f.c.executionSnapshot()).toHaveLength(1);});
++
++it('R4 trusted native error terminates only sync call and permits a new call',async()=>{const f=await syncFixture();await f.c.handle('root','task.event',{callID:'sync-1',state:'error'});expect(await f.after()).toEqual({ok:true});await expect(f.c.handle('root','tool.before',{tool:'task',callID:'sync-2',args:{subagent_type:'recon',task_id:'a',background:false}})).resolves.toEqual({allowed:true});expect(f.c.executionSnapshot()[0]?.delivery).toBe('queued');expect(f.c.audit.filter(a=>a.op==='sync.failed')).toHaveLength(1);});
++
++it('R4 terminal sync before replay is denied while after replay has no side effect',async()=>{const f=await syncFixture();await f.after();await expect(f.c.handle('root','tool.before',{tool:'task',callID:'sync-1',args:{subagent_type:'recon',task_id:'a',background:false}})).rejects.toThrow('sync call terminal');expect(await f.after()).toEqual({ok:true});expect(f.c.audit.filter(a=>a.op==='sync.result')).toHaveLength(1);});
++
++it('R4 first synchronous call error before binding releases only its pending role',async()=>{const c=await fixture();await c.handle('root','tool.before',{tool:'task',callID:'sync-first',args:{subagent_type:'intake',background:false}});await c.handle('root','task.event',{callID:'sync-first',state:'error'});await expect(c.handle('root','tool.before',{tool:'task',callID:'sync-next',args:{subagent_type:'intake',background:false}})).resolves.toEqual({allowed:true});await c.handle('root','task.event',{callID:'sync-first',state:'error'});await expect(c.handle('root','tool.before',{tool:'task',callID:'sync-third',args:{subagent_type:'intake',background:false}})).rejects.toMatchObject({message:'denied: dispatch',detail:'pending dispatch exists for role'});expect(c.executionSnapshot()[0]?.state).toBe('starting');});
+--- a/tests/contract/opencode.test.ts
++++ b/tests/contract/opencode.test.ts
+@@ -150,3 +150,24 @@
+   });
+ 
+ });
++
++
++it('R2 transform snapshots require matching current user, clear after use/rejection and reject mixed/empty input',async()=>{
++ const {createCtfAgentHooks}=await import('../../apps/opencode-plugin/src/index.js');
++ const requests:any[]=[];let denied=false;
++ const mocked=vi.spyOn(globalThis,'fetch').mockImplementation(async(_url,init)=>{requests.push(JSON.parse(String(init?.body)));if(denied)throw Error('offline');return new Response(JSON.stringify({result:{maxOutputTokens:100}}),{status:200});});
++ try {
++ const h=createCtfAgentHooks({controlUrl:'http://127.0.0.1:12345',controlToken:'x'.repeat(40),tools:[]});
++ const msg=(id:string,sessionID='root',ignored=false)=>({info:{id,sessionID,role:'user'},parts:[{type:'text',synthetic:true,ignored,text:'Background task completed:'}]});
++ const transform=async(messages:any[])=>h['experimental.chat.messages.transform']!({}, {messages} as never);
++ const params=async(id:string)=>h['chat.params']!({sessionID:'root',message:{id},model:{providerID:'stub',id:'scripted'}} as never,{} as never);
++ await transform([msg('one'),msg('two')]);await params('two');expect(requests.at(-1).input.requestMessageIDs).toEqual(['one','two']);
++ await params('two');expect(requests.at(-1).input.requestMessageIDs).toEqual([]);
++ const failed=msg('failed');failed.parts[0]!.text='Background task failed:';await transform([failed]);await params('failed');expect(requests.at(-1).input.requestMessageIDs).toEqual(['failed']);
++ await transform([msg('one')]);await params('new');expect(requests.at(-1).input.requestMessageIDs).toEqual([]);
++ await transform([msg('one')]);await transform([msg('one'),msg('other','other')]);await params('one');expect(requests.at(-1).input.requestMessageIDs).toEqual([]);
++ await transform([msg('one')]);await transform([]);await params('one');expect(requests.at(-1).input.requestMessageIDs).toEqual([]);
++ await transform([msg('one', 'root',true)]);await params('one');expect(requests.at(-1).input.requestMessageIDs).toEqual([]);
++ await transform([msg('one')]);denied=true;await expect(params('one')).rejects.toThrow('denied');denied=false;await params('one');expect(requests.at(-1).input.requestMessageIDs).toEqual([]);
++ } finally {mocked.mockRestore();}
++});
