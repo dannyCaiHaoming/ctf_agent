@@ -1,6 +1,6 @@
-# Root §7.1 实作验收
+# Root 最终报告实作验收
 
-主区仅接入 launch.ts、progress-ledger.ts、root-result.ts 与 launch-evidence.test.ts 四个文件的本次增量；精确差异见 final-implementation.patch（相对开工dirty快照，不是HEAD）。当前设计与限制见详细design §8。
+主区仅接入 launch.ts、progress-ledger.ts、root-result.ts 与 launch-evidence.test.ts 四个文件的本次增量；精确差异见 final-implementation.patch（相对开工dirty快照，不是HEAD）。当前设计与限制见详细design §4.1／§6。
 
 main-verification.json 与 main-test.log 记录主区 typecheck/build/test 通过，49文件430项。review-final.md 关闭review.md的唯一P2测试缺口，mutation日志显示错误实现的读取次数为5而正确要求为7，生产源码恢复hash见review-fix-restore.json。原生四例native-minimal-evidence.json来自固定1.19.3、本地替身、最终生产源码；测试修正未改变该源码，未重复模型链。
 
