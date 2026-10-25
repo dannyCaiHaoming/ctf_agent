@@ -1,0 +1,182 @@
+{
+  "scope": "One native scripted Solver -> Coordinator -> Critic text transport; no product model or source experiment",
+  "executionDate": "2026-10-25 Asia/Tokyo; handoff prepared 2026-10-26",
+  "worktreeIdentity": "/Users/caihaoming/.codex/worktrees/critic-factual-handoff-minimal/pentest-agent",
+  "head": "fdbbce44579ca3a951be8c7fc408fa6a9db2d420",
+  "baseline": {
+    "source": "/Users/caihaoming/Documents/pentest-agent",
+    "branch": "main",
+    "count": 51,
+    "bytes": 544910,
+    "aggregateMethod": "sha256(sorted path + TAB + sha256 + LF)",
+    "aggregateSha256": "868dc6767111683385177239b551634c7cd90b484d8b53af5c7c1064855334ce"
+  },
+  "baselineManifest": "runs/critic-factual-handoff-minimal/baseline-manifest.json (ignored review material)",
+  "mainDriftAtDelivery": [],
+  "nativeDriverOrigin": [
+    {
+      "path": "runs/task-parameter-minimal/native/native-probe.ts",
+      "sha256": "912b69b2c63e58783b354967a44be646432e1f6d1cd286edda4264cfd3033e79"
+    },
+    {
+      "path": "runs/task-parameter-minimal/native/run-native.sh",
+      "sha256": "03dad8720f597865ce83e6d75f5cd19aa1fc3f931303d595484c22861f592067"
+    },
+    {
+      "path": "runs/task-parameter-minimal/native/isolation.sb",
+      "sha256": "5eb288c591e3873a847481030de40a1772b49073b83cd7129964f195990525a7"
+    }
+  ],
+  "nativeDriverCurrent": {
+    "native-probe.ts": "c31df7499feb46d378e050157ddf8bcfaa6cfef11332719603bc8b3f2b672e2a",
+    "run-native.sh": "03dad8720f597865ce83e6d75f5cd19aa1fc3f931303d595484c22861f592067",
+    "isolation.sb": "5eb288c591e3873a847481030de40a1772b49073b83cd7129964f195990525a7"
+  },
+  "runtimeSources": {
+    "count": 46,
+    "aggregateSha256": "b6eb31ba13654bad242038e01bfeb8acb71a5d1ecaeb9b8ed50c8356a00f77f9",
+    "manifest": "runs/critic-factual-handoff-minimal/native/attempt-success.zC1JXs/runtime-source-hashes.json"
+  },
+  "versions": {
+    "node": "v26.3.0",
+    "opencode": "1.19.3",
+    "sdk": "1.19.0",
+    "plugin": "1.19.0"
+  },
+  "isolation": {
+    "external": "EPERM",
+    "envKeys": [
+      "HOME",
+      "PATH",
+      "PROBE_MODE",
+      "PROBE_OUT",
+      "XDG_CACHE_HOME",
+      "XDG_CONFIG_HOME",
+      "XDG_DATA_HOME",
+      "__CF_USER_TEXT_ENCODING"
+    ],
+    "home": "/tmp/ctf-background-native.APX8kI",
+    "note": "env -i, HOME/XDG isolated; inherited loopback-only sandbox; no real provider"
+  },
+  "commands": [
+    {
+      "command": "runs/critic-factual-handoff-minimal/native/run-native.sh success",
+      "attempt": "runs/critic-factual-handoff-minimal/native/attempt-success.stZEXB",
+      "exit": 1,
+      "result": "driver terminal notification matcher expected role name absent from native notification; phase 3 != 4; source reached critic",
+      "driverSha256": "45f3afb6c39dc85ba1af996706aba300610424a840084b4fd5be43f192d24438",
+      "failure": "AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:\n\n3 !== 4\n"
+    },
+    {
+      "command": "runs/critic-factual-handoff-minimal/native/run-native.sh success",
+      "attempt": "runs/critic-factual-handoff-minimal/native/attempt-success.zC1JXs",
+      "exit": 0,
+      "result": "PASSED_LOCAL_TEXT_TRANSPORT_ONLY",
+      "driverCorrection": "match received completion output marker rather than nonexistent role name; no product change"
+    },
+    {
+      "command": "node_modules/.bin/vitest run tests/contract/opencode-config.test.ts",
+      "exit": 0,
+      "tests": {
+        "passed": 2,
+        "failed": 0
+      },
+      "version": "2.1.9",
+      "logSha256": "5b42d631e40c3fd8635a7f8fd44894ca624c1f7c0f3e450741785d8efcffd28f"
+    }
+  ],
+  "transport": {
+    "sourceChars": 864,
+    "sourceSha256": "a871a05c6ef630038823006aca1bb979902a5591e8cd66bdf1145c75acc326a3",
+    "parentSha256": "a871a05c6ef630038823006aca1bb979902a5591e8cd66bdf1145c75acc326a3",
+    "criticSha256": "a871a05c6ef630038823006aca1bb979902a5591e8cd66bdf1145c75acc326a3",
+    "exactEqual": true,
+    "executions": [
+      {
+        "role": "domain-solver",
+        "ref": "9742ea4e-614f-4868-9233-42cb89c6cdb0",
+        "state": "completed",
+        "resultFacts": {
+          "userMessageID": "msg_173910d0a00146ubrcQC7vM0w2",
+          "assistantMessageID": "msg_173910d12001Yo5MN114fPttkq",
+          "finish": "stop",
+          "completed": true,
+          "textChars": 898,
+          "hasError": false,
+          "completeness": "complete",
+          "reason": "stop",
+          "observedAt": 1792940248363
+        }
+      },
+      {
+        "role": "recovery-critic",
+        "ref": "7cfdc6ab-4af0-486e-a75d-c82761aa0f2a",
+        "state": "completed",
+        "resultFacts": {
+          "userMessageID": "msg_173910d3c001YP3HxlkuunKC4n",
+          "assistantMessageID": "msg_173910d44001BGvY7BhEhjOEd8",
+          "finish": "stop",
+          "completed": true,
+          "textChars": 87,
+          "hasError": false,
+          "completeness": "complete",
+          "reason": "stop",
+          "observedAt": 1792940248410
+        }
+      }
+    ],
+    "assetEvidence": [
+      {
+        "path": "product/opencode/agents/coordinator.md",
+        "sha256": "a45957bfbb769c4ca7003753b50c48b9f701c8921a927f8afe27520f8df9a40c",
+        "copied": true
+      },
+      {
+        "path": "product/opencode/agents/recovery-critic.md",
+        "sha256": "9bbc7ce7b33f17ddcd17e8e09bdcd6673c64ef5b238cc507ce40c35d997819f5",
+        "copied": true
+      },
+      {
+        "path": "product/skills/web-session-diagnosis/SKILL.md",
+        "sha256": "5d09095c1036d410671efc15a7afdf26b664a37218ebf8c83759346e5d83e8a3",
+        "copied": true
+      }
+    ],
+    "rolePromptsVisible": true,
+    "skillBodyVisible": false,
+    "skillCheck": "copied hash + native inventory; no skill invocation requested",
+    "requestCounts": {
+      "root": 6,
+      "solver": 1,
+      "critic": 1
+    },
+    "noSourceExperiment": true,
+    "judgment": "scripted; not validated",
+    "usage": "scripted counters; real provider usage unavailable"
+  },
+  "criticActualPrompt": "PROBE_ROLE_critic\n請復核：這些給定事實能支持什麼局部結論？全環境不存在的主張是否有依據？缺什麼及能否合理停止？\nOBSERVATION_BEGIN\nsourceRole=domain-solver; observation=synthetic-c0137d8f-1d63-418d-9528-b8983b64ac46\nsource=local-scripted/observation (synthetic, not an executed search)\nscope=corpus/a.txt only; pattern=LOCAL_MARKER; no other files inspected\nsearch_status=2; stderr excerpt=grep: unrecognized option: R; stdout=empty\ndownstream_head_status=0; HTTP_status=200; local_job_status=unavailable (all scripted)\ncompleteness=bounded excerpt only; original raw output not provided\nunknown=search validity of an earlier empty response lacks status/stderr; other locations unexamined\ncounterevidence=the search error contradicts a claimed valid no-match; repeated summaries have one source\nsupported_local_conclusion=scripted failed search is not a no-match; no claim about whole environment\nstop_reason=budget unavailable for new observations; this does not establish an environment defect\nOBSERVATION_END\n",
+  "rawTextEvidence": {
+    "solver-result.txt": "1da229aac19ae129a6ab0eb0caf9d62e49226bf44568d4a81fadff2233b62bfa",
+    "parent-received.txt": "e659eb43b9ee29a02335643662de6c2205c7e3026b078a131de9293235c8da1b",
+    "forwarded-prompt.txt": "83fe484831e80828ed7716cbaeb38805c8450cda01f2658b92a0a3fc4ff7170d",
+    "critic-received-prompt.txt": "83fe484831e80828ed7716cbaeb38805c8450cda01f2658b92a0a3fc4ff7170d",
+    "requests-compact.jsonl": "d4a874588ae0114fcccefbe46b3310291549372037932268efaffbd5fe6ef7c2",
+    "responses-compact.jsonl": "7c36fbf950b871927d03f135a33e11a95228314f918d016d22b02491f58a47c1"
+  },
+  "sourceFieldPreservation": "search status, stderr excerpt, scope, source marker, completeness gap, unknowns, counterevidence and stop limitation have exact equal observation bytes",
+  "promptReview": "Manual comparison with design: retain errors and tool-specific no-match semantics; distinguish downstream/HTTP/local status; bounded-search scope; same-source repetition; existing-record-first gap handling and budget stop. Text review is not model behavior validation.",
+  "notProven": [
+    "Solver evidence collection",
+    "Coordinator autonomous excerpt selection/fidelity",
+    "Critic judgment or rational stopping",
+    "Skill body used at runtime",
+    "independent raw evidence authentication",
+    "enforced redaction",
+    "token cost or cross-challenge behavior",
+    "verified/accepted/solved"
+  ],
+  "usage": "unavailable for real provider; scripted counters are synthetic",
+  "noCommitPush": true,
+  "noProductSourceChange": true,
+  "remainingOwner": "Main assistant reviews isolated delta, syncs core G/H, merges only delta, removes temporary plan and archives worktree."
+}

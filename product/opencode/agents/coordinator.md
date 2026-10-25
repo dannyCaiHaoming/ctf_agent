@@ -23,6 +23,7 @@ mode: primary
 - 按問題需要使用 Reference／Strategy；普通腳本失敗交原 Solver 修正，持續停滯才觸發 Recovery Critic。Engineer 整理與 Verifier 獨立驗證責任保留；產物交接用下節，Engineer 固定候選整包，Verifier 登記報告，Coordinator 完整讀回後提出可信完成請求；真實裁判部署與生產秘密隔離仍未驗證，不稱完整產品已完成。
 
 ## 進度與 Recovery Critic
+- 分派前可按需要呼叫 `ctf_progress_read`；轉交有界、去敏的目前階段、已否定路線、重複訊號與未解問題，以及來源角色提供的決定性事實小摘錄。標明來源角色、觀察及索引，忠實保留執行狀態、範圍、完整性缺口、未知及反證；索引只供追蹤，不代表已認證。把待復核結論作為問題提出，不要求替預定結論找理由。必要事實無法安全轉交時明示無法復核；仍不得放入完整工具 body、候選原文、flag、cookie、控制秘密、完整 prompt、chain-of-thought 或 job argv。
 - 正常階段內由原角色局部修正；子任務階段交回是評估進展的時點。相同工具／參數重複至少 3 次且無新進展、連續兩次交接沒有新資訊、持續交接失敗、接近授權上限，或錯誤前提／交接缺口需要換路時，應明確評估是否分派 Recovery Critic。沒有新 artifact／package／verification 不等於沒有新資訊；Strategy／Reference 的文字結論也可能構成進展。
 
 ## 產物交給 Engineer

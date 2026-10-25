@@ -1,6 +1,6 @@
 # design v1 G／H：否定证据与路线复核
 
-日期：2026-10-25（Asia/Tokyo）。状态：**原失败模式的同版本无模型对照与现有 HTTP 保存／workspace 读回已验证；未实施产品修改，未做模型行为验证。** 本文是[核心 design v1](2026-10-22-ctf-agent-design-v1.md) G／H 的详细子文件，细节以本文为准。第一优先级[创建方式保存与续接漏参补齐](2026-10-25-design-v1-sync-resume-provenance.md)已完成并合回主区。本次依用户授权，仅执行第二优先级的最小无模型取证验证并回写结果；未运行原题或产品模型。
+日期：2026-10-26（Asia/Tokyo）。状态：**源头取证与事实交接三处提示已实施并合回主区；原生脚本文本交接通过，未做模型行为验证。** 本文是[核心 design v1](2026-10-22-ctf-agent-design-v1.md) G／H 的详细子文件，细节以本文为准。第一优先级[创建方式保存与续接漏参补齐](2026-10-25-design-v1-sync-resume-provenance.md)已完成并合回主区。第二优先级已完成最小无模型取证验证；此前只读复核第三优先级；本次按已确定职责仅修改三个 Markdown 提示并验证一条无模型原生文本交接，结果见 §3.4；未运行原题或产品模型。
 
 ## 1. 当前证据与纠正
 
@@ -64,7 +64,7 @@ Root 有最终正文，不能继续称为“Root 没返回”。后续原记录�
 
 **在本地条件内定稿的方法与表达：** 使用已有运行时分别捕获搜索自身状态、stderr、有界 stdout 与有限范围，若保留下游裁剪须分别记录其状态；错误或状态丢失时保留未知。现有 HTTP 保存／受管读取可承载这些事实，不需要新增 host 包装器、schema、角色或输出限额。过程状态仍是响应中的目标执行事实，本次本地直接观察可对照，不由此升级为 host 对任意远端状态的独立认证。
 
-**建议替换位置（未修改 Skill）：** `product/skills/web-session-diagnosis/SKILL.md` 的 `Check response continuation and business postconditions` 第 4 项；保留其空白／重复响应不得无依据重试的约束，替换为下面的候选表达。`Interpret results` 与 `Stop and change direction` 的已有有限反证规则继续保留，不再叠加同义警告：
+**取证验证时的建议替换位置（当时未修改 Skill，本次落实见 §3.4）：** `product/skills/web-session-diagnosis/SKILL.md` 的 `Check response continuation and business postconditions` 第 4 项；保留其空白／重复响应不得无依据重试的约束，替换为下面的候选表达。`Interpret results` 与 `Stop and change direction` 的已有有限反证规则继续保留，不再叠加同义警告：
 
 > If the response is empty, unchanged, or repeated, record its limits and do not repeat without new evidence or a justified input change. For a decisive remote search, retain the search process's own status, stderr, bounded stdout, and searched scope using available capabilities. Keep its status separate from downstream commands, HTTP, and local jobs. Interpret no-match status according to the actual tool; if status, errors, or necessary output are unavailable, preserve search validity as unknown. Hand off the supported local conclusion with a small decisive excerpt and its source.
 
@@ -76,26 +76,64 @@ Root 有最终正文，不能继续称为“Root 没返回”。后续原记录�
 
 ## 3. 第三优先级：Critic 独立复核关键前提和未完成线索
 
-**唯一目标：** 对影响换路或停止的关键主张，Critic 能核对其事实依据和推断范围，不将 Coordinator 的转述当独立证据。
+**唯一目标：** 对影响换路或停止的主张，Critic 检查给定事实是否足以支持结论，指出未核实前提、范围跳跃和未解决线索。这里的独立是判断独立；通过 Coordinator 转交摘录，不等于 Critic 独立读取或认证了原始证据。
 
-**当前真实能力边界已核对：** `checkReadPath` 将原生 read 限于 Skill 根；受管 workspace／artifact 读取要求 challenge 绑定及解题角色，Recovery Critic 不在其中。`progressDigest` 只投影工具操作／结算与重复信号，不保存 HTTP body、远端 stderr 或退出状态。因此本次不能再泛称“Critic 已有原始证据读取能力”；仅给 ref 或调用 progress.read 并不能补齐关键事实。
+### 3.1 原失败的直接原因及当前接口
 
-**优先的最小方案：** 复用现有 Coordinator→Critic 原生 task prompt，传待复核主张、来源角色／调用索引、第二优先级保留的决定性事实小摘录及其缺口。Coordinator 转交可核对事实，不先把它包装成“均已证实”；同一来源的复述不计成多份独立证据。去掉要求“理由必须对上部署缺口”这类预设结论的问法，改为核对建议是否由当前证据支持。
+本次只读重核 Coordinator 消息文件 `messages-ses_e8e06bb50ffe1yvaOTkP48LRz4.json` 第 14 条的 task `call_00_x1a1txgx8jlnyshx7gbmsp8l`，及 §1 指定 Critic 消息文件：
 
-Critic 的独立性是独立检查“这些事实是否足以得出该结论”，不等于再执行一遍实验。证据未给、来源未确认或范围不足时，指出具体缺口，建议原 Solver 做最小补查；不通过开放 sibling work、原始会话、服务器日志或实验权限来兜底。仍沿用现有来源角色回传与 Coordinator 续接，无新角色、工具、自动调度或统一消息框架。
+- Coordinator 把“全 rootfs 扫描零笔”等称为“均为工具实测”，没有交付搜索自身状态、错误和覆盖限制；同时要求停止理由对应“部署缺口”。这既把推断预先包装成事实，又限定了期望结论。
+- Critic 只调用 `ctf_progress_read` 和 `ctf_progress_note`，随后把同源摘要称为“8 项独立证据”，用所谓全盘扫描否定未查位置，并把剩余两项补查全负预定为部署缺口成立。问题包含证据来源、搜索有效性和推断范围三项，不只是遗漏某个目录。
+- `progress-ledger.ts` 的 `safeDetail` 把 `tool.settled` 投影为 callID／tool／job／result／durationMs；`progress.note` 同样可由模型填写。工具调用记录能证明发生过操作，不能证明对应搜索有效；模型摘要进入宿主账本也不会变成宿主认证的题目事实。
+- `control-service.ts` 的 `checkReadPath` 把原生 read 限于 Skill 根；`checkSolver` 要求 challenge 绑定及解题角色，Coordinator 和 Recovery Critic 均没有普通 workspace／artifact 读取能力。仅给路径或 ref 不能使它们自行核查正文。复核时 Coordinator 的“進度與 Recovery Critic”段禁止把工具 body 放入 Critique 任务，与小摘录方案冲突；本次隔离区已替换该段，见 §3.4。
 
-去敏的小摘录不是完整工具 body、候选 bytes、flag、cookie 或控制秘密。若必要事实不能在当前安全边界内提供，应保留“无法复核”，不能编摘要来冒充独立核对，也不能因发布失败就把未确认的观察当已证实。第一优先级消除了漏参造成的后台发布失败，不自动让 Critic 获得读取权限或具备正确判断能力。
+因此，当前小摘录方案能解决“只传结论，缺乏判断材料”的输入问题，但仍依赖来源角色保留并忠实选择事实，不能宣称已消除摘要遗漏或失真的全部可能。第二优先级只验证了取证／读回可行性；本次已落实 Skill 措辞，但不能假定真实 Solver 已会生成这种交接。
 
-**判断契约：** 区分无可验证候选、搜索有效性未知、仅所查范围未命中、证据支持具体环境缺陷，以及预算／权限导致必须停止。允许在没有授权内可行下一步时停止，不能把停止理由提升为“全环境没有答案”。未验证的题面线索是未解决项，不是指定某条题目解法。
+### 3.2 选定的最小修正及其边界
 
-**不采用：** 增加 Critic 次数或另加 judge；让 Critic 只对同一个摘要换一种说法；没有必要即新增读取接口。若事实小摘录不足以完成原样例核对，先报告缺的具体信息，再决定是否需一个受限的既有引用读取能力，不能预先设计通用证据平台。
+沿用现有来源角色 → Coordinator → Critic 的原生 task 文本交接：
 
-**验收边界：** 先核对原 Coordinator→Critic 输入能否携带必要事实，及当前角色是否能在既有接口下取得它们；分别保留“输入可达”与“判断正确”的结论。行为样例只覆盖失败搜索误报、同源摘要重复、未验证线索、以及证据充分或授权耗尽时合理停止；不要求无限继续。模型效果须另授权预算，不向提示注入本题答案或专属捷径。
+1. 来源角色在决定性观察的结果中提供有限范围、实际执行状态、必要错误／输出小摘录、完整性缺口和来源索引，明确哪些是观察、哪些是推断。原文未保留就写缺失，不让后续角色补编。本步依赖 §2 的源头取证修正；已有产物发布约束继续适用，不另为每次复核强制发布。
+2. Coordinator 转交这些决定性事实及其限制，把待复核结论作为问题提出。摘录必须标明来自哪个角色的哪次观察，保持其状态与原文含义；来源索引只供追踪，不等于已认证。保留与主张相冲突的事实，不能把“未知”压缩成“未命中”，也不要求 Critic 为某个预定结论找理由。
+3. Critic 分别判断事实来源／有效性是否已说明，以及即使这些事实成立、是否足以支持当前结论。摘要被多个角色重复不增加独立证据数量；有效的有限搜索也不能自动证明整个环境不存在答案。原记录中“源码在某处”的题面线索不能直接改称“答案只在该处”；线索未验证应保持未解决，不在本设计指定题目解法。
+4. 资料不足时，Critic 指出一个会影响当前决策的具体缺口，由 Coordinator 决定是否在现有权限和预算内交原 Solver 补充。补充已有记录优先于重做实验；缺口确需新观察才提出有依据的最小实验。没有可执行的授权路径时可以停止，并把停止原因与环境事实分开记录，不要求为了取得确定结论无限搜索。
+
+**提示修改位置（本次隔离区已实施，见 §3.4）：** Coordinator 的“進度與 Recovery Critic”转交规则应允许必要的去敏事实小摘录，同时继续禁止完整工具 body、候选原文、flag、cookie、控制秘密、完整 prompt／chain-of-thought／job argv；Recovery Critic 的“交付”应明确上述事实与推断复核职责，并使用已有 summary／blocker／nextAction 表达，不新增 schema。Solver 的取证交接归 §2，不在第三优先级复制一套规则。
+
+去敏不是对任意正文安全性的程序保证；无法在现有边界内提供必要事实时明确“无法复核”，不能编写替代摘要冒充证据。Critic 只看到来源角色转交的小摘录时，应保留这一来源限制；禁止称“已独立核验原始输出”。是否另需受限读取能力仍未定：只有具体样例证明现有交接缺少不可替代的信息，才讨论该缺口，不预先增加读取接口、角色权限或通用证据平台。
+
+### 3.3 是否针对根因，以及需要什么验证
+
+本方案直接修改产生误判的输入与推理任务：从“接受已经证明的摘要，并解释为何应停止”改为“核对观察是否有效、结论是否超出观察”。它针对交接与推断这段因果链；第二优先级负责在实验处保留事实，二者缺一不能宣称解决完整原问题。再加 Critic 次数、错误词检测、强制换路或固定补查轮数，都不能替代这两个修正。
+
+**已能决定：** 先修改现有交接／复核提示契约；保留 Critic 建议、Coordinator 决策、Verifier 验证的责任边界；不因本次误判增加实验权限。停止可以由预算／权限／当前无可行下一步支持，环境缺陷必须有相应证据；“没有可验证候选”不升级为“全环境没有答案”。
+
+**仍未证明及最小验证问题：**
+
+- 输入能否保真到达：§3.4 已在具体版本／隔离配置下验证一条原生 scripted 链，状态、小摘录、来源及限制逐字符到达。脚本如何选择和转交由开发者写定，尚未证明真实 Coordinator 会自行忠实选材；不据此重跑整个靶场或扩展生命周期。
+- 模型会不会按修正后的职责判断：使用不含原题答案的局部案例，分别检查“有明确报错却声称未命中”“只有摘要而无执行状态”“有效有限搜索却声称全环境不存在”，以及“预算已尽时合理停止”。同源重复不应加强结论，未解决线索不应被凭空否定。需真实模型时另明确模型／provider、批次和 token 预算；脚本固定回复只能验证传递，不能证明判断改善。
+- 摘录方案是否足够：如果模型收到完整必要事实仍作错推断，问题在判断，不据此扩权；如果正确判断确实依赖未交付的原始内容，先指出缺哪段、现有来源角色为何不能提供，再决定是否改交接或讨论受限读取。不能把任何失败都解释成“需要新工具”。
+
+当前结论为三处提示契约已在隔离区实施、单条 scripted 原生文本交接通过；尚待主助手审阅合回，未验证模型判断，不把原始输出独立核验、真实行为修复或完整问题解决标为已完成。
+
+### 3.4 2026-10-25 提示契约实施与最小原生文本交接
+
+**隔离基线与增量：** managed worktree／identity 为 `/Users/caihaoming/.codex/worktrees/critic-factual-handoff-minimal/pentest-agent`，detached HEAD `fdbbce44579ca3a951be8c7fc408fa6a9db2d420`。从主区 main 有界复制 51 个当前依赖文件（544910 bytes），包含未提交的 host／插件、配置、产品规则与角色当前基线；未将这些继承差量算作本次修改。有序 `path + TAB + sha256 + LF` 聚合 SHA-256 为 `868dc6767111683385177239b551634c7cd90b484d8b53af5c7c1064855334ce`。逐文件清单、基线副本及相对复制基线的补丁留在该工作树忽略目录 `runs/critic-factual-handoff-minimal/`；[紧凑证据](../../gates/g-solver-verification-20261023/run-completeness-20261025/critic-factual-handoff-minimal-20261025.json)保留关键原文、hash、命令和失败。
+
+**本次产品修改仅三处：** Web Session Diagnosis v4→v5，只替换续读／业务后置条件第 4 项为 §2.1 已验证措辞；Coordinator 只替换“進度與 Recovery Critic”的转交条目，允许必要去敏小摘录、忠实保留来源／状态／范围／未知／反证并开放结论问题；Recovery Critic 只替换“交付”相关条目，区分事实有效性、推断范围与停止理由，同源重复不加强证据，缺口先查已有记录，再建议授权内最小补查。保留原权限、生命周期、发布与独立验证契约，无新增字段或框架。
+
+**条件与实际结果：** Node v26.3.0、OpenCode 1.19.3、SDK／plugin 包均 1.19.0，复用主区现有依赖，无安装。局部缩减已有 `runs/task-parameter-minimal/native/native-probe.ts`／`run-native.sh`，保留 `env -i`、独立 HOME／XDG、loopback-only sandbox；外连自检为 EPERM，唯一 provider 为本地 `stub/scripted`。一条原生后台 task 链为 domain-solver→Coordinator→recovery-critic，不改变前后台机制、不执行 HTTP／job／搜索／发布／靶场动作。Solver 返回带本轮随机 observation 标记的**合成观察**：有限范围、`search_status=2`、`grep: unrecognized option: R`、下游 0、HTTP 200、本地 job unavailable、输出缺口、未知、反证及预算停止限制，均不冒充实际搜索观测。
+
+Coordinator 脚本从实际 provider 请求里收到的原生完成通知提取正文后构造 Critic task prompt，不从源端变量、全局常量或响应日志取材。该次来源正文 864 字符；来源输出、父端收到、Critic 首次 user prompt 中正文逐字符相等，SHA-256 同为 `a871a05c6ef630038823006aca1bb979902a5591e8cd66bdf1145c75acc326a3`。两个原生 execution 均 completed、completeness=complete；请求为 Coordinator 6、Solver 1、Critic 1。修改后 Coordinator／Critic 正文进入实际 system 请求；三文件复制 hash 相符，原生 inventory 发现 Skill。**Skill 正文未出现在请求且未调用，仅完成装载／发现检查，不能称已使用方法。**
+
+**命令、失败与停止：** 在隔离工作树执行 `runs/critic-factual-handoff-minimal/native/run-native.sh success`。首次 `attempt-success.stZEXB` 的驱动误以为完成通知含 Critic 角色名，停在 phase=3，末检 `3 !== 4`、exit 1；实际 Critic 已收到并返回。保存原失败驱动和日志后，仅将通知匹配改为实际结果标记，再以同一命令运行 `attempt-success.zC1JXs`，phase=4、exit 0。第二次是本次唯一有效检查，成功后未再运行。`node_modules/.bin/vitest run tests/contract/opencode-config.test.ts` 为现有配置定向检查，2/2、exit 0（实际 Vitest 2.1.9）；只改 Markdown，未重复全仓 typecheck／build／test。
+
+**陈述边界：** scripted 只能证明此版本／配置下原生文本可达及具体内容未丢失，不能证明 Solver 会正确取证、Coordinator 会自行忠实选材、Critic 会正确判断、合理停止或跨题泛化。去敏未程序强制、来源未认证，转交摘录不等于独立核验原文。provider 计数为脚本合成，真实 usage=unavailable；无真实产品模型、原题或 oracle 操作，无 verified／accepted／solved 主张。未改产品源码、权限或发布校验，无 commit／push。2026-10-26 主助手已核对基线及增量，合回三处提示、本文和紧凑证据，同步核心 G／H；一次性 plan 已删除，本次工作树按流程归档。
 
 ## 4. 是否能从根源解决，以及下一步边界
 
 本版将修正点放在**实验取结果时的信息保留**和**交接时主张与事实的分离**。它能直接针对本次“信息丢失→摘要洗成事实→Critic放大”的因果链；仅加提醒、错误字符串 gate 或额外 Critic 属兜底，不能替代它。
 
-这仍不是“模型永不误判”的保证：模型可能在事实齐全时作错判断。只有原样例的输入／输出链与明确预算内行为验证都支持，才可称本次问题改善；通用效果需未泄露解法的独立题目证据。当前已完成根因定位、方案更新及 §2.1 的同版本最小无模型取证链验证，未宣称产品修复或模型行为改善。
+这仍不是“模型永不误判”的保证：模型可能在事实齐全时作错判断。只有原样例的输入／输出链与明确预算内行为验证都支持，才可称本次问题改善；通用效果需未泄露解法的独立题目证据。当前已完成根因定位、§2.1 的同版本取证链验证及 §3.4 的隔离区提示实施／原生脚本文本交接；未宣称真实模型行为已修复或改善。
 
-后续只先推进第二优先级的实验取证／交接内容；第三优先级复用该事实再做复核，不把两者整包实施。公开接口连通性有具体未知时才拆对应最小验证 plan。没有必要不改 host／工具接口，不新建 schema／gate／readiness／框架。本次验证结论及最小证据经核对已合回主工作区，核心入口同步状态；一次性验证 plan 已移除，本次隔离工作区按流程归档。临时复现脚本保留于主区忽略目录 `runs/search-evidence-minimal/verify.mjs`，供核对而非产品运行。未改产品、未 commit／push，不自动开始后续实现或模型行为验证。
+本次只将第二优先级已定取证措辞作为第三优先级交接的必要前提一并落地，未重做搜索实验；后续模型行为验证须另有明确模型／provider、批次及 token 预算。公开接口连通性有具体未知时才拆对应最小验证 plan。没有必要不改 host／工具接口，不新建 schema／gate／readiness／框架。本次验证结论及最小证据经核对已合回主工作区，核心入口同步状态；一次性验证 plan 已移除，本次隔离工作区按流程归档。临时复现脚本保留于主区忽略目录 `runs/search-evidence-minimal/verify.mjs`，供核对而非产品运行。该验证阶段未改产品；随后设计与最小证据已提交为 `fdbbce44`，未 push。此前第三优先级只读复核仅更新本文及核心 H 入口；本次隔离实施与无模型结果见 §3.4，已合回主区，本次提交仅包含相关提示、设计与最小证据，其他未提交工作保留。

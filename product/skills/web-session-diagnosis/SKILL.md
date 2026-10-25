@@ -5,7 +5,7 @@ description: Use when a Web CTF task involves login or session state, comparing 
 
 # Web Session Diagnosis
 
-Version: 4
+Version: 5
 
 Use the relevant sections when a Web task involves:
 
@@ -47,7 +47,7 @@ Use this method after a POST or other state-changing request, when a 2xx respons
 1. Before sending a state-changing request, state the expected business postcondition and how it can be observed safely. A 2xx status confirms an HTTP response, not that the intended state change occurred.
 2. Distinguish `preview` from the saved body: use workspace reads of `bodyPath` to inspect the saved `bodyBytes` as needed. If `bodyTruncated` is true, the original response was not fully saved; reading all of bodyPath cannot recover its missing tail. Preserve that limit. A new request is a new observation, not continuation or proof that the original response was complete.
 3. Compare the response and any safe before/after state evidence with the stated postcondition. Classify the hypothesis as supported, weakened, or unresolved; keep page exposure, debugger text, successful execution, and obtaining a flag as separate claims.
-4. If the response is empty, unchanged, or repeats an earlier result, record what it establishes and do not repeat the same request without new evidence or a justified parameter change.
+4. If the response is empty, unchanged, or repeated, record its limits and do not repeat without new evidence or a justified input change. For a decisive remote search, retain the search process's own status, stderr, bounded stdout, and searched scope using available capabilities. Keep its status separate from downstream commands, HTTP, and local jobs. Interpret no-match status according to the actual tool; if status, errors, or necessary output are unavailable, preserve search validity as unknown. Hand off the supported local conclusion with a small decisive excerpt and its source.
 5. For actions that may delete or alter target state, use only actions allowed by the task scope and with a clear recovery boundary. If the side effect or recovery is unknown, do not perform the action; choose a non-mutating check or report the specific missing condition.
 
 ## Solve and hand off a candidate
