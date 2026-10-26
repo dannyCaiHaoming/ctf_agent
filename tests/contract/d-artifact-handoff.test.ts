@@ -17,8 +17,8 @@ async function fixture() {
     challenges: [{id:'X', title:null, target:null, reachability:null, materials:[], materialsDir}, {id:'Y', title:null, target:null, reachability:null, materials:[], materialsDir:join(root,'Y/materials')}]});
   services.push(service); service.bindRoot('root'); let n=0;
   const exec = (sid: string, tool: string, args: object = {}) => service.handle(sid, 'tool.execute', {tool, args, callID: `c${++n}`}) as Promise<any>;
-  async function bind(sid: string, role: string, challenge='X') {
-    await exec('root','challenge.assign',{role,challenge});
+  async function bind(sid: string, role: string, challenge='X', version?: string) {
+    await exec('root','challenge.assign',{role,challenge,...(version?{version}:{})});
     const callID=`t${++n}`;
     await service.handle('root','tool.before',{tool:'task',callID,args:{subagent_type:role,background:true}});
     await service.handle('root','tool.after',{tool:'task',callID,metadata:{sessionId:sid},output:'running'});
@@ -87,19 +87,52 @@ describe('D artifact handoff: trusted snapshots, not candidate verification', ()
     expect(cut.size).toBe(1048576); expect(cut.originalComplete).toBe(false); expect(cut.rangeComplete).toBe(true);
     expect((await f.exec('engineer','artifact.read',{ref:cut.ref})).nextCursor).toBe('32768');
   });
-  it('H2/H6 takes HTTP from original adapter bytes even if editable work copy changes',async()=>{
-    const f=await fixture(); const server=createServer((_q,r)=>r.end('HTTP-original'));
+  it('H2/H6 hands original HTTP facts through package manifest, prepared inputs and static report without upgrading copies',async()=>{
+    const f=await fixture();
+    const server=createServer((q,r)=>{r.writeHead(q.method==='POST'?202:200,{'content-type':q.method==='POST'?'application/json':'text/plain','set-cookie':'sid=COOKIE_SECRET'});r.end(q.method==='POST'?'second-response':'HTTP-original');});
     await new Promise<void>(r=>server.listen(0,'127.0.0.1',r));
     try {
-      // Fixture mutates only configured target before request; identity and adapter execution remain real.
-      (f.service as any).options.challenges[0].target={protocol:'http',url:`http://127.0.0.1:${(server.address() as any).port}`};
-      const h=await f.exec('domain-solver','http.request',{url:(f.service as any).options.challenges[0].target.url});
-      await f.exec('domain-solver','workspace.write',{path:h.bodyPath,content:'forged-work-copy'});
+      const origin=`http://127.0.0.1:${(server.address() as any).port}`;
+      (f.service as any).options.challenges[0].target={protocol:'http',url:origin};
+      const h=await f.exec('domain-solver','http.request',{url:origin+'/PATH_SECRET?QUERY_SECRET#FRAGMENT_SECRET'});
+      // Publish first only AFTER the other response: a shared "last response" would bind the wrong facts.
+      const second=await f.exec('domain-solver','http.request',{url:origin+'/other',method:'POST',body:'BODY_SECRET',headers:{Authorization:'AUTH_SECRET'},http:{method:'DELETE',status:999}});
       const p=await f.exec('domain-solver','artifact.publish',{source:'http',resource:h.resource});
+      const later=await f.exec('domain-solver','artifact.publish',{source:'http',resource:second.resource});
+      const expected={method:'GET',status:200,target:{scopeOrigin:origin,originStatus:'scope_bound',path:null,pathStatus:'omitted_unattested',omitted:{userinfo:false,query:true,fragment:true}},contentType:{value:'text/plain',status:'present'}};
+      const fixed=f.service.publicationSnapshot().find(r=>r.ref===p.ref)!;
+      expect((fixed.source as any).http).toEqual(expected);
+      expect((f.service.publicationSnapshot().find(r=>r.ref===later.ref)!.source as any).http).toMatchObject({method:'POST',status:202,contentType:{value:'application/json'}});
+      // Mutating a returned host snapshot cannot mutate the registered publication.
+      (fixed.source as any).http.status=999;
+      await f.exec('domain-solver','workspace.write',{path:h.bodyPath,content:'forged-work-copy'});
       expect((await f.exec('engineer','artifact.read',{ref:p.ref})).data).toBe('SFRUUC1vcmlnaW5hbA==');
-      const raw=await f.exec('domain-solver','artifact.publish',{source:'file',path:h.bodyPath});
-      expect(f.service.publicationSnapshot().find(r=>r.ref===raw.ref)!.source.kind).toBe('file');
+      await f.exec('engineer','workspace.write',{path:'work/copy',content:'HTTP-original'});
+      const copy=await f.exec('engineer','artifact.publish',{source:'file',path:'work/copy'});
+      expect(copy.sha256).toBe(p.sha256); expect(copy.originalComplete).toBeNull();
+      await expect(f.exec('domain-solver','artifact.publish',{source:'http',resource:h.resource,http:expected})).rejects.toThrow('denied');
       await expect(f.exec('engineer','artifact.publish',{source:'http',resource:h.resource})).rejects.toThrow('denied');
+      const pkg=await f.exec('engineer','package.publish',{candidate:{ref:p.ref,start:0,end:13},files:[{kind:'artifact',ref:p.ref,path:'evidence/original.bin',purpose:'evidence'},{kind:'artifact',ref:copy.ref,path:'evidence/copy.bin',purpose:'evidence'}],extraction:'all 13 bytes; endpoint path remains unknown',premises:[]});
+      await f.bind('verifier','verifier','X',pkg.version);
+      const page=await f.exec('verifier','package.read',{version:pkg.version,component:'manifest'});
+      expect(page.nextCursor).toBeNull();
+      const manifestBytes=Buffer.from(page.data,'base64'),m=JSON.parse(manifestBytes.toString());
+      expect(m.candidate.publication.source.http).toEqual(expected);
+      expect(m.files[0].publication).toMatchObject({ref:p.ref,sha256:p.sha256,size:13,source:{kind:'http',resource:h.resource,callID:fixed.source.callID,http:expected},originalComplete:true});
+      expect(m.files[1].publication.source.kind).toBe('file'); expect(m.files[1].publication.source.http).toBeUndefined();
+      expect(m.files[1].publication.originalComplete).toBeNull();
+      const ready=await f.exec('verifier','package.prepare');
+      expect(await readFile(join(f.root,'X/work/verifier',ready.manifestPath))).toEqual(manifestBytes);
+      expect((await readFile(join(f.root,'X/work/verifier',ready.directory,'evidence/original.bin'))).toString()).toBe('HTTP-original');
+      const data=await f.exec('verifier','package.read',{version:pkg.version,component:'file',path:'evidence/original.bin'});
+      expect(data.sha256).toBe(p.sha256); expect(data.data).toBe('SFRUUC1vcmlnaW5hbA==');
+      // HTTP 200/full body cannot erase the existing four categories of report blockers.
+      const report=await f.exec('verifier','verification.report',{judgment:'verified',mode:'evidence_audit',rationale:'Deliberately unsupported static proposal',sourceFlow:'Original HTTP observation; copy and endpoint still unknown',premises:[{statement:'Required endpoint path not established',status:'unknown'}],issues:['Endpoint identity unresolved'],requirements:{continuousIntegrity:false,declaredDependenciesOnly:true},evidence:[{kind:'artifact',ref:p.ref,necessary:true,context:'Original observation'},{kind:'artifact',ref:copy.ref,necessary:true,context:'Copy source remains unknown'}]});
+      expect(report.effectiveJudgment).toBe('inconclusive');
+      const saved=f.service.verificationResultSnapshot()[0]! as any;
+      expect(saved.evidence[0].source.http).toEqual(expected);
+      expect(saved.hostChecks.blockers).toEqual(expect.arrayContaining(['necessary source incomplete or unknown','required premise unknown','unresolved verifier issues','undeclared dependencies unknown']));
+      for(const secret of ['PATH_SECRET','QUERY_SECRET','FRAGMENT_SECRET','COOKIE_SECRET','BODY_SECRET','AUTH_SECRET']) expect(JSON.stringify(m)+JSON.stringify(saved.evidence.map((e:any)=>e.source))).not.toContain(secret);
     } finally { await new Promise<void>(r=>server.close(()=>r())); }
   });
   it('H7 rejects modified published content through artifact and G workspace reads',async()=>{

@@ -4,6 +4,8 @@ import {mkdtemp,mkdir,writeFile,readFile,readdir} from 'node:fs/promises';
 import {join} from 'node:path';
 import {tmpdir} from 'node:os';
 import {createHash} from 'node:crypto';
+import {ArtifactPublisher} from '../../apps/launcher/src/artifact-tools.js';
+import {CandidatePackages} from '../../apps/launcher/src/candidate-package-tools.js';
 import {ControlService} from '../../apps/launcher/src/control-service.js';
 const services:ControlService[]=[];
 afterAll(async()=>{await Promise.all(services.map(s=>s.stopAll('test end')));});
@@ -48,8 +50,23 @@ describe('D interface two minimal package',()=>{
  });
  it('P2 retains truncated and unknown provenance without upgrading it',async()=>{
   const f=await fixture();const j=await f.exec('engineer','job.run',{argv:[process.execPath,'-e',"process.stdout.write('x'.repeat(1048577))"],timeout_ms:5000});const a=await f.exec('engineer','artifact.publish',{source:'job',job:j.job,stream:'stdout',end:2});
-  const p=await f.exec('engineer','package.publish',{...f.args,candidate:{ref:a.ref,start:0,end:1}});const m=JSON.parse(Buffer.from((await f.read(p.version,'manifest')).data,'base64').toString());expect(m.candidate.publication.originalComplete).toBe(false);expect(m.candidate.publication.snapshotFixed).toBe(true);expect(m.candidate.publication.rangeComplete).toBe(true);
+  const p=await f.exec('engineer','package.publish',{...f.args,candidate:{ref:a.ref,start:0,end:1}});const m=JSON.parse(Buffer.from((await f.read(p.version,'manifest')).data,'base64').toString());expect(m.candidate.publication.originalComplete).toBe(false);expect(m.candidate.publication.source.kind).toBe('job');expect(m.candidate.publication.source.http).toBeUndefined();expect(m.candidate.publication.snapshotFixed).toBe(true);expect(m.candidate.publication.rangeComplete).toBe(true);
   await writeFile(join(f.root,'X/work/engineer/unknown'),'unknown');const u=await f.exec('engineer','artifact.publish',{source:'file',path:'work/unknown'});const q=await f.exec('engineer','package.publish',{candidate:{ref:u.ref,start:0,end:1},files:[],extraction:'one byte',premises:[]});const n=JSON.parse(Buffer.from((await f.read(q.version,'manifest')).data,'base64').toString());expect(n.candidate.publication.source.execution).toBeNull();expect(n.argv).toEqual([]);
+ });
+ // Older host HTTP publications legitimately lack facts; package assembly must not invent them.
+ it('P2 preserves legacy HTTP sources without filling facts from equal-content file sources',async()=>{
+  const dir=await mkdtemp(join(tmpdir(),'d-legacy-http-'));
+  const artifacts=new ArtifactPublisher(),packages=new CandidatePackages(artifacts);
+  const legacy={kind:'http' as const,run:'legacy',challenge:'X',sessionID:'solver',execution:'old',resource:'old-resource',callID:'old-call'};
+  const original=await artifacts.publish(dir,legacy,Buffer.from('fixed'),true,{},()=>{});
+  const copy=await artifacts.publish(dir,{...legacy,kind:'file',sessionID:'engineer',execution:null},Buffer.from('fixed'),null,{},()=>{});
+  const p=await packages.publish({dir,source:{kind:'package',run:'legacy',challenge:'X',sessionID:'engineer',execution:'new'},challenge:{id:'X',title:null,target:null,reachability:null,materials:[],materialsDir:dir}}, {candidate:{ref:original.ref,start:0,end:5},files:[{kind:'artifact',ref:copy.ref,path:'copy',purpose:'evidence'}],extraction:'all bytes',premises:[]},()=>{});
+  const page=await packages.read('legacy','X',{version:p.version,component:'manifest'});
+  const m=JSON.parse(Buffer.from(page.data,'base64').toString());
+  expect(m.candidate.publication.source).toEqual(legacy);
+  expect(m.candidate.publication.source.http).toBeUndefined();
+  expect(m.files[0].publication.source.kind).toBe('file');expect(m.files[0].publication.source.http).toBeUndefined();
+  expect(m.files[0].publication.sha256).toBe(original.sha256);expect(m.files[0].publication.originalComplete).toBeNull();
  });
  it('P3 old versions survive unrelated/work/material changes and concurrent new versions',async()=>{
   const f=await fixture();const old=await f.exec('engineer','package.publish',f.args);const original=await f.read(old.version);await f.exec('engineer','workspace.write',{path:'work/tmp',content:'irrelevant'});await f.exec('engineer','workspace.write',{path:'work/solve.cjs',content:'changed unpublished'});await writeFile(join(f.root,'X/materials/input.bin'),'changed after fixed');

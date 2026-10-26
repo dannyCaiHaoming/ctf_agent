@@ -8,6 +8,7 @@ import { request as httpRequest, type ClientRequest, type IncomingHttpHeaders, t
 import { request as httpsRequest } from 'node:https';
 import { isIP, type LookupFunction } from 'node:net';
 import { join } from 'node:path';
+import type { HttpResponseFacts } from './artifact-tools.js';
 
 export const HTTP_METHODS = ['GET', 'HEAD', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'];
 export const MAX_REDIRECTS = 5;
@@ -69,6 +70,8 @@ export interface HttpToolOptions {
   /** The bound challenge's authorized origin (`http` or `https` URL). */
   target: string;
   jar: CookieJar;
+  /** Host-known secrets only; model arguments cannot set this list. */
+  redactions?: readonly string[];
   /** Real path of the bound session's `work/` directory; response bodies go to `<workDir>/http/`. */
   workDir: string;
   /** Injection point for the DNS check; defaults to the system resolver. */
@@ -85,7 +88,7 @@ export interface HttpOperation {
   readonly callID: string;
   readonly signal: AbortSignal;
   readonly deadline: number;
-  capture?: (bytes: Buffer, complete: boolean) => void;
+  capture?: (bytes: Buffer, complete: boolean, http: HttpResponseFacts) => void;
 }
 
 export function createHttpTools(options: HttpToolOptions) {
@@ -163,7 +166,7 @@ export function createHttpTools(options: HttpToolOptions) {
           persistence = finish(response, chain, lifetime.signal);
           const result = await Promise.race([persistence, stopped]);
           check();
-          operation.capture?.(Buffer.from(response.body), !response.bodyTruncated);
+          operation.capture?.(Buffer.from(response.body), !response.bodyTruncated, responseFacts(response, current, currentMethod));
           return result;
         }
         if (response.statusCode === 303 || (currentMethod === 'POST' && (response.statusCode === 301 || response.statusCode === 302))) {
@@ -186,6 +189,28 @@ export function createHttpTools(options: HttpToolOptions) {
       if (persistence) cleanup.push(persistence.then(() => {}, () => {}));
       await boundedCleanup(cleanup);
     }
+  }
+
+  // No existing scope attests a nonsecret path. Omit EVERY path, including ordinary-looking ones.
+  // These selected values are bounded independently of the tool reply's full-header budget.
+  function responseFacts(response: Sent, url: URL, method: string): HttpResponseFacts {
+    const selected = (value: string | undefined): HttpResponseFacts['contentType'] => {
+      if (value === undefined) return { value: null, status: 'missing' };
+      if (options.redactions?.some(secret => secret && value.includes(secret))) return { value: null, status: 'redacted' };
+      if (Buffer.byteLength(value) > MAX_HEADER_VALUE) return { value: null, status: 'omitted_over_limit' };
+      return { value, status: 'present' };
+    };
+    const origin = selected(target.origin);
+    return {
+      method, status: response.statusCode,
+      target: {
+        scopeOrigin: origin.value,
+        originStatus: origin.status === 'present' ? 'scope_bound' : origin.status === 'redacted' ? 'redacted' : 'omitted_over_limit',
+        path: null, pathStatus: 'omitted_unattested',
+        omitted: { userinfo: Boolean(url.username || url.password), query: Boolean(url.search), fragment: Boolean(url.hash) }
+      },
+      contentType: selected(response.headers['content-type'])
+    };
   }
 
   async function finish(response: Sent, chain: RedirectHop[], signal: AbortSignal) {

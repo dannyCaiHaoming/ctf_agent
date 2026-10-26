@@ -11,7 +11,7 @@ import type { OpencodeClient } from '@opencode-ai/sdk/v2';
 import { INTAKE_TOOLS, IntakeRefused, checkMaterialPath, findChallenge, listChallenges, readMaterial } from './intake-tools.js';
 import { createHttpTools, CookieJar, HttpRefused } from './http-tools.js';
 import { JobManager, JobRefused, type JobBinding } from './job-tools.js';
-import { ArtifactPublisher, snapshotWork, type ArtifactSource } from './artifact-tools.js';
+import { ArtifactPublisher, snapshotWork, type HttpResponseFacts, type ArtifactSource } from './artifact-tools.js';
 import { VerificationResults,fixEvidence } from './verification-results.js';
 import { CandidatePackages } from './candidate-package-tools.js';
 import { filePage } from './file-page.js';
@@ -724,12 +724,12 @@ export class ControlService {
             let adapter = this.http.get(binding.sessionID);
             if (!adapter) {
               const jar = this.jars.get(binding.challengeId!) ?? new CookieJar(); this.jars.set(binding.challengeId!, jar);
-              adapter = createHttpTools({ target: challenge.target.url, jar, workDir: roots.workDir }); this.http.set(binding.sessionID, adapter);
+              adapter = createHttpTools({ target: challenge.target.url, jar, workDir: roots.workDir, redactions: this.options.redactions }); this.http.set(binding.sessionID, adapter);
             }
-            const resource=randomUUID(); let captured: {bytes:Buffer;complete:boolean}|undefined;
-            const response=await adapter.request(args, { ...operation, signal: operation.controller.signal, capture:(bytes,complete)=>{captured={bytes,complete};} });
+            const resource=randomUUID(); let captured: {bytes:Buffer;complete:boolean;http:HttpResponseFacts}|undefined;
+            const response=await adapter.request(args, { ...operation, signal: operation.controller.signal, capture:(bytes,complete,http)=>{captured={bytes,complete,http};} });
             if(!captured) throw new ControlDenied('http capture');
-            if(operation.execution) this.outputSources.set(resource,{source:{...this.source(binding,'http',resource,operation.execution),callID:call},...captured});
+            if(operation.execution) this.outputSources.set(resource,{source:{...this.source(binding,'http',resource,operation.execution),callID:call,http:captured.http},bytes:captured.bytes,complete:captured.complete});
             result=operation.execution?{...response,resource}:response;
           } else if (name === 'job.run') {
             const jobBinding = this.jobBinding(binding, roots);

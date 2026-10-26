@@ -7,7 +7,9 @@ import { createServer as createHttpsServer } from 'node:https';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import type { AddressInfo } from 'node:net';
-import { CookieJar, createHttpTools, MAX_SAVED_BODY } from '../../apps/launcher/src/http-tools.js';
+import { CookieJar, createHttpTools, MAX_SAVED_BODY, MAX_HEADER_VALUE, MAX_REDIRECTS } from '../../apps/launcher/src/http-tools.js';
+
+import type { HttpResponseFacts } from '../../apps/launcher/src/artifact-tools.js';
 
 type Handler = (req: IncomingMessage, res: ServerResponse) => void;
 
@@ -255,5 +257,80 @@ describe('G-V4 DNS lifecycle regression', () => {
       expect({ code, settledBeforeDns, authorized: authorized.connections, outside: outside.connections })
         .toEqual({ code: 'timeout', settledBeforeDns: true, authorized: 0, outside: 0 });
     } finally { vi.useRealTimers(); }
+  });
+});
+
+// Wrong final-method or selecting the unrequested Location would mislabel the captured body.
+describe('HTTP body-bound evidence facts', () => {
+  async function capture(target: string, args: Record<string, unknown>, redactions?: string[]) {
+    const adapter = createHttpTools({ target, jar: new CookieJar(), workDir: root, redactions });
+    let captured: {bytes: Buffer; complete: boolean; http: HttpResponseFacts} | undefined;
+    const result = await adapter.request(args, {
+      run: 'facts', sessionID: 'solver', callID: 'facts-call', signal: new AbortController().signal,
+      deadline: Date.now() + 10000, capture: (bytes: Buffer, complete: boolean, http: HttpResponseFacts) => { captured = {bytes, complete, http}; }
+    });
+    expect(captured).toBeDefined();
+    return {result, ...captured!};
+  }
+
+  it.each([[301, 'GET'], [302, 'GET'], [303, 'GET'], [307, 'POST'], [308, 'POST']])(
+    'binds POST redirect %i body to actual method %s', async (status, method) => {
+      const seen: string[] = [];
+      const server = createServer((q, r) => {
+        seen.push(q.method!);
+        if (q.url === '/start') { r.writeHead(Number(status), {location: '/landing?private=QUERY_SECRET#FRAGMENT_SECRET'}); r.end('redirect'); }
+        else { r.writeHead(201, {'content-type': 'text/plain; charset=utf-8', 'set-cookie': 'sid=COOKIE_SECRET'}); r.end('final-body'); }
+      });
+      const port = await listen(server), origin = `http://127.0.0.1:${port}`;
+      try {
+        const c = await capture(origin, {url: origin + '/start', method: 'POST', body: 'BODY_SECRET', headers: {Authorization: 'AUTH_SECRET'}, follow_redirects: true});
+        expect(seen).toEqual(['POST', method]);
+        expect(c.bytes.toString()).toBe('final-body'); expect(c.complete).toBe(true);
+        expect(c.http).toEqual({method, status: 201,
+          target: {scopeOrigin: origin, originStatus: 'scope_bound', path: null, pathStatus: 'omitted_unattested',
+            omitted: {userinfo: false, query: true, fragment: true}},
+          contentType: {value: 'text/plain; charset=utf-8', status: 'present'}});
+        for (const secret of ['QUERY_SECRET','FRAGMENT_SECRET','COOKIE_SECRET','BODY_SECRET','AUTH_SECRET','/landing']) expect(JSON.stringify(c.http)).not.toContain(secret);
+      } finally { await new Promise<void>(done => server.close(() => done())); }
+    });
+
+  it('binds stopped redirects to the last received response, never the unrequested target', async () => {
+    let hops = 0;
+    const server = createServer((q, r) => {
+      hops++;
+      if (q.url === '/scope') r.writeHead(302, {location: 'http://user:USERINFO_SECRET@outside.invalid/PATH_SECRET?QUERY_SECRET#FRAGMENT_SECRET'});
+      else r.writeHead(303, {location: `/loop-${hops}`});
+      r.end('last-' + hops);
+    });
+    const port = await listen(server), origin = `http://127.0.0.1:${port}`;
+    try {
+      const stopped = await capture(origin, {url: origin + '/scope', method: 'POST', follow_redirects: true});
+      expect(hops).toBe(1); expect(stopped.http?.method).toBe('POST'); expect(stopped.http?.status).toBe(302);
+      expect(stopped.http?.target.scopeOrigin).toBe(origin); expect(stopped.http?.contentType).toEqual({value: null, status: 'missing'});
+      expect(stopped.bytes.toString()).toBe('last-1'); expect(JSON.stringify(stopped.http)).not.toContain('SECRET');
+      hops = 0;
+      const limited = await capture(origin, {url: origin + '/loop', method: 'POST', follow_redirects: true});
+      expect(hops).toBe(MAX_REDIRECTS + 1); expect(limited.result.redirectChain.at(-1)?.stopped).toBe('hop_limit');
+      expect(limited.http?.method).toBe('GET'); expect(limited.http?.status).toBe(303);
+      expect(limited.bytes.toString()).toBe('last-6'); expect(limited.http?.target.path).toBeNull();
+    } finally { await new Promise<void>(done => server.close(() => done())); }
+  });
+
+  it('omits unattested paths and overlong or known-secret selected fields; retains body truncation', async () => {
+    const server = createServer((q, r) => {
+      if (q.url?.startsWith('/long')) { r.setHeader('content-type', 'x'.repeat(MAX_HEADER_VALUE + 1)); r.end('x'.repeat(MAX_SAVED_BODY + 1)); }
+      else { r.setHeader('content-type', 'text/plain; secret=KNOWN_SECRET'); r.end('small'); }
+    });
+    const port = await listen(server), origin = `http://127.0.0.1:${port}`;
+    try {
+      const long = await capture(origin, {url: origin + '/long/innocent-looking-but-secret?token=QUERY_SECRET#FRAGMENT_SECRET'});
+      expect(long.complete).toBe(false); expect(long.bytes.length).toBe(MAX_SAVED_BODY);
+      expect(long.http?.contentType).toEqual({value: null, status: 'omitted_over_limit'});
+      expect(long.http?.target).toEqual({scopeOrigin: origin, originStatus: 'scope_bound', path: null, pathStatus: 'omitted_unattested', omitted: {userinfo: false, query: true, fragment: true}});
+      const known = await capture(origin, {url: origin + '/plain'}, ['KNOWN_SECRET', origin]);
+      expect(known.http?.contentType).toEqual({value: null, status: 'redacted'});
+      expect(known.http?.target.scopeOrigin).toBeNull(); expect(known.http?.target.originStatus).toBe('redacted');
+      expect(JSON.stringify(known.http)).not.toContain('KNOWN_SECRET');
+    } finally { await new Promise<void>(done => server.close(() => done())); }
   });
 });

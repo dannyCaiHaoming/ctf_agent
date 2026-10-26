@@ -34,7 +34,21 @@ export async function snapshotFile(root: string, segments: string[], io: Snapsho
     return Buffer.concat(chunks);
   } finally { await handle.close(); }
 }
-export interface ArtifactSource {kind:'file'|'job'|'http'|'package'; run:string; challenge:string; sessionID:string; execution:string|null; selectedExecution?:string; resource?:string; path?:string; stream?:string; callID?:string}
+/** Host observation of the one response whose body was captured. No business-success assertion. */
+export interface HttpResponseFacts {
+  method: string;
+  status: number;
+  target: {
+    /** The configured, origin-checked scope; this is NOT an endpoint/path identity. */
+    scopeOrigin: string | null;
+    originStatus: 'scope_bound' | 'redacted' | 'omitted_over_limit';
+    path: null;
+    pathStatus: 'omitted_unattested';
+    omitted: { userinfo: boolean; query: boolean; fragment: boolean };
+  };
+  contentType: { value: string | null; status: 'present' | 'missing' | 'redacted' | 'omitted_over_limit' };
+}
+export interface ArtifactSource {kind:'file'|'job'|'http'|'package'; run:string; challenge:string; sessionID:string; execution:string|null; selectedExecution?:string; resource?:string; path?:string; stream?:string; callID?:string;http?:HttpResponseFacts}
 export interface Publication {ref:string;path:string;sha256:string;size:number;source:ArtifactSource;start:number;end:number;originalBytes:number;originalComplete:boolean|null;rangeComplete:true;snapshotFixed:true}
 export class ArtifactPublisher {
   private readonly records=new Map<string,{record:Publication;dir:string}>();

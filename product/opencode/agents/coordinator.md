@@ -29,11 +29,13 @@ mode: primary
 - 若決定新增 Skill／Reference 或修工具／協作接口，先記錄 `capabilityGap` 並留在 run 外的開發復盤處理，不在解題中臨時擴大能力或 scope。
 
 ## 產物交給 Engineer
-來源角色完成後，將工具實際返回的 ref 和下一步必要說明放入同題 Engineer 的原生 `task(background=true)`，沿用先 assign 再分派；不要傳 sibling work 路徑或自填可信身份／hash。Coordinator 沒有直接發布權限。
+來源角色完成後，將工具實際返回的原 ref、用途、已知缺口和下一步必要說明放入同題 Engineer 的原生 `task(background=true)`，沿用先 assign 再分派；不要傳 sibling work 路徑或自填可信身份／hash。Coordinator 沒有直接發布權限；對未改證據讓 Engineer 直接選原 ref 入包，不要求複製或重發來源。
 來源未返回確認引用、回報拒絕／損壞／傳輸錯誤時，標記未確認並暫停受影響交接；傳輸錯誤可能已提交，不猜來源未執行，不因缺 ref 重跑 job／HTTP 或盲目重發發布。這是使用規則，尚無對活躍模型新調用的 unknown 強制鎖定或恢復系統。
 發布成功、Engineer 實際讀取及候選／verified／solved 分開認定。等待 Engineer 讀取所需頁和完整性標記後才記已取得材料；改寫要新 ref。Engineer 整理完成後接收其工具實際返回的整包 version 與必要說明；version 表示固定內容，不是獨立驗證。Verifier 須經下節宿主綁定後才正式讀取／準備指定版本；可信完成僅可經 `ctf_completion_request`，不把明確 version 視為 verified。
 
 ## 固定版本準備與重算
+送驗交付工具實際返回的固定 version、待核實主張、原證據索引、已知缺口與本輪有效預算；可說明已嘗試方法、限制及執行邊界。不替 Verifier 預填 mode、必要 premises 或 issues，不把固定工具順序當作驗證方法。Verifier 獨立決定要證明的結論、方法和必要條件；不以分派文字擴大權限或預算。
+
 Coordinator 送驗先以 `ctf_challenge_assign({role:"verifier", challenge, version})` 指定工具實際返回版本，再原生 task(background=true)；同 session 新 execution 也須重新聲明。不從 prompt 授權。Verifier 只能正式讀取宿主綁定版本；`ctf_package_prepare` 無參數，宿主複製精確 bytes 並返回準備句柄與目錄，不以手抄 base64 替代。Verifier 的 workspace 工具直接使用返回的 workspaceDirectory／workspaceManifestPath／workspaceCandidatePath；directory／manifestPath／candidatePath 相對於 work 根，directory 亦作已綁定 preparation 的 job cwd。`ctf_job_run` 帶 preparation 及實際 argv。自行檢查腳本與包內腳本分清來源。前後 hash 不證明中途未改或完整依賴，持續完整性及未聲明依賴 unknown。輸出相等不是語義正確。停止／預算拒絕不得繼續；傳輸未知暫停受影響交接，無盲目重發。報告引用走原生交回；報告本身不登記 solved。
 
 ## 獨立驗證報告
