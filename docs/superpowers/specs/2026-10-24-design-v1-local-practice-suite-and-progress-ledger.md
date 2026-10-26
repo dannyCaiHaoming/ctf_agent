@@ -158,6 +158,8 @@ Coordinator 與 Recovery Critic 可用受管的 `progress.read` 取得有界、�
 
 ## 6. 實作結果與驗收
 
+**當前狀態（2026-10-26）：** 進度帳本實作已存在，工具接入、角色權限、使用說明與配套測試已隨 `b1afa29a` 收口提交；該組合的 typecheck、build、49 檔／486 項測試通過。下文 409 項是 2026-10-24 的歷史結果，不改寫為此次數量。r4 中 Critic 確實完成 `ctf_progress_read`，但隨後 length／空正文，未寫 `progress.note`；工具鏈可用不代表有效復盤已驗收，原始消息及邊界見[否定證據與路線復核 §3.5](2026-10-25-design-v1-negative-evidence-and-route-review.md)。本地三題完整批次並未完成。
+
 2026-10-24 已按本 design 接入最小進度帳本切片：
 
 - `apps/launcher/src/progress-ledger.ts` 將宿主 audit 投影為 append-only `progress.jsonl`，run 結束時生成 `progress.md`；部分顯示最後 500 筆，完整事件流仍在 JSONL。
@@ -170,6 +172,6 @@ Coordinator 與 Recovery Critic 可用受管的 `progress.read` 取得有界、�
 
 ## 7. 後續真跑邊界
 
-三題真實模型練習尚未授權。首次真跑前須另行確認 model／provider、三題目標 digest、每個 run 的 token／准入／時間上限及容器重置方式；`throwback`／`seizurecipher` 若仍未有已核對的 controller-side oracle，只能記 `candidate_only`／verification result。
+本文定義的完整三題批次尚未授權／完成；個別題目的歷史運行不構成三題同批驗收，也不沿用其預算。後續批次真跑前須另行確認 model／provider、三題目標 digest、每個 run 的 token／准入／時間上限及容器重置方式；`throwback`／`seizurecipher` 若仍未有已核對的 controller-side oracle，只能記 `candidate_only`／verification result。
 
 真跑後才可觀察 Agent 是否依階段邊界觸發 Critic、其判斷是否減少無效重複，以及 progress 摘要是否足以指出應新增 Skill／Reference 或修正協作接口。本切片不設正式成功率門檻，也不自動啟動下一次 run。

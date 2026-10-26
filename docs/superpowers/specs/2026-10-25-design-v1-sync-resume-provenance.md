@@ -1,6 +1,6 @@
 # design v1 C／D／G：创建时保存前后台参数，续接漏写时补上
 
-日期：2026-10-25（Asia/Tokyo）。**状态：最小修复及无模型验收已完成，已合回主工作区；一次性 plan 已删除。** 本文是[核心 design v1](2026-10-22-ctf-agent-design-v1.md)的第一优先级详细子文件，细节以本文为准。沿用旧路径；此前同步执行归属、四角色强制后台及扩大的生命周期方案不再作为本次要求。
+日期：2026-10-25（Asia/Tokyo）。**状态：最小修复及无模型验收已完成，已合回主工作区并随 `b1afa29a` 提交；一次性 plan 已删除。** 本文是[核心 design v1](2026-10-22-ctf-agent-design-v1.md)的第一优先级详细子文件，细节以本文为准。沿用旧路径；此前同步执行归属、四角色强制后台及扩大的生命周期方案不再作为本次要求。
 
 ## 1. 唯一目标与原始问题
 
@@ -80,6 +80,8 @@ OpenCode 1.19.3 的 task 按每次调用的 background 选择方式，省略默�
 完成含义仅为“创建方式已保存，漏参续接已正确补值，原失败链通过”。本次由 GPT-6.1-sol 子 session 实施并完成上述最小验收，现按用户要求仅将本片增量合回主区。结论已转入本文和既有 README，一次性 plan 已删除。
 
 ## 7. 本片实际结果（2026-10-25）
+
+本节以下为当时实施与整合记录，“未 commit／push”描述该历史阶段。2026-10-26 已随 `b1afa29a` 收口参数继承、进度接入与路径修复；提交前主区 typecheck、build、49 文件／486 项测试通过，未新增真实模型或原生 scripted 运行。提交不扩大下述最小验收边界。
 
 隔离区 `/Users/caihaoming/.codex/worktrees/task-parameter-minimal/pentest-agent`，HEAD 与 Git 祖先均为 `ee78e017a3fdbb8418329ca1843968b2fc2596f5`，带入原区 tracked dirty 与必要 untracked 输入。创建的有效布尔值在 pending 经准确 call→child 核对后保存到现有 dispatched 记录；前后台均核对创建 call，已有 native after 元数据可直接绑定，否则读取父会话的原生 task part。续接只在省略时读取创建值，显式值保留且不回写创建默认。host 以同一有效值登记，plugin before 只写回 background 和既有 description；不重放首轮指令。
 

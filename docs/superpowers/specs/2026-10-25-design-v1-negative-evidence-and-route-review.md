@@ -1,6 +1,6 @@
 # design v1 G／H：否定证据与路线复核
 
-日期：2026-10-26（Asia/Tokyo）。状态：**源头取证与事实交接三处提示已实施并合回主区；原生脚本文本交接通过，未做模型行为验证。** 本文是[核心 design v1](2026-10-22-ctf-agent-design-v1.md) G／H 的详细子文件，细节以本文为准。第一优先级[创建方式保存与续接漏参补齐](2026-10-25-design-v1-sync-resume-provenance.md)已完成并合回主区。第二优先级已完成最小无模型取证验证；此前只读复核第三优先级；本次按已确定职责仅修改三个 Markdown 提示并验证一条无模型原生文本交接，结果见 §3.4；未运行原题或产品模型。
+日期：2026-10-26（Asia/Tokyo）。状态：**源头取证与事实交接三处提示已实施并随 `89e47dde` 提交，进度工具依赖随 `b1afa29a` 收口；原生脚本文本交接通过。后续 r4 有真实调用观察，但 Critic 未交付有效复盘，模型行为目标未验收。** 本文是[核心 design v1](2026-10-22-ctf-agent-design-v1.md) G／H 的详细子文件，细节以本文为准。第一优先级[创建方式保存与续接漏参补齐](2026-10-25-design-v1-sync-resume-provenance.md)已完成并合回主区。第二优先级已完成最小无模型取证验证；第三优先级的隔离实施阶段仅修改三个 Markdown 提示并验证一条无模型原生文本交接，结果见 §3.4；该阶段未运行原题或产品模型，后续 r4 观察另见 §3.5。
 
 ## 1. 当前证据与纠正
 
@@ -118,6 +118,8 @@ Root 有最终正文，不能继续称为“Root 没返回”。后续原记录�
 
 ### 3.4 2026-10-25 提示契约实施与最小原生文本交接
 
+以下保留隔离实施时的条件与未提交状态；随后提示与证据已提交为 `89e47dde`，其工具依赖由 `b1afa29a` 收口。后续真实运行另列 §3.5，不回填为本节 scripted 样本的能力证明。
+
 **隔离基线与增量：** managed worktree／identity 为 `/Users/caihaoming/.codex/worktrees/critic-factual-handoff-minimal/pentest-agent`，detached HEAD `fdbbce44579ca3a951be8c7fc408fa6a9db2d420`。从主区 main 有界复制 51 个当前依赖文件（544910 bytes），包含未提交的 host／插件、配置、产品规则与角色当前基线；未将这些继承差量算作本次修改。有序 `path + TAB + sha256 + LF` 聚合 SHA-256 为 `868dc6767111683385177239b551634c7cd90b484d8b53af5c7c1064855334ce`。逐文件清单、基线副本及相对复制基线的补丁留在该工作树忽略目录 `runs/critic-factual-handoff-minimal/`；[紧凑证据](../../gates/g-solver-verification-20261023/run-completeness-20261025/critic-factual-handoff-minimal-20261025.json)保留关键原文、hash、命令和失败。
 
 **本次产品修改仅三处：** Web Session Diagnosis v4→v5，只替换续读／业务后置条件第 4 项为 §2.1 已验证措辞；Coordinator 只替换“進度與 Recovery Critic”的转交条目，允许必要去敏小摘录、忠实保留来源／状态／范围／未知／反证并开放结论问题；Recovery Critic 只替换“交付”相关条目，区分事实有效性、推断范围与停止理由，同源重复不加强证据，缺口先查已有记录，再建议授权内最小补查。保留原权限、生命周期、发布与独立验证契约，无新增字段或框架。
@@ -129,6 +131,12 @@ Coordinator 脚本从实际 provider 请求里收到的原生完成通知提取�
 **命令、失败与停止：** 在隔离工作树执行 `runs/critic-factual-handoff-minimal/native/run-native.sh success`。首次 `attempt-success.stZEXB` 的驱动误以为完成通知含 Critic 角色名，停在 phase=3，末检 `3 !== 4`、exit 1；实际 Critic 已收到并返回。保存原失败驱动和日志后，仅将通知匹配改为实际结果标记，再以同一命令运行 `attempt-success.zC1JXs`，phase=4、exit 0。第二次是本次唯一有效检查，成功后未再运行。`node_modules/.bin/vitest run tests/contract/opencode-config.test.ts` 为现有配置定向检查，2/2、exit 0（实际 Vitest 2.1.9）；只改 Markdown，未重复全仓 typecheck／build／test。
 
 **陈述边界：** scripted 只能证明此版本／配置下原生文本可达及具体内容未丢失，不能证明 Solver 会正确取证、Coordinator 会自行忠实选材、Critic 会正确判断、合理停止或跨题泛化。去敏未程序强制、来源未认证，转交摘录不等于独立核验原文。provider 计数为脚本合成，真实 usage=unavailable；无真实产品模型、原题或 oracle 操作，无 verified／accepted／solved 主张。未改产品源码、权限或发布校验，无 commit／push。2026-10-26 主助手已核对基线及增量，合回三处提示、本文和紧凑证据，同步核心 G／H；一次性 plan 已删除，本次工作树按流程归档。
+
+### 3.5 r4 后续真实运行观察（2026-10-26）
+
+本节更新当前完成状态，不改写 §3.4 的 scripted 条件。原 run 为 `/Users/caihaoming/Documents/pentest-agent-run-data/throwback-debug-20261026-r4/runs/throwback-debug-20261026-r4-1/`；`state/run.json` 记录 HEAD `89e47dde` 且 productDirty=true，OpenCode 1.19.3、`volcano-coding/deepseek-v4-1-flash-261017`。不能将此运行归成后续 `b1afa29a` 干净提交的真实验收。
+
+`evidence/messages-ses_e8c489f8dffeMS33QdITentS1T.json` 与 `evidence/messages-ses_e8c4e20c8ffeK8MCXYu73eos6U.json` 分别记录 Domain Solver、Recovery Critic 成功调用 `web-session-diagnosis`。Critic 同时完成 `ctf_progress_read`，下一条 assistant 消息为 finish=length、output=0、reasoning=8000，没有 `progress.note` 或有效复盘正文。这证明实际读取入口可达；不能据此验收事实选材、独立判断、停止决策或提速，也不能仅凭输入较长断定空输出根因。源头取证与事实交接的目标仍保留，空正文后续策略见《空正文恢复设计》（工作區未提交草案 `2026-10-26-design-v1-c-empty-result-recovery.md`），尚未实施。
 
 ## 4. 是否能从根源解决，以及下一步边界
 
