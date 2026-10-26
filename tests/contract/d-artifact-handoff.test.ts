@@ -11,7 +11,7 @@ async function fixture() {
   const root = await mkdtemp(join(tmpdir(), 'd-handoff-'));
   const materialsDir = join(root, 'X/materials'); await mkdir(materialsDir, { recursive: true });
   const client = { session: { get: async ({sessionID}: any) => ({data: {id: sessionID, parentID: 'root', agent: sessionID === 'other' ? 'engineer' : sessionID}}),
-    children: async () => ({data: []}), messages: async () => ({data: []}), abort: async () => ({data: true}) } };
+    children: async () => ({data: []}), messages: async ({sessionID}: {sessionID:string}) => ({data: sessionID === 'root' ? [{info:{id:'intake-dispatch',sessionID:'root',role:'user'},parts:['intake','it'].map(callID=>({type:'tool',tool:'task',callID,state:{metadata:{sessionId:'intake'}}}))}] : []}), abort: async () => ({data: true}) } };
   const service = new ControlService({runId: 'D-test', client: client as never, budget: {maxModelCalls: 100, maxObservableTokens: 100000},
     expiresAt: Date.now()+60000, workdir: join(root, 'opencode'), skillRoot: join(root, 'skills'),
     challenges: [{id:'X', title:null, target:null, reachability:null, materials:[], materialsDir}, {id:'Y', title:null, target:null, reachability:null, materials:[], materialsDir:join(root,'Y/materials')}]});

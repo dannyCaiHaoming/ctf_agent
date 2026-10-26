@@ -31,7 +31,7 @@ async function fixture(target?: string, expiresAt = Date.now() + 60000) {
       target: target ? { protocol: 'http' as const, url: target, host: '127.0.0.1', port: Number(new URL(target).port) } : null };
   }));
   const client = { session: { get: async ({ sessionID }: { sessionID: string }) => ({ data: { parentID: 'root', agent: sessionID.startsWith('eng') ? 'engineer' : 'recon' } }),
-    messages: async () => ({ data: [] }), children: async () => ({ data: [] }), abort: async () => ({ data: true }) } };
+    messages: async ({ sessionID }: { sessionID: string }) => ({ data: sessionID === 'root' ? [{ info: { id: 'dispatches', sessionID: 'root', role: 'user' }, parts: c.audit.filter(r => r.op === 'dispatch.register').map(r => { const callID = (r.detail as { callID: string }).callID; return { type: 'tool', tool: 'task', callID, state: { metadata: { sessionId: callID.slice(9) } } }; }) }] : [] }), children: async () => ({ data: [] }), abort: async () => ({ data: true }) } };
   const c = new ControlService({ client: client as never, runId: 'run-fixture', budget: { maxModelCalls: 50, maxObservableTokens: 10000 }, expiresAt,
     workdir: join(dir, 'opencode'), skillRoot: dir, challenges } as never); c.bindRoot('root'); clean.push(() => c.stopAll('cleanup'));
   async function bind(id: string, challenge = 'X') {

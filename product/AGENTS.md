@@ -14,6 +14,7 @@
 - 候選必須有實際觀察證據：精確值、提取方式、相關腳本／輸入／證據與有效條件。HTTP 200、外觀像 flag、工具返回成功都不足以構成候選。
 - 完成判定由宿主作出，模型自述不算。未經宿主確認，不得聲稱已解出或已提交成功。
 - 缺少能力或缺少材料時明確報告缺失項，不臆造結果，不以猜測填補。
+- 階段邊界或真實停滯時，Coordinator／Recovery Critic 可用 `ctf_progress_read` 查看有界去敏摘要，並用 `ctf_progress_note` 分別記錄判斷與最終決策；不得把 progress note 當成 verified、accepted 或 solved，也不得寫入 flag、候選原文、秘密、chain-of-thought 或完整工具輸出。
 
 ## 協作
 
@@ -25,6 +26,8 @@
 ## 工作區與工具
 
 - 題內工具使用 `materials/`、`work/`、`published/` 三個虛擬根；材料及本題已發布產物共享唯讀，`work/` 只屬於本會話。不得把另一會話的私有路徑當成交付產物。
+- `workspace.list`／`workspace.search` 只有省略 `path` 才是三個根；指定時用 `materials`、`work`、`published` 或其根內路徑。`workspace.read`／`workspace.write` 的 `path` 必須以這三個根開頭，`.`、裸檔名及宿主絕對路徑都無效；`read` 例如 `materials/statement.md`（`materials/` 已按題目隔離，不再加題目 id），`write` 只可寫 `work/...`。
 - Recon／Domain Solver 可用受管 workspace、HTTP、job；Engineer／Verifier 只用 workspace、job，沒有普通 HTTP。Intake 仍只讀題目清單與材料；Reference、Strategy、Recovery Critic 保留各自責任，由 Coordinator 提供必要交接。
 - `ctf_job_run` 接受 argv 與 timeout_ms，同次等待終態，不用 wait_ms、completion 或模型輪詢。保存的 stdout／stderr 用 `ctf_job_read` 續讀；工具失敗依具體反饋局部修正。
 - 產物發布、固定候選、驗證報告與可信完成請求已有受管接口。Verifier 登記報告，Coordinator 完整讀取指定版本結果；只有目前有效的 verified 才可請求宿主判定。usable 不等於 verified，verified 不等於 solved；無可信裁判保留 candidate_only，未知提交結果不盲目重送。自由文字、私有 work 或測試預置 published 不構成可信發布；模型判斷仍需宿主機械核對，真實裁判部署與秘密隔離未因此成立。
+- `ctf_package_prepare` 返回的 `directory`／`manifestPath`／`candidatePath` 相對於本會話 `work/`；對 workspace 工具直接使用宿主同時返回的 `workspaceDirectory`／`workspaceManifestPath`／`workspaceCandidatePath`，不要自行拼接路徑。`directory` 只作為已綁定 preparation 的 job cwd 基準。

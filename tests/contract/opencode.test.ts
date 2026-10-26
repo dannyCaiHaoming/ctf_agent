@@ -115,6 +115,46 @@ describe('OpenCode public adapter', () => {
     }));
   });
 
+  it('writes only the host-approved task background and description into native args', async () => {
+    const { createCtfAgentHooks } = await import('../../apps/opencode-plugin/src/index.js');
+    const hooks = createCtfAgentHooks({ controlUrl: 'http://127.0.0.1:43210/control', controlToken: 'x'.repeat(40), tools: [] });
+    for (const background of [true, false]) {
+      vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response(JSON.stringify({ result: { taskBackground: background, taskDescription: 'trusted ref', prompt: 'old instruction' } }), { status: 200 }));
+      const args = { task_id: 'child', prompt: 'current instruction', description: 'current task', command: 'current command' };
+      await hooks['tool.execute.before']!({ sessionID: 'root', tool: 'task', callID: 'resume' }, { args });
+      expect(args).toEqual({ task_id: 'child', prompt: 'current instruction', description: 'trusted ref', command: 'current command', background });
+      vi.restoreAllMocks();
+    }
+  });
+
+  it('advertises exact workspace virtual-root semantics in managed tool descriptions', async () => {
+    const { createCtfAgentHooks } = await import('../../apps/opencode-plugin/src/index.js');
+    const hooks = createCtfAgentHooks({ controlUrl: 'http://127.0.0.1:43210/control',
+      controlToken: 'bridge-test-token-that-is-long-enough-123',
+      tools: ['workspace.list', 'workspace.read', 'workspace.search', 'workspace.write'] });
+    const description = (name: string) => (hooks.tool as Record<string, { description: string }>)[
+      `ctf_${name.replaceAll('.', '_')}`
+    ]!.description;
+
+    expect(description('workspace.list')).toContain('Omit path to list exactly materials/, work/, published/');
+    expect(description('workspace.read')).toContain('materials/statement.md');
+    expect(description('workspace.read')).toContain('not materials/<challenge-id>/...');
+    expect(description('workspace.write')).toContain('only under work/');
+    expect(description('workspace.search')).toContain('Omit path to search all roots');
+  });
+
+  it('advertises bounded progress reads and structured Critic notes', async () => {
+    const { createCtfAgentHooks } = await import('../../apps/opencode-plugin/src/index.js');
+    const hooks = createCtfAgentHooks({ controlUrl: 'http://127.0.0.1:43210/control',
+      controlToken: 'bridge-test-token-that-is-long-enough-123', tools: ['progress.read', 'progress.note'] });
+    const description = (name: string) => (hooks.tool as Record<string, { description: string }>)[
+      `ctf_${name.replaceAll('.', '_')}`
+    ]!.description;
+    expect(description('progress.read')).toContain('sanitized');
+    expect(description('progress.note')).toContain('Recovery Critic');
+    expect(description('progress.note')).toContain('Coordinator');
+  });
+
   it('rejects a plugin configuration that is not an authenticated loopback control service', async () => {
     const { createCtfAgentHooks } = await import('../../apps/opencode-plugin/src/index.js');
     expect(() => createCtfAgentHooks({ controlUrl: 'http://127.0.0.1:1/control', controlToken: 'a'.repeat(31), tools: [] })).toThrow(/invalid/);

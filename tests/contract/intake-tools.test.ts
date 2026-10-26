@@ -39,7 +39,7 @@ afterAll(async () => { await rm(root, { recursive: true, force: true }); });
 function service(roles: Record<string, string> = { kid: 'intake' }) {
   const sessions = Object.fromEntries(Object.entries(roles).map(([id, agent]) => [id, { parentID: 'root', agent }]));
   const client = { session: { get: async ({ sessionID }: { sessionID: string }) => ({ data: { id: sessionID, ...sessions[sessionID] } }),
-    children: async () => ({ data: [] }), messages: async () => ({ data: [] }), abort: async () => ({ data: true }) } };
+    children: async () => ({ data: [] }), messages: async ({ sessionID }: { sessionID: string }) => ({ data: sessionID === 'root' ? [{ info: { id: 'dispatches', sessionID: 'root', role: 'user' }, parts: s.audit.filter(r => r.op === 'dispatch.register').map(r => { const callID = (r.detail as { callID: string }).callID; return { type: 'tool', tool: 'task', callID, state: { metadata: { sessionId: callID.slice(2) } } }; }) }] : [] }), abort: async () => ({ data: true }) } };
   const s = new ControlService({ client: client as never, budget: { maxModelCalls: 10, maxObservableTokens: 1000 }, expiresAt: Date.now() + 60000,
     workdir: '/nonexistent', skillRoot: '/nonexistent', challenges });
   s.bindRoot('root');

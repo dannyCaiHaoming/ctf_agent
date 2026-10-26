@@ -19,7 +19,8 @@ import { launch } from '../../apps/launcher/src/launch.js';
 const SECRET = 'fictional-evidence-key-0123456789';
 const msg = (sessionID: string) => ({ info: { id: `msg-${sessionID}`, sessionID, role: 'assistant', agent: 'coordinator',
   tokens: { input: 400, output: 150, reasoning: 50 }, parentID: `user-${sessionID}`, finish: 'stop', time: { created: 2, completed: 3 } }, parts: [{ type: 'text', text: SECRET }] });
-const user = (id: string) => ({ info: { id: `user-${id}`, role: 'user', time: { created: 1 } }, parts: [] });
+const user = (id: string) => ({ info: { id: `user-${id}`, role: 'user', time: { created: 1 } },
+  parts: id === 'root' ? [{ type: 'tool', tool: 'task', callID: 'dispatch', state: { metadata: { sessionId: 'child' } } }] : [] });
 let rootSequence: unknown[][] | undefined;
 let dir: string;
 let mode: string;

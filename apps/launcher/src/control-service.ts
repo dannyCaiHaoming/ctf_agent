@@ -1,4 +1,3 @@
-import { fingerprintJson } from './progress-ledger.js';
 import { classifyChildResult, unknownChildResult, type ChildSource, type ChildResult } from './child-result.js';
 import {CompletionRequests,type CompletionJudge} from './completion-tools.js';
 // Control service (design v1 C): lives in the launcher process, owns the session binding table, the run budget
@@ -18,6 +17,7 @@ import { CandidatePackages } from './candidate-package-tools.js';
 import { filePage } from './file-page.js';
 import { listWorkspace, readWorkspace, searchWorkspace, writeWorkspace, WorkspaceRefused, type WorkspaceRoots } from './workspace-tools.js';
 import type { PreparedChallenge } from './run-prep.js';
+import { fingerprintJson, progressDigest, summarizeToolArgs, validateProgressNote } from './progress-ledger.js';
 
 export const ROLES = ['coordinator', 'intake', 'recon', 'reference', 'strategy', 'domain-solver', 'engineer', 'verifier', 'recovery-critic'] as const;
 export type Role = typeof ROLES[number];
@@ -99,7 +99,8 @@ export function summarizeUsage(messages: Message[]): SessionUsage {
 }
 
 export const SOLVER_TOOLS = ['workspace.list', 'workspace.read', 'workspace.search', 'workspace.write', 'http.request', 'job.run', 'job.read', 'job.cancel', 'artifact.publish', 'artifact.read', 'package.publish', 'package.read', 'package.prepare', 'verification.report'];
-export const MANAGED_TOOLS = [...INTAKE_TOOLS, 'challenge.assign', 'challenge.unassign', 'task.stop', 'verification.read', 'completion.request', ...SOLVER_TOOLS];
+export const PROGRESS_TOOLS = ['progress.read', 'progress.note'] as const;
+export const MANAGED_TOOLS = [...INTAKE_TOOLS, 'challenge.assign', 'challenge.unassign', 'task.stop', 'verification.read', 'completion.request', ...PROGRESS_TOOLS, ...SOLVER_TOOLS];
 interface Resource { run: string; sessionID: string; challengeId: string; callID: string; tool: string; state: 'active' | 'settled' | 'unknown'; result?: string; job?: string; controller: AbortController; deadline: number; execution?: string; timer?: ReturnType<typeof setTimeout>; done?: Promise<unknown>; detachRpc?: () => void }
 interface TaskStopResult { state: 'stopped' | 'unknown' | 'completed' | 'failed'; resources: 'settled' | 'unknown'; sessionAbort: 'confirmed' | 'unknown' | 'not_required'; executionRef?: string }
 interface Execution { source: ChildSource; resultFacts: ChildResult | null; version?: string; ref: string; run: string; parent: string; callID: string; role: Role; challengeId?: string; childID?: string; state: 'starting' | 'running' | 'completed' | 'failed' | 'cancelled'; delivered: boolean; noticeMessageID?: string; delivery?: 'queued' | 'consumed' | 'suppressed' | 'stop_reply'; lateResult?: string; initialOutput?: string; result?: string }
@@ -143,7 +144,7 @@ export class ControlService {
   private readonly syncCalls = new Map<string,SyncCall>();
   private readonly executions = new Map<string, Execution>();
   private readonly childStops = new Map<string, Promise<TaskStopResult>>();
-  private readonly dispatched = new Map<string, { parent: string; role: Role }>();
+  private readonly dispatched = new Map<string, { parent: string; role: Role; background: boolean }>();
   private readonly usageMessages = new Map<string, Map<string, Message>>();
   private readonly usageGaps = new Set<string>();
 
@@ -438,11 +439,11 @@ export class ControlService {
     const started = Date.now();
     let info: { parentID?: string; agent?: string } | undefined;
     try { info = (await this.options.client.session.get({ sessionID }, { throwOnError: true })).data; } catch { throw new ControlDenied('unbound session', 'session lookup failed'); }
-    // For asynchronous dispatch, the native running tool part binds a child ID to this exact call.
+    // The native running tool part binds a child ID to this exact creation call.
     // Parent/role alone is insufficient once an earlier creation can arrive late.
     const candidate = info?.parentID && isRole(info.agent) ? this.pending.get(info.parentID)?.get(info.agent) : undefined;
     let nativeChild: string | undefined;
-    if (candidate?.background && info?.parentID) {
+    if (candidate && !candidate.childID && info?.parentID) {
       try {
         const messages = (await this.options.client.session.messages({ sessionID: info.parentID }, { throwOnError: true })).data ?? [];
         const part = messages.flatMap(m => m.parts).find(p => p.type === 'tool' && p.tool === 'task' && p.callID === candidate.callID);
@@ -463,13 +464,13 @@ export class ControlService {
     const waiting = this.pending.get(info.parentID)?.get(info.agent);
     if (!waiting) throw fail('no pending dispatch');
     if (waiting.childID && waiting.childID !== sessionID) throw fail('dispatch child mismatch');
-    if (waiting.background && (candidate?.callID !== waiting.callID || (waiting.childID ?? nativeChild) !== sessionID)) throw fail('native call child mismatch');
+    if (candidate?.callID !== waiting.callID || (waiting.childID ?? nativeChild) !== sessionID) throw fail('native call child mismatch');
     this.pending.get(info.parentID)!.delete(info.agent);
     const binding: Binding = { sessionID, role: info.agent, parentID: info.parentID, via: 'dispatch', dispatchCallID: waiting.callID, challengeId: waiting.challengeId, scope: 'run',
       expiresAt: this.options.expiresAt, state: 'active', boundAt: Date.now() };
     if (binding.challengeId) binding.workDir = this.roots(binding).workDir;
     this.bindings.set(sessionID, binding);
-    this.dispatched.set(sessionID, { parent: info.parentID, role: info.agent });
+    this.dispatched.set(sessionID, { parent: info.parentID, role: info.agent, background: waiting.background === true });
     const execution = [...this.executions.values()].find(e => e.parent === info.parentID && e.callID === waiting.callID);
     if (execution) { execution.childID = sessionID; execution.state = 'running'; }
     this.record(sessionID, 'bind', true, undefined, { role: binding.role, via: 'dispatch', sdkParentID: info.parentID, sdkAgent: info.agent, callID: waiting.callID, challengeId: waiting.challengeId, sdkMs });
@@ -503,15 +504,26 @@ export class ControlService {
     if (tool === 'ctf_completion_request') { if(binding.role!=='coordinator')throw new ControlDenied('tool not permitted');return {allowed:true,rpcTimeoutMs:25000}; }
     if (tool === 'ctf_verification_read') { if(binding.role!=='coordinator')throw new ControlDenied('tool not permitted');return {allowed:true,rpcTimeoutMs:20000}; }
     if (tool === 'ctf_task_stop') { this.checkTaskStop(binding, body.args); return { allowed: true, rpcTimeoutMs: 10000 }; }
+    const progress = PROGRESS_TOOLS.find(name => `ctf_${name.replaceAll('.', '_')}` === tool);
+    if (progress) { this.checkProgress(binding, progress); return { allowed: true }; }
     const managed = SOLVER_TOOLS.find(name => `ctf_${name.replaceAll('.', '_')}` === tool);
     if (managed) { this.checkSolver(binding, managed); return { allowed: true, rpcTimeoutMs: this.waitLimit(binding, managed, (body.args ?? {}) as Record<string, unknown>) + 5000 }; }
     const intake = INTAKE_BY_ID.get(tool);
     if (intake) { this.checkIntake(binding, intake, body.args); return { allowed: true }; }
     const allowed = Object.hasOwn(NATIVE_TOOL_ROLES, tool) && NATIVE_TOOL_ROLES[tool]!.includes(binding.role);
     if (!allowed) throw new ControlDenied('tool not permitted', tool);
-    const args = (body.args && typeof body.args === 'object' ? body.args : {}) as Record<string, unknown>;
+    let args = (body.args && typeof body.args === 'object' ? body.args : {}) as Record<string, unknown>;
 
     if (tool === 'task') {
+      if (args.background !== undefined && typeof args.background !== 'boolean') throw new ControlDenied('dispatch', 'background must be boolean');
+      let background = args.background === true;
+      if (args.background === undefined && args.task_id !== undefined && args.task_id !== null && args.task_id !== '') {
+        const owned = typeof args.task_id === 'string' ? this.dispatched.get(args.task_id) : undefined;
+        if (!owned || owned.parent !== binding.sessionID || owned.role !== args.subagent_type) throw new ControlDenied('dispatch', 'task id not owned; cannot inherit background');
+        if (typeof owned.background !== 'boolean') throw new ControlDenied('dispatch', 'creation background unavailable');
+        background = owned.background;
+      }
+      args = { ...args, background };
       if ([...this.executions.values()].some(e => e.parent === binding.sessionID && e.callID === body.callID)) throw new ControlDenied('duplicate dispatch call');
       const key = binding.sessionID + '/' + body.callID;
       const prior = this.syncCalls.get(key);
@@ -523,7 +535,7 @@ export class ControlService {
           this.record(prior.parent, 'sync.source', true, undefined, {callID:prior.callID, childID:prior.childID, source:{...prior.source}});
           throw new ControlDenied('sync call conflict');
         }
-        return {allowed:true};
+        return {allowed:true, taskBackground: background};
       }
       const active = [...this.syncCalls.values()].filter(c => c.parent === binding.sessionID && c.state !== 'done' && typeof args.task_id === 'string' && c.childID === args.task_id);
       if (active.length) {
@@ -546,8 +558,9 @@ export class ControlService {
         this.executions.set(ref, { source: {status:'unknown',userMessageID:null,observedAt:null,reason:'missing_source'}, resultFacts:null, ref, run: this.options.runId ?? 'run', parent: binding.sessionID, callID: String(body.callID), role: args.subagent_type as Role, version: this.versions.get(binding.sessionID+'/'+String(args.subagent_type)), challengeId: taskID ? this.bindings.get(taskID)?.challengeId : this.pending.get(binding.sessionID)?.get(args.subagent_type as Role)?.challengeId, childID: taskID, state: taskID ? 'running' : 'starting', delivered: false });
         this.versions.delete(binding.sessionID+'/'+String(args.subagent_type));
         this.record(binding.sessionID, 'task.execution', true, undefined, {...this.executions.get(ref)});
-        return { allowed: true, taskDescription: `[ctf:${ref}]` };
+        return { allowed: true, taskDescription: `[ctf:${ref}]`, taskBackground: background };
       }
+      return { allowed: true, taskBackground: background };
     }
     return { allowed: true };
   }
@@ -566,6 +579,19 @@ export class ControlService {
 
   private executeManaged(binding: Binding, body: Record<string, unknown>, signal?: AbortSignal): unknown {
     const name = typeof body.tool === 'string' ? body.tool : '';
+    if (name === 'progress.read') {
+      this.checkProgress(binding, name);
+      const args = (body.args ?? {}) as Record<string, unknown>;
+      return progressDigest(this.audit, { runId: this.options.runId ?? 'run', redactions: this.options.redactions, limit: typeof args.limit === 'number' ? args.limit : undefined,
+        usage: { ...this.usageSnapshot().total } });
+    }
+    if (name === 'progress.note') {
+      this.checkProgress(binding, name);
+      let note: ReturnType<typeof validateProgressNote>;
+      try { note = validateProgressNote(body.args); } catch (error) { throw new ControlDenied(error instanceof Error ? error.message : 'progress note'); }
+      this.record(binding.sessionID, 'progress.note', true, undefined, note);
+      return { source: binding.role, ...note };
+    }
     if (name === 'task.stop') {
       const child = this.checkTaskStop(binding, body.args);
       const alreadyStopped = this.childStops.has(child.sessionID);
@@ -629,6 +655,9 @@ export class ControlService {
       if(e.preparation){const p=this.preparations.get(e.preparation),b=this.bindings.get(r.sessionID);try{if(!p||!b)throw new Error();await this.packages.checkPrepared(this.roots(b).workDir,p);}catch{changed('relevant prepared dependency changed_or_unreadable');}}
     }return {blocking:reasons,warnings};
   }
+  private checkProgress(binding: Binding, name: string): void {
+    if (!['coordinator', 'recovery-critic'].includes(binding.role)) throw new ControlDenied('tool not permitted', name);
+  }
   private checkSolver(binding: Binding, name: string): void {
     if (!binding.challengeId || !CHALLENGE_ROLES.includes(binding.role) ||
       (name === 'http.request' && !['recon', 'domain-solver'].includes(binding.role)) ||
@@ -674,7 +703,8 @@ export class ControlService {
       execution: [...this.executions.values()].find(e => e.childID === binding.sessionID && e.state === 'running')?.ref,
       state: 'active', controller: new AbortController(), deadline: Math.min(binding.expiresAt, Date.now() + duration) };
     this.resources.set(key, operation);
-    this.record(binding.sessionID, 'tool.registered', true, undefined, { callID: call, tool: name, challengeId: binding.challengeId, deadline: operation.deadline });
+    const safeArgs = summarizeToolArgs(name, args, this.options.redactions);
+    this.record(binding.sessionID, 'tool.registered', true, undefined, { callID: call, tool: name, challengeId: binding.challengeId, deadline: operation.deadline, safeArgs: safeArgs.summary, argFingerprint: safeArgs.fingerprint });
     const abandon = () => { this.record(binding.sessionID, 'rpc.abandoned', true, undefined, { callID: call, tool: name, job: operation.job, delivery: 'not_finished' }); operation.controller.abort('rpc abandoned'); };
     rpcSignal?.addEventListener('abort', abandon, { once: true });
     operation.detachRpc = () => rpcSignal?.removeEventListener('abort', abandon);
@@ -925,7 +955,7 @@ export class ControlService {
     if(role==='verifier'&&args.background!==true)throw new ControlDenied('verification execution');
     byRole.set(role, { callID, challengeId, background: args.background === true,version:this.versions.get(binding.sessionID+'/'+role) });
     this.declarations.get(binding.sessionID)?.delete(role);
-    this.record(binding.sessionID, 'dispatch.register', true, undefined, { role, callID, challengeId });
+    this.record(binding.sessionID, 'dispatch.register', true, undefined, { role, callID, challengeId, argsFingerprint: fingerprintJson(args) });
     this.pending.set(binding.sessionID, byRole);
   }
 

@@ -112,6 +112,8 @@ SDK 读取和导出非原子，exportedSourceMatches 只说明导出是否匹配
 
 ### 5.3 同步关联与多通知消费
 
+**后续调用政策（2026-10-25，收窄）：** [第一优先级子设计](2026-10-25-design-v1-sync-resume-provenance.md)仅要求创建时保存 background、续接漏写时补上，细节以该文件为准；显式值保留，不新增模式锁定或报错永久禁用。本节既有同步来源／展示规则不变；promotion、错误和停止改造移出本次。旧强制后台补丁已撤回，最小补参代码及无模型验收已完成并合回主区。
+
 **同步来源。** 在可信 dispatch 后以 `(parentSessionID, callID)` 区分每轮，可信 binding 后由 chat.message 冻结唯一 user，再按 assistant.parentID 分类。不得复用首轮 dispatchCallID、最新消息或旧后台 ref；同步不创建后台 execution/ref。同 call/user 幂等，不同 user 或多个活动候选持久 conflict/unknown；同 call 改参数拒绝，终态 call 不再派发。
 
 SDK 读取前核对 parent/child、来源与有效性，读取后重查停止及当前记录；不能筛掉未完成或身份矛盾的 assistant 来制造唯一结果。原生 task.error 结束对应同步 call，并只释放该 call 的 pending；重复旧 error 不得清理新 call。after 缺失不回退旧报告。新增审计只保存来源／结果白名单事实，不保存正文、reasoning 或 error payload。

@@ -26,9 +26,9 @@ it('grants package publish only to Engineer and bound read/prepare to Verifier; 
   const jobs = ['ctf_job_run', 'ctf_job_read', 'ctf_job_cancel'];
   const artifacts = ['ctf_artifact_publish', 'ctf_artifact_read'];
   const allowed: Record<string, string[]> = {
-    coordinator: ['ctf_challenge_assign', 'ctf_challenge_unassign', 'ctf_task_stop', 'ctf_verification_read', 'ctf_completion_request'], intake: ['ctf_challenge_list', 'ctf_challenge_read'],
+    coordinator: ['ctf_challenge_assign', 'ctf_challenge_unassign', 'ctf_task_stop', 'ctf_verification_read', 'ctf_completion_request', 'ctf_progress_read', 'ctf_progress_note'], intake: ['ctf_challenge_list', 'ctf_challenge_read'],
     recon: [...workspace, ...jobs, ...artifacts, 'ctf_http_request'], 'domain-solver': [...workspace, ...jobs, ...artifacts, 'ctf_http_request'],
-    engineer: [...workspace, ...jobs, ...artifacts, 'ctf_package_publish', 'ctf_package_read'], verifier: [...workspace, ...jobs, 'ctf_artifact_read', 'ctf_package_read', 'ctf_package_prepare', 'ctf_verification_report'], reference: [], strategy: [], 'recovery-critic': []
+    engineer: [...workspace, ...jobs, ...artifacts, 'ctf_package_publish', 'ctf_package_read'], verifier: [...workspace, ...jobs, 'ctf_artifact_read', 'ctf_package_read', 'ctf_package_prepare', 'ctf_verification_report'], reference: [], strategy: [], 'recovery-critic': ['ctf_progress_read', 'ctf_progress_note']
   };
   for (const [role, tools] of Object.entries(allowed)) {
     const permission = config.agent[role].permission;

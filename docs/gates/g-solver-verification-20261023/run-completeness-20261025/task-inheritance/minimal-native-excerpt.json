@@ -1,0 +1,110 @@
+{
+  "scope": "one native success path; local scripted provider only; not solving evidence",
+  "environment": {
+    "node": "v26.3.0",
+    "opencode": "1.19.3",
+    "sdk": "1.19.0",
+    "plugin": "1.19.0"
+  },
+  "outboundDenied": "EPERM",
+  "rawEvidence": "/Users/caihaoming/Documents/pentest-agent/runs/task-parameter-minimal/native/attempt-success.qbWnwm",
+  "runDir": "/tmp/ctf-background-native.Oo0KQc/runs/success",
+  "child": "ses_e8cbf7191ffe4EgtfY2aOBj15A",
+  "resumeCall": "call_7_0",
+  "resumeCalls": 1,
+  "before": {
+    "seq": 45,
+    "args": {
+      "subagent_type": "domain-solver",
+      "description": "local probe domain-solver",
+      "prompt": "PROBE_ROLE_solver RESUME_SUCCESS",
+      "task_id": "ses_e8cbf7191ffe4EgtfY2aOBj15A"
+    }
+  },
+  "approval": {
+    "seq": 46,
+    "value": {
+      "allowed": true,
+      "taskDescription": "[ctf:02d4d4e0-40ae-4811-82f1-3fbc121f1acd]",
+      "taskBackground": true
+    }
+  },
+  "nativeAfter": {
+    "seq": 49,
+    "metadata": {
+      "parentSessionId": "ses_e8cbf74ecffe81iDBdQ6JqfYv7",
+      "sessionId": "ses_e8cbf7191ffe4EgtfY2aOBj15A",
+      "model": {
+        "modelID": "scripted",
+        "providerID": "stub"
+      },
+      "background": true,
+      "jobId": "ses_e8cbf7191ffe4EgtfY2aOBj15A",
+      "truncated": false
+    },
+    "output": "<task id=\"ses_e8cbf7191ffe4EgtfY2aOBj15A\" state=\"running\">\n<summary>Background task started</summary>\n<task_result>\nThe task is working in the background. You will be notified automatically when it finishes.\nDO NOT sleep, poll for progress, ask the task for status, or duplicate this task's work — avoid working with the same files or topics it is using.\nWork on non-overlapping tasks, or briefly tell the user what you launched and end your response.\n</task_result>\n</task>"
+  },
+  "executions": [
+    {
+      "ref": "f7e0ff20-e616-4a62-a21d-4d723a2eef39",
+      "callID": "call_2_0",
+      "childID": "ses_e8cbf7191ffe4EgtfY2aOBj15A",
+      "state": "completed",
+      "sourceUser": "msg_173408e70001vX1CvCngl9tfCp"
+    },
+    {
+      "ref": "02d4d4e0-40ae-4811-82f1-3fbc121f1acd",
+      "callID": "call_7_0",
+      "childID": "ses_e8cbf7191ffe4EgtfY2aOBj15A",
+      "state": "completed",
+      "sourceUser": "msg_173408eca001DqCeUmVRKiJ7Ud"
+    }
+  ],
+  "publications": [
+    {
+      "ref": "6e6bc96a-ef3e-4130-8bfd-bf5f34f55856",
+      "sha256": "4ffdabe268149556d1c59714d1c40d952d06a6cce88860d1390a4f572f21cb50",
+      "kind": "file",
+      "execution": "f7e0ff20-e616-4a62-a21d-4d723a2eef39",
+      "selectedExecution": "f7e0ff20-e616-4a62-a21d-4d723a2eef39"
+    },
+    {
+      "ref": "4fb7c887-efa3-4ec7-b5d9-c11b0849ec99",
+      "sha256": "314dd28c51b61e461f8dcea5df82b6903e07bf325bb17c56fbc9ccdc911bed63",
+      "kind": "job",
+      "execution": "02d4d4e0-40ae-4811-82f1-3fbc121f1acd",
+      "selectedExecution": null
+    },
+    {
+      "ref": "ebc47e3f-000d-4b4e-9355-79615a4cbefe",
+      "sha256": "a2fdcb4c98d72387beff50087bded0e91ee9176f140dbbb58ed39ab13de51964",
+      "kind": "file",
+      "execution": null,
+      "selectedExecution": "02d4d4e0-40ae-4811-82f1-3fbc121f1acd"
+    },
+    {
+      "ref": "f93c4bb8-db12-4749-8ac5-29413418a08a",
+      "sha256": "b3b878c9d7c4bb6d6ce06f7e5a9aaaf5e545485ad32ffbfabbebf34e6c3c667a",
+      "kind": "http",
+      "execution": "02d4d4e0-40ae-4811-82f1-3fbc121f1acd",
+      "selectedExecution": null
+    }
+  ],
+  "engineerReadAndBytesChecked": true,
+  "controlErrors": 0,
+  "productSources": [
+    {
+      "path": "apps/launcher/src/control-service.ts",
+      "sha256": "081b171cc0ce560f603fd251fd41d8f01ebdac9e3b9b9e81cb063119da0ff433"
+    },
+    {
+      "path": "apps/opencode-plugin/src/index.ts",
+      "sha256": "80bccc67c7e2aae53c2d98604d14b7020fb0cdaa5a37636b63643cad1c8b6013"
+    },
+    {
+      "path": "product/opencode/agents/coordinator.md",
+      "sha256": "5a072118752ac8ff873a14002dba7f6cd3e95e39bc9d541c3744fbf31dfab209"
+    }
+  ],
+  "usage": "synthetic counts only; real model usage unavailable"
+}

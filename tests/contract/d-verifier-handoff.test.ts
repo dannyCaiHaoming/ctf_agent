@@ -33,6 +33,9 @@ describe('D third interface',()=>{
   const page=await f.exec('verifier','package.read',{version:p.version,component:'candidate'});
   expect(Buffer.from(page.data,'base64')).toEqual(Buffer.from([0xe6,0x97,0x97,0x7b,0xc3,0xa9,0x7d,0,255]));
   const ready=await f.exec('verifier','package.prepare',{});expect(ready.ready).toBe(true);
+  expect(ready.workspaceDirectory).toBe(`work/${ready.directory}`);
+  expect(ready.workspaceManifestPath).toBe(`work/${ready.manifestPath}`);
+  expect(ready.workspaceCandidatePath).toBe(`work/${ready.candidatePath}`);
   expect(await readFile(join(f.root,'X/work/verifier',ready.directory,'data/input.bin'))).toEqual(Buffer.from([0,255,13,10]));
   expect(await readFile(join(f.root,'X/work/verifier',ready.directory,'solve.cjs'),'utf8')).toBe("process.stdout.write('candidate')");
   const j=await f.exec('verifier','job.run',{preparation:ready.preparation,argv:[process.execPath,'solve.cjs'],timeout_ms:5000});

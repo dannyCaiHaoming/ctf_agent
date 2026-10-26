@@ -18,7 +18,7 @@ async function fixture() {
   const challenges = await prepareRun({ challengesPath: join(dir, 'challenges.json'), workspace: join(dir, 'workspace'), evidence: join(dir, 'evidence'), secrets: [] });
   const sessions: Record<string, { parentID: string; agent: string }> = {};
   const client = { session: { get: async ({ sessionID }: { sessionID: string }) => ({ data: { id: sessionID, ...sessions[sessionID] } }),
-    messages: async () => ({ data: [] }), children: async () => ({ data: [] }), abort: async () => ({ data: true }) } };
+    messages: async ({ sessionID }: { sessionID: string }) => ({ data: sessionID === 'root' ? [{ info: { id: 'dispatches', sessionID: 'root', role: 'user' }, parts: c.audit.filter(r => r.op === 'dispatch.register').map(r => { const callID = (r.detail as { callID: string }).callID; return { type: 'tool', tool: 'task', callID, state: { metadata: { sessionId: callID.slice(9) } } }; }) }] : [] }), children: async () => ({ data: [] }), abort: async () => ({ data: true }) } };
   const c = new ControlService({ client: client as never, budget: { maxModelCalls: 100, maxObservableTokens: 10000 }, expiresAt: Date.now() + 60000,
     workdir: join(dir, 'opencode'), skillRoot: join(dir, 'skills'), challenges });
   c.bindRoot('root'); cleanup.push(() => c.stopAll('cleanup'));
@@ -85,6 +85,34 @@ it('E and G read the same UTF-8 pages and binary signature and reject escaping l
   await symlink(join(dir, 'binary.bin'), join(challenges[0]!.materialsDir, 'escape'));
   await expect(readMaterial(challenges, { id: 'X', path: 'escape' })).rejects.toThrow('material path');
   await expect(execute('solver', 'workspace.read', { path: 'materials/escape' })).rejects.toThrow('workspace path');
+});
+
+// Progress notes are human-review aids, not a second judge: only the existing Critic and Coordinator may write them.
+it('records bounded Critic judgement and Coordinator decision separately and denies other roles', async () => {
+  const { c, bind, execute } = await fixture();
+  await bind('critic', 'recovery-critic');
+  const digest = await execute('critic', 'progress.read', { limit: 5 }) as { schema: string; eventCount: number; recent: unknown[] };
+  expect(digest.schema).toBe('progress-digest/v1');
+  expect(digest.eventCount).toBeGreaterThan(0);
+  expect(digest.recent.length).toBeLessThanOrEqual(5);
+
+  const critic = await execute('critic', 'progress.note', {
+    stage: 'recovery', route: 'redirect', summary: 'same failed probe lacks a new hypothesis',
+    blocker: 'repeated failed job', repeatedRoute: 'job.run/call-a', nextAction: 'change the input assumption',
+    capabilityGap: { kind: 'reference', detail: 'missing protocol reference' }
+  }) as { source: string; route: string };
+  expect(critic).toMatchObject({ source: 'recovery-critic', route: 'redirect' });
+  const decision = await execute('root', 'progress.note', {
+    stage: 'recovery', route: 'continue', summary: 'accepted redirect', nextAction: 'revise experiment'
+  }) as { source: string; route: string };
+  expect(decision).toMatchObject({ source: 'coordinator', route: 'continue' });
+  expect(c.audit.filter(record => record.op === 'progress.note').map(record => record.role)).toEqual(['recovery-critic', 'coordinator']);
+
+  await bind('solver', 'domain-solver');
+  await expect(execute('solver', 'progress.read', {})).rejects.toThrow('tool not permitted');
+  await expect(execute('solver', 'progress.note', { stage: 'solve', route: 'continue', summary: 'no' })).rejects.toThrow('tool not permitted');
+  await expect(execute('critic', 'progress.note', { stage: 'solve', route: 'loop', summary: 'bad route' })).rejects.toThrow('progress route');
+  await expect(execute('critic', 'progress.note', { stage: 'solve', route: 'continue', summary: 'bad gap', capabilityGap: { kind: 'magic', detail: 'x' } })).rejects.toThrow('progress capability gap');
 });
 
 // C must deny direct execution as well as hook visibility; Verifier keeps local recomputation only.

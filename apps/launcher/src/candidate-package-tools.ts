@@ -64,7 +64,8 @@ export class CandidatePackages {
    const candidate=await all('candidate');await writeFile(join(staging,'candidate.bin'),candidate,{flag:'wx'});
    for(const f of m.files){relative(f.path);const bytes=await all('file',f.path);active();const dest=join(staging,'inputs',f.path);await mkdir(join(dest,'..'),{recursive:true});await writeFile(dest,bytes,{flag:'wx'});files.push({path:f.path,sha256:hash(bytes),size:bytes.length});}
    active();await rename(staging,final);active();
-   const p={ready:true,preparation:id,directory,manifestPath:'verify-'+id+'/manifest.json',candidatePath:'verify-'+id+'/candidate.bin',manifestSha256:hash(manifest),metadata:[{path:'verify-'+id+'/manifest.json',sha256:hash(manifest),size:manifest.length},{path:'verify-'+id+'/candidate.bin',sha256:hash(candidate),size:candidate.length}],files};
+   const manifestPath='verify-'+id+'/manifest.json',candidatePath='verify-'+id+'/candidate.bin';
+   const p={ready:true,preparation:id,directory,workspaceDirectory:'work/'+directory,manifestPath,workspaceManifestPath:'work/'+manifestPath,candidatePath,workspaceCandidatePath:'work/'+candidatePath,manifestSha256:hash(manifest),metadata:[{path:manifestPath,sha256:hash(manifest),size:manifest.length},{path:candidatePath,sha256:hash(candidate),size:candidate.length}],files};
    await this.checkPrepared(work,p);active();return p;
   }catch(error){await rm(staging,{recursive:true,force:true});await rm(final,{recursive:true,force:true});throw error;}
  }

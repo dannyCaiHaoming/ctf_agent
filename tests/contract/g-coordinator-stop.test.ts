@@ -13,7 +13,7 @@ async function fixture(target?: string) {
   const materialsDir = join(dir, 'X/materials'); await mkdir(materialsDir, { recursive: true });
   const abort = vi.fn(async (_: unknown) => ({ data: true }));
   const identities: Record<string, { parentID: string; agent: string }> = {};
-  const c = new ControlService({ runId: dir, client: { session: { get: async ({ sessionID }: { sessionID: string }) => ({ data: identities[sessionID] }), messages: async () => ({ data: [] }), children: async () => ({ data: [] }), abort } } as never,
+  const c = new ControlService({ runId: dir, client: { session: { get: async ({ sessionID }: { sessionID: string }) => ({ data: identities[sessionID] }), messages: async ({ sessionID }: { sessionID: string }) => ({ data: sessionID === 'root' ? [{ info: { id: 'dispatches', sessionID: 'root', role: 'user' }, parts: c.audit.filter(r => r.op === 'dispatch.register').map(r => { const callID = (r.detail as { callID: string }).callID; return { type: 'tool', tool: 'task', callID, state: { metadata: { sessionId: callID.slice(9) } } }; }) }] : [] }), children: async () => ({ data: [] }), abort } } as never,
     budget: { maxModelCalls: 100, maxObservableTokens: 1000 }, expiresAt: Date.now()+60000, workdir: join(dir,'opencode'), skillRoot: dir,
     challenges: [{ id: 'X', title: null, materialsDir, materials: [], reachability: null, target: target ? { protocol: 'http', url: target, host: '127.0.0.1', port: Number(new URL(target).port) } : null }] });
   c.bindRoot('root'); clean.push(() => c.stopAll('cleanup'));

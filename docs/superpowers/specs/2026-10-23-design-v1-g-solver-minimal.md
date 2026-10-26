@@ -14,6 +14,8 @@
 
 ## 1. 範圍
 
+2026-10-25 r3 第一优先级收窄为[创建方式保存与续接漏参补齐](2026-10-25-design-v1-sync-resume-provenance.md)：首次保存，续接省略时补值，显式值保留；不新增模式锁定或报错永久禁用。旧强制后台补丁已撤回，扩大实现已归档；本次最小补参代码及无模型验收已完成并合回主区。[否定证据与路线复核](2026-10-25-design-v1-negative-evidence-and-route-review.md)的取证 Skill 与事实交接／Critic 提示已实施；无模型文本传递已验证，模型行为目标尚未验收。
+
 本文服務核心 design v1 的既定多 Agent 系統：Coordinator、Intake/Triage、Target Recon、Reference、Strategy、Domain Solver、Solution Engineer、Verifier、Recovery Critic。簡單職責可自適應合併，但職責不消失；Verifier 保持獨立，Recovery Critic 按持續停滯條件觸發。本文的「解題角色」只是題目綁定與工具權限的分類，不是把整個團隊縮成單一 Solver，也不另建編排器或角色。
 
 **做：**
@@ -118,6 +120,8 @@
 | `workspace.search`（`ctf_workspace_search`） | `path`（可省略＝三個根）、`needle`（字面字串，非正則） | `path:行號` 與 ≤200 字元的片段 | 跳過二進位與超過 1 MiB 的文件；最多 200 條，總輸出 32 KiB |
 
 `workspace.read` 與 E design 的 `challenge.read` 共用實作（把 E 的「題目 `id` + `materials/`」泛化為「根目錄 + 相對路徑」），避免兩套讀取語義分叉。
+
+工具清單和共同產品指令都必須在首次使用時清楚呈現上述差異。完整 run 的誤用分類、方案取捨及驗收邊界以 [run 復盤與路徑可發現性子 design](2026-10-24-design-v1-g-run-review-and-path-affordance.md) 為準。
 
 選擇依據：E 的真實材料佈局與同題雙會話讀寫已驗證；共同根接口不符合此佈局，已淘汰。驗證範圍見第 9 節 G-V3。E/G 共用讀取實作與並發路徑替換仍未驗證。
 
@@ -321,7 +325,7 @@ Symbol 關聯已在 OpenCode 1.19.3／plugin 1.19.0 驗證，包括同會話同�
 
 ### 7.2.1 長作業、異步子任務與 Coordinator 停止的統一契約
 
-**設計已選定：Solver 等 job 終態；Coordinator 異步分派解題子任務，保有控制權，完成結果自動交付同一邏輯任務。** 兩層等待分開，不讓父會話被前台 task 鎖住，也不靠模型反覆查詢完成與否。
+**既有長作業策略：Solver 等 job 終態；Coordinator 可選背景分派以保有控制機會。** 2026-10-25 第一優先級只處理[創建方式保存與續接漏參補齊](2026-10-25-design-v1-sync-resume-provenance.md)，細節以子設計為準；promotion、當前輪停止改造不列入本次。下列背景交付機制與歷史驗收保留，不能據此要求所有角色背景，也不宣稱前台具有相同父控制機會。
 
 | 階段 | 契約 |
 | --- | --- |

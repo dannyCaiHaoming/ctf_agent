@@ -34,6 +34,8 @@
 
 ## 3. 接口一：解題產物交給 Engineer
 
+2026-10-25 r3 第一优先级仅为[创建方式保存与续接漏参补齐](2026-10-25-design-v1-sync-resume-provenance.md)，细节以子设计为准。下文后台来源／发布与 Verifier 版本校验继续保留；本次不扩展同步执行身份，不新增模式锁定或报错永久禁用。最小补参代码及无模型验收已完成并合回主区。
+
 ### 已定責任
 
 Recon／Domain Solver 保存腳本、觀察與輸出，選擇交付下一角色所需材料；宿主核實來源並固定內容。Engineer 取得可讀產物後才能整理。不能只允許 Engineer 在最後發布，否則它無法取得 Solver 的私有文件。Reference／Strategy 的建議仍可走既有 task 文本交接，不為每句討論新增產物工具。
@@ -210,7 +212,7 @@ Coordinator 決定何時驗證，沿用 G 的 assign 與原生 task 分派獨立
 
 - Coordinator 使用既有 `challenge.assign(role,challenge,version?)`，Verifier 必須指定實際包 version。宿主先核對同 run／同題整包，再提交聲明；原生背景 task callID 消費聲明至 execution，C 核實真實 child，首次模型准入前綁定版本。同 session 新 execution 明確重綁，不默認沿用舊版。不以 prompt、模型自填身份或新 registry 授權。
 - Verifier 只用 `package.read` 讀本次綁定包；Engineer 原權限不變。保留同題材料與 artifact 讀取，不開發布、普通 HTTP 或提交。交接題面、包、必要證據、前提和未知項，不帶 Solver 完整推理。
-- `package.prepare({})` 由宿主在自己的 work 建唯一 `verify-<uuid>/`：inputs 保留 manifest 路徑，candidate/manifest 放父目錄。經 staging、rename、存活和 hash 校驗後登記 ready；失敗／停止清除半準備，不覆寫其他 work。argv 仍是 proposed，準備不自動執行。**此能力限可信穩定 work 根、無不受管並發寫入；不是 OS 隔離。**
+- `package.prepare({})` 由宿主在自己的 work 建唯一 `verify-<uuid>/`：inputs 保留 manifest 路徑，candidate/manifest 放父目錄。經 staging、rename、存活和 hash 校驗後登記 ready；失敗／停止清除半準備，不覆寫其他 work。回應同時給 work 相對路徑及可直接交 workspace 工具使用的 `workspaceDirectory`／`workspaceManifestPath`／`workspaceCandidatePath`；後者由宿主映射，模型不自行拼接。argv 仍是 proposed，準備不自動執行。**此能力限可信穩定 work 根、無不受管並發寫入；不是 OS 隔離。**
 - Verifier `job.run` 使用本次 session/execution/version 對應 preparation，cwd 指向 inputs；宿主記錄實際 argv、列明文件與 metadata hash、job、原輸出和終態。自寫檢查腳本與包內原腳本區分來源。端點 hash 不能證明讀取時點，所有 job 的 continuousIntegrity／undeclaredDependencies 保持 unknown；不接受模型 receipt 作證據。
 
 | 契約 | 主 session 核對結論 |

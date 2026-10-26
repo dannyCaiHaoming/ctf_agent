@@ -18,7 +18,15 @@ function fakeService(sessions: Record<string, { parentID?: string; agent?: strin
 } = {}) {
   const client = { session: {
     get: async ({ sessionID }: { sessionID: string }) => ({ data: { id: sessionID, ...sessions[sessionID] } }),
-    children: async () => ({ data: [] }), messages: options.messages ?? (async () => ({ data: [] })), abort: async () => ({ data: true })
+    children: async () => ({ data: [] }), messages: async (input: { sessionID: string }) => {
+      const response = await (options.messages?.(input) ?? Promise.resolve({ data: [] }));
+      if (input.sessionID !== 'root') return response;
+      return { data: [{ info: { id: 'dispatches', sessionID: 'root', role: 'user' }, parts: service.audit.filter(r => r.op === 'dispatch.register').flatMap(r => {
+        const d = r.detail as { role: string; callID: string };
+        const child = Object.keys(sessions).find(id => sessions[id]?.parentID === 'root' && sessions[id]?.agent === d.role);
+        return child ? [{ type: 'tool', tool: 'task', callID: d.callID, state: { metadata: { sessionId: child } } }] : [];
+      }) }] };
+    }, abort: async () => ({ data: true })
   } };
   const service = new ControlService({ client: client as never, budget: { maxModelCalls: 10, maxObservableTokens: 1000 },
     expiresAt: options.expiresAt ?? Date.now() + 60000, workdir: '/nonexistent', skillRoot: '/nonexistent', challenges: [{ id: 'C-fixture', title: null, target: null, reachability: null, materials: [], materialsDir: materials('C-fixture') }] });
@@ -130,6 +138,41 @@ describe('control service permission layer', () => {
     await service.handle('root', 'tool.before', task('verifier')); // other roles are not limited
     await service.handle('c1', 'chat.message', { agent: 'recon' }); // consumes the recon dispatch
     await service.handle('root', 'tool.before', task('recon'));
+  });
+
+  it.each([true, false, undefined])('inherits creation background %s only when omitted, retaining explicit choices', async (created) => {
+    const service = fakeService({ child: { parentID: 'root', agent: 'recon' }, late: { parentID: 'root', agent: 'recon' }, foreign: { parentID: 'root', agent: 'strategy' } });
+    const create = task('recon', created === undefined ? {} : { background: created });
+    expect(await service.handle('root', 'tool.before', create)).toMatchObject({ taskBackground: created === true });
+    await expect(service.handle('late', 'chat.message', { agent: 'recon' })).rejects.toThrow('unbound session');
+    await service.handle('root', 'tool.after', { tool: 'task', callID: create.callID, metadata: { sessionId: 'child' } });
+    await service.handle('child', 'chat.message', { agent: 'recon' });
+    if (created === true) {
+      const execution = service.executionSnapshot()[0]!;
+      await service.handle('root', 'chat.message', { agent: 'coordinator', messageID: 'notice', parts: [{ type: 'text', synthetic: true,
+        text: `<task id="child" state="completed">\n<summary>Background task completed: [ctf:${execution.ref}]</summary></task>` }] });
+    }
+    const finish = async (callID: string, background: boolean) => {
+      if (background) {
+        const e = service.executionSnapshot().find(e => e.callID === callID)!;
+        await service.handle('root', 'chat.message', { agent: 'coordinator', messageID: 'notice-' + callID, parts: [{ type: 'text', synthetic: true,
+          text: `<task id="child" state="completed">\n<summary>Background task completed: [ctf:${e.ref}]</summary></task>` }] });
+      } else await service.handle('root', 'tool.after', { tool: 'task', callID, metadata: { parentSessionId: 'root', sessionId: 'child' } });
+    };
+    for (const explicit of [undefined, true, false, undefined]) {
+      const resume = task('recon', { task_id: 'child', ...(explicit === undefined ? {} : { background: explicit }), prompt: 'current instruction' });
+      const effective = explicit ?? (created === true);
+      expect(await service.handle('root', 'tool.before', resume)).toMatchObject({ allowed: true, taskBackground: effective });
+      expect(service.executionSnapshot().some(e => e.callID === resume.callID)).toBe(effective);
+      await finish(resume.callID, effective);
+    }
+    await expect(service.handle('root', 'tool.before', task('strategy', { task_id: 'child' }))).rejects.toThrow('dispatch');
+    await expect(service.handle('root', 'tool.before', task('recon', { task_id: 'foreign' }))).rejects.toThrow('dispatch');
+    await expect(service.handle('root', 'tool.before', task('recon', { task_id: 'missing' }))).rejects.toThrow('dispatch');
+    service.bindings.set('unrecorded', { ...service.bindings.get('child')!, sessionID: 'unrecorded' });
+    await expect(service.handle('root', 'tool.before', task('recon', { task_id: 'unrecorded' }))).rejects.toThrow('dispatch');
+    await expect(service.handle('root', 'tool.before', task('recon', { task_id: 'child', background: 'true' }))).rejects.toThrow('dispatch');
+    await service.stopAll('cleanup');
   });
 
   it('preserves unconsumed pending dispatches across parent admission', async () => {
@@ -287,7 +330,7 @@ describe('G-V1 cross-round challenge binding', () => {
     const sessions: Record<string, { parentID?: string; agent?: string }> = { child: { parentID: 'root', agent: 'recon' } };
     const client = { session: {
       get: async ({ sessionID }: { sessionID: string }) => ({ data: get ? await get(sessionID) : sessions[sessionID] }),
-      messages: async () => ({ data: [] }), children: async () => ({ data: [] }), abort: async () => ({ data: true })
+      messages: async ({ sessionID }: { sessionID: string }) => ({ data: sessionID === 'root' ? [{ info: { id: 'dispatches', sessionID: 'root', role: 'user' }, parts: service.audit.filter(r => r.op === 'dispatch.register').map(r => ({ type: 'tool', tool: 'task', callID: (r.detail as { callID: string }).callID, state: { metadata: { sessionId: 'child' } } })) }] : [] }), children: async () => ({ data: [] }), abort: async () => ({ data: true })
     } };
     const service = new ControlService({ client: client as never, budget: { maxModelCalls: 100, maxObservableTokens: 1000 },
       expiresAt: Date.now() + 60000, workdir: '/nonexistent', skillRoot: '/nonexistent',
