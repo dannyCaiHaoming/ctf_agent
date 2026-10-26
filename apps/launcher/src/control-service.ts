@@ -1012,7 +1012,7 @@ export class ControlService {
     const accepted: string[] = [];
     let suppressed = false;
     const reads = await this.serial(() => {
-      const pending: Array<{ref:string;childID:string;source:ChildSource}> = [];
+      const pending: Array<{ref:string;childID:string;source:ChildSource;ordinaryCompleted:boolean}> = [];
       if (!Array.isArray(body.parts)) return pending;
       for (const part of body.parts as Array<{type?: string; synthetic?: boolean; text?: string}>) {
         if (part.type !== 'text' || part.synthetic !== true || typeof part.text !== 'string') continue;
@@ -1027,7 +1027,7 @@ export class ControlService {
         e.delivered=true;e.delivery=this.stopReason?'suppressed':'queued';
         e.resultFacts=unknownChildResult(e.source,this.stopReason?'stopped':e.source.status==='conflict'?'source_conflict':'missing_source');
         this.record(parent,'task.completion',true,undefined,{ref:e.ref,childID:e.childID,callID:e.callID,state:e.state,messageID:e.noticeMessageID,wake:!this.stopReason});
-        if(!this.stopReason && e.source.status==='associated') pending.push({ref:e.ref,childID:e.childID!,source:{...e.source}});
+        if(!this.stopReason && e.source.status==='associated') pending.push({ref:e.ref,childID:e.childID!,source:{...e.source},ordinaryCompleted:e.state==='completed'});
         else this.record(parent,'task.result',true,undefined,{ref:e.ref,source:{...e.source},resultFacts:{...e.resultFacts}});
       }
       return pending;
@@ -1037,7 +1037,7 @@ export class ControlService {
       let facts: ChildResult;
       try {
         const messages=(await this.options.client.session.messages({sessionID:read.childID},{throwOnError:true})).data;
-        facts=messages?classifyChildResult(messages,read.childID,read.source):unknownChildResult(read.source,'sdk_missing');
+        facts=messages?classifyChildResult(messages,read.childID,read.source,read.ordinaryCompleted):unknownChildResult(read.source,'sdk_missing');
       } catch { facts=unknownChildResult(read.source,'sdk_error'); }
       await this.serial(() => {
         const e=this.executions.get(read.ref);
@@ -1069,11 +1069,14 @@ export class ControlService {
         c.state='reading';
         const binding=child?this.bindings.get(child):undefined, parent=this.bindings.get(sessionID);
         const trusted=!!child && metadata.parentSessionId===sessionID && c.childID===child && binding?.parentID===sessionID && binding.role===c.role && parent?.state==='active' && binding.state==='active' && Date.now()<Math.min(parent.expiresAt,binding.expiresAt);
+        // The native task wrapper is host output; child report text cannot authorize completion.
+        // Promotion returns background metadata and a running envelope through this same hook.
+        const ordinaryCompleted=metadata.background!==true && typeof body.output==='string' && body.output.startsWith(`<task id="${child}" state="completed">\n`);
         const source={...c.source};
         return {execute:async()=>{
-          let facts=unknownChildResult(source,trusted?'missing_source':'binding_identity');
-          if(trusted && !this.stopReason && source.status==='associated') {
-            try {const ms=(await this.options.client.session.messages({sessionID:child!},{throwOnError:true})).data;facts=ms?classifyChildResult(ms,child!,source):unknownChildResult(source,'sdk_missing');}catch{facts=unknownChildResult(source,'sdk_error');}
+          let facts=unknownChildResult(source,trusted?(ordinaryCompleted?'missing_source':'native_not_completed'):'binding_identity');
+          if(trusted && ordinaryCompleted && !this.stopReason && source.status==='associated') {
+            try {const ms=(await this.options.client.session.messages({sessionID:child!},{throwOnError:true})).data;facts=ms?classifyChildResult(ms,child!,source,true):unknownChildResult(source,'sdk_missing');}catch{facts=unknownChildResult(source,'sdk_error');}
           } else if(source.status==='conflict')facts=unknownChildResult(source,'source_conflict');
           return this.serial(()=>{
             const current=this.syncCalls.get(sessionID+'/'+callID), b=child?this.bindings.get(child):undefined, p=this.bindings.get(sessionID);

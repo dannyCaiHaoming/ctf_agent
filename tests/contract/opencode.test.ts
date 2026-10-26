@@ -208,3 +208,33 @@ it('admission without a user or prepared snapshot still reaches authenticated co
  const requests:any[]=[];const mocked=vi.spyOn(globalThis,'fetch').mockImplementation(async(_url,init)=>{requests.push(JSON.parse(String(init?.body)));return new Response(JSON.stringify({result:{maxOutputTokens:100}}),{status:200});});
  try {const h=createCtfAgentHooks({controlUrl:'http://127.0.0.1:12345',controlToken:'x'.repeat(40),tools:[]});await h['chat.params']!({sessionID:'root',model:{providerID:'stub',id:'scripted'}} as never,{} as never);expect(requests[0].input.requestMessageIDs).toEqual([]);}finally{mocked.mockRestore();}
 });
+
+it.each(['completed','promotion','running','missing'] as const)('native %s task reply reaches real host classification without rewriting envelope or identity',async(mode)=>{
+ const {mkdtemp,rm}=await import('node:fs/promises');const {tmpdir}=await import('node:os');const {join}=await import('node:path');
+ const {ControlService}=await import('../../apps/launcher/src/control-service.js');
+ const {createCtfAgentHooks}=await import('../../apps/opencode-plugin/src/index.js');
+ const dir=await mkdtemp(join(tmpdir(),'c-native-contract-'));
+ const c=new ControlService({client:{session:{get:async()=>({data:{parentID:'root',agent:'intake'}}),messages:async({sessionID}:any)=>({data:sessionID==='root'?[{info:{id:'parent',role:'assistant'},parts:[{type:'tool',tool:'task',callID:'call',state:{metadata:{sessionId:'child'}}}]}]:[
+  {info:{id:'source',sessionID:'child',role:'user'}},
+  {info:{id:'step',sessionID:'child',role:'assistant',parentID:'source',finish:'tool-calls',time:{created:1,completed:9}},parts:[{type:'tool',tool:'read',callID:'read',state:{status:'completed',input:{},output:'public',time:{start:2,end:8}}}]},
+  {info:{id:'terminal',sessionID:'child',role:'assistant',parentID:'source',finish:'stop',time:{created:10,completed:11}},parts:[{type:'text',text:'report'}]},
+ ]}),children:async()=>({data:[]}),abort:async()=>({data:true})}} as never,budget:{maxModelCalls:10,maxObservableTokens:1000},expiresAt:Date.now()+60000,workdir:dir,skillRoot:dir,challenges:[]});
+ c.bindRoot('root');
+ const mocked=vi.spyOn(globalThis,'fetch').mockImplementation(async(_url,init)=>{
+  const b=JSON.parse(String(init?.body));return new Response(JSON.stringify({result:await c.handle(b.sessionID,b.operation,b.input)}),{status:200});
+ });
+ try {
+  const h=createCtfAgentHooks({controlUrl:'http://127.0.0.1:12345',controlToken:'x'.repeat(40),tools:[]});
+  await h['tool.execute.before']!({sessionID:'root',tool:'task',callID:'call'},{args:{subagent_type:'intake',background:false}});
+  await c.handle('child','chat.message',{agent:'intake',messageID:'source'});
+  const metadata={parentSessionId:'root',sessionId:'child',...(mode==='promotion'?{background:true,jobId:'child'}:{})};
+  const envelope=mode==='missing'?'unrecognized native reply':`<task id="child" state="${mode==='completed'?'completed':'running'}">\n<task_result>native payload</task_result>\n</task>`;
+  const after={title:'native',metadata,output:envelope};
+  await h['tool.execute.after']!({sessionID:'root',tool:'task',callID:'call',args:{}},after);
+  expect(after.metadata).toBe(metadata);expect(after.output.startsWith(envelope+'\n')).toBe(true);
+  expect(after.output).toContain(`"completeness":"${mode==='completed'?'complete':'unknown'}"`);
+  const facts=c.audit.filter(a=>a.op==='sync.result').map(a=>(a.detail as any).facts);
+  expect(facts).toHaveLength(1);
+  expect(facts[0]).toMatchObject({userMessageID:'source',assistantMessageID:mode==='completed'?'terminal':null,completeness:mode==='completed'?'complete':'unknown'});
+ } finally {mocked.mockRestore();await c.stopAll('cleanup');await rm(dir,{recursive:true,force:true});}
+});

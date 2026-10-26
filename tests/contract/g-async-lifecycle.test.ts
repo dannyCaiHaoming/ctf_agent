@@ -48,6 +48,34 @@ it('host revoke still revokes a naturally completed child session',async()=>{con
 const childMessage=(finish='stop',text='done',extra:any={})=>({info:{id:'reply-1',sessionID:'a',role:'assistant',parentID:'source-1',finish,time:{completed:1},...extra},parts:[{type:'text',text}]});
 async function resultFixture(){const c=await fixture();await c.handle('a','chat.message',{agent:'recon',messageID:'source-1'});let messages:any[]=[{info:{id:'source-1',sessionID:'a',role:'user'}},childMessage()];let reads=0;let read:()=>Promise<any>=async()=>({data:messages});(c as any).options.client.session.messages=async({sessionID}:any)=>{if(sessionID==='a'){reads++;return read();}return {data:[]};};return {c,set:(m:any[])=>{messages=m;},setRead:(r:()=>Promise<any>)=>{read=r;},reads:()=>reads};}
 function completion(c:ControlService,index=0,messageID='notice'){const e=c.executionSnapshot()[index]!;return {messageID,parts:[{type:'text',synthetic:true,text:`<task id="${e.childID}" state="completed">\n<summary>Background task completed: [ctf:${e.ref}]</summary>\n<task_result>envelope</task_result>\n</task>`}]};}
+
+// Non-secret structures mapped from C design §1.1: Critic has one tool step then
+// length/zero text; Verifier has six tool steps (one tool error) then stop/text.
+function ordinaryChain(userID='source-1',finish='stop',text='report',steps=1,stepFinish='tool-calls'):any[] {
+ const toolSteps=Array.from({length:steps},(_,i)=>({
+  info:{id:`step-${i}`,sessionID:'a',role:'assistant',parentID:userID,finish:stepFinish,time:{created:i*10+1,completed:i*10+9}},
+  parts:[{id:`tool-${i}`,sessionID:'a',messageID:`step-${i}`,type:'tool',tool:'read',callID:`read-${i}`,
+   state:{status:i===2?'error':'completed',input:{filePath:'materials/public.txt'},output:'read',error:i===2?'experiment failed':undefined,title:'read',time:{start:i*10+2,end:i*10+8}}}]
+ }));
+ return [{info:{id:userID,sessionID:'a',role:'user'}},...toolSteps,
+  childMessage(finish,text,{id:'terminal',parentID:userID,time:{created:steps*10+1,completed:steps*10+9}})];
+}
+it.each([
+ ['Critic','length','',1,'incomplete',0],
+ ['Verifier','stop','report',6,'complete',6],
+] as const)('C original %s structure reaches background parent facts',async(_,finish,text,steps,completeness,textChars)=>{
+ const f=await resultFixture();f.set(ordinaryChain('source-1',finish,text,steps));
+ const response=await f.c.handle('root','chat.message',completion(f.c));
+ expect(response).toMatchObject({completionDisplays:[{completeness,reason:finish,finish,textChars}]});
+ expect(f.c.executionSnapshot()[0]).toMatchObject({state:'completed',resultFacts:{assistantMessageID:'terminal',completeness,reason:finish,finish,textChars}});
+});
+it.each([
+ ['Critic','length','',1,'incomplete',0],
+ ['Verifier','stop','report',6,'complete',6],
+] as const)('C original %s structure reaches synchronous parent facts',async(_,finish,text,steps,completeness,textChars)=>{
+ const f=await syncFixture();f.set(ordinaryChain('sync-user',finish,text,steps));
+ expect(await f.after()).toMatchObject({syncDisplay:{callID:'sync-1',completeness,reason:finish,finish,textChars}});
+});
 it.each([
  ['partial length',childMessage('length','PARTIAL'),'incomplete','length'],
  ['empty length',childMessage('length',''),'incomplete','length'],
@@ -82,7 +110,7 @@ it('R2 prepared input consumes exact same-parent registered notices; active work
  await c.stopAll('budget');await expect(c.handle('root','model.call',{requestMessageIDs:['notice-one']})).rejects.toThrow('run stopped');
 });
 
-async function syncFixture(){const f=await resultFixture();await f.c.handle('root','chat.message',completion(f.c));await f.c.handle('root','tool.before',{tool:'task',callID:'sync-1',args:{subagent_type:'recon',task_id:'a',background:false}});await f.c.handle('a','chat.message',{agent:'recon',messageID:'sync-user'});f.set([{info:{id:'sync-user',role:'user',sessionID:'a'}},{info:{id:'sync-reply',sessionID:'a',role:'assistant',parentID:'sync-user',finish:'stop',time:{completed:1}},parts:[{type:'text',text:'done'}]}]);return {...f,after:(md:any={parentSessionId:'root',sessionId:'a'})=>f.c.handle('root','tool.after',{tool:'task',callID:'sync-1',metadata:md,output:'native envelope'})};}
+async function syncFixture(){const f=await resultFixture();await f.c.handle('root','chat.message',completion(f.c));await f.c.handle('root','tool.before',{tool:'task',callID:'sync-1',args:{subagent_type:'recon',task_id:'a',background:false}});await f.c.handle('a','chat.message',{agent:'recon',messageID:'sync-user'});f.set([{info:{id:'sync-user',role:'user',sessionID:'a'}},{info:{id:'sync-reply',sessionID:'a',role:'assistant',parentID:'sync-user',finish:'stop',time:{completed:1}},parts:[{type:'text',text:'done'}]}]);return {...f,after:(md:any={parentSessionId:'root',sessionId:'a'},output='<task id="a" state="completed">\n<task_result>report</task_result>\n</task>')=>f.c.handle('root','tool.after',{tool:'task',callID:'sync-1',metadata:md,output})};}
 it('R4 sync facts preserve old ref and repeated before/after are idempotent',async()=>{const f=await syncFixture();const old=f.c.executionSnapshot()[0]!;await f.c.handle('root','tool.before',{tool:'task',callID:'sync-1',args:{subagent_type:'recon',task_id:'a',background:false}});const n=f.reads();expect(await f.after()).toMatchObject({syncDisplay:{callID:'sync-1',completeness:'complete',textChars:4}});expect(await f.after()).toEqual({ok:true});expect(f.reads()).toBe(n+1);expect(f.c.executionSnapshot()).toHaveLength(1);expect(f.c.executionSnapshot()[0]).toEqual(old);});
 it('R4 different sync user is persistent unknown and cannot consume queued background',async()=>{const f=await syncFixture();await f.c.handle('a','chat.message',{agent:'recon',messageID:'other'});await f.c.handle('root','tool.before',{tool:'task',callID:'sync-1',args:{subagent_type:'recon',task_id:'a',background:false}});await f.c.handle('a','chat.message',{agent:'recon',messageID:'sync-user'});const n=f.reads();expect(await f.after()).toMatchObject({syncDisplay:{completeness:'unknown',reason:'source_conflict',textChars:null}});expect(f.reads()).toBe(n);expect(f.c.executionSnapshot()[0]?.delivery).toBe('queued');});
 it('R4 wrong sync metadata refuses SDK read and leaves background queued',async()=>{const f=await syncFixture();const n=f.reads();expect(await f.after({parentSessionId:'other',sessionId:'a'})).toMatchObject({syncDisplay:{completeness:'unknown',reason:'binding_identity'}});expect(f.reads()).toBe(n);expect(f.c.executionSnapshot()[0]?.delivery).toBe('queued');});
@@ -145,7 +173,7 @@ it('two completed synchronous resumes on the same child keep independent users a
   {info:{id:'sync-user-2',role:'user',sessionID:'a'}},
   {info:{id:'sync-reply-2',role:'assistant',sessionID:'a',parentID:'sync-user-2',finish:'stop',time:{completed:2}},parts:[{type:'text',text:'second report'}]},
  ]);
- expect(await f.c.handle('root','tool.after',{tool:'task',callID:'sync-2',metadata:{parentSessionId:'root',sessionId:'a'},output:'native second envelope'})).toMatchObject({syncDisplay:{callID:'sync-2',completeness:'complete',textChars:13}});
+ expect(await f.c.handle('root','tool.after',{tool:'task',callID:'sync-2',metadata:{parentSessionId:'root',sessionId:'a'},output:'<task id="a" state="completed">\n<task_result>second report</task_result>\n</task>'})).toMatchObject({syncDisplay:{callID:'sync-2',completeness:'complete',textChars:13}});
  const results=f.c.audit.filter(a=>a.op==='sync.result').map(a=>a.detail as any);
  expect(results).toMatchObject([
   {callID:'sync-1',source:{userMessageID:'sync-user'},facts:{assistantMessageID:'sync-reply',textChars:4}},
@@ -154,4 +182,72 @@ it('two completed synchronous resumes on the same child keep independent users a
  expect(f.c.audit.find(a=>a.op==='sync.result'&&(a.detail as any).callID==='sync-1')).toEqual(first);
  const reads=f.reads();expect(await f.after()).toEqual({ok:true});expect(f.reads()).toBe(reads);
  expect(f.c.executionSnapshot()).toHaveLength(1);expect(f.c.bindings.get('a')?.dispatchCallID).toBe('dispatch-1');
+});
+
+
+it.each(['tool-calls','stop'])('C settled %s tool step is intermediate even with body; duplicates and SDK order do not select terminal',async(finish)=>{
+ const f=await resultFixture();const ms=ordinaryChain('source-1','stop','report',1,finish);
+ ms[1]!.parts.push({type:'text',text:'intermediate body'} as any);
+ f.set([ms[2],ms[1],ms[0],structuredClone(ms[1])]);
+ expect(await f.c.handle('root','chat.message',completion(f.c))).toMatchObject({completionDisplays:[{completeness:'complete',reason:'stop',textChars:6}]});
+ expect(f.c.executionSnapshot()[0]).toMatchObject({resultFacts:{assistantMessageID:'terminal'}});
+});
+it.each(['stop','length'])('C single %s message with settled tools is not a final report',async(finish)=>{
+ const f=await resultFixture();const ms=ordinaryChain('source-1','stop','report',1,finish);ms.pop();
+ ms[1]!.parts.push({type:'text',text:'looks final'} as any);f.set(ms);
+ expect(await f.c.handle('root','chat.message',completion(f.c))).toMatchObject({completionDisplays:[{completeness:'unknown',textChars:null}]});
+});
+it.each([
+ 'two_terminals','unfinished_successor','step_after_terminal','missing_created','missing_completed','reversed_time',
+ 'pending','running','unknown_status','unknown_finish','providerExecuted','interrupted','assistant_error',
+ 'same_id_equal_length_text','same_id_tool_state','same_id_special_tool','same_id_created','foreign_identity',
+])('C ordinary chain preserves unknown boundary: %s',async(kind)=>{
+ const f=await resultFixture();const ms:any[]=ordinaryChain();const step=ms[1],terminal=ms[2];
+ if(kind==='two_terminals')ms.push(childMessage('stop','other',{id:'terminal-2',time:{created:30,completed:39}}));
+ if(kind==='unfinished_successor')ms.push(childMessage('stop','later',{id:'later',time:{created:30}}));
+ if(kind==='step_after_terminal')step.info.time={created:30,completed:39};
+ if(kind==='missing_created')delete terminal.info.time.created;
+ if(kind==='missing_completed')delete step.info.time.completed;
+ if(kind==='reversed_time')step.info.time={created:10,completed:9};
+ if(['pending','running','unknown_status'].includes(kind))step.parts[0].state.status=kind;
+ if(kind==='unknown_finish')step.info.finish='unknown';
+ if(kind==='providerExecuted')step.parts[0].metadata={providerExecuted:true};
+ if(kind==='interrupted'){step.parts[0].state.status='error';step.parts[0].state.metadata={interrupted:true};}
+ if(kind==='assistant_error')step.info.error={name:'APIError'};
+ if(kind==='same_id_equal_length_text')ms.push({...terminal,parts:[{type:'text',text:'REPORT'}]});
+ if(kind==='same_id_tool_state'){const duplicate=structuredClone(step);duplicate.parts[0].state.status='running';ms.push(duplicate);}
+ if(kind==='same_id_special_tool'){const duplicate=structuredClone(step);duplicate.parts[0].metadata={providerExecuted:true};ms.push(duplicate);}
+ if(kind==='same_id_created'){const duplicate=structuredClone(terminal);duplicate.info.time.created=40;ms.push(duplicate);}
+ if(kind==='foreign_identity')ms.push({...step,info:{...step.info,parentID:'another-user'}});
+ f.set(ms);expect(await f.c.handle('root','chat.message',completion(f.c))).toMatchObject({completionDisplays:[{completeness:'unknown',textChars:null}]});
+});
+it.each([['length','partial','incomplete','length'],['stop','  ','incomplete','missing_text']] as const)('C ordinary chain preserves %s report meaning',async(finish,text,completeness,reason)=>{
+ const f=await resultFixture();f.set(ordinaryChain('source-1',finish,text));
+ expect(await f.c.handle('root','chat.message',completion(f.c))).toMatchObject({completionDisplays:[{completeness,reason,finish,textChars:text.length}]});
+});
+it.each([false,true])('C failed background keeps lifecycle independent from single or multi report (multi=%s)',async(multi)=>{
+ const f=await resultFixture();if(multi)f.set(ordinaryChain());
+ const n=completion(f.c);n.parts[0]!.text=n.parts[0]!.text.replace('state="completed"','state="error"').replace('Background task completed:','Background task failed:');
+ await f.c.handle('root','chat.message',n);
+ expect(f.c.executionSnapshot()[0]).toMatchObject({state:'failed',result:n.parts[0]!.text,resultFacts:{completeness:multi?'unknown':'complete'}});
+});
+it.each([
+ [{parentSessionId:'root',sessionId:'a',background:true,jobId:'a'},'<task id="a" state="running">\n<task_result>waiting</task_result>\n</task>'],
+ [{parentSessionId:'root',sessionId:'a'},'<task id="a" state="running">\n<task_result>waiting</task_result>\n</task>'],
+ [{parentSessionId:'root',sessionId:'a'},'unrecognized native reply'],
+ [{parentSessionId:'root',sessionId:'a'},'<task id="foreign" state="completed">\n<task_result>report</task_result>\n</task>'],
+])('C noncompleted sync reply cannot publish SDK terminal (%j)',async(metadata,output)=>{
+ const f=await syncFixture();const reads=f.reads();
+ expect(await f.after(metadata,output)).toMatchObject({syncDisplay:{completeness:'unknown',textChars:null}});
+ expect(f.reads()).toBe(reads);
+});
+it('C resumed multi chain cannot complete the previous frozen user or overwrite its facts',async()=>{
+ const f=await resultFixture();const old:any[]=ordinaryChain('source-1','length','',1);f.set(old);
+ await f.c.handle('root','chat.message',completion(f.c));const first=structuredClone(f.c.executionSnapshot()[0]);
+ await f.c.handle('root','tool.before',{tool:'task',callID:'chain-resume',args:{subagent_type:'recon',task_id:'a',background:true}});
+ await f.c.handle('a','chat.message',{agent:'recon',messageID:'source-2'});
+ const next:any[]=ordinaryChain('source-2');for(const m of next.slice(1))m.info.id='next-'+m.info.id;
+ f.set([...old,...next]);await f.c.handle('root','chat.message',completion(f.c,1,'resumed'));
+ expect(f.c.executionSnapshot()[0]).toEqual(first);
+ expect(f.c.executionSnapshot()[1]).toMatchObject({resultFacts:{userMessageID:'source-2',assistantMessageID:'next-terminal',completeness:'complete'}});
 });

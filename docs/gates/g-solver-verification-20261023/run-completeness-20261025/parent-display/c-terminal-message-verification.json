@@ -1,0 +1,949 @@
+{
+  "scope": "Only terminal-message verification; no product change or real-model run",
+  "baselineHEAD": "2be4ebbeb63f670b7da9fe03cfca925a8278f4e7",
+  "inputSha256": {
+    "docs/superpowers/specs/2026-10-26-design-v1-c-empty-result-recovery.md": "14956398fb361ea625a0d8700c32673251ce6d7627a204deb30e28496ee2487b",
+    "docs/superpowers/specs/2026-10-22-ctf-agent-design-v1.md": "9ecc20c33f64e32977d116cc59d3c4411b389f4c1fe8a918931c8ce30487172d",
+    "docs/superpowers/plans/2026-10-27-c-terminal-message-verification.md": "9dd731aeffa3124ee2c67b94791c5cfcf5a0758829887f837dcd6f76939de9d8"
+  },
+  "worktree": "/Users/caihaoming/.codex/worktrees/c-terminal-message-verification/pentest-agent",
+  "originalRecords": {
+    "run": {
+      "rootSessionId": "ses_e8c58c708ffevBml731JYwM0bW",
+      "status": "completed",
+      "opencodeVersion": "1.19.3",
+      "productRevision": {
+        "commit": "89e47dde412844c271a8fed695631e5d1c9291a1",
+        "productDirty": true
+      },
+      "configSha256": "7077ec3b70ded277f4a9ab8a6298bd33efcdb86bbbb1c19efbf4383a0e5a937a",
+      "stopReason": "completed"
+    },
+    "samples": [
+      {
+        "child": "ses_e8c4e20c8ffeK8MCXYu73eos6U",
+        "frozenUser": "msg_173b1df3b001Y7jZEy73SbLPzo",
+        "assistants": 2,
+        "toolCallAssistants": 1,
+        "toolErrors": 0,
+        "terminalObserved": {
+          "id": "msg_173b1e68a001oNrDKMkfYK2Iyz",
+          "finish": "length",
+          "time": {
+            "created": 1792942401162,
+            "completed": 1792942440773
+          },
+          "textChars": 0,
+          "hasNonWhitespace": false,
+          "textSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "hasError": false
+        },
+        "currentClassification": {
+          "userMessageID": "msg_173b1df3b001Y7jZEy73SbLPzo",
+          "assistantMessageID": null,
+          "finish": null,
+          "completed": false,
+          "textChars": 0,
+          "hasError": false,
+          "completeness": "unknown",
+          "reason": "multiple_assistants",
+          "observedAt": 1793029911195
+        }
+      },
+      {
+        "child": "ses_e8c467a92ffeZ8nDKrwwc0ycvr",
+        "frozenUser": "msg_173ba5fae001j5IVPjk30Xqnwe",
+        "assistants": 7,
+        "toolCallAssistants": 6,
+        "toolErrors": 1,
+        "terminalObserved": {
+          "id": "msg_173bb583f001X04LbKGepHztqY",
+          "finish": "stop",
+          "time": {
+            "created": 1792943020095,
+            "completed": 1792943026016
+          },
+          "textChars": 2222,
+          "hasNonWhitespace": true,
+          "textSha256": "48b75422a98e33dd78c33433a26b3dd5dd4610d7393de9f6a5379f4c4a83055c",
+          "hasError": false
+        },
+        "currentClassification": {
+          "userMessageID": "msg_173ba5fae001j5IVPjk30Xqnwe",
+          "assistantMessageID": null,
+          "finish": null,
+          "completed": false,
+          "textChars": 0,
+          "hasError": false,
+          "completeness": "unknown",
+          "reason": "multiple_assistants",
+          "observedAt": 1793029911196
+        }
+      }
+    ],
+    "executions": [
+      {
+        "ref": "6c44316a-d594-4057-b62c-794047558487",
+        "callID": "call_00_9tzj770cmxl8mpnjm3zcu01y",
+        "childID": "ses_e8c467a92ffeZ8nDKrwwc0ycvr",
+        "state": "completed",
+        "noticeMessageID": "msg_173bb6f63001egrLPxCOsSDH7z",
+        "delivery": "consumed",
+        "source": {
+          "status": "associated",
+          "userMessageID": "msg_173ba5fae001j5IVPjk30Xqnwe",
+          "reason": "hook",
+          "observedAt": 1792942956463
+        },
+        "resultReason": "multiple_assistants"
+      }
+    ],
+    "audit": [
+      {
+        "seq": 1714,
+        "op": "sync.source",
+        "callID": "call_00_mby58byi8lk9f5324ji43gm7",
+        "ref": null,
+        "user": "msg_173b1df3b001Y7jZEy73SbLPzo",
+        "state": null,
+        "noticeMessageID": null,
+        "resultReason": null
+      },
+      {
+        "seq": 1723,
+        "op": "task.correlate",
+        "callID": "call_00_mby58byi8lk9f5324ji43gm7",
+        "ref": null,
+        "user": null,
+        "state": null,
+        "noticeMessageID": null,
+        "resultReason": null
+      },
+      {
+        "seq": 1724,
+        "op": "sync.result",
+        "callID": "call_00_mby58byi8lk9f5324ji43gm7",
+        "ref": null,
+        "user": "msg_173b1df3b001Y7jZEy73SbLPzo",
+        "state": null,
+        "noticeMessageID": null,
+        "resultReason": "multiple_assistants"
+      },
+      {
+        "seq": 2745,
+        "op": "task.source",
+        "callID": null,
+        "ref": "6c44316a-d594-4057-b62c-794047558487",
+        "user": "msg_173ba5fae001j5IVPjk30Xqnwe",
+        "state": null,
+        "noticeMessageID": null,
+        "resultReason": null
+      },
+      {
+        "seq": 2747,
+        "op": "task.correlate",
+        "callID": "call_00_9tzj770cmxl8mpnjm3zcu01y",
+        "ref": null,
+        "user": null,
+        "state": null,
+        "noticeMessageID": null,
+        "resultReason": null
+      },
+      {
+        "seq": 2802,
+        "op": "task.completion",
+        "callID": "call_00_9tzj770cmxl8mpnjm3zcu01y",
+        "ref": "6c44316a-d594-4057-b62c-794047558487",
+        "user": null,
+        "state": "completed",
+        "noticeMessageID": "msg_173bb6f63001egrLPxCOsSDH7z",
+        "resultReason": null
+      },
+      {
+        "seq": 2803,
+        "op": "task.result",
+        "callID": null,
+        "ref": "6c44316a-d594-4057-b62c-794047558487",
+        "user": "msg_173ba5fae001j5IVPjk30Xqnwe",
+        "state": null,
+        "noticeMessageID": null,
+        "resultReason": "multiple_assistants"
+      }
+    ],
+    "parent": [
+      {
+        "messageID": "msg_173b1b0a4001o6eoK3Uqu2ltg3",
+        "role": "assistant",
+        "taskTools": [
+          {
+            "callID": "call_00_mby58byi8lk9f5324ji43gm7",
+            "childID": "ses_e8c4e20c8ffeK8MCXYu73eos6U",
+            "envelopeState": "completed",
+            "hostFacts": [
+              {
+                "callID": "call_00_mby58byi8lk9f5324ji43gm7",
+                "role": "recovery-critic",
+                "completeness": "unknown",
+                "reason": "multiple_assistants",
+                "finish": null,
+                "textChars": null,
+                "source": "associated"
+              }
+            ]
+          }
+        ],
+        "hostFacts": []
+      },
+      {
+        "messageID": "msg_173ba4ede0019RVBKkCJCSFbP0",
+        "role": "assistant",
+        "taskTools": [
+          {
+            "callID": "call_00_9tzj770cmxl8mpnjm3zcu01y",
+            "childID": "ses_e8c467a92ffeZ8nDKrwwc0ycvr",
+            "envelopeState": "running",
+            "hostFacts": []
+          }
+        ],
+        "hostFacts": []
+      },
+      {
+        "messageID": "msg_173bb6f63001egrLPxCOsSDH7z",
+        "role": "user",
+        "taskTools": [],
+        "hostFacts": [
+          {
+            "ref": "6c44316a-d594-4057-b62c-794047558487",
+            "role": "verifier",
+            "completeness": "unknown",
+            "reason": "multiple_assistants",
+            "finish": null,
+            "textChars": null,
+            "source": "associated"
+          }
+        ]
+      }
+    ],
+    "fileSha256": {
+      "state/run.json": "b5408c96ac65b3f7a0e732e5848288a0124cf852c4dd116519180880b803098d",
+      "evidence/task-executions.json": "ebbb1fa5e9f2e8bedcc27708770ec536e86182bdcec65a064252a1cf80c815bf",
+      "evidence/control-audit.json": "0cfe0d419d48a4b6217360e1ede11ac8cb96142b7bc01deb0040c49b80dcdcfd",
+      "evidence/messages-ses_e8c4e20c8ffeK8MCXYu73eos6U.json": "81b6ccd84c656671966288a653b75673611f5a99c00a124010ae088448ec1efd",
+      "evidence/messages-ses_e8c467a92ffeZ8nDKrwwc0ycvr.json": "2e2d4c018573b0aad995ddd30ac6819123f0485cedb363b0db64e06d7c2074dd",
+      "evidence/messages-ses_e8c58c708ffevBml731JYwM0bW.json": "d758b537172941a63bbcd094f1dbeaab79e23ff6c6ab1bf81ba9af2ae7ca5940"
+    }
+  },
+  "native": [
+    {
+      "mode": "sync",
+      "version": "1.19.3",
+      "launcherCode": 0,
+      "providerRequests": 7,
+      "childCalls": 4,
+      "parentFacts": [
+        {
+          "callID": "call_1_0",
+          "completeness": "unknown",
+          "finish": null,
+          "reason": "multiple_assistants",
+          "role": "intake",
+          "source": "associated",
+          "textChars": null
+        },
+        {
+          "callID": "call_4_0",
+          "completeness": "unknown",
+          "finish": null,
+          "reason": "multiple_assistants",
+          "role": "intake",
+          "source": "associated",
+          "textChars": null
+        }
+      ],
+      "rounds": [
+        {
+          "user": "msg_178e24be2001ItWcZ2dm5z7Z5X",
+          "assistantFacts": [
+            {
+              "id": "msg_178e24be9001BmlDhoYvURxwEq",
+              "finish": "tool-calls",
+              "textChars": 0,
+              "hasNonWhitespace": false,
+              "textSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "hasError": false,
+              "tools": [
+                {
+                  "tool": "ctf_challenge_list",
+                  "status": "completed"
+                }
+              ],
+              "completed": 1793029458942
+            },
+            {
+              "id": "msg_178e24bff001IhWq2nwm22RsEG",
+              "finish": "length",
+              "textChars": 0,
+              "hasNonWhitespace": false,
+              "textSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "hasError": false,
+              "tools": [],
+              "completed": 1793029458957
+            }
+          ]
+        },
+        {
+          "user": "msg_178e24c25001MW3Z2xhj33gNV4",
+          "assistantFacts": [
+            {
+              "id": "msg_178e24c2700190265h3OmR5fqP",
+              "finish": "tool-calls",
+              "textChars": 0,
+              "hasNonWhitespace": false,
+              "textSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "hasError": false,
+              "tools": [
+                {
+                  "tool": "ctf_challenge_list",
+                  "status": "completed"
+                }
+              ],
+              "completed": 1793029459000
+            },
+            {
+              "id": "msg_178e24c38001yQfpt1UGjYwec7",
+              "finish": "stop",
+              "textChars": 14,
+              "hasNonWhitespace": true,
+              "textSha256": "27767ff4b4f8bb5ff9a34165d29173b471d564e563268c8098f13fb7fc43471d",
+              "hasError": false,
+              "tools": [],
+              "completed": 1793029459011
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "mode": "background",
+      "version": "1.19.3",
+      "launcherCode": 0,
+      "providerRequests": 9,
+      "childCalls": 4,
+      "parentFacts": [
+        {
+          "completeness": "unknown",
+          "finish": null,
+          "reason": "multiple_assistants",
+          "ref": "aef0857e-cb1a-4f3f-b9cd-5cc71523b91d",
+          "role": "intake",
+          "source": "associated",
+          "textChars": null
+        },
+        {
+          "completeness": "unknown",
+          "finish": null,
+          "reason": "multiple_assistants",
+          "ref": "eee9e572-d2ac-4f8e-b27c-a670b131c1b2",
+          "role": "intake",
+          "source": "associated",
+          "textChars": null
+        }
+      ],
+      "rounds": [
+        {
+          "user": "msg_178e25493001dRHgyq1d816t5c",
+          "assistantFacts": [
+            {
+              "id": "msg_178e254ca001ab5My10dFQViLm",
+              "finish": "tool-calls",
+              "textChars": 0,
+              "hasNonWhitespace": false,
+              "textSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "hasError": false,
+              "tools": [
+                {
+                  "tool": "ctf_challenge_list",
+                  "status": "completed"
+                }
+              ],
+              "completed": 1793029461228
+            },
+            {
+              "id": "msg_178e254ed001hmkDCVlMoaQUhA",
+              "finish": "length",
+              "textChars": 0,
+              "hasNonWhitespace": false,
+              "textSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "hasError": false,
+              "tools": [],
+              "completed": 1793029461239
+            }
+          ]
+        },
+        {
+          "user": "msg_178e2550c001BCLaNW0UX1fsRX",
+          "assistantFacts": [
+            {
+              "id": "msg_178e25512001bDczVW4PvTNi3x",
+              "finish": "tool-calls",
+              "textChars": 0,
+              "hasNonWhitespace": false,
+              "textSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "hasError": false,
+              "tools": [
+                {
+                  "tool": "ctf_challenge_list",
+                  "status": "completed"
+                }
+              ],
+              "completed": 1793029461286
+            },
+            {
+              "id": "msg_178e25527001LNrcyOJVb0ZZu8",
+              "finish": "stop",
+              "textChars": 14,
+              "hasNonWhitespace": true,
+              "textSha256": "27767ff4b4f8bb5ff9a34165d29173b471d564e563268c8098f13fb7fc43471d",
+              "hasError": false,
+              "tools": [],
+              "completed": 1793029461300
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "offline": {
+    "count": 24,
+    "cases": [
+      {
+        "name": "tool then stop",
+        "completeness": "complete",
+        "reason": "stop"
+      },
+      {
+        "name": "whitespace stop stays incomplete",
+        "completeness": "incomplete",
+        "reason": "missing_text"
+      },
+      {
+        "name": "tool then empty length",
+        "completeness": "incomplete",
+        "reason": "length"
+      },
+      {
+        "name": "tool then partial length",
+        "completeness": "incomplete",
+        "reason": "length"
+      },
+      {
+        "name": "array order is not selector",
+        "completeness": "complete",
+        "reason": "stop"
+      },
+      {
+        "name": "two terminal assistants",
+        "completeness": "unknown",
+        "reason": "terminal_count"
+      },
+      {
+        "name": "unfinished successor retained",
+        "completeness": "unknown",
+        "reason": "unfinished_message"
+      },
+      {
+        "name": "completed tool successor retained",
+        "completeness": "unknown",
+        "reason": "invalid_chain"
+      },
+      {
+        "name": "duplicate identity conflict outside parent",
+        "completeness": "unknown",
+        "reason": "message_conflict"
+      },
+      {
+        "name": "duplicate same length contradictory finish",
+        "completeness": "unknown",
+        "reason": "message_conflict"
+      },
+      {
+        "name": "same ID equal length different body",
+        "completeness": "unknown",
+        "reason": "message_conflict"
+      },
+      {
+        "name": "stop with tools intermediate not supported",
+        "completeness": "unknown",
+        "reason": "terminal_count"
+      },
+      {
+        "name": "identical duplicates idempotent",
+        "completeness": "complete",
+        "reason": "stop"
+      },
+      {
+        "name": "missing source",
+        "completeness": "unknown",
+        "reason": "missing_source"
+      },
+      {
+        "name": "source conflict",
+        "completeness": "unknown",
+        "reason": "source_conflict"
+      },
+      {
+        "name": "SDK failure",
+        "completeness": "unknown",
+        "reason": "sdk_error"
+      },
+      {
+        "name": "stopped cannot be overwritten",
+        "completeness": "unknown",
+        "reason": "stopped"
+      },
+      {
+        "name": "native error cannot be overwritten",
+        "completeness": "unknown",
+        "reason": "native_error"
+      },
+      {
+        "name": "assistant error cannot be overwritten",
+        "completeness": "unknown",
+        "reason": "assistant_error"
+      },
+      {
+        "name": "unsettled tool cannot be filtered",
+        "completeness": "unknown",
+        "reason": "unfinished_tool"
+      },
+      {
+        "name": "later round cannot cover old length",
+        "completeness": "incomplete",
+        "reason": "length"
+      },
+      {
+        "name": "new user cannot replace missing old terminal",
+        "completeness": "unknown",
+        "reason": "terminal_count"
+      },
+      {
+        "name": "completed envelope is insufficient",
+        "completeness": "unknown",
+        "reason": "round_boundary_unproved"
+      },
+      {
+        "name": "tool error retained as settled tool fact",
+        "completeness": "complete",
+        "reason": "stop"
+      }
+    ],
+    "historicalCapturedArrayCalculus": [
+      {
+        "childID": "ses_e8c4e20c8ffeK8MCXYu73eos6U",
+        "userID": "msg_173b1df3b001Y7jZEy73SbLPzo",
+        "conditional": {
+          "assistantMessageID": "msg_173b1e68a001oNrDKMkfYK2Iyz",
+          "completeness": "incomplete",
+          "reason": "length",
+          "textChars": 0,
+          "toolErrors": 0
+        },
+        "withoutBoundaryProof": {
+          "assistantMessageID": null,
+          "completeness": "unknown",
+          "reason": "round_boundary_unproved",
+          "toolErrors": 0
+        }
+      },
+      {
+        "childID": "ses_e8c467a92ffeZ8nDKrwwc0ycvr",
+        "userID": "msg_173ba5fae001j5IVPjk30Xqnwe",
+        "conditional": {
+          "assistantMessageID": "msg_173bb583f001X04LbKGepHztqY",
+          "completeness": "complete",
+          "reason": "stop",
+          "textChars": 2222,
+          "toolErrors": 1
+        },
+        "withoutBoundaryProof": {
+          "assistantMessageID": null,
+          "completeness": "unknown",
+          "reason": "round_boundary_unproved",
+          "toolErrors": 1
+        }
+      }
+    ],
+    "nativeCapturedArrayCalculus": [
+      {
+        "mode": "sync",
+        "user": "msg_178e24be2001ItWcZ2dm5z7Z5X",
+        "conditionalCapturedArray": {
+          "assistantMessageID": "msg_178e24bff001IhWq2nwm22RsEG",
+          "completeness": "incomplete",
+          "reason": "length",
+          "textChars": 0,
+          "toolErrors": 0
+        }
+      },
+      {
+        "mode": "sync",
+        "user": "msg_178e24c25001MW3Z2xhj33gNV4",
+        "conditionalCapturedArray": {
+          "assistantMessageID": "msg_178e24c38001yQfpt1UGjYwec7",
+          "completeness": "complete",
+          "reason": "stop",
+          "textChars": 14,
+          "toolErrors": 0
+        }
+      },
+      {
+        "mode": "background",
+        "user": "msg_178e25493001dRHgyq1d816t5c",
+        "conditionalCapturedArray": {
+          "assistantMessageID": "msg_178e254ed001hmkDCVlMoaQUhA",
+          "completeness": "incomplete",
+          "reason": "length",
+          "textChars": 0,
+          "toolErrors": 0
+        }
+      },
+      {
+        "mode": "background",
+        "user": "msg_178e2550c001BCLaNW0UX1fsRX",
+        "conditionalCapturedArray": {
+          "assistantMessageID": "msg_178e25527001LNrcyOJVb0ZZu8",
+          "completeness": "complete",
+          "reason": "stop",
+          "textChars": 14,
+          "toolErrors": 0
+        }
+      }
+    ]
+  },
+  "conclusion": {
+    "branch": "bounded set candidate, conditional; not finalized for every live entry",
+    "completeStableRound": "Complete and unchanged relevant projection of the frozen user; unrelated newer user appends alone do not invalidate it. Normal completed path is source-supported; all-entry sufficiency remains unproved.",
+    "open": [
+      "sync toolAfter does not itself require a completed rather than running/promoted native envelope",
+      "background error envelope must retain native failure rather than be replaced by later stop text",
+      "source rechecks protect binding/stop/source changes, but are not a direct version check of all same-user message/part mutations",
+      "stop-with-tools can continue in native prompt; this candidate returns unknown and does not cover all normal chains"
+    ],
+    "noGlobalIsolationRequired": true
+  },
+  "source": {
+    "tagTree": "e3c4eb242585dcd77be1a867391b7c25fd47ce52",
+    "files": {
+      "packages/opencode/src/tool/task.ts": {
+        "url": "https://raw.githubusercontent.com/anomalyco/opencode/v1.19.3/packages/opencode/src/tool/task.ts",
+        "sha256": "db09fa5868ad3ecfdd83aa2bb7243f85e9e2cd13d0b19fd6f307f7a337b2b36e"
+      },
+      "packages/opencode/src/session/prompt.ts": {
+        "url": "https://raw.githubusercontent.com/anomalyco/opencode/v1.19.3/packages/opencode/src/session/prompt.ts",
+        "sha256": "f0c5bc64c0f0e966693d4a57f7ede1e9d6e188b396152f04b55303dc75b9b768"
+      },
+      "packages/opencode/src/session/processor.ts": {
+        "url": "https://raw.githubusercontent.com/anomalyco/opencode/v1.19.3/packages/opencode/src/session/processor.ts",
+        "sha256": "0b31e207beda56bd9a4b9b88c9e42d89a0651dd011773748c8e2938dfc3dcb74"
+      },
+      "packages/opencode/src/server/routes/instance/httpapi/handlers/session.ts": {
+        "url": "https://raw.githubusercontent.com/anomalyco/opencode/v1.19.3/packages/opencode/src/server/routes/instance/httpapi/handlers/session.ts",
+        "sha256": "3ce829f386267181da442d499d841463a9e532db827f75a6f41d501de6f71cf6"
+      },
+      "packages/opencode/src/session/session.ts": {
+        "url": "https://raw.githubusercontent.com/anomalyco/opencode/v1.19.3/packages/opencode/src/session/session.ts",
+        "sha256": "0c56ae3535e29cae0de51156eaba2842c0896309f1d6b12525566b4a8ba4c7f2"
+      },
+      "packages/core/src/background-job.ts": {
+        "url": "https://raw.githubusercontent.com/anomalyco/opencode/v1.19.3/packages/core/src/background-job.ts",
+        "sha256": "d26b64a160f2fde594d4de9f2340cf3d1b6e836db98b596b9ac53d7350d21585"
+      }
+    }
+  },
+  "checks": {
+    "directed": "75/75 exit 0; vitest 2.1.9, node v26.3.0, SDK package 1.19.0",
+    "native": "two modes exit 0; sync 7/background 9 scripted requests; 4 child calls each",
+    "offline": "24 cases exit 0, after review; no further native/directed run",
+    "firstNativeFailure": "driver incorrectly requested intake-disabled ctf_progress_read; native driver exit 1, launcher code 0; not claimed as tool-chain success",
+    "modelUsage": "unavailable; synthetic usage values are not measured model usage"
+  },
+  "scratch": {
+    "path": "/Users/caihaoming/.codex/worktrees/c-terminal-message-verification/pentest-agent/runs/c-terminal-message-verification",
+    "files": {
+      "project-original.ts": "d323007491c5b03a4baf8e1e84da9d7c7edea0d67d8ef4c8f0bd5e268abded53",
+      "native-probe.ts": "726341045da22f203ffc99f5ff604bfb896863f70f82974e4986c38bd854afc7",
+      "native-first-failed.ts": "9eb111987f5e72739869df455673487bbd1f2ea11fb1f16574585144be9e420a",
+      "run-native.py": "f553d88975da44d7d9e5977685dacdd595642b2b9286115f315238e2a6c78c39",
+      "enrich-native.py": "cfb85cc610be002ea552f0ebb2f2375c2e771181aa00f0bcd6502acbccf8375e",
+      "offline-candidate.ts": "4c9eff292667c782b5fb41f0f405df688ea01a8e8c11a2cc951e3192506ea428",
+      "directed.log": "6e2797d6907b722b2cea7ab85c5dc808a963a9fe1f90ae5ee24e95db6a523949",
+      "native.log": "f1d8197b4debc0c556fb0ce13f39558d22be816255230be7bdf43184ae5a05d2",
+      "native-first-failed.log": "c4a2140f6f551d076cbba1260d2ac9194fb056281dba4dcf164c2a29f658dc88",
+      "offline.log": "86711cdfd20bed6a49e82bfe504ff0e71e96772e2d259f77325784430310cfd8"
+    }
+  },
+  "implementation": {
+    "date": "2026-10-27",
+    "base": "2be4ebbeb63f670b7da9fe03cfca925a8278f4e7",
+    "scope": "ordinary completed tool-chain classification only",
+    "sourceSha256": {
+      "apps/launcher/src/child-result.ts": "afed9a32815c0a6e7363ec8aa73396c2827744e61bd0e39531b0c8e843e1b733",
+      "apps/launcher/src/control-service.ts": "aa653632ba2263b24a5c57d528c7a977396560c6b2920fc908958497eecc7c77",
+      "tests/contract/g-async-lifecycle.test.ts": "110da3c8cd486ee54f53e1d9568016e6dabf17e68504e32ec9f8d2c1642bd67b",
+      "tests/contract/opencode.test.ts": "90a70605c6866de0813233fa7009d7f6fd2192dd11eb910559f338e9732defbf"
+    },
+    "checks": [
+      {
+        "label": "red-original",
+        "command": [
+          "node_modules/.bin/vitest",
+          "run",
+          "--config",
+          "runs/c-classification-implementation/vitest.config.ts",
+          "tests/contract/g-async-lifecycle.test.ts",
+          "-t",
+          "C original"
+        ],
+        "cwd": "/Users/caihaoming/.codex/worktrees/c-result-classification/pentest-agent",
+        "TMPDIR": "/tmp/c-classification-red-original-s088t9cr",
+        "exitCode": 1,
+        "seconds": 0.642
+      },
+      {
+        "label": "red-boundaries",
+        "command": [
+          "node_modules/.bin/vitest",
+          "run",
+          "--config",
+          "runs/c-classification-implementation/vitest.config.ts",
+          "tests/contract/g-async-lifecycle.test.ts",
+          "tests/contract/opencode.test.ts",
+          "-t",
+          "C |native .* task reply"
+        ],
+        "cwd": "/Users/caihaoming/.codex/worktrees/c-result-classification/pentest-agent",
+        "TMPDIR": "/tmp/c-classification-red-boundaries-wkx71u0p",
+        "exitCode": 1,
+        "seconds": 0.666
+      },
+      {
+        "label": "red-plugin-corrected",
+        "command": [
+          "node_modules/.bin/vitest",
+          "run",
+          "--config",
+          "runs/c-classification-implementation/vitest.config.ts",
+          "tests/contract/opencode.test.ts",
+          "-t",
+          "native .* task reply"
+        ],
+        "cwd": "/Users/caihaoming/.codex/worktrees/c-result-classification/pentest-agent",
+        "TMPDIR": "/tmp/c-classification-red-plugin-corrected-je199lw9",
+        "exitCode": 1,
+        "seconds": 0.574
+      },
+      {
+        "label": "targeted-green",
+        "command": [
+          "node_modules/.bin/vitest",
+          "run",
+          "--config",
+          "runs/c-classification-implementation/vitest.config.ts",
+          "tests/contract/g-async-lifecycle.test.ts",
+          "tests/contract/opencode.test.ts"
+        ],
+        "cwd": "/Users/caihaoming/.codex/worktrees/c-result-classification/pentest-agent",
+        "TMPDIR": "/tmp/c-classification-targeted-green-i7wf35v7",
+        "exitCode": 0,
+        "seconds": 6.183
+      },
+      {
+        "label": "final-typecheck",
+        "command": [
+          "npm",
+          "run",
+          "typecheck"
+        ],
+        "cwd": "/Users/caihaoming/.codex/worktrees/c-result-classification/pentest-agent",
+        "TMPDIR": "/tmp/c-classification-final-typecheck-ojso6a24",
+        "exitCode": 0,
+        "seconds": 1.603
+      },
+      {
+        "label": "final-build",
+        "command": [
+          "npm",
+          "run",
+          "build"
+        ],
+        "cwd": "/Users/caihaoming/.codex/worktrees/c-result-classification/pentest-agent",
+        "TMPDIR": "/tmp/c-classification-final-build-ik_x6qet",
+        "exitCode": 0,
+        "seconds": 1.27
+      },
+      {
+        "label": "final-test",
+        "command": [
+          "npm",
+          "test",
+          "--",
+          "--config",
+          "runs/c-classification-implementation/vitest.config.ts"
+        ],
+        "cwd": "/Users/caihaoming/.codex/worktrees/c-result-classification/pentest-agent",
+        "TMPDIR": "/tmp/c-classification-final-test-g88vnn5u",
+        "exitCode": 0,
+        "seconds": 22.315
+      }
+    ],
+    "directedTestsPassed": 114,
+    "fullTestsPassed": 533,
+    "native": [
+      {
+        "mode": "sync",
+        "version": "1.19.3",
+        "launcherExitCode": 0,
+        "requests": 7,
+        "childRequests": 4,
+        "facts": [
+          {
+            "op": "sync.result",
+            "callID": "call_1_0",
+            "ref": null,
+            "childID": "ses_e86e1226dffeQ9lftuA1a486ww",
+            "source": {
+              "status": "associated",
+              "userMessageID": "msg_1791edd960012x8CnYPUXyDsq1",
+              "reason": "hook",
+              "observedAt": 1793033428395
+            },
+            "result": {
+              "userMessageID": "msg_1791edd960012x8CnYPUXyDsq1",
+              "assistantMessageID": "msg_1791eddc8001y5FcrGGWHgw7g8",
+              "finish": "length",
+              "completed": true,
+              "textChars": 0,
+              "hasError": false,
+              "completeness": "incomplete",
+              "reason": "length",
+              "observedAt": 1793033428444
+            }
+          },
+          {
+            "op": "sync.result",
+            "callID": "call_4_0",
+            "ref": null,
+            "childID": "ses_e86e1226dffeQ9lftuA1a486ww",
+            "source": {
+              "status": "associated",
+              "userMessageID": "msg_1791eddf0001e1erjLldRDBX2j",
+              "reason": "hook",
+              "observedAt": 1793033428464
+            },
+            "result": {
+              "userMessageID": "msg_1791eddf0001e1erjLldRDBX2j",
+              "assistantMessageID": "msg_1791ede02001w06Wljj7roApSy",
+              "finish": "stop",
+              "completed": true,
+              "textChars": 14,
+              "hasError": false,
+              "completeness": "complete",
+              "reason": "stop",
+              "observedAt": 1793033428501
+            }
+          }
+        ],
+        "parentDisplayAssertions": "passed",
+        "projectionSha256": "6cd747b42e991764586ab9ac817dca22c43236415c79bbc331a15318d3551e84"
+      },
+      {
+        "mode": "background",
+        "version": "1.19.3",
+        "launcherExitCode": 0,
+        "requests": 9,
+        "childRequests": 4,
+        "facts": [
+          {
+            "op": "task.result",
+            "callID": null,
+            "ref": "65903eb5-5136-4173-b4c6-5157eb94c4ea",
+            "childID": null,
+            "source": {
+              "status": "associated",
+              "userMessageID": "msg_1791ee66c0017z0QNjr2YSYc6h",
+              "reason": "hook",
+              "observedAt": 1793033430692
+            },
+            "result": {
+              "userMessageID": "msg_1791ee66c0017z0QNjr2YSYc6h",
+              "assistantMessageID": "msg_1791ee6d3001kqoHdqoEMfegzz",
+              "finish": "length",
+              "completed": true,
+              "textChars": 0,
+              "hasError": false,
+              "completeness": "incomplete",
+              "reason": "length",
+              "observedAt": 1793033430754
+            }
+          },
+          {
+            "op": "task.result",
+            "callID": null,
+            "ref": "ad0470c4-2ffa-4230-9b75-61cab6a55de1",
+            "childID": null,
+            "source": {
+              "status": "associated",
+              "userMessageID": "msg_1791ee6f5001N1t4cfpvufcrIj",
+              "reason": "hook",
+              "observedAt": 1793033430773
+            },
+            "result": {
+              "userMessageID": "msg_1791ee6f5001N1t4cfpvufcrIj",
+              "assistantMessageID": "msg_1791ee7190017faPRHo90X6LTi",
+              "finish": "stop",
+              "completed": true,
+              "textChars": 14,
+              "hasError": false,
+              "completeness": "complete",
+              "reason": "stop",
+              "observedAt": 1793033430821
+            }
+          }
+        ],
+        "parentDisplayAssertions": "passed",
+        "projectionSha256": "834d58f04a14941f8979d0786abd5c283200d8e0227562cdb8f52a7d60012fd4"
+      }
+    ],
+    "nativeDriverExitCode": 0,
+    "isolation": {
+      "externalConnect": "EPERM",
+      "environmentKeys": [
+        "HOME",
+        "PATH",
+        "PROBE_ROOT",
+        "TMPDIR",
+        "TSX_DISABLE_CACHE",
+        "TSX_TSCONFIG_PATH",
+        "XDG_CACHE_HOME",
+        "XDG_CONFIG_HOME",
+        "XDG_DATA_HOME",
+        "XDG_STATE_HOME",
+        "__CF_USER_TEXT_ENCODING"
+      ],
+      "realProviderCredentialsPresent": false,
+      "provider": "loopback-only",
+      "root": "/private/tmp/c-terminal-16vj1jih"
+    },
+    "realModelUsage": "unavailable",
+    "limits": [
+      "No real model, target or generation improvement tested.",
+      "stop-with-tools intermediate verified by contract test and fixed native source, not by scripted native case.",
+      "Arbitrary external same-user mutation and special providerExecuted/interrupted chains unsupported."
+    ],
+    "review": {
+      "model": "gpt-6.1-sol",
+      "result": "approved; no blocking or important findings",
+      "scope": "spec compliance, four-file diff, fixed native source and probe facts; no rerun"
+    }
+  }
+}
