@@ -1,17 +1,18 @@
 ---
 name: web-session-diagnosis
-description: Use when a Web CTF task involves login or session state, comparing supplied source, routes or version materials with observed behavior, or HTTP response completeness or business postconditions.
+description: Use when a Web CTF task involves login or session state, comparing supplied source, routes or version materials with observed behavior, HTTP response completeness or business postconditions, or unclear input representation, parsing, calculation or business effects.
 ---
 
 # Web Session Diagnosis
 
-Version: 5
+Version: 6
 
 Use the relevant sections when a Web task involves:
 
 - Login, account state, CSRF state, or a response that appears to depend on an earlier request.
 - Comparing supplied source code, routes, or version materials with observed behavior.
 - HTTP response completeness or the business postcondition of a request.
+- Input that appears transformed, causes a parsing error, or has an unclear calculation or business effect.
 
 Choose sections according to the observed problem and available materials; do not perform login checks when no session question is involved, or read every Reference by default. This method does not apply to pure offline computation or tasks without a related Web problem.
 
@@ -39,6 +40,8 @@ When supplied source code, version information, or history needs comparison with
 3. Trace a relevant frontend action through its form or script to the request method, target, parameters, object identifier, and available handler. Distinguish permission to perform the action (function-level authorization) from permission to act on the selected object (object-level authorization). Login, CSRF checks, and business authorization establish different conditions. A blocked page does not establish how its related action endpoints are protected. If the script or handler is unavailable, record that gap rather than infer its behavior.
 4. Turn one supported clue into a falsifiable experiment. Identify the necessary precondition, the evidence that establishes it, and the observable result that would support or weaken the hypothesis. Compare with a known normal request or state when available, changing one relevant variable at a time. Do not treat a status code alone as proof of authorization or the intended business effect. Keep state-changing checks within the task scope and the recovery boundary described below.
 5. If the reference does not match the deployed version, its preconditions are absent, or the next action has an unclear or destructive side effect, preserve the evidence and choose a different check within scope.
+
+When input representation, parsing/calculation, or the effect behind a page response is unclear, consult [Input to Observable Effect](references/input-to-observable-effect.md) through the permitted Reference path returned by the native skill tool. Use its relevant comparison with the minimal experiment above and the business postcondition checks below; do not load it for unrelated tasks or perform all three comparisons by default. If unavailable, report that limitation without expanding access.
 
 ## Check response continuation and business postconditions
 
