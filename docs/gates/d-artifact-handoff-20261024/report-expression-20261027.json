@@ -1,0 +1,608 @@
+{
+  "purpose": "offline report expression only; manual analyst example, not product model behavior or verified/solved",
+  "date": "2026-10-27 Asia/Tokyo",
+  "executor": "gpt-6.1-sol",
+  "workspace": "/Users/caihaoming/.codex/worktrees/d-report-expression-verification/pentest-agent",
+  "baseline": {
+    "commit": "6fa6c6621464bcdd11ac618fa930b7d1bdbe9bbd",
+    "productDirty": false
+  },
+  "actualRuntime": {
+    "node": "v26.3.0",
+    "tsx": "4.23.15",
+    "zod": "3.25.76"
+  },
+  "r5Result": "0063135b-b061-419c-8000-51cff36d601a",
+  "r5Version": "f0a80e86-ab0f-4495-9bcf-8e17a934f1a1",
+  "productModelCalls": "none",
+  "assistantTokenUsage": "unavailable",
+  "sourceInputHashes": {
+    "state/run.json": "16e0183718953a297e97dcefa5eda2361565597937acb1420e311df204700fff",
+    "evidence/verification-results.json": "8945b4ed86290b6b3b35be2546346ac8b22f5e54bd25739480e50b50f08388a2",
+    "evidence/publications.json": "808ba39cb8776af2c544b54d110fa4659a3ea9c7cd44970fb39d469788349cec",
+    "evidence/messages-ses_e85097228ffesBV9OZcvUuv7wA.json": "2bf3c7186478b02fc38ad95eb783faa17a0cf4e5437df8b2617df2c8207ec9ee",
+    "evidence/messages-ses_e85082c3affea69is6996v3tFR.json": "933b258ce160eb9c88dfd7d9fceb21b3854bd37cd3e2078880e3000d6c7e8074",
+    "evidence/messages-ses_e85073cd1ffeU9jRvO4OdTiSeV.json": "de5cd2cbea3bd41fd50265ca327d078629d3fa194c2826ec4862e8cea9337fb0",
+    "evidence/messages-ses_e851e43c9ffep6sSbfl5yXfzei.json": "3e437a20cd788461ecb3a4720eaac47ff26c6cb8945ce8b86c6907d5d0ebc818",
+    "workspace/throwback/published/f0a80e86-ab0f-4495-9bcf-8e17a934f1a1.bin": "074ea9b91c606c63ebd8456533e4227aa44ff680fb3637b601e76a0a5a315b0c",
+    "workspace/throwback/work/ses_e85073cd1ffeU9jRvO4OdTiSeV/verify-77016744-85ab-47ac-8973-b1d553d59691/manifest.json": "074ea9b91c606c63ebd8456533e4227aa44ff680fb3637b601e76a0a5a315b0c",
+    "workspace/throwback/work/ses_e85073cd1ffeU9jRvO4OdTiSeV/verify-77016744-85ab-47ac-8973-b1d553d59691/candidate.bin": "38522cffd7b03b5ff8acdb515463bde191919d30ed77d17d38f899f4824eae5a",
+    "workspace/throwback/work/ses_e85073cd1ffeU9jRvO4OdTiSeV/verify-77016744-85ab-47ac-8973-b1d553d59691/inputs/replay.py": "d1f7d54b18d69a7d288ad01e9cd015e737cbfcb1db1a3669c263fb14615084df",
+    "workspace/throwback/work/ses_e85073cd1ffeU9jRvO4OdTiSeV/indep/verify_replay2.py": "6fbeddd9358d10df3c5dbfa65d3a30f6403f3598e22ca55e3b94bffdbe0e5306",
+    "workspace/throwback/published/580056d1-1b2d-45e9-9d0b-9d48374e9130.bin": "d1f7d54b18d69a7d288ad01e9cd015e737cbfcb1db1a3669c263fb14615084df",
+    "workspace/throwback/published/39fa5ee0-a188-44de-b287-c1492a06b212.bin": "38522cffd7b03b5ff8acdb515463bde191919d30ed77d17d38f899f4824eae5a"
+  },
+  "integrity": {
+    "inputsCopiedFromLatestMain": {
+      "AGENTS.md": "18e66730d5c40207e00704fb3fb760785ee547e66c23e97e5adfb897030dc83c",
+      "CLAUDE.md": "ea0e5935fa61a6e6f02ed34a02cfad94d659d32707683cf7eb1e470783580854",
+      "docs/superpowers/plans/2026-10-27-d-report-expression-verification.md": "ef3bddf685a41faa853f5903385beb4f216bd15fffd48fe5442dcbe565aed498",
+      "docs/superpowers/specs/2026-10-26-design-v1-d-evidence-to-completion.md": "b54a41fe526f86b5964ee749498073790c2c0fa82bf462563b1252e3821c79b5",
+      "docs/superpowers/specs/2026-10-24-design-v1-d-candidate-verification-minimal.md": "ce36a605d3f7d3c0cc7f028c10813c06d10b6fe8f3c96efded759dd963e9b1f9",
+      "docs/superpowers/specs/2026-10-22-ctf-agent-design-v1.md": "972af69256db4473862e78a3b145863c33bdefdde48b8b82f20a7ceae0e68c55"
+    },
+    "copiedInputCount": 6,
+    "r5InputCount": 14,
+    "r5InputAggregateSha256": "4ae6fac4506316101dd3d6a89fa496c42dab69c01d1a39dbd880685d2e66ddc4",
+    "r5InputsBeforeAfterEqual": true,
+    "productCount": 123,
+    "productAggregateSha256": "1b086779153f47a0e678269ffde1e8aadad6f51bb7b149fdad8afb1b15fbebd3",
+    "productBeforeAfterEqual": true,
+    "productManifestFile": "runs/d-report-expression-verification/product-before.json",
+    "productManifestFileSha256": "8d8e9827667681c7f03c45f131f680cf81f167d84eb1014e554a1c48cdf3aa20",
+    "mainTrackedCount": 10251,
+    "mainTrackedAggregateSha256": "1f08f426148d2d8e457f3c6a74135400313a248d4e82b66ac277c61524226bb4",
+    "mainTrackedBeforeAfterEqual": true,
+    "mainTrackedManifestFile": "runs/d-report-expression-verification/main-tracked-before.json",
+    "mainTrackedManifestFileSha256": "9c969b4512bdb4381aa855abe69a0837f64373590d7b8e32a78039957e2a4486",
+    "coordinatorHistoricalRead": {
+      "pages": 1,
+      "bytes": 21271,
+      "sha256": "3fc69bb1ee4efec5991d8da6a7b9d8124eac4051f336d2e19a9cf0ae812acec4",
+      "matchesOriginalStoredRow": true
+    },
+    "reviewBase": "latest-main input copies, not HEAD design versions"
+  },
+  "artifacts": {
+    "check.mts": "2199a2b9ff5d18f8962bc1a271d478f3974cd3ad54ed8805a26680889b23f056",
+    "check-01.log": "f18f45721f65446d669a315033b5e298ed4c618b0bad5e19931a70f008cd53fb",
+    "original.json": "68d22c9e7164211acd34c3de735ef15ba53f8f9b8647450e0ba99648a5e60d6d",
+    "analysis.json": "59aff91a27975a09302fc97c11b756cd848c3c77442e655ec8fe0b751ed9693b",
+    "mapping.json": "b00ac43fbf4eac2f71735d180fa1616afd1f2d2a90bf5b429bbe96e9ba67d539",
+    "result.json": "f7ec3246f12653a553ddd8a0db8dcfc01cce4064f6830b1ad26e28ab6a7f819a",
+    "final-check.py": "c48322523cf45e52a522aaf26328c7e06d52c109eacfec5a053bc9ca54d78c37"
+  },
+  "commands": [
+    {
+      "command": "./node_modules/.bin/tsx runs/d-report-expression-verification/check.mts > runs/d-report-expression-verification/check-01.log 2>&1",
+      "exitCode": 0,
+      "attempt": 1,
+      "failure": null
+    },
+    {
+      "command": "python3 runs/d-report-expression-verification/final-check.py > runs/d-report-expression-verification/final-check-01.log 2>&1",
+      "exitCode": 0,
+      "attempt": 1,
+      "failure": null
+    },
+    {
+      "command": "python3 runs/d-report-expression-verification/final-check.py > runs/d-report-expression-verification/final-check-02.log 2>&1",
+      "exitCode": 0,
+      "attempt": 2,
+      "failure": null,
+      "reason": "final plan completion state and correction of documentation Zod version; component driver not rerun"
+    },
+    {
+      "command": "git diff --check",
+      "execution": "subprocess in each final-check.py invocation; captured in diff-check-01.log",
+      "exitCode": 0,
+      "invocations": 2
+    }
+  ],
+  "checks": [
+    {
+      "name": "original",
+      "schema": true,
+      "roundtrip": true,
+      "registry": "isolated memory / offline identity",
+      "originalJudgment": "verified",
+      "effectiveJudgment": "inconclusive",
+      "candidateEqual": null,
+      "blockers": [
+        "replay unavailable",
+        "required premise unknown",
+        "unresolved verifier issues",
+        "undeclared dependencies unknown",
+        "necessary source incomplete or unknown"
+      ],
+      "premiseStates": [
+        "assumed",
+        "assumed",
+        "unknown",
+        "unknown",
+        "unknown",
+        "unknown"
+      ],
+      "issues": 5,
+      "necessary": [
+        true,
+        true,
+        true,
+        true,
+        false
+      ],
+      "requirements": {
+        "continuousIntegrity": false,
+        "declaredDependenciesOnly": true
+      },
+      "pages": 1,
+      "readBytes": 21261,
+      "reportInputSha256": "a7cc71b78ea4a9e3a82a6221c2b08a0a2ffc0f2b6a6f146741d8efaf5a4b37a6",
+      "fixedEvidencePreserved": true
+    },
+    {
+      "name": "analysis",
+      "schema": true,
+      "roundtrip": true,
+      "registry": "isolated memory / offline identity",
+      "originalJudgment": "inconclusive",
+      "effectiveJudgment": "inconclusive",
+      "candidateEqual": null,
+      "blockers": [
+        "replay unavailable",
+        "required premise unknown",
+        "unresolved verifier issues",
+        "undeclared dependencies unknown",
+        "necessary source incomplete or unknown"
+      ],
+      "premiseStates": [
+        "assumed",
+        "assumed",
+        "unknown",
+        "unknown",
+        "unknown",
+        "unknown"
+      ],
+      "issues": 5,
+      "necessary": [
+        true,
+        true,
+        true,
+        true,
+        false
+      ],
+      "requirements": {
+        "continuousIntegrity": false,
+        "declaredDependenciesOnly": true
+      },
+      "pages": 1,
+      "readBytes": 20820,
+      "reportInputSha256": "2a9f9a8c1813fa81cd3a19e08dfef9a91003f532e7a0d3e0816152a4eb4bce95",
+      "fixedEvidencePreserved": true
+    }
+  ],
+  "offlineEquality": {
+    "stdoutBytes": 33,
+    "interval": [
+      6,
+      32
+    ],
+    "candidateBytes": 26,
+    "equal": true,
+    "hostCandidateEqualRemains": null
+  },
+  "staticScriptObservation": {
+    "preparedScriptHash": "d1f7d54b18d69a7d288ad01e9cd015e737cbfcb1db1a3669c263fb14615084df",
+    "completeCandidateLiteral": false,
+    "flagPrefixPresent": true,
+    "independentScriptCurrentHash": "6fbeddd9358d10df3c5dbfa65d3a30f6403f3598e22ca55e3b94bffdbe0e5306",
+    "independentScriptInRecordedBoundFiles": false,
+    "notProofOfHistoricalScriptBytes": true
+  },
+  "mapping": [
+    {
+      "id": "C1",
+      "claims": [
+        "C1"
+      ],
+      "original": [
+        "original.comparison",
+        "evidence[0]",
+        "evidence[3]"
+      ],
+      "necessity": "固定候选身份与保存输出相等是 C1 的必要事实；非独立正确性证明",
+      "destination": [
+        "rationale",
+        "sourceFlow",
+        "comparison",
+        "evidence[0].context",
+        "evidence[3].context"
+      ],
+      "missing": "原 host replay 未比较；候选来源语义未知",
+      "effect": "只记离线相等，candidateEqual 仍 null，不升级结果"
+    },
+    {
+      "id": "C2",
+      "claims": [
+        "C2"
+      ],
+      "original": [
+        "original.rationale",
+        "original.sourceFlow",
+        "evidence[0..2]"
+      ],
+      "necessity": "现场获取链需要实际脚本、目标和依赖的可靠关联",
+      "destination": [
+        "rationale",
+        "sourceFlow",
+        "premises[0..3]",
+        "issues[0..3]",
+        "evidence[0..2].context"
+      ],
+      "missing": "持续完整性、包外脚本绑定、依赖与目标状态条件仍未证明",
+      "effect": "有支持材料但不足以登记 verified"
+    },
+    {
+      "id": "C3",
+      "claims": [
+        "C3",
+        "C2"
+      ],
+      "original": [
+        "original.premises[3]"
+      ],
+      "necessity": "重置实例重现未验证；对 C2 新鲜性是否必要尚不充分，保守保留阻塞",
+      "destination": [
+        "rationale",
+        "premises[3]",
+        "issues[4]"
+      ],
+      "missing": "干净实例与完整生命周期证据",
+      "effect": "未缩小题目验收；unknown 继续阻断"
+    },
+    {
+      "id": "C4",
+      "claims": [
+        "C4",
+        "C2"
+      ],
+      "original": [
+        "original.premises[1]",
+        "original.premises[5]",
+        "original.issues[0]",
+        "original.issues[4]"
+      ],
+      "necessity": "题意/部署联系可能是整题必需，现有材料不能把它认定为背景",
+      "destination": [
+        "rationale",
+        "premises[1]",
+        "premises[5]",
+        "issues[0]",
+        "issues[3]"
+      ],
+      "missing": "题面、历史部署一致性与答案语义",
+      "effect": "保留 assumed 的原条件及 unknown，不据 C2 宣称整题符合"
+    },
+    {
+      "id": "C5",
+      "claims": [
+        "C5"
+      ],
+      "original": [
+        "original.rationale",
+        "original.issues[4]"
+      ],
+      "necessity": "可信接受是 solved 的必要条件；未发生不直接等于 Verifier 必须保证未来接受",
+      "destination": [
+        "rationale",
+        "issues[3]"
+      ],
+      "missing": "无 completion 调用/结果；裁判配置不等于接受",
+      "effect": "不判 accepted/solved，不探查裁判或私有答案"
+    },
+    {
+      "id": "P1",
+      "claims": [
+        "C2",
+        "C4"
+      ],
+      "original": [
+        "original.premises[0]"
+      ],
+      "necessity": "授权对象身份是 C2 的条件；scope origin 不证明历史部署",
+      "destination": [
+        "premises[0]",
+        "rationale"
+      ],
+      "missing": "题面/部署定义",
+      "effect": "保留原 assumed；不是新确立的 host 身份证明"
+    },
+    {
+      "id": "P2",
+      "claims": [
+        "C2",
+        "C4",
+        "C5"
+      ],
+      "original": [
+        "original.premises[1]"
+      ],
+      "necessity": "目标字面值与题目答案的语义桥接不能由读取成功推出",
+      "destination": [
+        "premises[1]",
+        "issues[3]"
+      ],
+      "missing": "题意与权威接受",
+      "effect": "保留原 assumed，不因有裁判配置清除此条件"
+    },
+    {
+      "id": "P3",
+      "claims": [
+        "C2"
+      ],
+      "original": [
+        "original.premises[2]",
+        "original.requirements.continuousIntegrity"
+      ],
+      "necessity": "前后 hash 不证明中途或目标完整性；原必要性不能自行降级",
+      "destination": [
+        "premises[2]",
+        "requirements.continuousIntegrity"
+      ],
+      "missing": "执行中未改写与目标状态证据",
+      "effect": "unknown 阻断；原 continuousIntegrity=false 原样保留，未用它规避"
+    },
+    {
+      "id": "P4",
+      "claims": [
+        "C3",
+        "C2"
+      ],
+      "original": [
+        "original.premises[3]"
+      ],
+      "necessity": "新 route 不等于干净实例；对原目标必要性待定即保留",
+      "destination": [
+        "premises[3]",
+        "issues[4]"
+      ],
+      "missing": "重置与完整状态来源",
+      "effect": "unknown 阻断，不移到背景消失"
+    },
+    {
+      "id": "P5",
+      "claims": [
+        "C1",
+        "C2"
+      ],
+      "original": [
+        "original.premises[4]",
+        "evidence[3].originalComplete"
+      ],
+      "necessity": "固定比较对象非独立来源；原题是否依赖其来源未定，保守保留必要标记",
+      "destination": [
+        "premises[4]",
+        "evidence[3].context",
+        "evidence[3].necessary"
+      ],
+      "missing": "候选 file 原始来源完整性仍 null",
+      "effect": "unknown 与必要来源 blocker 均保留"
+    },
+    {
+      "id": "P6",
+      "claims": [
+        "C4"
+      ],
+      "original": [
+        "original.premises[5]"
+      ],
+      "necessity": "本地/比赛一致性未证明；真实验收是否依赖它未定，不能转背景",
+      "destination": [
+        "premises[5]",
+        "issues[3]"
+      ],
+      "missing": "历史部署对应",
+      "effect": "unknown 阻断"
+    },
+    {
+      "id": "I1",
+      "claims": [
+        "C2",
+        "C4"
+      ],
+      "original": [
+        "original.issues[0]"
+      ],
+      "necessity": "能读字面值与该值回答题目不同，题意仍未知",
+      "destination": [
+        "issues[0]",
+        "sourceFlow"
+      ],
+      "missing": "所属函数/路由及题意关系",
+      "effect": "issue 保留，不因可读而清除"
+    },
+    {
+      "id": "I2",
+      "claims": [
+        "C2"
+      ],
+      "original": [
+        "original.issues[1]",
+        "original.rationale"
+      ],
+      "necessity": "无完整候选常量只是支持性观察；原 no-prefix 说法与实际脚本矛盾",
+      "destination": [
+        "sourceFlow"
+      ],
+      "missing": "静态无常量不证明完整独立性；依赖未知由 I4/P3 继续承载",
+      "effect": "修正错误 no-prefix 文字并移为支持性观察；不删除 I4 或依赖 blocker；原文可逆保存在输入"
+    },
+    {
+      "id": "I3",
+      "claims": [
+        "C2"
+      ],
+      "original": [
+        "original.issues[2]"
+      ],
+      "necessity": "两个 resource 从未成为 publication，是真实交接缺口；能否替代取决于新证明链",
+      "destination": [
+        "issues[1]",
+        "sourceFlow"
+      ],
+      "missing": "原 Solver 候选响应未发布；新观察充分性未确认",
+      "effect": "保留未解 issue，不追溯造 ref"
+    },
+    {
+      "id": "I4",
+      "claims": [
+        "C2"
+      ],
+      "original": [
+        "original.issues[3]",
+        "evidence[2].association"
+      ],
+      "necessity": "自写脚本不在已绑定文件列表；必要方法/输入缺口",
+      "destination": [
+        "issues[2]",
+        "evidence[2].context",
+        "requirements.declaredDependenciesOnly"
+      ],
+      "missing": "执行当时包外脚本 bytes 的可信绑定及完整依赖",
+      "effect": "issue 及 declaredDependenciesOnly=true 保留，当前磁盘 hash 不追补历史绑定"
+    },
+    {
+      "id": "I5",
+      "claims": [
+        "C4",
+        "C5"
+      ],
+      "original": [
+        "original.issues[4]"
+      ],
+      "necessity": "题面缺失/格式惯例不证明答案；未来裁判结果不同于无能力",
+      "destination": [
+        "issues[3]",
+        "rationale"
+      ],
+      "missing": "题意与真实接受记录",
+      "effect": "保留相关 issue；不由未调用推论无裁判配置"
+    },
+    {
+      "id": "evidence0",
+      "claims": [
+        "C1",
+        "C2"
+      ],
+      "original": [
+        "original.evidence[0]",
+        "evidence[0]",
+        "original.comparison"
+      ],
+      "necessity": "精确相等的保存输出及现场链支持；不能独证语义",
+      "destination": [
+        "evidence[0]",
+        "comparison"
+      ],
+      "missing": "来源语义/依赖充分性；replay 无比较能力",
+      "effect": "necessary=true、原 bytes/source/association 均不变，比较仍 [6,32)"
+    },
+    {
+      "id": "evidence1",
+      "claims": [
+        "C2"
+      ],
+      "original": [
+        "original.evidence[1]",
+        "evidence[1]"
+      ],
+      "necessity": "步骤日志用于理解获取链；不是完整 HTTP transcript",
+      "destination": [
+        "evidence[1]"
+      ],
+      "missing": "完整网络响应及真实上下文",
+      "effect": "necessary=true；输出流完整不外推全方法完整"
+    },
+    {
+      "id": "evidence2",
+      "claims": [
+        "C2",
+        "C3"
+      ],
+      "original": [
+        "original.evidence[2]",
+        "evidence[2]"
+      ],
+      "necessity": "独立操作观察但包外脚本绑定缺口不能隐藏",
+      "destination": [
+        "evidence[2]",
+        "issues[2]"
+      ],
+      "missing": "实际执行脚本与依赖、状态/干净实例",
+      "effect": "necessary=true，association/未知原样保留"
+    },
+    {
+      "id": "evidence3",
+      "claims": [
+        "C1",
+        "C2"
+      ],
+      "original": [
+        "original.evidence[3]",
+        "evidence[3]"
+      ],
+      "necessity": "比较对象身份不是独立证明；必要性未定不改 false",
+      "destination": [
+        "evidence[3]",
+        "premises[4]"
+      ],
+      "missing": "originalComplete=null，不能变成 HTTP 来源",
+      "effect": "保留 necessary=true 与 null；context 明示用途和保守阻塞"
+    },
+    {
+      "id": "evidence4",
+      "claims": [
+        "C2"
+      ],
+      "original": [
+        "original.evidence[4]",
+        "evidence[4]"
+      ],
+      "necessity": "辅助模板观察，原报告已非必要；不能补未发布资源",
+      "destination": [
+        "evidence[4]"
+      ],
+      "missing": "不证明候选获取链或未发布响应",
+      "effect": "necessary=false 原样保留；source.http 不变"
+    }
+  ],
+  "misjudgmentChecks": [
+    {
+      "case": "必要 unknown / 包外脚本藏入背景",
+      "review": "不合法；本副本 P3-P6 unknown、I4、declaredDependenciesOnly=true 全保留，未构造此放行样例。"
+    },
+    {
+      "case": "无全新实例/历史部署",
+      "review": "C3/C4 作为未证主张明确保存；必要性待定继续 unknown，未缩小原题验收。"
+    },
+    {
+      "case": "候选 file originalComplete=null",
+      "review": "区分身份/独立证明用途但不改 null/source/necessary，保留原 blocker；不凭相等补来源。"
+    },
+    {
+      "case": "inconclusive 等同表达失败",
+      "review": "两份报告可无损保存且五类 blocker 原样；这是能力/材料缺口，不构成表达反例。"
+    },
+    {
+      "case": "文字可存等同消费者语义能力",
+      "review": "premises/issues 必阻断，requirements/necessary 参与机械核对；rationale/sourceFlow/context 不由 host 解析。文字可保留区分但语义充分性和模型正确分类未验证，未新增判定器。"
+    }
+  ],
+  "conclusion": {
+    "branch": "现有结构在本例范围可无损表达带真实阻塞的 C1/C2 条件性分析；不需据此扩 schema",
+    "notEstablished": "原题必要性与合法 verified 的充分条件未由现有材料确定；未验证模型分类、安全 replay、脚本绑定或 completion",
+    "blockers": "原负对照与分析副本均保留五类；没有接受正例"
+  },
+  "scopeLimit": "Only fixed evidence fed to existing reportSchema and isolated VerificationResults.register/read. No ControlService identity/source/current-validity acceptance, active-run injection, replay, HTTP/job, model, judge, completion, dependency install or product/test mutation.",
+  "reviewCorrection": "Author self-review caught documentation Zod declaration copied as actual 3.23.8; corrected to observed 3.25.76. No component failure or driver correction; only final integrity check rerun."
+}

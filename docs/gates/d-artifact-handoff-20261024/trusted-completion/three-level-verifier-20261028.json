@@ -1,0 +1,727 @@
+{
+  "date": "2026-10-28",
+  "scope": "D three-level verifier + host-limited attempts, local deterministic substitutes only",
+  "workspace": "/Users/caihaoming/.codex/worktrees/d-three-level-verifier/pentest-agent",
+  "baseHead": "6fa6c6621464bcdd11ac618fa930b7d1bdbe9bbd",
+  "sourceDocuments": [
+    {
+      "path": "AGENTS.md",
+      "sha256": "18e66730d5c40207e00704fb3fb760785ee547e66c23e97e5adfb897030dc83c",
+      "size": 7317,
+      "copied_equal": true
+    },
+    {
+      "path": "CLAUDE.md",
+      "sha256": "ea0e5935fa61a6e6f02ed34a02cfad94d659d32707683cf7eb1e470783580854",
+      "size": 5120,
+      "copied_equal": true
+    },
+    {
+      "path": "docs/superpowers/plans/2026-10-28-d-three-level-verifier-implementation.md",
+      "sha256": "3fb7d83f91f6553cae3cd4f27a62d2f437f1114938623a013abade2e61759f73",
+      "size": 13557,
+      "copied_equal": true
+    },
+    {
+      "path": "docs/superpowers/specs/2026-10-24-design-v1-d-candidate-verification-minimal.md",
+      "sha256": "c685988d79223ff83cba0713c8f64ab68455544b5b82815e6b67b155488268de",
+      "size": 17235,
+      "copied_equal": true
+    },
+    {
+      "path": "docs/superpowers/specs/2026-10-26-design-v1-d-evidence-to-completion.md",
+      "sha256": "00711694d4fd662e5dd3d9b8395024c665087d9e504688fb24c9b477d8011d1d",
+      "size": 19993,
+      "copied_equal": true
+    },
+    {
+      "path": "docs/superpowers/specs/2026-10-22-ctf-agent-design-v1.md",
+      "sha256": "b8959d4d9c3863a3db56b0d63317a07f8304efced864f248e05411b74d3f17e9",
+      "size": 45020,
+      "copied_equal": true
+    }
+  ],
+  "environment": {
+    "TMPDIR": "/tmp/d-three-level-verifier-cjcu8tq7",
+    "nodeModules": "symlink to main existing node_modules; no dependency installation",
+    "versions": {
+      "vitest": "2.1.9",
+      "typescript": "5.9.3",
+      "tsx": "4.23.15",
+      "zod": "3.25.76",
+      "@opencode-ai/plugin": "1.19.0",
+      "@opencode-ai/sdk": "1.19.0",
+      "node": "v26.3.0",
+      "npm": "11.16.0"
+    }
+  },
+  "productFiles": [
+    {
+      "path": "apps/launcher/src/verification-results.ts",
+      "size": 9183,
+      "sha256": "69215f500269b47ed340a70dc8bc99e4a0c5073a9b37913546b951de2d354314"
+    },
+    {
+      "path": "apps/launcher/src/control-service.ts",
+      "size": 82557,
+      "sha256": "da7a706edc7396cf8676ce2d51b2f10a8808d728df03be57e90b453b39693221"
+    },
+    {
+      "path": "apps/launcher/src/candidate-package-tools.ts",
+      "size": 9453,
+      "sha256": "13f173ab7e19b82819ab98d3df14e80c922f91cab15685df74ecc6b587359f9c"
+    },
+    {
+      "path": "apps/launcher/src/completion-tools.ts",
+      "size": 11948,
+      "sha256": "b61ac10cf045a4444027be1d0ef746cc5b7694197b48d4ce1812fc462effe83b"
+    },
+    {
+      "path": "apps/launcher/src/launch.ts",
+      "size": 26952,
+      "sha256": "32895197b8267f5c57743a240c5d64affdceb792e4130f9cd234e313c1d95acc"
+    },
+    {
+      "path": "apps/launcher/src/intake-tools.ts",
+      "size": 3197,
+      "sha256": "ed5254bb0a2802f1ebdfd587757fe765f59264dcd5c3f5e085b07ac53dee2213"
+    },
+    {
+      "path": "apps/opencode-plugin/src/index.ts",
+      "size": 24281,
+      "sha256": "d5a7c4aed11e32087a366ba2d53eeea8cb229d22db629997d52a96a06851e60f"
+    },
+    {
+      "path": "product/opencode/agents/verifier.md",
+      "size": 7171,
+      "sha256": "4dea151f5264c69c557dd0bd631e56480b6aa3068ac169ddabb1fa94c5d25f8d"
+    },
+    {
+      "path": "product/opencode/agents/coordinator.md",
+      "size": 8935,
+      "sha256": "321fa1bcbcdb8b60c36ba65229c8033007b346742374e8ee2ebea72a08290cb0"
+    },
+    {
+      "path": "product/opencode/agents/engineer.md",
+      "size": 4148,
+      "sha256": "bd1a609f720d31f82d6fa92c211a59af27db377f72c395c71d3fd23e97aa2022"
+    },
+    {
+      "path": "product/AGENTS.md",
+      "size": 4601,
+      "sha256": "50a56ef61faf42ce2948aea039e7304a7beecd3179b67e9ee2b2e4e1d33e906c"
+    },
+    {
+      "path": "tests/contract/d-verification-result.test.ts",
+      "size": 29709,
+      "sha256": "85646c15f119582935ca7bd74132e30867bf47f86692869ee422c0cd247ceabe"
+    },
+    {
+      "path": "tests/contract/d-trusted-completion.test.ts",
+      "size": 39169,
+      "sha256": "0ed24102c1afd1f84d46febeeec74291746af984af9b260b90f31ab4ed4bf56f"
+    },
+    {
+      "path": "tests/contract/d-candidate-package.test.ts",
+      "size": 17375,
+      "sha256": "2b1c9879936ec9ffe2a62c17272dcc6292c163cdd03c0b87084869e1989e5bb9"
+    }
+  ],
+  "checks": [
+    {
+      "phase": "baseline",
+      "command": "npx --no-install vitest run tests/contract/d-verification-result.test.ts tests/contract/d-trusted-completion.test.ts",
+      "exitCode": 0,
+      "passed": 31,
+      "failed": 0,
+      "log": "baseline.log",
+      "logSha256": "fc39fc22c3b6cdd50d096b62a7e19f1e05232361364bbcf895f6219f0c2f5ade",
+      "currentAcceptance": false
+    },
+    {
+      "phase": "first_red",
+      "command": "npx --no-install vitest run tests/contract/d-verification-result.test.ts tests/contract/d-trusted-completion.test.ts",
+      "exitCode": 1,
+      "passed": 34,
+      "failed": 20,
+      "log": "red.log",
+      "logSha256": "f9a52e612e578f79250856c69ad008bece3582d7d3938f8c3cb4debc27acd849",
+      "currentAcceptance": false
+    },
+    {
+      "phase": "first_implementation",
+      "exitCode": 1,
+      "passed": 53,
+      "failed": 1,
+      "log": "green-first.log",
+      "note": "Bad history path now rejects synchronously; test changed to capture synchronous or asynchronous refusal, zero-send assertion retained.",
+      "logSha256": "1b34ef70904a33089d00752f8beba51e2329ecc91f15bd42bdc01d1f0a094fd6",
+      "currentAcceptance": false
+    },
+    {
+      "phase": "final_await_red",
+      "exitCode": 1,
+      "passed": 67,
+      "failed": 2,
+      "log": "final-boundary-red.log",
+      "note": "Found candidate change after last evidence await and explicit deadline recheck missing; added final candidate read/byte comparison and current deadline admission.",
+      "logSha256": "8257f1d5fb298e66eeb7b56c7f0c96da80ab60f36f7f1d9ea31326f20b7ffb8d",
+      "currentAcceptance": false
+    },
+    {
+      "phase": "expanded_regression_first",
+      "exitCode": 1,
+      "passed": 91,
+      "failed": 1,
+      "log": "targeted.log",
+      "note": "Old script damage blocks candidate read assertion replaced per new design, with script/manifest read rejection and candidate source/manifest integrity still checked.",
+      "logSha256": "9732ed5221d601f8fc69e02e8319353af7e4ebfecc558cc9ce285a1b1f2bfb5e",
+      "currentAcceptance": false
+    },
+    {
+      "phase": "plugin_test_setup_failure",
+      "exitCode": 1,
+      "passed": 21,
+      "failed": 1,
+      "log": "plugin-red.log",
+      "note": "Test mixed host Zod3 and plugin Zod4; used plugin tool.schema for actual plugin input parser.",
+      "logSha256": "d086982275ab2fe03a99c09afc4b0ef7558877d64dc911dea9c65bfae2ece655",
+      "currentAcceptance": false
+    },
+    {
+      "phase": "plugin_contract_red",
+      "exitCode": 1,
+      "passed": 21,
+      "failed": 1,
+      "log": "plugin-contract-red.log",
+      "note": "Actual old plugin schema rejects minimal llm/unable; updated plugin schema and descriptions.",
+      "logSha256": "0bcd186ba97fe8ebfa2b0fdb45255fe0c8d76ae2c2958e83c01124fc7ae09ffd",
+      "currentAcceptance": false
+    },
+    {
+      "phase": "identity_red",
+      "exitCode": 1,
+      "passed": 49,
+      "failed": 1,
+      "log": "identity-red.log",
+      "note": "Hard execution mismatch must invalidate availability/current support as well as completion eligibility.",
+      "logSha256": "4e906817445477d2d193eacfe1ce8b5f0bed421f069bde0a772d6a9211294928",
+      "currentAcceptance": false
+    },
+    {
+      "phase": "known_mutation_red",
+      "exitCode": 1,
+      "passed": 0,
+      "failed": 1,
+      "skipped": 22,
+      "log": "known-mutation-red.log",
+      "note": "Necessary known-mutation LLM citation must not keep effective verified even after input restore.",
+      "logSha256": "4a75e61f26ac8e89bed776eba5198e82ec57ee28cb84cf198c0ebb6c4bf1e6f3",
+      "currentAcceptance": false
+    },
+    {
+      "phase": "pre_parent_feedback_full",
+      "command": "npm test",
+      "exitCode": 0,
+      "files": 49,
+      "passed": 575,
+      "failed": 0,
+      "log": "full-test.log",
+      "note": "Superseded source snapshot; not final acceptance.",
+      "logSha256": "c00e3a6f18e04a1cf6337a1a344871b2a19653e8005db2f9802c2a86eeebf02b",
+      "currentAcceptance": false
+    },
+    {
+      "phase": "declared_conditions_red",
+      "command": "npx --no-install vitest run tests/contract/d-verification-result.test.ts tests/contract/d-trusted-completion.test.ts",
+      "exitCode": 1,
+      "passed": 72,
+      "failed": 2,
+      "log": "declared-limits-red.log",
+      "note": "Parent review: remove mandatory LLM job proof only; keep explicit unknown/issues/requirements/necessary evidence checks. Inconclusive may still attempt.",
+      "logSha256": "224d3e8af8dd986a1935dfb4a3b77a45b74e5d0e1919614d2ba2c131cbe50b12",
+      "currentAcceptance": false
+    },
+    {
+      "phase": "final_targeted",
+      "command": "npx --no-install vitest run tests/contract/d-verification-result.test.ts tests/contract/d-trusted-completion.test.ts tests/contract/d-candidate-package.test.ts tests/contract/intake-tools.test.ts tests/contract/opencode.test.ts tests/contract/opencode-config.test.ts",
+      "exitCode": 0,
+      "files": 6,
+      "passed": 117,
+      "failed": 0,
+      "log": "targeted-after-review.log",
+      "logSha256": "4cc544f7ab2459e9cf8749b896291fbe41b16beda77782349fb43d21fd0c9145",
+      "currentAcceptance": false
+    },
+    {
+      "phase": "final_typecheck",
+      "command": "npm run typecheck",
+      "exitCode": 0,
+      "log": "typecheck-after-review.log",
+      "logSha256": "1cf3ce9ba6e566547dc787be131babdc3122cd936a5d7b096153cce532634f49",
+      "currentAcceptance": false
+    },
+    {
+      "phase": "final_build",
+      "command": "npm run build",
+      "exitCode": 0,
+      "log": "build-after-review.log",
+      "logSha256": "bd9f5e56d35265112de6f32c662b6643974c6aa4337d7ec05a149da00d82a84f",
+      "currentAcceptance": false
+    },
+    {
+      "phase": "final_full",
+      "command": "npm test",
+      "exitCode": 0,
+      "files": 49,
+      "passed": 577,
+      "failed": 0,
+      "log": "full-test-after-review.log",
+      "logSha256": "45f2bb9c4363a6120b0b0e2edbb108c327c5c6014b47082cf9230987fda5c5f6",
+      "currentAcceptance": false
+    },
+    {
+      "phase": "independent_review_red",
+      "command": "npx --no-install vitest run tests/contract/d-trusted-completion.test.ts -t 'D independent review fixes'",
+      "exitCode": 1,
+      "failed": 11,
+      "passed": 2,
+      "skipped": 51,
+      "log": "independent-review-red.log",
+      "logSha256": "2eea418edf664ffa36f38dc9f94b1675b47e45acc2746babe901409fb70a943b",
+      "currentAcceptance": false,
+      "commandEnvironment": {
+        "TMPDIR": "/tmp/d-three-level-verifier-cjcu8tq7"
+      }
+    },
+    {
+      "phase": "independent_review_green",
+      "command": "npx --no-install vitest run tests/contract/d-trusted-completion.test.ts -t 'D independent review fixes'",
+      "exitCode": 0,
+      "failed": 0,
+      "passed": 13,
+      "skipped": 51,
+      "log": "independent-review-green.log",
+      "logSha256": "3b4b74f06a6457c6ba6fb3783423cce1a116f255d4652cd384b74361d4bf72d9",
+      "currentAcceptance": false,
+      "commandEnvironment": {
+        "TMPDIR": "/tmp/d-three-level-verifier-cjcu8tq7"
+      }
+    },
+    {
+      "phase": "independent_review_targeted_old_expectation",
+      "command": "npx --no-install vitest run tests/contract/d-verification-result.test.ts tests/contract/d-trusted-completion.test.ts tests/contract/d-candidate-package.test.ts tests/contract/intake-tools.test.ts tests/contract/opencode.test.ts tests/contract/opencode-config.test.ts",
+      "exitCode": 1,
+      "failed": 1,
+      "passed": 129,
+      "log": "independent-review-targeted-first.log",
+      "note": "Old test cached non-answer replies indefinitely. Only that conflicting assertion changed; accepted/wrong_answer still deduplicate.",
+      "logSha256": "cf45a987f4ea327ef117ea583a9dea1f452f94cf6389d6301fb7426aa33aef87",
+      "currentAcceptance": false,
+      "commandEnvironment": {
+        "TMPDIR": "/tmp/d-three-level-verifier-cjcu8tq7"
+      }
+    },
+    {
+      "phase": "independent_review_targeted_before_scope_clarification",
+      "command": "npx --no-install vitest run tests/contract/d-verification-result.test.ts tests/contract/d-trusted-completion.test.ts tests/contract/d-candidate-package.test.ts tests/contract/intake-tools.test.ts tests/contract/opencode.test.ts tests/contract/opencode-config.test.ts",
+      "exitCode": 0,
+      "failed": 0,
+      "passed": 130,
+      "files": 6,
+      "log": "independent-review-targeted-final.log",
+      "logSha256": "578bba832b8dc1c87939975c8e4106014a48ba6e6d2edc71f27320dead566331",
+      "currentAcceptance": false,
+      "commandEnvironment": {
+        "TMPDIR": "/tmp/d-three-level-verifier-cjcu8tq7"
+      }
+    },
+    {
+      "phase": "independent_review_typecheck_before_scope_clarification",
+      "command": "npm run typecheck",
+      "exitCode": 0,
+      "log": "independent-review-typecheck.log",
+      "logSha256": "1cf3ce9ba6e566547dc787be131babdc3122cd936a5d7b096153cce532634f49",
+      "currentAcceptance": false,
+      "commandEnvironment": {
+        "TMPDIR": "/tmp/d-three-level-verifier-cjcu8tq7"
+      }
+    },
+    {
+      "phase": "independent_review_build_before_scope_clarification",
+      "command": "npm run build",
+      "exitCode": 0,
+      "log": "independent-review-build.log",
+      "logSha256": "bd9f5e56d35265112de6f32c662b6643974c6aa4337d7ec05a149da00d82a84f",
+      "currentAcceptance": false,
+      "commandEnvironment": {
+        "TMPDIR": "/tmp/d-three-level-verifier-cjcu8tq7"
+      }
+    },
+    {
+      "phase": "independent_review_full_before_scope_clarification",
+      "command": "npm test",
+      "exitCode": 0,
+      "failed": 0,
+      "passed": 590,
+      "files": 49,
+      "log": "independent-review-full-test.log",
+      "note": "Superseded by final explicit-scope ambiguity fix; no exact source hash snapshot retained for this intermediate run.",
+      "logSha256": "67ca71ef3874759798ff1a6313e62e266b0ee5f435f5c31cd5735fdbccdf5c7f",
+      "currentAcceptance": false,
+      "commandEnvironment": {
+        "TMPDIR": "/tmp/d-three-level-verifier-cjcu8tq7"
+      }
+    },
+    {
+      "phase": "independent_review_ambiguous_scope_red",
+      "command": "npx --no-install vitest run tests/contract/d-trusted-completion.test.ts -t 'refuses ambiguous adapter-id'",
+      "exitCode": 1,
+      "failed": 1,
+      "passed": 0,
+      "skipped": 64,
+      "log": "independent-review-ambiguous-scope-red.log",
+      "logSha256": "ec71eb6b608ef974ddd317e953c54d2ff3449ced4e2887fc27d7160b73a7df8b",
+      "currentAcceptance": false,
+      "commandEnvironment": {
+        "TMPDIR": "/tmp/d-three-level-verifier-cjcu8tq7"
+      }
+    },
+    {
+      "phase": "review_final_targeted",
+      "command": "npx --no-install vitest run tests/contract/d-verification-result.test.ts tests/contract/d-trusted-completion.test.ts tests/contract/d-candidate-package.test.ts tests/contract/intake-tools.test.ts tests/contract/opencode.test.ts tests/contract/opencode-config.test.ts",
+      "exitCode": 0,
+      "failed": 0,
+      "passed": 131,
+      "files": 6,
+      "log": "independent-review-scope-final-targeted.log",
+      "currentAcceptance": true,
+      "logSha256": "95d5fed22e29c431e7b0dbbb4f9d6607d505eac791ee50331358f34bca7e9252",
+      "commandEnvironment": {
+        "TMPDIR": "/tmp/d-three-level-verifier-cjcu8tq7"
+      }
+    },
+    {
+      "phase": "review_final_typecheck",
+      "command": "npm run typecheck",
+      "exitCode": 0,
+      "log": "independent-review-scope-final-typecheck.log",
+      "currentAcceptance": true,
+      "logSha256": "1cf3ce9ba6e566547dc787be131babdc3122cd936a5d7b096153cce532634f49",
+      "commandEnvironment": {
+        "TMPDIR": "/tmp/d-three-level-verifier-cjcu8tq7"
+      }
+    },
+    {
+      "phase": "review_final_build",
+      "command": "npm run build",
+      "exitCode": 0,
+      "log": "independent-review-scope-final-build.log",
+      "currentAcceptance": true,
+      "logSha256": "bd9f5e56d35265112de6f32c662b6643974c6aa4337d7ec05a149da00d82a84f",
+      "commandEnvironment": {
+        "TMPDIR": "/tmp/d-three-level-verifier-cjcu8tq7"
+      }
+    },
+    {
+      "phase": "review_final_full",
+      "command": "npm test",
+      "exitCode": 0,
+      "failed": 0,
+      "passed": 591,
+      "files": 49,
+      "log": "independent-review-scope-final-full-test.log",
+      "currentAcceptance": true,
+      "logSha256": "919935be5d88914a41a4e6948e9f35b103c5f5d1aa1507c8da8c36accbdb188c",
+      "commandEnvironment": {
+        "TMPDIR": "/tmp/d-three-level-verifier-cjcu8tq7"
+      }
+    }
+  ],
+  "logsDirectory": "/Users/caihaoming/.codex/worktrees/d-three-level-verifier/pentest-agent/.superpowers/d-three-level-verifier",
+  "review": {
+    "kind": "independent review feedback implemented with RED/GREEN regressions; final parent verification pending",
+    "changes": [
+      "Preserved explicit LLM unknown/issues/requirements and necessary evidence checks, with inconclusive third-layer eligibility",
+      "hardBlocking invalidates current support and availability",
+      "Re-read candidate after final awaited proof diagnostic; byte changes refuse send",
+      "Restore intent/sent/unknown conservatively and refuse corrupt record history",
+      "History and in-process admission lock use trusted challenge/judge scope within the same completion directory, not run ID; persisted run remains provenance.",
+      "Explicit stable judge scope survives adapter-label changes. Without explicit scope, a label not corresponding to known history is refused with a host-scope-required reason. Distinct explicit scopes/challenges remain isolated.",
+      "Verifier assignment checks candidate identity, original ref and exact bytes; proof loss is diagnostic and prepare remains strict.",
+      "Recoverable non-answer replies do not permanently cache the same version/result; restored trusted conditions re-admit the original report. Accepted/wrong_answer deduplicate; unknown still stops."
+    ]
+  },
+  "boundaries": {
+    "realModelCalls": 0,
+    "realJudgeCalls": 0,
+    "productUsage": "unavailable",
+    "originalR5": "not accessed or modified; not re-registered or promoted to solved",
+    "networkPermissionsExpanded": false,
+    "committed": false,
+    "pushed": false,
+    "mainIntegrated": false,
+    "notVerified": [
+      "LLM natural role behavior and real solving ability",
+      "real adapter constraints or production judge deployment",
+      "OpenCode session/Verifier registry recovery",
+      "malicious same-UID concurrent writes or concurrent CompletionRequests owners/processes"
+    ]
+  },
+  "finalDocuments": [
+    {
+      "path": "docs/superpowers/specs/2026-10-24-design-v1-d-candidate-verification-minimal.md",
+      "size": 19957,
+      "sha256": "1f0dd9653a3ed0b6d5b8c749689d03240a02ef0d9a39f60bed378569152de29a"
+    },
+    {
+      "path": "docs/superpowers/specs/2026-10-26-design-v1-d-evidence-to-completion.md",
+      "size": 20405,
+      "sha256": "ff166ebcf6320ff632047bbdba6125eed0f9f175c3d51ad9e6a8e3a300d0f4c6"
+    },
+    {
+      "path": "docs/superpowers/specs/2026-10-22-ctf-agent-design-v1.md",
+      "size": 45295,
+      "sha256": "19aa3246ab403f6cc974b0d3d54f3c2c9ee499404953885b9c10098e34d4a9ff"
+    },
+    {
+      "path": "docs/superpowers/plans/2026-10-28-d-three-level-verifier-implementation.md",
+      "size": 26845,
+      "sha256": "d5f7aa01a87a032b865a8879a13669e0fd22b72340709dd6b03eeb6525d13c7e"
+    },
+    {
+      "path": "AGENTS.md",
+      "size": 7317,
+      "sha256": "18e66730d5c40207e00704fb3fb760785ee547e66c23e97e5adfb897030dc83c"
+    },
+    {
+      "path": "CLAUDE.md",
+      "size": 5120,
+      "sha256": "ea0e5935fa61a6e6f02ed34a02cfad94d659d32707683cf7eb1e470783580854"
+    }
+  ],
+  "finalHead": "6fa6c6621464bcdd11ac618fa930b7d1bdbe9bbd",
+  "mainHeadAtClose": "6fa6c6621464bcdd11ac618fa930b7d1bdbe9bbd",
+  "mainBranchAtClose": "main",
+  "originalInputFilesStillMatchMain": [
+    {
+      "path": "AGENTS.md",
+      "matches": true
+    },
+    {
+      "path": "CLAUDE.md",
+      "matches": true
+    },
+    {
+      "path": "docs/superpowers/plans/2026-10-28-d-three-level-verifier-implementation.md",
+      "matches": true
+    },
+    {
+      "path": "docs/superpowers/specs/2026-10-24-design-v1-d-candidate-verification-minimal.md",
+      "matches": true
+    },
+    {
+      "path": "docs/superpowers/specs/2026-10-26-design-v1-d-evidence-to-completion.md",
+      "matches": true
+    },
+    {
+      "path": "docs/superpowers/specs/2026-10-22-ctf-agent-design-v1.md",
+      "matches": true
+    }
+  ],
+  "deliveryHistory": [
+    {
+      "label": "delivery-before-independent-review",
+      "productFiles": [
+        {
+          "path": "apps/launcher/src/verification-results.ts",
+          "size": 9183,
+          "sha256": "69215f500269b47ed340a70dc8bc99e4a0c5073a9b37913546b951de2d354314"
+        },
+        {
+          "path": "apps/launcher/src/control-service.ts",
+          "size": 82557,
+          "sha256": "da7a706edc7396cf8676ce2d51b2f10a8808d728df03be57e90b453b39693221"
+        },
+        {
+          "path": "apps/launcher/src/candidate-package-tools.ts",
+          "size": 9453,
+          "sha256": "13f173ab7e19b82819ab98d3df14e80c922f91cab15685df74ecc6b587359f9c"
+        },
+        {
+          "path": "apps/launcher/src/completion-tools.ts",
+          "size": 11948,
+          "sha256": "b61ac10cf045a4444027be1d0ef746cc5b7694197b48d4ce1812fc462effe83b"
+        },
+        {
+          "path": "apps/launcher/src/launch.ts",
+          "size": 26952,
+          "sha256": "32895197b8267f5c57743a240c5d64affdceb792e4130f9cd234e313c1d95acc"
+        },
+        {
+          "path": "apps/launcher/src/intake-tools.ts",
+          "size": 3197,
+          "sha256": "ed5254bb0a2802f1ebdfd587757fe765f59264dcd5c3f5e085b07ac53dee2213"
+        },
+        {
+          "path": "apps/opencode-plugin/src/index.ts",
+          "size": 24281,
+          "sha256": "d5a7c4aed11e32087a366ba2d53eeea8cb229d22db629997d52a96a06851e60f"
+        },
+        {
+          "path": "product/opencode/agents/verifier.md",
+          "size": 7171,
+          "sha256": "4dea151f5264c69c557dd0bd631e56480b6aa3068ac169ddabb1fa94c5d25f8d"
+        },
+        {
+          "path": "product/opencode/agents/coordinator.md",
+          "size": 8935,
+          "sha256": "321fa1bcbcdb8b60c36ba65229c8033007b346742374e8ee2ebea72a08290cb0"
+        },
+        {
+          "path": "product/opencode/agents/engineer.md",
+          "size": 4148,
+          "sha256": "bd1a609f720d31f82d6fa92c211a59af27db377f72c395c71d3fd23e97aa2022"
+        },
+        {
+          "path": "product/AGENTS.md",
+          "size": 4601,
+          "sha256": "50a56ef61faf42ce2948aea039e7304a7beecd3179b67e9ee2b2e4e1d33e906c"
+        },
+        {
+          "path": "tests/contract/d-verification-result.test.ts",
+          "size": 29709,
+          "sha256": "85646c15f119582935ca7bd74132e30867bf47f86692869ee422c0cd247ceabe"
+        },
+        {
+          "path": "tests/contract/d-trusted-completion.test.ts",
+          "size": 39169,
+          "sha256": "0ed24102c1afd1f84d46febeeec74291746af984af9b260b90f31ab4ed4bf56f"
+        },
+        {
+          "path": "tests/contract/d-candidate-package.test.ts",
+          "size": 17375,
+          "sha256": "2b1c9879936ec9ffe2a62c17272dcc6292c163cdd03c0b87084869e1989e5bb9"
+        }
+      ],
+      "finalDocuments": [
+        {
+          "path": "docs/superpowers/specs/2026-10-24-design-v1-d-candidate-verification-minimal.md",
+          "size": 19957,
+          "sha256": "1f0dd9653a3ed0b6d5b8c749689d03240a02ef0d9a39f60bed378569152de29a"
+        },
+        {
+          "path": "docs/superpowers/specs/2026-10-26-design-v1-d-evidence-to-completion.md",
+          "size": 20405,
+          "sha256": "ff166ebcf6320ff632047bbdba6125eed0f9f175c3d51ad9e6a8e3a300d0f4c6"
+        },
+        {
+          "path": "docs/superpowers/specs/2026-10-22-ctf-agent-design-v1.md",
+          "size": 45295,
+          "sha256": "19aa3246ab403f6cc974b0d3d54f3c2c9ee499404953885b9c10098e34d4a9ff"
+        },
+        {
+          "path": "docs/superpowers/plans/2026-10-28-d-three-level-verifier-implementation.md",
+          "size": 26845,
+          "sha256": "d5f7aa01a87a032b865a8879a13669e0fd22b72340709dd6b03eeb6525d13c7e"
+        },
+        {
+          "path": "AGENTS.md",
+          "size": 7317,
+          "sha256": "18e66730d5c40207e00704fb3fb760785ee547e66c23e97e5adfb897030dc83c"
+        },
+        {
+          "path": "CLAUDE.md",
+          "size": 5120,
+          "sha256": "ea0e5935fa61a6e6f02ed34a02cfad94d659d32707683cf7eb1e470783580854"
+        }
+      ],
+      "acceptancePhases": [
+        "final_targeted",
+        "final_typecheck",
+        "final_build",
+        "final_full"
+      ],
+      "sourceSnapshotLog": "/Users/caihaoming/.codex/worktrees/d-three-level-verifier/pentest-agent/.superpowers/d-three-level-verifier/delivery-before-independent-review.json",
+      "superseded": true
+    }
+  ],
+  "currentAcceptancePhases": [
+    "review_final_targeted",
+    "review_final_typecheck",
+    "review_final_build",
+    "review_final_full"
+  ],
+  "submissionScopeContract": {
+    "historyBoundary": "same host-controlled completion directory, trusted challenge and judge scope; no global candidate blacklist",
+    "run": "provenance only, never resets wrong_answer/accepted, quota/cooldown or unresolved history",
+    "explicitScope": "host-provided stable task/judge identity, independent of adapter id",
+    "missingScope": "same known default adapter identity can continue; new/ambiguous adapter label after judged history requires explicit stable scope; it does not authorize a fresh task",
+    "outsideConsumptionBaseline": "limited.usedBeforeRun is fixed prior consumption for this same trusted challenge/judge scope OUTSIDE this directory. Do not refresh to a per-run total that includes restored directory attempts.",
+    "remainingFormula": "limited.max - (limited.usedBeforeRun ?? 0) - directory scoped reserved/sent attempts; only proven not_sent releases",
+    "baselineRegression": {
+      "max": 3,
+      "outsideConsumption": 1,
+      "directorySends": 2,
+      "remainingAfterFirst": 1,
+      "remainingAfterRestoreAndSecond": 0
+    },
+    "noNewFields": true,
+    "noMultiProcessCoordination": true,
+    "noCompleteSessionRecovery": true
+  },
+  "reviewRoundModifiedProductFiles": [
+    "apps/launcher/src/completion-tools.ts",
+    "apps/launcher/src/control-service.ts",
+    "tests/contract/d-trusted-completion.test.ts"
+  ],
+  "documentationCloseout": {
+    "D8_1Paragraphs": 6,
+    "coreDesign": "links D current state without repeating D test counts",
+    "planRetainedForParent": true
+  },
+  "parentIntegration": {
+    "workspace": "/Users/caihaoming/Documents/pentest-agent",
+    "sourceHashesMatchChild": true,
+    "independentReview": "three findings and implicit-scope follow-up corrected; read-only reviewer closed findings",
+    "targeted": {
+      "command": [
+        "npx",
+        "--no-install",
+        "vitest",
+        "run",
+        "tests/contract/d-verification-result.test.ts",
+        "tests/contract/d-trusted-completion.test.ts",
+        "tests/contract/d-candidate-package.test.ts",
+        "tests/contract/intake-tools.test.ts",
+        "tests/contract/opencode.test.ts",
+        "tests/contract/opencode-config.test.ts"
+      ],
+      "exitCode": 0,
+      "TMPDIR": "/var/folders/tn/x1hbkfy17sx0w1lb8kjzzr340000gn/T/d-three-level-parent-nzkm65wn",
+      "logSha256": "7ee37a6a51ed5b4c4b885380817e8305033deb08b2698fee0d6d2cdf11e8c8e8"
+    },
+    "passed": 131,
+    "files": 6,
+    "fullSuite": "child final 591/591 at identical product/test hashes; not rerun in parent",
+    "planCloseout": "conclusions transferred to D section 8.1 and this evidence; one-off main plan removed; child execution record retained in independent worktree",
+    "realModelRun": false,
+    "commitOrPush": false,
+    "documentHashes": [
+      {
+        "path": "docs/superpowers/specs/2026-10-22-ctf-agent-design-v1.md",
+        "sha256": "ef0be40c0fb195e021381dec24478da9ebc578e06d1e6ec6710c426e35b07f8b"
+      },
+      {
+        "path": "docs/superpowers/specs/2026-10-24-design-v1-d-candidate-verification-minimal.md",
+        "sha256": "36b7a66b73f5b2b2762f66875523cff7f7b01dea72f83744a593bc1e1a32b071"
+      },
+      {
+        "path": "docs/superpowers/specs/2026-10-26-design-v1-d-evidence-to-completion.md",
+        "sha256": "ac5b426b1d43812526f5707ee3755c91431a32db9d7dd2b35dd02399f38adfb6"
+      }
+    ],
+    "baselineCheckedFileCount": 10275,
+    "unrelatedBaselineFilesUnchanged": true
+  }
+}

