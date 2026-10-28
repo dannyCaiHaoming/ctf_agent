@@ -308,13 +308,37 @@ export async function searchWorkspace(root: WorkspaceRoots, args: Record<string,
   }
 
   const matches: { path: string; line: number; snippet: string; offset: number; needle: string }[] = [];
+  const coverage = {
+    // Text files entered by the search loop, including a partially scanned current file.
+    filesExamined: 0,
+    skippedByReason: { binary: 0, oversized: 0 },
+    stoppedEarly: false,
+    skipped: [] as { path: string; reason: 'binary' | 'oversized' }[],
+    skippedPathsOmitted: false
+  };
+  // Bound metadata separately so reporting never changes the existing match/output limits.
+  const skippedPathLimit = 20;
+  const skippedPathBytesLimit = 2048;
+  let skippedPathBytes = 2; // JSON array brackets, plus entries and separators below.
+  function recordSkip(file: string, reason: 'binary' | 'oversized') {
+    coverage.skippedByReason[reason]++;
+    const entry = { path: virtualFiles.get(file)!, reason };
+    const size = Buffer.byteLength(JSON.stringify(entry)) + (coverage.skipped.length ? 1 : 0);
+    if (coverage.skipped.length >= skippedPathLimit || skippedPathBytes + size > skippedPathBytesLimit) {
+      coverage.skippedPathsOmitted = true;
+      return;
+    }
+    coverage.skipped.push(entry);
+    skippedPathBytes += size;
+  }
   let outputBytes = 0;
   let truncated = false;
   search: for (const file of files) {
     const bytes=fixedBytes.get(file);
-    if ((bytes?.length ?? (await lstat(file)).size) > SEARCH_FILE_LIMIT) continue;
+    if ((bytes?.length ?? (await lstat(file)).size) > SEARCH_FILE_LIMIT) { recordSkip(file, 'oversized'); continue; }
     const text = decodeText(bytes ?? await readFile(file));
-    if (text === undefined) continue;
+    if (text === undefined) { recordSkip(file, 'binary'); continue; }
+    coverage.filesExamined++;
     const lines = text.split('\n');
     for (const [index, line] of lines.entries()) {
       const needle = needles.find(needle => line.includes(needle));
@@ -332,10 +356,10 @@ export async function searchWorkspace(root: WorkspaceRoots, args: Record<string,
         needle
       };
       const size = Buffer.byteLength(JSON.stringify(match));
-      if (matches.length >= SEARCH_MATCH_LIMIT || outputBytes + size > SEARCH_OUTPUT_BYTES) { truncated = true; break search; }
+      if (matches.length >= SEARCH_MATCH_LIMIT || outputBytes + size > SEARCH_OUTPUT_BYTES) { truncated = true; coverage.stoppedEarly = true; break search; }
       matches.push(match);
       outputBytes += size;
     }
   }
-  return { path: scope, ...(args.needles === undefined ? { needle: needles[0]! } : { needles }), matches, truncated };
+  return { path: scope, ...(args.needles === undefined ? { needle: needles[0]! } : { needles }), matches, truncated, coverage };
 }

@@ -274,11 +274,14 @@ describe('workspace tools (G-V3)', () => {
     const capped = await searchWorkspace(roots, { path: 'work/match-limit.txt', needles: ['hit'] });
     expect(capped.matches).toHaveLength(200);
     expect(capped.truncated).toBe(true);
+    expect(capped.coverage).toMatchObject({ filesExamined: 1, stoppedEarly: true, skippedByReason: { binary: 0, oversized: 0 } });
     await writeFile(join(root, 'work', 'match-limit.txt'), 'hit\n'.repeat(200));
     expect((await searchWorkspace(roots, { path: 'work/match-limit.txt', needle: 'hit' })).truncated).toBe(false);
+    expect((await searchWorkspace(roots, { path: 'work/match-limit.txt', needle: 'hit' })).coverage.stoppedEarly).toBe(false);
     await writeFile(join(root, 'work', 'byte-limit.txt'), ('界'.repeat(250) + 'hit' + '界'.repeat(250) + '\n').repeat(200));
     const bytes = await searchWorkspace(roots, { path: 'work/byte-limit.txt', needles: ['hit'] });
     expect(bytes.truncated).toBe(true);
+    expect(bytes.coverage.stoppedEarly).toBe(true);
     expect(bytes.matches.length).toBeGreaterThan(0);
     expect(bytes.matches.length).toBeLessThan(200);
     expect(bytes.matches.every(match => match.snippet.includes('hit'))).toBe(true);
@@ -301,6 +304,18 @@ describe('workspace tools (G-V3)', () => {
     const scoped = await searchWorkspace(roots, { path: 'work/search-scope', needles: [needle, 'SECRET'] });
     expect(scoped.matches.map(match => match.path)).toEqual(['work/search-scope/boundary.txt', 'work/search-scope/ok.txt']);
     expect(scoped.truncated).toBe(false);
+    const coverage = {
+      filesExamined: 2, skippedByReason: { binary: 2, oversized: 1 }, stoppedEarly: false,
+      skipped: [
+        { path: 'work/search-scope/binary.txt', reason: 'binary' },
+        { path: 'work/search-scope/invalid.txt', reason: 'binary' },
+        { path: 'work/search-scope/large.txt', reason: 'oversized' }
+      ],
+      skippedPathsOmitted: false
+    };
+    expect(scoped.coverage).toEqual(coverage);
+    const absent = await searchWorkspace(roots, { path: 'work/search-scope', needle: 'no-such-search-coverage-hit' });
+    expect(absent).toMatchObject({ matches: [], truncated: false, coverage });
     for (const path of ['materials', 'work', 'published', 'work/search-scope/ok.txt']) {
       const single = await searchWorkspace(roots, { path, needle });
       const multi = await searchWorkspace(roots, { path, needles: [needle] });
@@ -317,6 +332,66 @@ describe('workspace tools (G-V3)', () => {
     for (const path of ['.', '../outside', 'work/../materials', 'search-scope.txt', outside, 'work/search-scope/link.txt']) {
       await expect(searchWorkspace(roots, { path, needles: [needle] })).rejects.toBeInstanceOf(WorkspaceRefused);
     }
+  });
+
+  it.each(['match', 'output'])('reports %s-limit early stop separately from encountered skips', async (limit) => {
+    const path = `work/coverage-${limit}`;
+    await mkdir(join(root, path));
+    await writeFile(join(root, path, 'a.bin'), Buffer.from([0]));
+    const line = limit === 'match' ? 'coverage-hit\n' : '界'.repeat(250) + 'coverage-hit' + '界'.repeat(250) + '\n';
+    await writeFile(join(root, path, 'b.txt'), line.repeat(201));
+    await writeFile(join(root, path, 'c-large.txt'), Buffer.alloc(1024 * 1024 + 1, 120));
+    await writeFile(join(root, path, 'd.txt'), 'unexamined');
+    const result = await searchWorkspace(roots, { path, needle: 'coverage-hit' });
+    expect(result.truncated).toBe(true);
+    expect(result.coverage).toEqual({
+      filesExamined: 1, skippedByReason: { binary: 1, oversized: 0 }, stoppedEarly: true,
+      skipped: [{ path: `${path}/a.bin`, reason: 'binary' }], skippedPathsOmitted: false
+    });
+  });
+
+  it('bounds skipped paths while retaining full counts and marking omitted entries', async () => {
+    const published = Array.from({ length: 25 }, (_, i) => ({ path: `published/skip-${i}.bin`, bytes: Buffer.from([0]) }));
+    const exact = await searchWorkspace(roots, { path: 'published', needle: 'absent' }, published.slice(0, 20));
+    expect(exact.coverage.skipped).toHaveLength(20);
+    expect(exact.coverage.skippedPathsOmitted).toBe(false);
+    const overflow = await searchWorkspace(roots, { path: 'published', needle: 'absent' }, published);
+    expect(overflow).toMatchObject({ matches: [], truncated: false, coverage: {
+      filesExamined: 0, skippedByReason: { binary: 25, oversized: 0 }, stoppedEarly: false, skippedPathsOmitted: true
+    } });
+    expect(overflow.coverage.skipped).toEqual(published.slice(0, 20).map(({ path }) => ({ path, reason: 'binary' })));
+    const longPaths = published.map(({ bytes }, i) => ({ path: `published/${'x'.repeat(3000)}-${i}`, bytes }));
+    const long = await searchWorkspace(roots, { path: 'published', needle: 'absent' }, longPaths);
+    expect(long.coverage).toMatchObject({
+      filesExamined: 0, skippedByReason: { binary: 25, oversized: 0 }, stoppedEarly: false, skippedPathsOmitted: true
+    });
+    expect(Buffer.byteLength(JSON.stringify(long.coverage))).toBeLessThan(2300);
+    const widePaths = published.map(({ bytes }, i) => ({ path: `published/${'x'.repeat(500)}-${i}`, bytes }));
+    const wide = await searchWorkspace(roots, { path: 'published', needle: 'absent' }, widePaths);
+    expect(wide.coverage.skippedPathsOmitted).toBe(true);
+    expect(wide.coverage.skippedByReason).toEqual({ binary: 25, oversized: 0 });
+    expect(wide.coverage.skipped.length).toBeGreaterThan(0);
+    expect(wide.coverage.skipped.length).toBeLessThan(20);
+    expect(Buffer.byteLength(JSON.stringify(wide.coverage.skipped))).toBeLessThanOrEqual(2048);
+  });
+
+  it('reports coverage only for the requested published snapshot scope', async () => {
+    const published = [
+      { path: 'published/text.txt', bytes: Buffer.from('no hit') },
+      { path: 'published/binary.bin', bytes: Buffer.from([0]) },
+      { path: 'published/large.bin', bytes: Buffer.alloc(1024 * 1024 + 1) }
+    ];
+    const all = await searchWorkspace(roots, { path: 'published', needle: 'absent' }, published);
+    expect(all.coverage).toMatchObject({ filesExamined: 1, skippedByReason: { binary: 1, oversized: 1 }, stoppedEarly: false });
+    const single = await searchWorkspace(roots, { path: 'published/binary.bin', needle: 'absent' }, published);
+    expect(single.coverage).toEqual({
+      filesExamined: 0, skippedByReason: { binary: 1, oversized: 0 }, stoppedEarly: false,
+      skipped: [{ path: 'published/binary.bin', reason: 'binary' }], skippedPathsOmitted: false
+    });
+    const empty = await searchWorkspace(roots, { path: 'published', needle: 'absent' }, []);
+    expect(empty.coverage).toEqual({
+      filesExamined: 0, skippedByReason: { binary: 0, oversized: 0 }, stoppedEarly: false, skipped: [], skippedPathsOmitted: false
+    });
   });
 
   it('8 marks a list of more than 500 entries as truncated and returns exactly 500 of them', async () => {
