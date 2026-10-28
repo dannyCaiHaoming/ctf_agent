@@ -103,6 +103,8 @@ OpenCode 1.19.3 的 task 按每次调用的 background 选择方式，省略默�
 
 r6 `throwback-debug-20261028-r6-1` 中，两次后台分派的保存参数缺少 subagent_type，被拒为 role not dispatchable；随后 Recon／Engineer 明确同步分派成功，但11次 artifact.publish 均因缺 execution 被拒。会话／题目已绑定，task-executions、publications、verification-results、completion-results 均为空。对应来源为 `/Users/caihaoming/Documents/pentest-agent-run-data/throwback-debug-20261028-r6/REPORT.md` 及该 run 的 control-audit／root messages；不是后台能力不可用，也不是 r5 五项报告限制再次阻塞。
 
+**2026-10-28 只读诊断（未改代码）已把根因定稿，不再是待确认线索。** execution 身份只在 `task` 分派的 `background===true` 分支铸造（`apps/launcher/src/control-service.ts:555–561`）；同步分派走 `syncCalls` 分支（同文件 :549–554），**从不建立 execution**。而 artifact/package.publish 与文件／HTTP／job 来源记录都要求 `operation.execution`（:764/:789/:171，经 :704 与 :172 以「`childID===本session` 且 `state==='running'`」查找），因此同步分派的来源角色结构上无法发布。r6 `control-audit.json`（2070 条）佐证：4 次分派全为同步（4 条 `sync.source`，各自 `bind via dispatch` 均成功），`task.execution` 记录 **0 条**，11 条 `denied: artifact execution`（Recon `ses_e801097e` 6 条、Engineer `ses_e7ff9a1b` 5 条）。两次后台分派缺 subagent_type 在建 execution 之前即被**正确**拒绝（2 条 `denied: dispatch`），与 publish 缺口相互独立：前者是 prompt/角色问题、宿主行为正确，后者才是宿主侧结构缺口。**不是绑定时序问题**——同步 child 有 session、绑定正常，只是没有 execution 物件。修法须在 `syncCalls` 与 `executions` 之间定出单一来源／活动状态（见 §8.2 末段），不维护两份可能矛盾的状态；具体接法由 §8.3 最小验证确定。
+
 r3 是后台创建后漏参续接，r6 是首次有效调用就显式同步。旧补参规则继续有效；本次补齐其未覆盖的交付身份。采用**同步和后台均可拥有可信本轮执行身份**，保留长任务推荐后台，不恢复角色一刀切后台限制，不把显式 false 偷改为 true。
 
 范围是已有角色权限内的来源记录、artifact/package 交付与必要生命周期接线。Verifier 仍沿用既有后台准入、独立会话及每轮 version/preparation 绑定；本次不开放同步 Verifier，不新增网络／工具权限。Intake 等已有同步用途保持，不因此获得发布权限。不得恢复旧补丁中的永久错误撤销、通用恢复框架或整套调度改造。
@@ -124,7 +126,7 @@ r3 是后台创建后漏参续接，r6 是首次有效调用就显式同步。�
 
 工程上应让同步与后台共享可信身份与发布规则，保留各自结果交付入口。是否让现有 SyncCall 引用 Execution、以及复用哪些字段，由最小验证确定；不得维护两份可能矛盾的来源／活动状态。只将本轮身份必要的停止、错误与收束关系接通，不顺带修改结果分类、恢复策略或完整会话持久化。
 
-### 8.3 最小无模型验证与结果去向（尚未执行）
+### 8.3 最小无模型验证与结果去向（根因已诊断，验证待执行）
 
 复用既有 contract 文件及已有原生 scripted 驱动；隔离模型凭据、只用本地确定性响应和非秘密字节，不访问原题或私有oracle。不新增 gate体系、持久fixture或全队做题流程。以下是行为覆盖，不要求每行另造测试平台。
 
@@ -132,10 +134,12 @@ r3 是后台创建后漏参续接，r6 是首次有效调用就显式同步。�
 | --- | --- |
 | r6 原失败点能否消除 | 首次同步分派来源角色→可信绑定→写文件／产生来源→artifact.publish→同题Engineer读取并固定package。先复现现代码 execution缺失，再核对本轮身份和精确bytes；不是绕过publish或预造ref |
 | r3 修复与显式选择是否保留 | 后台创建→漏参续接仍实际后台；显式false续接实际同步且能交付；后续再漏参仍继承创建默认。每轮执行引用不同，旧产物producer保持原值 |
-| 是否在真实原生时序下及时绑定 | 一个最小原生scripted同步交付链，观察首次工具前身份、完成后释放及同child下一轮；不能仅用手工注入execution的替身证明绑定成立 |
+| 同步分派能否建立并结算执行身份（§8.1 诊断：缺口在 execution 铸造，非绑定时序） | 一个最小原生scripted同步交付链，观察同步分派即建立 execution、绑定 sync child、首次工具前为 running、同步返回后结算及同child下一轮；不能仅用手工注入execution的替身证明成立 |
 | 结束／错误会不会串轮或放行非法发布 | 在既有定向测试检查正常结束、启动失败／task错误、停止后的当前轮结算与拒绝；错parent／child／题目、无执行身份仍拒绝。已结束资源的合法读取与本轮新发布按各自既有权限处理 |
 | 同步转后台是否保留同一执行 | 复用公开task接口的最小promotion观察：running不结束、不重复建身份；后续可信终态关联原执行，且不因父idle提前结束run。不扩成通用promotion框架 |
 
 **结果去向：** 原生绑定、完成／续接和必要promotion关联均可通过现有公开接口闭合时，回写具体版本与观察，再拆实施plan。若只需现有hook的局部接线，记录位置和边界；若确实缺少可信关联，则记录具体缺口和受影响路径，保留unknown，不宣称全链支持。需要新增入口限制或改变显式模式选择时，回到设计讨论，不自行恢复后台强制、provider旁路或OpenCode fork。不能拿普通completed通过代替promotion成立。
 
-完成本片只证明同步交付身份与生命周期接线，不证明真实模型遵循或CTF解题成功。本次仅回补设计；未修改代码、运行上述验证、创建实施plan或启动真实模型。
+完成本片只证明同步交付身份与生命周期接线，不证明真实模型遵循或CTF解题成功。2026-10-28 已完成只读根因诊断（未改代码、未运行验证、未建 plan、未启真实模型），根因定稿见 §8.1；§8.3 的无模型验证与实施 plan 仍待执行。
+
+**r6 另有一个独立卡点，不被本片 publish 修复掩盖：** 本次 run 在 publish 缺口暴露之前已 `deadline_exceeded`（Recon 约 t=1489s／24.8 分才首次 publish，30 分到时），停止原因是 deadline 而非 token/准入/job 上限。即使同步执行身份修好，throwback 这次也会超时。Recon 效率属 [B 方法泛化与效率](2026-10-26-design-v1-b-method-generalization-and-efficiency.md)范围，不由本片承诺解决。
