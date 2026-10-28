@@ -12,6 +12,12 @@ export interface CTFPluginOptions {
 export const pluginId = 'ctf-agent-host-foundation';
 const packageEntry={path:tool.schema.string(),purpose:tool.schema.enum(['script','input','evidence'])};
 const reportSelection={start:tool.schema.number().int().nonnegative().optional(),end:tool.schema.number().int().nonnegative().optional(),necessary:tool.schema.boolean(),context:tool.schema.string()};
+const diffPath = tool.schema.string().refine(path => {
+  const segments = path.split('/');
+  return !path.includes('\\') && !path.includes('\0') &&
+    ['materials', 'work', 'published'].includes(segments[0]!) && segments.length > 1 &&
+    segments.every(segment => segment !== '' && segment !== '.' && segment !== '..');
+}, 'Use a root-qualified file path under materials/, work/ or published/.');
 const schemas = {
   'progress.read': { limit: tool.schema.number().int().min(1).max(200).optional() },
   'progress.note': {
@@ -44,6 +50,7 @@ const schemas = {
   'workspace.list': { path: tool.schema.string().optional() },
   'workspace.read': { path: tool.schema.string(), cursor: tool.schema.string().optional() },
   'workspace.search': { path: tool.schema.string().optional(), needle: tool.schema.string().min(1).optional(), needles: tool.schema.array(tool.schema.string().min(1)).min(1).optional() },
+  'workspace.diff': { a: diffPath, b: diffPath },
   'workspace.write': { path: tool.schema.string(), content: tool.schema.string(), encoding: tool.schema.enum(['utf8', 'base64']).optional() },
   'task.stop': { task_id: tool.schema.string().min(1).max(128) },
   'job.run': { preparation:tool.schema.string().optional(), argv: tool.schema.array(tool.schema.string()).min(1).max(32), timeout_ms: tool.schema.number().int().positive().max(600000).optional() },
@@ -70,6 +77,7 @@ const descriptions: Record<string, string> = {
   'workspace.list': 'List this challenge\'s virtual workspace. Omit path to list exactly materials/, work/, published/. To inspect a child, pass a root-qualified path such as "materials" or "work/<subdir>". materials/ is already challenge-scoped. "." is not a root; bare filenames, host absolute paths and paths outside these roots are refused.',
   'workspace.read': 'Read a file from this challenge\'s virtual workspace. path is required and root-qualified: use materials/statement.md, not materials/<challenge-id>/...; "." is not a root, and bare filenames, host absolute paths and other roots are refused. materials/ is already challenge-scoped. published/ is read-only. Follow nextCursor unchanged until null for the bytes you need.',
   'workspace.search': 'Search text in this challenge\'s virtual workspace with bounded match-centered snippets. Provide needle or needles for multi-needle literal matching; needles takes precedence when both are supplied. Each hit labels the matching needle and its zero-based Unicode character offset in the line. Omit path to search all roots, including readable published artifacts. A supplied path must be root-qualified: materials, work, published, or a child under one of them. "." is not a root. Use a bounded path when a task does not need all roots.',
+  'workspace.diff': 'Bounded literal line-level diff of two saved files: a (before), b (after). Both paths must be root-qualified under materials/, work/ or published/ in this challenge; "." is refused. Returns added/removed/changed lines with one-based line numbers on each present side (absent side is null); text retains line endings. Skips binary or over-1-MiB inputs; output is capped at 32768 bytes with truncated=true when cut. Does NOT re-fetch sources. This is an OBSERVATION, not a vulnerability, success or route verdict.',
   'workspace.write': 'Write a file only under work/, for example work/out.txt. path must be root-qualified and "." or a bare filename is refused. materials/ and published/ are not writable. Parent directories inside work/ may be created; one write is limited to 1 MiB.',
   'job.run': 'Verifier must supply host preparation handle and actual argv; cwd is prepared inputs. Host records version/input hashes and actual command; continuous integrity and undeclared dependencies remain unknown. Start one managed job and wait in this call until terminal cleanup. Output remains bounded and readable after completion. Host timeout and lifetime bound execution.',
   'challenge.list': 'List every challenge of this run: id, title, authorized network target (or "無網路目標"), time of the start-up reachability check, the pinned material files with size and sha256, and nonsecret host completion capability/limits/remaining chances/cooldown or blocking reasons. Takes no arguments. The statement is the material statement.md.',

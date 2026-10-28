@@ -140,3 +140,25 @@ it('enforces all nine roles at both hooks and execution, with independent Verifi
   await expect(execute('root', 'workspace.write', { path: 'work/x', content: 'no' })).rejects.toThrow('tool not permitted');
   await expect(execute('verifier', 'workspace.read', { path: 'work/../domain-solver/own.txt' })).rejects.toThrow('workspace path');
 });
+
+it('gates workspace.diff like workspace.read at hooks and execution and keeps each session private', async () => {
+  const { bind, execute, c, dir } = await fixture();
+  for (const role of ['intake', 'reference', 'strategy', 'recovery-critic']) await bind(role, role);
+  for (const id of ['root', 'intake', 'reference', 'strategy', 'recovery-critic']) {
+    await expect(execute(id, 'workspace.diff', { a: 'materials/statement.md', b: 'materials/statement.md' })).rejects.toThrow('tool not permitted');
+    await expect(c.handle(id, 'tool.execute', { tool: 'workspace.diff', callID: `direct-${id}`, args: {} })).rejects.toThrow('tool not permitted');
+  }
+  for (const role of ['recon', 'domain-solver', 'engineer', 'verifier']) {
+    await bind(role, role);
+    await execute(role, 'workspace.write', { path: 'work/before', content: 'old\n' });
+    await execute(role, 'workspace.write', { path: 'work/after', content: role + '\n' });
+    expect(await execute(role, 'workspace.diff', { a: 'work/before', b: 'work/after' })).toMatchObject({
+      differences: [{ type: 'changed', a: { line: 1, text: 'old\n' }, b: { line: 1, text: role + '\n' } }], truncated: false
+    });
+  }
+  await symlink(join(dir, 'workspace/X/work/domain-solver/after'), join(dir, 'workspace/X/work/verifier/link'));
+  for (const path of ['.', 'work/../domain-solver/after', join(dir, 'workspace/X/work/domain-solver/after'), 'work/link']) {
+    for (const side of ['a', 'b']) await expect(execute('verifier', 'workspace.diff',
+      { a: 'work/before', b: 'work/after', [side]: path })).rejects.toThrow('workspace path');
+  }
+});

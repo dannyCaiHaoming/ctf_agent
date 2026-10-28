@@ -7,7 +7,7 @@ import { join } from 'node:path';
 import { tool } from '@opencode-ai/plugin';
 import { createCtfAgentHooks } from '../../apps/opencode-plugin/src/index.js';
 import {
-  WorkspaceRefused, listWorkspace, readWorkspace, searchWorkspace, writeWorkspace
+  WorkspaceRefused, diffWorkspace, listWorkspace, readWorkspace, searchWorkspace, writeWorkspace
 } from '../../apps/launcher/src/workspace-tools.js';
 
 // One fixture tree per run: <base>/ws is the challenge root, <base>/outside holds a file the root must never reach.
@@ -32,6 +32,116 @@ beforeAll(async () => {
   await writeFile(join(root, 'work', 'real.txt'), 'real\n');
   await mkdir(join(root, 'work', 'sub'));
   await writeFile(join(root, 'work', 'sub', 'f.txt'), 'sub\n');
+});
+
+describe('workspace.diff: saved literal lines only', () => {
+  async function diff(a: string, b: string) {
+    await writeFile(join(root, 'work', 'diff-a.txt'), a);
+    await writeFile(join(root, 'work', 'diff-b.txt'), b);
+    return diffWorkspace(roots, { a: 'work/diff-a.txt', b: 'work/diff-b.txt' });
+  }
+
+  it('returns additions, removals and changes with original line numbers on both sides', async () => {
+    const result = await diff('same\nold.*\nanchor\nremove\nend\n', 'same\nnew.*\nanchor\nend\nadded\n');
+    expect(result).toEqual({
+      a: 'work/diff-a.txt', b: 'work/diff-b.txt', skipped: [], truncated: false,
+      differences: [
+        { type: 'changed', a: { line: 2, text: 'old.*\n' }, b: { line: 2, text: 'new.*\n' } },
+        { type: 'removed', a: { line: 4, text: 'remove\n' }, b: null },
+        { type: 'added', a: null, b: { line: 5, text: 'added\n' } }
+      ]
+    });
+    expect((await diff('a\na\nb\na\n', 'a\nb\na\n')).differences).toEqual([
+      { type: 'removed', a: { line: 2, text: 'a\n' }, b: null }
+    ]);
+  });
+
+  it('handles equal, empty and newline-only differences literally', async () => {
+    expect((await diff('界\n', '界\n')).differences).toEqual([]);
+    expect((await diff('', '')).differences).toEqual([]);
+    expect((await diff('', 'x\n')).differences).toEqual([{ type: 'added', a: null, b: { line: 1, text: 'x\n' } }]);
+    expect((await diff('x', '')).differences).toEqual([{ type: 'removed', a: { line: 1, text: 'x' }, b: null }]);
+    expect((await diff('x\r\n', 'x\n')).differences).toEqual([
+      { type: 'changed', a: { line: 1, text: 'x\r\n' }, b: { line: 1, text: 'x\n' } }
+    ]);
+    expect((await diff('x\n', 'x')).differences).toEqual([
+      { type: 'changed', a: { line: 1, text: 'x\n' }, b: { line: 1, text: 'x' } }
+    ]);
+  });
+
+  it('caps serialized output at 32768 bytes, including Unicode and long lines', async () => {
+    const result = await diff(('界'.repeat(90) + '\n').repeat(300), ('😀'.repeat(90) + '\n').repeat(300));
+    expect(result.truncated).toBe(true);
+    expect(result.differences.length).toBeGreaterThan(0);
+    expect(result.differences.length).toBeLessThan(300);
+    expect(Buffer.byteLength(JSON.stringify(result))).toBeLessThanOrEqual(32768);
+    expect(result.differences[0]).toEqual({ type: 'changed', a: { line: 1, text: '界'.repeat(90) + '\n' }, b: { line: 1, text: '😀'.repeat(90) + '\n' } });
+    const nextLine = result.differences.length + 1;
+    const next = { type: 'changed', a: { line: nextLine, text: '界'.repeat(90) + '\n' }, b: { line: nextLine, text: '😀'.repeat(90) + '\n' } };
+    expect(Buffer.byteLength(JSON.stringify({ ...result, differences: [...result.differences, next] }))).toBeGreaterThan(32768);
+    const fits = await diff('a'.repeat(1000), 'b'.repeat(1000));
+    expect(fits.truncated).toBe(false);
+    const long = await diff('a'.repeat(40000), 'b'.repeat(40000));
+    expect(long).toMatchObject({ differences: [], truncated: true });
+    expect(Buffer.byteLength(JSON.stringify(long))).toBeLessThanOrEqual(32768);
+  });
+
+  it('aligns reordered literal lines without losing either side', async () => {
+    expect((await diff('a\nb\nc\n', 'c\na\nb\n')).differences).toEqual([
+      { type: 'added', a: null, b: { line: 1, text: 'c\n' } },
+      { type: 'removed', a: { line: 3, text: 'c\n' }, b: null }
+    ]);
+  });
+
+  it('refuses malformed paths, directories, symlinks and escaped roots on either side', async () => {
+    await symlink(join(root, 'work', 'real.txt'), join(root, 'work', 'diff-inside-link'));
+    await symlink(outside, join(root, 'work', 'diff-outside-link'));
+    for (const path of [undefined, null, 1, '', '.', '../outside/secret.txt', 'work/../materials/brief.txt',
+      'work//real.txt', 'work/./real.txt', 'work\\real.txt', 'work/real\0.txt', 'real.txt', outside,
+      'work', 'materials', 'published', 'work/diff-inside-link', 'work/diff-outside-link/secret.txt']) {
+      for (const side of ['a', 'b']) {
+        await expect(diffWorkspace(roots, { a: 'work/real.txt', b: 'work/real.txt', [side]: path })).rejects.toBeInstanceOf(WorkspaceRefused);
+      }
+    }
+    await expect(diffWorkspace({ ...roots, workDir: join(root, 'work', 'diff-outside-link') },
+      { a: 'work/secret.txt', b: 'materials/brief.txt' })).rejects.toBeInstanceOf(WorkspaceRefused);
+  });
+
+  it('reports binary, invalid UTF-8 and oversized inputs as skipped without treating them as equal', async () => {
+    for (const [name, bytes, reason] of [
+      ['nul', Buffer.from('hello\0'), 'binary'], ['invalid', Buffer.from([255]), 'binary'],
+      ['large', Buffer.alloc(1024 * 1024 + 1, 120), 'oversized']
+    ] as const) {
+      const path = `work/diff-${name}`;
+      await writeFile(join(root, path), bytes);
+      for (const args of [{ a: path, b: 'work/real.txt' }, { a: 'work/real.txt', b: path }]) {
+        expect(await diffWorkspace(roots, args)).toMatchObject({ differences: [], skipped: [{ path, reason }], truncated: false });
+      }
+    }
+    expect((await diff('x'.repeat(1024 * 1024), 'x'.repeat(1024 * 1024))).skipped).toEqual([]);
+  });
+
+  it('uses only selected published snapshots when provided, never raw published files', async () => {
+    const published = [{ path: 'published/snapshot.bin', bytes: Buffer.from('saved\n') }];
+    const result = await diffWorkspace(roots, { a: 'materials/brief.txt', b: 'published/snapshot.bin' }, published);
+    expect(result.differences).toEqual([
+      { type: 'changed', a: { line: 1, text: 'hello 世界\n' }, b: { line: 1, text: 'saved\n' } }
+    ]);
+    await expect(diffWorkspace(roots, { a: 'published/p.txt', b: 'work/real.txt' }, published)).rejects.toBeInstanceOf(WorkspaceRefused);
+    await expect(diffWorkspace(roots, { a: 'work/real.txt', b: 'published/p.txt' }, [])).rejects.toBeInstanceOf(WorkspaceRefused);
+    expect((await diffWorkspace(roots, { a: 'published/p.txt', b: 'work/real.txt' })).skipped).toEqual([]);
+    expect((await diffWorkspace(roots, { a: 'work/real.txt', b: 'published/binary.bin' },
+      [{ path: 'published/binary.bin', bytes: Buffer.from([0]) }])).skipped).toEqual([{ path: 'published/binary.bin', reason: 'binary' }]);
+  });
+
+  it('requires two root-qualified paths in the plugin schema', () => {
+    const hooks = createCtfAgentHooks({ controlUrl: 'http://127.0.0.1:43210/control', controlToken: 'x'.repeat(40), tools: ['workspace.diff'] });
+    const schema = tool.schema.object(hooks.tool!['ctf_workspace_diff']!.args);
+    expect(schema.safeParse({ a: 'work/before.txt', b: 'published/snapshot.bin' }).success).toBe(true);
+    for (const args of [{}, { a: 'work/a' }, { a: '.', b: 'work/b' }, { a: 'a', b: 'work/b' }, { a: 'work/a', b: '/tmp/b' }]) {
+      expect(schema.safeParse(args).success).toBe(false);
+    }
+  });
 });
 
 afterAll(async () => {

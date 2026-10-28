@@ -15,7 +15,7 @@ import { ArtifactPublisher, snapshotWork, type HttpResponseFacts, type ArtifactS
 import { VerificationResults,fixEvidence } from './verification-results.js';
 import { CandidatePackages } from './candidate-package-tools.js';
 import { filePage } from './file-page.js';
-import { listWorkspace, readWorkspace, searchWorkspace, writeWorkspace, WorkspaceRefused, type WorkspaceRoots } from './workspace-tools.js';
+import { diffWorkspace, listWorkspace, readWorkspace, searchWorkspace, splitWorkspacePath, writeWorkspace, WorkspaceRefused, type WorkspaceRoots } from './workspace-tools.js';
 import type { PreparedChallenge } from './run-prep.js';
 import { fingerprintJson, progressDigest, summarizeToolArgs, validateProgressNote } from './progress-ledger.js';
 
@@ -98,7 +98,7 @@ export function summarizeUsage(messages: Message[]): SessionUsage {
   return usage;
 }
 
-export const SOLVER_TOOLS = ['workspace.list', 'workspace.read', 'workspace.search', 'workspace.write', 'http.request', 'job.run', 'job.read', 'job.cancel', 'artifact.publish', 'artifact.read', 'package.publish', 'package.read', 'package.prepare', 'verification.report'];
+export const SOLVER_TOOLS = ['workspace.list', 'workspace.read', 'workspace.search', 'workspace.diff', 'workspace.write', 'http.request', 'job.run', 'job.read', 'job.cancel', 'artifact.publish', 'artifact.read', 'package.publish', 'package.read', 'package.prepare', 'verification.report'];
 export const PROGRESS_TOOLS = ['progress.read', 'progress.note'] as const;
 export const MANAGED_TOOLS = [...INTAKE_TOOLS, 'challenge.assign', 'challenge.unassign', 'task.stop', 'verification.read', 'completion.request', ...PROGRESS_TOOLS, ...SOLVER_TOOLS];
 interface Resource { run: string; sessionID: string; challengeId: string; callID: string; tool: string; state: 'active' | 'settled' | 'unknown'; result?: string; job?: string; controller: AbortController; deadline: number; execution?: string; timer?: ReturnType<typeof setTimeout>; done?: Promise<unknown>; detachRpc?: () => void }
@@ -836,6 +836,18 @@ export class ControlService {
               const fixed=await this.publications.bytes(operation.run,binding.challengeId!,match[1]);
               result={path:args.path,size:fixed.bytes.length,sha256:fixed.record.sha256,...filePage(fixed.bytes,args.cursor,()=>{throw new ControlDenied('cursor');})};
             } else result=await readWorkspace(roots,args);
+          }
+          else if (name === 'workspace.diff') {
+            const published = [];
+            for (const path of new Set([args.a, args.b])) {
+              const segments = splitWorkspacePath(path);
+              if (segments[0] !== 'published') continue;
+              const match = /^published\/([\w-]+)\.bin$/.exec(path as string);
+              if (!match) throw new ControlDenied('artifact source');
+              const fixed = await this.publications.bytes(operation.run, binding.challengeId!, match[1]);
+              published.push({ path: path as string, bytes: fixed.bytes });
+            }
+            result = await diffWorkspace(roots, args, published);
           }
           else if (name === 'workspace.search') {
             const published=[];
