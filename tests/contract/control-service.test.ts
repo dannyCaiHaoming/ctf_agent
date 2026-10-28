@@ -163,7 +163,7 @@ describe('control service permission layer', () => {
       const resume = task('recon', { task_id: 'child', ...(explicit === undefined ? {} : { background: explicit }), prompt: 'current instruction' });
       const effective = explicit ?? (created === true);
       expect(await service.handle('root', 'tool.before', resume)).toMatchObject({ allowed: true, taskBackground: effective });
-      expect(service.executionSnapshot().some(e => e.callID === resume.callID)).toBe(effective);
+      expect(service.executionSnapshot().find(e => e.callID === resume.callID)?.mode).toBe(effective ? 'background' : 'sync');
       await finish(resume.callID, effective);
     }
     await expect(service.handle('root', 'tool.before', task('strategy', { task_id: 'child' }))).rejects.toThrow('dispatch');

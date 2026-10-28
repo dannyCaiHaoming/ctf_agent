@@ -1,5 +1,5 @@
 import {it,expect,afterEach} from 'vitest';
-import {mkdtemp,mkdir,rm} from 'node:fs/promises';import{tmpdir}from'node:os';import{join}from'node:path';
+import {mkdtemp,mkdir,rm,readFile} from 'node:fs/promises';import{createHash}from'node:crypto';import{tmpdir}from'node:os';import{join}from'node:path';
 import{ControlService}from'../../apps/launcher/src/control-service.js';
 const clean:Array<()=>Promise<unknown>>=[];afterEach(async()=>{for(const f of clean.splice(0).reverse())await f();});
 async function fixture(){const dir=await mkdtemp(join(tmpdir(),'g-async-'));clean.push(()=>rm(dir,{recursive:true,force:true}));const materials=join(dir,'X/materials');await mkdir(materials,{recursive:true});const identities:Record<string,unknown>={a:{parentID:'root',agent:'recon'},late:{parentID:'root',agent:'recon'}};const c=new ControlService({client:{session:{get:async({sessionID}:{sessionID:string})=>({data:identities[sessionID]}),messages:async()=>({data:[{info:{id:'user-1',role:'user'},parts:[{type:'tool',tool:'task',callID:'dispatch-1',state:{metadata:{sessionId:'a'}}}]}]}),children:async()=>({data:[]}),abort:async()=>({data:true})}}as never,budget:{maxModelCalls:20,maxObservableTokens:1000},expiresAt:Date.now()+60000,workdir:join(dir,'opencode'),skillRoot:dir,challenges:[{id:'X',title:null,target:null,materialsDir:materials,materials:[],reachability:null}]});c.bindRoot('root');clean.push(()=>c.stopAll('cleanup'));await c.handle('root','tool.execute',{tool:'challenge.assign',args:{role:'recon',challenge:'X'}});await c.handle('root','tool.before',{tool:'task',callID:'dispatch-1',args:{subagent_type:'recon',background:true}});return c;}
@@ -89,7 +89,7 @@ it('same child resume freezes a new source despite old binding call ID; old noti
 it('conflicting hook source stays conflict after repeats and result reading',async()=>{const f=await resultFixture();await f.c.handle('a','chat.message',{agent:'recon',messageID:'other'});await f.c.handle('a','chat.message',{agent:'recon',messageID:'source-1'});await f.c.handle('root','chat.message',completion(f.c));expect(f.c.executionSnapshot()[0]).toMatchObject({source:{status:'conflict'},resultFacts:{completeness:'unknown',reason:'source_conflict'}});expect(f.reads()).toBe(0);});
 it.each(['missing_user','wrong_parent','duplicate_conflict','multiple_assistants','missing_id','wrong_session','sdk_missing','sdk_error'])('ambiguous or missing SDK result remains unknown: %s',async(kind)=>{const f=await resultFixture();const user={info:{id:'source-1',role:'user',sessionID:'a'}};let ms:any[]=[user,childMessage()];if(kind==='missing_user')ms=[childMessage()];if(kind==='wrong_parent')ms=[user,childMessage('stop','done',{parentID:'other'})];if(kind==='duplicate_conflict')ms.push(childMessage('length','done'));if(kind==='multiple_assistants')ms.push(childMessage('stop','done',{id:'reply-2'}));if(kind==='missing_id')ms=[user,childMessage('stop','done',{id:undefined})];if(kind==='wrong_session')ms=[user,childMessage('stop','done',{sessionID:'other'})];f.set(ms);if(kind==='sdk_missing')f.setRead(async()=>({}));if(kind==='sdk_error')f.setRead(async()=>{throw new Error('offline');});await f.c.handle('root','chat.message',completion(f.c));expect(f.c.executionSnapshot()[0]).toMatchObject({resultFacts:{completeness:'unknown'}});});
 it('identical repeated messages and hooks are idempotent; snapshot metadata cannot mutate state',async()=>{const f=await resultFixture();await f.c.handle('a','chat.message',{agent:'recon',messageID:'source-1'});const u={info:{id:'source-1',role:'user',sessionID:'a'}};f.set([u,u,childMessage(),childMessage()]);await f.c.handle('root','chat.message',completion(f.c));const e:any=f.c.executionSnapshot()[0];expect(e.resultFacts.completeness).toBe('complete');e.source.status='conflict';e.resultFacts.completeness='unknown';expect(f.c.executionSnapshot()[0]).toMatchObject({source:{status:'associated'},resultFacts:{completeness:'complete'}});});
-it('missing hook ID is unknown and sync resume never reclaims the old execution',async()=>{const c=await fixture();await c.handle('a','chat.message',{agent:'recon'});await c.handle('root','chat.message',completion(c));expect(c.executionSnapshot()[0]).toMatchObject({resultFacts:{completeness:'unknown',reason:'missing_source'}});await c.handle('root','tool.before',{tool:'task',callID:'sync',args:{subagent_type:'recon',task_id:'a',background:false}});await c.handle('a','chat.message',{agent:'recon',messageID:'sync-user'});expect(c.executionSnapshot()).toHaveLength(1);expect((c.executionSnapshot()[0] as any).source.userMessageID).toBeNull();});
+it('missing hook ID is unknown and sync resume never reclaims the old execution',async()=>{const c=await fixture();await c.handle('a','chat.message',{agent:'recon'});await c.handle('root','chat.message',completion(c));expect(c.executionSnapshot()[0]).toMatchObject({resultFacts:{completeness:'unknown',reason:'missing_source'}});await c.handle('root','tool.before',{tool:'task',callID:'sync',args:{subagent_type:'recon',task_id:'a',background:false}});await c.handle('a','chat.message',{agent:'recon',messageID:'sync-user'});expect(c.executionSnapshot()).toHaveLength(2);expect((c.executionSnapshot()[0] as any).source.userMessageID).toBeNull();expect(c.executionSnapshot()[0]).toMatchObject({mode:'background',state:'completed'});expect(c.executionSnapshot()[1]).toMatchObject({mode:'sync',state:'running',childID:'a',source:{status:'associated',userMessageID:'sync-user'}});});
 it('SDK wait holds no state lock and stop suppresses its pending wake',async()=>{const f=await resultFixture();let release!:(x:any)=>void;let entered!:()=>void;const started=new Promise<void>(r=>entered=r);f.setRead(()=>{entered();return new Promise(r=>release=r);});const notice=f.c.handle('root','chat.message',completion(f.c));const denied=expect(notice).rejects.toThrow('run stopped');await started;await f.c.stopAll('budget');expect(f.c.executionSnapshot()[0]?.delivery).toBe('suppressed');release({data:[{info:{id:'source-1',role:'user',sessionID:'a'}},childMessage()]});await denied;expect(f.c.admitted).toBe(0);expect(f.c.executionSnapshot()[0]).toMatchObject({delivery:'suppressed',resultFacts:{completeness:'unknown',reason:'stopped'}});});
 it.each([{parentID:'other'},{role:'user'},{sessionID:'other'}])('same reply ID cannot conceal contradictory identity outside selected parent: %j',async(extra)=>{const f=await resultFixture();f.set([{info:{id:'source-1',role:'user',sessionID:'a'}},childMessage(),childMessage('stop','done',extra)]);await f.c.handle('root','chat.message',completion(f.c));expect(f.c.executionSnapshot()[0]).toMatchObject({resultFacts:{completeness:'unknown',reason:'message_conflict'}});});
 it('multiple active candidates and mismatched binding identity remain persistently conflicted',async()=>{for(const kind of ['multiple','parent','role']){const f=await resultFixture();const e=f.c.executionSnapshot()[0]!;if(kind==='multiple')(f.c as any).executions.set('extra',{...structuredClone(e),ref:'extra'});else (f.c.bindings.get('a') as any)[kind==='parent'?'parentID':'role']='different';await f.c.handle('a','chat.message',{messageID:'source-1'});if(kind==='multiple')(f.c as any).executions.delete('extra');else (f.c.bindings.get('a') as any)[kind==='parent'?'parentID':'role']=kind==='parent'?'root':'recon';await f.c.handle('a','chat.message',{messageID:'source-1'});await f.c.handle('root','chat.message',completion(f.c));expect(f.c.executionSnapshot()[0]).toMatchObject({source:{status:'conflict'},resultFacts:{completeness:'unknown',reason:'source_conflict'}});}});
@@ -111,7 +111,7 @@ it('R2 prepared input consumes exact same-parent registered notices; active work
 });
 
 async function syncFixture(){const f=await resultFixture();await f.c.handle('root','chat.message',completion(f.c));await f.c.handle('root','tool.before',{tool:'task',callID:'sync-1',args:{subagent_type:'recon',task_id:'a',background:false}});await f.c.handle('a','chat.message',{agent:'recon',messageID:'sync-user'});f.set([{info:{id:'sync-user',role:'user',sessionID:'a'}},{info:{id:'sync-reply',sessionID:'a',role:'assistant',parentID:'sync-user',finish:'stop',time:{completed:1}},parts:[{type:'text',text:'done'}]}]);return {...f,after:(md:any={parentSessionId:'root',sessionId:'a'},output='<task id="a" state="completed">\n<task_result>report</task_result>\n</task>')=>f.c.handle('root','tool.after',{tool:'task',callID:'sync-1',metadata:md,output})};}
-it('R4 sync facts preserve old ref and repeated before/after are idempotent',async()=>{const f=await syncFixture();const old=f.c.executionSnapshot()[0]!;await f.c.handle('root','tool.before',{tool:'task',callID:'sync-1',args:{subagent_type:'recon',task_id:'a',background:false}});const n=f.reads();expect(await f.after()).toMatchObject({syncDisplay:{callID:'sync-1',completeness:'complete',textChars:4}});expect(await f.after()).toEqual({ok:true});expect(f.reads()).toBe(n+1);expect(f.c.executionSnapshot()).toHaveLength(1);expect(f.c.executionSnapshot()[0]).toEqual(old);});
+it('R4 sync facts preserve old ref and repeated before/after are idempotent',async()=>{const f=await syncFixture();const old=f.c.executionSnapshot()[0]!;await f.c.handle('root','tool.before',{tool:'task',callID:'sync-1',args:{subagent_type:'recon',task_id:'a',background:false}});const n=f.reads();expect(await f.after()).toMatchObject({syncDisplay:{callID:'sync-1',completeness:'complete',textChars:4}});expect(await f.after()).toEqual({ok:true});expect(f.reads()).toBe(n+1);expect(f.c.executionSnapshot()).toHaveLength(2);expect(f.c.executionSnapshot()[0]).toEqual(old);expect(f.c.executionSnapshot()[1]).toMatchObject({mode:'sync',state:'completed'});});
 it('R4 different sync user is persistent unknown and cannot consume queued background',async()=>{const f=await syncFixture();await f.c.handle('a','chat.message',{agent:'recon',messageID:'other'});await f.c.handle('root','tool.before',{tool:'task',callID:'sync-1',args:{subagent_type:'recon',task_id:'a',background:false}});await f.c.handle('a','chat.message',{agent:'recon',messageID:'sync-user'});const n=f.reads();expect(await f.after()).toMatchObject({syncDisplay:{completeness:'unknown',reason:'source_conflict',textChars:null}});expect(f.reads()).toBe(n);expect(f.c.executionSnapshot()[0]?.delivery).toBe('queued');});
 it('R4 wrong sync metadata refuses SDK read and leaves background queued',async()=>{const f=await syncFixture();const n=f.reads();expect(await f.after({parentSessionId:'other',sessionId:'a'})).toMatchObject({syncDisplay:{completeness:'unknown',reason:'binding_identity'}});expect(f.reads()).toBe(n);expect(f.c.executionSnapshot()[0]?.delivery).toBe('queued');});
 it('R4 incomplete second assistant remains ambiguous',async()=>{const f=await syncFixture();f.set([{info:{id:'sync-user',role:'user',sessionID:'a'}},{info:{id:'one',role:'assistant',sessionID:'a',parentID:'sync-user',finish:'stop',time:{completed:1}},parts:[{type:'text',text:'done'}]},{info:{id:'two',role:'assistant',sessionID:'a',parentID:'sync-user',time:{created:2}},parts:[]}]);expect(await f.after()).toMatchObject({syncDisplay:{completeness:'unknown',reason:'multiple_assistants'}});});
@@ -121,7 +121,7 @@ it('R4 simultaneous sync call makes prior conflict persistent',async()=>{const f
 
 it('R4 failed background notice receives facts and exact prepared ID consumption',async()=>{const f=await resultFixture();const n=completion(f.c);n.parts[0]!.text=n.parts[0]!.text.replace('state="completed"','state="error"').replace('Background task completed:','Background task failed:');expect(await f.c.handle('root','chat.message',n)).toMatchObject({completionDisplays:[{ref:f.c.executionSnapshot()[0]!.ref}]});await f.c.handle('root','model.call',{requestMessageIDs:[n.messageID]});expect(f.c.executionSnapshot()[0]).toMatchObject({state:'failed',delivery:'consumed'});});
 
-it('R4 conflicting duplicate call is denied before new native dispatch and prior conflict persists',async()=>{const f=await syncFixture();await expect(f.c.handle('root','tool.before',{tool:'task',callID:'sync-1',args:{subagent_type:'unknown',task_id:'foreign',background:false}})).rejects.toThrow('sync call conflict');expect(await f.after()).toMatchObject({syncDisplay:{completeness:'unknown',reason:'source_conflict'}});expect(f.c.executionSnapshot()).toHaveLength(1);});
+it('R4 conflicting duplicate call is denied before new native dispatch and prior conflict persists',async()=>{const f=await syncFixture();await expect(f.c.handle('root','tool.before',{tool:'task',callID:'sync-1',args:{subagent_type:'unknown',task_id:'foreign',background:false}})).rejects.toThrow('sync call conflict');expect(await f.after()).toMatchObject({syncDisplay:{completeness:'unknown',reason:'source_conflict'}});expect(f.c.executionSnapshot()).toHaveLength(2);});
 
 it('R4 trusted native error terminates only sync call and permits a new call',async()=>{const f=await syncFixture();await f.c.handle('root','task.event',{callID:'sync-1',state:'error'});expect(await f.after()).toEqual({ok:true});await expect(f.c.handle('root','tool.before',{tool:'task',callID:'sync-2',args:{subagent_type:'recon',task_id:'a',background:false}})).resolves.toEqual({allowed:true,taskBackground:false});expect(f.c.executionSnapshot()[0]?.delivery).toBe('queued');expect(f.c.audit.filter(a=>a.op==='sync.failed')).toHaveLength(1);});
 
@@ -132,7 +132,7 @@ it('R4 first synchronous call error before binding releases only its pending rol
 it('sync call cannot change to background mode under the same identity',async()=>{
  const f=await syncFixture();
  await expect(f.c.handle('root','tool.before',{tool:'task',callID:'sync-1',args:{subagent_type:'recon',task_id:'a',background:true}})).rejects.toThrow('sync call conflict');
- expect(f.c.executionSnapshot()).toHaveLength(1);
+ expect(f.c.executionSnapshot()).toHaveLength(2);
  expect(await f.after()).toMatchObject({syncDisplay:{completeness:'unknown',reason:'source_conflict'}});
 });
 it('sync source is audited without text or error payload',async()=>{
@@ -181,7 +181,7 @@ it('two completed synchronous resumes on the same child keep independent users a
  ]);
  expect(f.c.audit.find(a=>a.op==='sync.result'&&(a.detail as any).callID==='sync-1')).toEqual(first);
  const reads=f.reads();expect(await f.after()).toEqual({ok:true});expect(f.reads()).toBe(reads);
- expect(f.c.executionSnapshot()).toHaveLength(1);expect(f.c.bindings.get('a')?.dispatchCallID).toBe('dispatch-1');
+ expect(f.c.executionSnapshot()).toHaveLength(3);expect(f.c.executionSnapshot().slice(1)).toMatchObject([{mode:'sync',state:'completed',source:{userMessageID:'sync-user'}},{mode:'sync',state:'completed',source:{userMessageID:'sync-user-2'}}]);expect(new Set(f.c.executionSnapshot().map(e=>e.ref)).size).toBe(3);expect(f.c.bindings.get('a')?.dispatchCallID).toBe('dispatch-1');
 });
 
 
@@ -250,4 +250,135 @@ it('C resumed multi chain cannot complete the previous frozen user or overwrite 
  f.set([...old,...next]);await f.c.handle('root','chat.message',completion(f.c,1,'resumed'));
  expect(f.c.executionSnapshot()[0]).toEqual(first);
  expect(f.c.executionSnapshot()[1]).toMatchObject({resultFacts:{userMessageID:'source-2',assistantMessageID:'next-terminal',completeness:'complete'}});
+});
+
+
+// §8.3: a synchronous dispatch owns a trusted per-call execution, so its source role can publish like a background one.
+// Only the OpenCode identity answers are scripted; files, publications and packages are the real host implementations.
+async function deliveryFixture(){
+ const dir=await mkdtemp(join(tmpdir(),'g-sync-id-'));clean.push(()=>rm(dir,{recursive:true,force:true}));
+ const materials=join(dir,'X/materials');await mkdir(materials,{recursive:true});
+ const native=new Map<string,string>(),user=new Map<string,string>();
+ const client={session:{
+  get:async({sessionID}:{sessionID:string})=>({data:{id:sessionID,parentID:'root',agent:sessionID.replace(/-\d+$/,'')}}),children:async()=>({data:[]}),abort:async()=>({data:true}),
+  messages:async({sessionID}:{sessionID:string})=>({data:sessionID==='root'?[{info:{id:'root-user',sessionID:'root',role:'user'},parts:[...native].map(([callID,sessionId])=>({type:'tool',tool:'task',callID,state:{metadata:{sessionId}}}))}]
+   :[{info:{id:user.get(sessionID),sessionID,role:'user'}},{info:{id:'reply-'+user.get(sessionID),sessionID,role:'assistant',parentID:user.get(sessionID),finish:'stop',time:{completed:1}},parts:[{type:'text',text:'done'}]}]})}};
+ const c=new ControlService({runId:'sync-id',client:client as never,budget:{maxModelCalls:50,maxObservableTokens:100000},expiresAt:Date.now()+60000,workdir:join(dir,'opencode'),skillRoot:dir,challenges:[{id:'X',title:null,target:null,materialsDir:materials,materials:[],reachability:null}]});
+ c.bindRoot('root');clean.push(()=>c.stopAll('cleanup'));
+ let n=0;
+ const exec=(sid:string,tool:string,args:object={})=>c.handle(sid,'tool.execute',{tool,args,callID:'p'+(++n)}) as Promise<any>;
+ const assign=(role:string)=>c.handle('root','tool.execute',{tool:'challenge.assign',args:{role,challenge:'X'}});
+ const call=async(role:string,sid:string,callID:string,args:object={})=>{
+  native.set(callID,sid);const before=await c.handle('root','tool.before',{tool:'task',callID,args:{subagent_type:role,...args}});
+  user.set(sid,'m-'+callID);await c.handle(sid,'chat.message',{agent:role,messageID:'m-'+callID});return before as any;
+ };
+ const finish=(sid:string,callID:string)=>c.handle('root','tool.after',{tool:'task',callID,metadata:{parentSessionId:'root',sessionId:sid},output:`<task id="${sid}" state="completed">\n<task_result>x</task_result>\n</task>`}) as Promise<any>;
+ const notice=(callID:string)=>{const e=c.executionSnapshot().find(e=>e.callID===callID)!;return c.handle('root','chat.message',{agent:'coordinator',messageID:'n-'+callID,parts:[{type:'text',synthetic:true,text:`<task id="${e.childID}" state="completed">\n<summary>Background task completed: [ctf:${e.ref}]</summary>\n<task_result>x</task_result>\n</task>`}]});};
+ const byCall=(callID:string)=>c.executionSnapshot().find(e=>e.callID===callID)!;
+ const publish=async(sid:string,path:string,bytes:Buffer)=>{await exec(sid,'workspace.write',{path,content:bytes.toString('base64'),encoding:'base64'});return exec(sid,'artifact.publish',{source:'file',path});};
+ return {dir,c,exec,assign,call,finish,notice,byCall,publish,publications:()=>c.publicationSnapshot()};
+}
+const OBSERVED=Buffer.from([0,255,13,10,0x66,0x6c,0x61,0x67]);
+
+it('sync Recon and Engineer: first-tool identity, exact publish, package, settlement on native return (r6 chain)',async()=>{
+ const f=await deliveryFixture();
+ await f.assign('recon');await f.call('recon','recon-1','sync-recon',{background:false});
+ const recon=f.byCall('sync-recon');
+ expect(recon).toMatchObject({mode:'sync',state:'running',childID:'recon-1',role:'recon',challengeId:'X',run:'sync-id',parent:'root',delivered:true,source:{status:'associated',userMessageID:'m-sync-recon'}});
+ const art=await f.publish('recon-1','work/observed.bin',OBSERVED);
+ const record=f.publications().find(p=>p.ref===art.ref)!;
+ expect(record.source).toMatchObject({kind:'file',run:'sync-id',challenge:'X',sessionID:'recon-1',execution:recon.ref,selectedExecution:recon.ref});
+ const known=f.c.audit.filter(a=>a.op==='artifact.published');expect(known).toHaveLength(1);
+ expect(await readFile(join(f.dir,'X/published',`${art.ref}.bin`))).toEqual(OBSERVED);
+ expect(f.c.hasOutstandingWork({})).toBe(true);
+ expect(await f.finish('recon-1','sync-recon')).toMatchObject({syncDisplay:{callID:'sync-recon',completeness:'complete'}});
+ expect(f.byCall('sync-recon')).toMatchObject({state:'completed',delivered:true,resultFacts:{completeness:'complete'}});
+ expect(f.c.hasOutstandingWork({})).toBe(false);
+ await expect(f.exec('recon-1','artifact.publish',{source:'file',path:'work/observed.bin'})).rejects.toThrow('denied: artifact execution');
+
+ await f.assign('engineer');await f.call('engineer','engineer-1','sync-eng',{background:false});
+ const eng=f.byCall('sync-eng');expect(eng).toMatchObject({mode:'sync',state:'running',childID:'engineer-1',role:'engineer'});
+ expect(await f.exec('engineer-1','workspace.read',{path:`published/${art.ref}.bin`})).toMatchObject({size:OBSERVED.length,sha256:createHash('sha256').update(OBSERVED).digest('hex')});
+ const pkg=await f.exec('engineer-1','package.publish',{candidate:{ref:art.ref,start:4,end:8},files:[{kind:'artifact',ref:art.ref,path:'evidence/raw.bin',purpose:'evidence'}],extraction:'bytes [4,8)',premises:[]});
+ expect((await f.exec('engineer-1','package.read',{version:pkg.version,component:'candidate'})).data).toBe(Buffer.from('flag').toString('base64'));
+ expect(f.publications().find(p=>p.ref===pkg.version)!.source).toMatchObject({kind:'package',sessionID:'engineer-1',execution:eng.ref});
+ expect(eng.ref).not.toBe(recon.ref);
+ await f.finish('engineer-1','sync-eng');expect(f.byCall('sync-eng').state).toBe('completed');
+ expect(f.publications().find(p=>p.ref===art.ref)!.source.selectedExecution).toBe(recon.ref);
+});
+
+it('r3 kept: omitted background follows creation, explicit false is sync and delivers, every round has its own execution',async()=>{
+ const f=await deliveryFixture();
+ await f.assign('recon');expect(await f.call('recon','recon-1','bg-create',{background:true})).toMatchObject({taskBackground:true});
+ const created=f.byCall('bg-create');expect(created).toMatchObject({mode:'background',state:'running'});
+ const first=await f.publish('recon-1','work/a.bin',Buffer.from('bg-one'));await f.notice('bg-create');expect(f.byCall('bg-create').state).toBe('completed');
+ expect(await f.call('recon','recon-1','omit-1',{task_id:'recon-1'})).toMatchObject({taskBackground:true});
+ expect(f.byCall('omit-1')).toMatchObject({mode:'background',state:'running',childID:'recon-1'});await f.notice('omit-1');
+ expect(await f.call('recon','recon-1','explicit-false',{task_id:'recon-1',background:false})).toMatchObject({taskBackground:false});
+ const sync=f.byCall('explicit-false');expect(sync).toMatchObject({mode:'sync',state:'running',childID:'recon-1'});
+ const second=await f.publish('recon-1','work/b.bin',Buffer.from('sync-two'));
+ expect(f.publications().find(p=>p.ref===second.ref)!.source.selectedExecution).toBe(sync.ref);
+ await f.finish('recon-1','explicit-false');expect(f.byCall('explicit-false').state).toBe('completed');
+ expect(await f.call('recon','recon-1','omit-2',{task_id:'recon-1'})).toMatchObject({taskBackground:true});
+ const third=await f.publish('recon-1','work/c.bin',Buffer.from('bg-three'));
+ const refs=['bg-create','omit-1','explicit-false','omit-2'].map(id=>f.byCall(id).ref);expect(new Set(refs).size).toBe(4);
+ expect(f.publications().find(p=>p.ref===third.ref)!.source.selectedExecution).toBe(f.byCall('omit-2').ref);
+ expect(f.publications().find(p=>p.ref===first.ref)!.source).toMatchObject({execution:created.ref,selectedExecution:created.ref});
+ expect(f.publications().find(p=>p.ref===second.ref)!.source.selectedExecution).toBe(sync.ref);
+});
+
+it('sync file provenance is bound to the round that wrote it; a later round keeps the old producer',async()=>{
+ const f=await deliveryFixture();
+ await f.assign('recon');await f.call('recon','recon-1','s1',{background:false});
+ await f.exec('recon-1','workspace.write',{path:'work/keep.txt',content:'same bytes'});
+ const one=await f.exec('recon-1','artifact.publish',{source:'file',path:'work/keep.txt'});await f.finish('recon-1','s1');
+ await f.call('recon','recon-1','s2',{task_id:'recon-1',background:false});
+ const two=await f.exec('recon-1','artifact.publish',{source:'file',path:'work/keep.txt'});
+ const src=(r:string)=>f.publications().find(p=>p.ref===r)!.source;
+ expect(src(one.ref)).toMatchObject({execution:f.byCall('s1').ref,selectedExecution:f.byCall('s1').ref});
+ expect(src(two.ref)).toMatchObject({execution:f.byCall('s1').ref,selectedExecution:f.byCall('s2').ref});
+});
+
+it('sync settlement is exact: native error, wrong child, stop and cancellation never publish and never revive',async()=>{
+ const f=await deliveryFixture();
+ await f.assign('recon');await f.call('recon','recon-1','e1',{background:false});await f.exec('recon-1','workspace.write',{path:'work/x',content:'x'});
+ await f.c.handle('root','task.event',{callID:'e1',state:'error',error:'native failure'});
+ expect(f.byCall('e1').state).toBe('failed');
+ await expect(f.exec('recon-1','artifact.publish',{source:'file',path:'work/x'})).rejects.toThrow('denied: artifact execution');
+ expect(await f.finish('recon-1','e1')).toEqual({ok:true});expect(f.byCall('e1').state).toBe('failed'); // late native return cannot overwrite a known error
+ // An ordinary error does not disable the session: the next call is a fresh execution that can publish.
+ await f.call('recon','recon-1','e2',{task_id:'recon-1',background:false});expect(f.byCall('e2').state).toBe('running');
+ await f.exec('recon-1','artifact.publish',{source:'file',path:'work/x'});
+ // A native return that names another child is not trusted: the call ends failed and its identity is released.
+ await f.finish('other','e2');expect(f.byCall('e2').state).toBe('failed');
+ await f.call('recon','recon-1','e3',{task_id:'recon-1',background:false});expect(f.byCall('e3').state).toBe('running');
+ await f.c.stopAll('deadline');expect(f.byCall('e3').state).toBe('cancelled');
+});
+
+it('sync dispatch keeps its other gates: one active round per child, no sync Verifier, Intake cannot publish, rounds are not reused',async()=>{
+ const f=await deliveryFixture();
+ await f.assign('recon');await f.call('recon','recon-1','a1',{background:false});
+ await expect(f.c.handle('root','tool.before',{tool:'task',callID:'a2',args:{subagent_type:'recon',task_id:'recon-1',background:false}})).rejects.toThrow('sync active call');
+ expect(f.c.executionSnapshot().filter(e=>e.state==='running')).toHaveLength(1);
+ await f.finish('recon-1','a1');
+ await expect(f.c.handle('root','tool.before',{tool:'task',callID:'a1',args:{subagent_type:'recon',task_id:'recon-1',background:false}})).rejects.toThrow('sync call terminal');
+ await f.call('intake','intake-1','i1',{background:false});
+ expect(f.byCall('i1')).toMatchObject({mode:'sync',state:'running',childID:'intake-1',role:'intake'});
+ await expect(f.exec('intake-1','artifact.publish',{source:'file',path:'work/x'})).rejects.toThrow('denied: tool not permitted');
+ await f.finish('intake-1','i1');expect(f.byCall('i1').state).toBe('completed');
+ // A Verifier is admitted only in the background, whatever the call mode was written as.
+ await f.assign('engineer');await f.call('engineer','engineer-1','g1',{background:false});
+ const art=await f.publish('engineer-1','work/c.bin',Buffer.from('cand'));
+ const pkg=await f.exec('engineer-1','package.publish',{candidate:{ref:art.ref,start:0,end:4},files:[],extraction:'all',premises:[]});await f.finish('engineer-1','g1');
+ await f.c.handle('root','tool.execute',{tool:'challenge.assign',args:{role:'verifier',challenge:'X',version:pkg.version}});
+ await expect(f.c.handle('root','tool.before',{tool:'task',callID:'v1',args:{subagent_type:'verifier',background:false}})).rejects.toThrow('denied: verification execution');
+ expect(f.c.executionSnapshot().some(e=>e.role==='verifier')).toBe(false);
+});
+
+it('sync promotion (running envelope with background metadata) is not a terminal: the execution stays running and nothing completes it (Q5 gap, unresolved)',async()=>{
+ const f=await deliveryFixture();
+ await f.assign('recon');await f.call('recon','recon-1','p1',{background:false});
+ await f.c.handle('root','tool.after',{tool:'task',callID:'p1',metadata:{parentSessionId:'root',sessionId:'recon-1',background:true},output:'<task id="recon-1" state="running">'});
+ expect(f.byCall('p1')).toMatchObject({mode:'sync',state:'running'});
+ await expect(f.c.handle('root','tool.before',{tool:'task',callID:'p2',args:{subagent_type:'recon',task_id:'recon-1',background:false}})).rejects.toThrow('denied: dispatch');
 });
