@@ -23,11 +23,13 @@
 
 本批使用以下本機 Docker images。Digest 是 2026-10-24 唯讀檢查所得；真跑前仍須由執行者重新核對，若 digest 改變，批次不得默默沿用舊名稱。
 
+历史原始证据见 [docs/gates/distilled-local-practice-suite-and-progress-ledger-20261029/evidence.md](../../gates/distilled-local-practice-suite-and-progress-ledger-20261029/evidence.md)。
+
 | Challenge | Image | 固定 digest | 已知 oracle |
 | --- | --- | --- | --- |
-| `mfw` | `llmctf/2016q-web-mfw:latest` | `sha256:15394bdd3844d6d002893455797f229986e40f09d3980053def061553736fdb2` | `local-mfw-exact-v1` 已核對 |
-| `throwback` | `llmctf/2015q-web-throwback:latest` | `sha256:ec0deee9a8a45ac74494e7dfc92357711fcf0b1e1c58543f09d6f824f3d9be98` | 尚無已核對的 controller-side oracle |
-| `seizurecipher` | `llmctf/2016f-web-seizurecipher:latest` | `sha256:d2c38e325a12ac76b5d2a05391753c3c05ad9817bcc0f2d1d73b65bdd8eb681f` | 尚無已核對的 controller-side oracle |
+| `mfw` | `llmctf/2016q-web-mfw:latest` | [固定 digest 原值](../../gates/distilled-local-practice-suite-and-progress-ledger-20261029/evidence.md#mfw) | `local-mfw-exact-v1` 已核對 |
+| `throwback` | `llmctf/2015q-web-throwback:latest` | [固定 digest 原值](../../gates/distilled-local-practice-suite-and-progress-ledger-20261029/evidence.md#throwback) | 尚無已核對的 controller-side oracle |
+| `seizurecipher` | `llmctf/2016f-web-seizurecipher:latest` | [固定 digest 原值](../../gates/distilled-local-practice-suite-and-progress-ledger-20261029/evidence.md#seizurecipher) | 尚無已核對的 controller-side oracle |
 
 沒有已核對 oracle 的題目仍可完成觀察、候選、Engineer 固定包與獨立 Verifier 流程，但宿主最多記到 `candidate_only`／verification result；不得用模型自述、猜測 flag 或人工補登冒充 `verified` 或 `solved`。
 
