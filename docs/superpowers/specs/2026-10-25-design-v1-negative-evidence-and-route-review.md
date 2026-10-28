@@ -145,3 +145,39 @@ Coordinator 脚本从实际 provider 请求里收到的原生完成通知提取�
 这仍不是“模型永不误判”的保证：模型可能在事实齐全时作错判断。只有原样例的输入／输出链与明确预算内行为验证都支持，才可称本次问题改善；通用效果需未泄露解法的独立题目证据。当前已完成根因定位、§2.1 的同版本取证链验证及 §3.4 的隔离区提示实施／原生脚本文本交接；未宣称真实模型行为已修复或改善。
 
 本次只将第二优先级已定取证措辞作为第三优先级交接的必要前提一并落地，未重做搜索实验；后续模型行为验证须另有明确模型／provider、批次及 token 预算。公开接口连通性有具体未知时才拆对应最小验证 plan。没有必要不改 host／工具接口，不新建 schema／gate／readiness／框架。本次验证结论及最小证据经核对已合回主工作区，核心入口同步状态；一次性验证 plan 已移除，本次隔离工作区按流程归档。临时复现脚本保留于主区忽略目录 `runs/search-evidence-minimal/verify.mjs`，供核对而非产品运行。该验证阶段未改产品；随后设计与最小证据已提交为 `fdbbce44`，未 push。此前第三优先级只读复核仅更新本文及核心 H 入口；本次隔离实施与无模型结果见 §3.4，已合回主区，本次提交仅包含相关提示、设计与最小证据，其他未提交工作保留。
+
+## 5. r7：停滞检测的触发时机，与常驻决策骨架（聚焦子设计，2026-10-28）
+
+**状态：聚焦设计，待计划与真实 run 验证；未改产品、未运行模型。** 由 r7 `throwback-debug-20261028-r7-1` 驱动，与 [B 路线优先级增量](2026-10-28-design-v1-b-evidence-to-action-route-priority.md) 的 L1 判定互补：那份管「方法为何无人载入／内容」，本节管「停滞时换路判断为何没被触发」。
+
+### 5.1 r7 证据与被钉准的问题
+
+- r7 Recovery Critic **准入 0 次**：换路判断从未被叫起。Domain Solver 末段约 20 分钟重复 flag 档名／env／DB 搜索，却没测 Recon 已浮现的 `/admin/chal/delete`。
+- `coordinator.md` **已有**停滞规则（第 26 行「相同工具／参数重复≥3 次且无新进展…应评估是否分派 Recovery Critic」）与 `ctf_progress_read` 访问（第 27 行）；`recovery-critic.md` 也已有 `route: continue/redirect/stop_and_report` 与 `capabilityGap` 输出。**判断的家已存在，不缺。**
+- 真正缺的是**触发时机**：Coordinator 的停滞规则只在**任务交回边界**评估；r7 把 Domain Solver **同步分派**后进入长时间阻塞等待（第 21 行还明写「不靠轮询等待」），停滞发生在**长执行内部**，Coordinator 没有 turn 去套用规则、读进度或叫 Critic，直到 deadline 子任务都没交回。Coordinator 本 run 仅 5 次准入即其被阻塞的佐证。
+
+**一句话：换路判断（Recovery Critic）与停滞规则（Coordinator）都在，但「长执行内部的停滞」是触发盲区——没有角色在子任务跑的 30 分钟里察觉并叫起 Critic。**
+
+### 5.2 要回答的问题（触发层）
+
+1. 长执行内部的停滞由谁检测？Coordinator（被阻塞／按设计不轮询）、Solver 自身（自判不可靠，见 L1）、还是宿主（已记录重复 fingerprint，但目前只记不触发）？
+2. 「具体线索未测」是语义判断（对比 Recon 浮现的路线 vs 实际请求），宿主只有机械的重复信号。触发（机械信号）与判断（语义，归 Critic）如何分工，才不误触发也不漏触发？
+3. 让 Coordinator 背景分派长 Solver 任务以保持可响应，与第 21 行「不靠轮询等待」如何并存？「有界周期评估」和「忙轮询」的界线写在哪？
+4. 常驻决策骨架（见 5.4）放进角色 prompt 后，是否真的改变行为？——只能真实 run 验证。
+
+### 5.3 候选做法与结果去向（不预先定案）
+
+- **A. Coordinator 背景分派 + 有界评估**：长 Solver 任务用 `background=true`（sync execution 修正后两种模式都能发布，背景让 Coordinator 保留 turn），在既有调度节拍／宿主停滞信号出现时读一次 `progress_read` 并套用既有停滞规则，而非忙轮询。结果去向：若能界定「有界评估 ≠ 轮询」的触发条件，写入 `coordinator.md` 停滞节；否则记为仍依赖交回边界。
+- **B. 宿主停滞信号前移**：宿主已有重复 fingerprint；候选是当「同指纹无进展超阈值」在子执行期间发生时，作为**信号**（非决策、非新 judge 权）surface 到决策点（例如进度摘要显著位、或给 Coordinator 一个评估时点）。结果去向：若需改 `ctf_progress_read` 暴露面或新增信号字段，先记接口影响面再拆最小 plan；不新建 monitor／scheduler、不忙轮询。
+- **C. Solver 自判交回**：Solver 在第 N 次无进展同类搜索且有未测具体线索时停手、交回或先测该线索。结果去向：作为**辅助**写入 solver 角色 prompt，但因 L1 显示自判不可靠，不作为唯一依赖。
+- 判断仍归 Recovery Critic：触发后，把 Recon 浮现的路线与实际请求交给它，由它语义判断「有未测线索→redirect」。**不新增 judge 权、Critic 只建议、Coordinator 决定**（保持现有边界）。
+
+### 5.4 常驻决策骨架（回应「固定思路」与 L1）
+
+L1 已证 on-demand skill 调用不可靠（r7 全 run 0 次）。因此「固定解题思路」不应再做成需模型自己载入的 skill，而应放进**常驻、始终在上下文的角色 prompt**：一层**薄**决策骨架——观察 → 有具体线索先低成本直测 → 有界探索（允许试错，但设停止条件）→ 停滞则交回／发信号 → 由 Critic 判换路。骨架的职责之一是**点名「何时去拉哪个 skill／reference／工具」**（如「比对源码 vs 行为 → 载入 source-comparison reference」），从而直接缓解「不知道何时用什么方法」。这不等于「每题强制载入 skill」，不违反 [Skill 发现与使用 §1](2026-10-24-design-v1-skill-discovery-and-use.md) 边界；skill-discovery 的弱点正是只做了「可被发现」而缺这层常驻的「何时发现」。骨架必须薄，不得膨胀成分类 playbook 或漏洞百科。
+
+### 5.5 最小验证与边界
+
+- 无模型只能验「装配」：角色 prompt／骨架合法、`progress_read` 暴露面含所需停滞信号、Critic 触发路径可达。**是否真改变行为只能由真实 run（r8，另行授权 model／provider／批次／token）认账**：判据是行为性的——长执行中停滞被检测、Critic 被叫起并给出 redirect、未测的 specific 路线在 deadline 前被实际请求。不拿「规则已写」或「Critic 被叫起次数」冒充收益。
+- 禁做：不新增 judge 权；Critic 只建议、Coordinator 决定。不忙轮询、不新建 monitor／scheduler／readiness／框架。不把骨架膨胀成通用 playbook／漏洞百科，不强制每题载入 skill。不改候选验证标准、身份／scope／预算／停止校验。未经授权不运行真实模型、不 commit／push。
+- 完成含义：判明长执行停滞的触发归属与最小接法，并明确行为收益只能由真实 run 认账；不证明 throwback 可解或泛化。结论定稿后，触发措辞落 `coordinator.md`／`recovery-critic.md`／solver 角色，内容增量仍走 [路线优先级增量](2026-10-28-design-v1-b-evidence-to-action-route-priority.md)，据此生成的一次性 plan 完成后删除。

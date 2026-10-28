@@ -10,6 +10,8 @@
 
 本切片不改模型、工具權限、公共搜尋／依賴安裝限制、候選驗證標準，不新增角色、檢索服務、Schema、Hook、fixture 或 gate。不執行前一份交接 design 的 Coordinator／Verifier 優化，也不把兩項變更混為一批效果證據。真實模型 run、commit／push 未獲本輪授權。
 
+> 2026-10-28 補：r7 全 run 0 次 skill 調用（見 [路線優先級增量 §2](2026-10-28-design-v1-b-evidence-to-action-route-priority.md)）暴露本設計只做了「可被發現」，缺一層常駐、始終在上下文的決策骨架來決定「何時去發現／載入」。該骨架不是「每題強制載入」（不違反上述邊界），其寫法見 [否定證據與路線複核 §5.4](2026-10-25-design-v1-negative-evidence-and-route-review.md)。
+
 ## 2. 已知事實與未知
 
 核對基線：`87a94134` 加當前未提交工作。產品只有一個 Skill `web-session-diagnosis` 及附屬 `source-version-and-behavior-comparison.md`；離線核對時 Skill 文檔版本為 3，已完成舊接口清理；後續 v4 實作見 §8。
