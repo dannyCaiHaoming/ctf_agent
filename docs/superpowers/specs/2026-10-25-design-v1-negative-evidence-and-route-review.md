@@ -181,3 +181,12 @@ L1 已证 on-demand skill 调用不可靠（r7 全 run 0 次）。因此「固�
 - 无模型只能验「装配」：角色 prompt／骨架合法、`progress_read` 暴露面含所需停滞信号、Critic 触发路径可达。**是否真改变行为只能由真实 run（r8，另行授权 model／provider／批次／token）认账**：判据是行为性的——长执行中停滞被检测、Critic 被叫起并给出 redirect、未测的 specific 路线在 deadline 前被实际请求。不拿「规则已写」或「Critic 被叫起次数」冒充收益。
 - 禁做：不新增 judge 权；Critic 只建议、Coordinator 决定。不忙轮询、不新建 monitor／scheduler／readiness／框架。不把骨架膨胀成通用 playbook／漏洞百科，不强制每题载入 skill。不改候选验证标准、身份／scope／预算／停止校验。未经授权不运行真实模型、不 commit／push。
 - 完成含义：判明长执行停滞的触发归属与最小接法，并明确行为收益只能由真实 run 认账；不证明 throwback 可解或泛化。结论定稿后，触发措辞落 `coordinator.md`／`recovery-critic.md`／solver 角色，内容增量仍走 [路线优先级增量](2026-10-28-design-v1-b-evidence-to-action-route-priority.md)，据此生成的一次性 plan 完成后删除。
+
+### 5.6 只读可行性结论（2026-10-28，未改产品、未运行模型）
+
+对 5.2 Q3 与候选 A／B 做了只读代码核查，结论改变候选排序：
+
+- **(ii) `progress_read` 是 live 的，但现有停滞信号太窄。** `progress.read`（`control-service.ts:584`）调用 `progressDigest(this.audit, …)`，`this.audit` 随每次 `tool.registered`（:710）即时累加，故执行中读会看到子任务活动。但 `repeated()`（`progress-ledger.ts:298`）按「`tool`＋**精确** `argFingerprint`」分组；r7 的翻找是**不同参数**的搜索（不同档名／路径），指纹各异、不计为重复。**现有机械信号对「换着花样搜、无新证据」这类停滞不触发**；要触发需更粗的「自上次新证据／artifact 起 N 次调用无进展」信号（新增项）。
+- **(i) 没有机制在子执行「进行中」重新唤醒父（Coordinator）。** 父只在子任务**完成**时经 `receiveCompletion`（synthetic `<task state="completed">`）被唤醒；`hasOutstandingWork` 只维持 run 存活、不唤醒。背景分派让父不被阻塞，但父一旦 idle 就只能等完成通知。**要父在执行中周期评估＝必须忙轮询，`coordinator.md:21`「不靠轮询等待」明禁。**
+- **因此重排候选：** **A（Coordinator 背景＋周期评估）现状不可行**（无执行中唤醒、忙轮询被禁）；**B（宿主停滞信号）需新增「执行中通知路径＋更粗的无进展信号」**，是真接口改动，拆 plan 前先记接口影响面。**新增并推荐候选 D：把长 solver 工作切成有界回合交回**——solver 在有界步数／无新证据时主动交回，或 Coordinator 以有界子任务分派，使**既有的交回边界停滞规则（`coordinator.md:26`）自然触发**，不需新唤醒路径、不忙轮询；C（solver 自判交回）是 D 的使能。D 仍依赖模型遵循「有界即交回」，属 prompt／方法层，收益只能真实 run 认账。
+- **下一步最小选型：** 若走 D，是 `coordinator.md`＋solver 角色的有界回合措辞（无新 host 机制），可先无模型验证装配、再 r8 真跑验行为；若走 B，先写 `ctf_progress_read`／通知路径的接口影响面与「无进展」信号定义，再拆最小 plan。两者都不新建 monitor／scheduler、不加 judge 权、Critic 仍只建议、Coordinator 决定。
