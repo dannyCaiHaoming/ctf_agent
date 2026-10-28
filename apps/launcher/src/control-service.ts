@@ -103,8 +103,9 @@ export const PROGRESS_TOOLS = ['progress.read', 'progress.note'] as const;
 export const MANAGED_TOOLS = [...INTAKE_TOOLS, 'challenge.assign', 'challenge.unassign', 'task.stop', 'verification.read', 'completion.request', ...PROGRESS_TOOLS, ...SOLVER_TOOLS];
 interface Resource { run: string; sessionID: string; challengeId: string; callID: string; tool: string; state: 'active' | 'settled' | 'unknown'; result?: string; job?: string; controller: AbortController; deadline: number; execution?: string; timer?: ReturnType<typeof setTimeout>; done?: Promise<unknown>; detachRpc?: () => void }
 interface TaskStopResult { state: 'stopped' | 'unknown' | 'completed' | 'failed'; resources: 'settled' | 'unknown'; sessionAbort: 'confirmed' | 'unknown' | 'not_required'; executionRef?: string }
-interface Execution { source: ChildSource; resultFacts: ChildResult | null; version?: string; ref: string; run: string; parent: string; callID: string; role: Role; challengeId?: string; childID?: string; state: 'starting' | 'running' | 'completed' | 'failed' | 'cancelled'; delivered: boolean; noticeMessageID?: string; delivery?: 'queued' | 'consumed' | 'suppressed' | 'stop_reply'; lateResult?: string; initialOutput?: string; result?: string }
-interface SyncCall {parent:string;callID:string;role:Role;childID?:string;source:ChildSource;state: 'active' | 'reading' | 'done'; fingerprint:string;displayed:boolean;facts?:ChildResult}
+interface Execution { mode: 'sync' | 'background'; source: ChildSource; resultFacts: ChildResult | null; version?: string; ref: string; run: string; parent: string; callID: string; role: Role; challengeId?: string; childID?: string; state: 'starting' | 'running' | 'completed' | 'failed' | 'cancelled'; delivered: boolean; noticeMessageID?: string; delivery?: 'queued' | 'consumed' | 'suppressed' | 'stop_reply'; lateResult?: string; initialOutput?: string; result?: string }
+/** Result-delivery view of a synchronous dispatch. Identity, source and facts live only on its Execution (the accessors below), so the two cannot disagree. */
+interface SyncCall {parent:string;callID:string;role:Role;execution:string;childID?:string;source:ChildSource;state: 'active' | 'reading' | 'done'; fingerprint:string;displayed:boolean;facts?:ChildResult|null}
 interface Preparation {sessionID:string;execution:string;version:string;directory:string;metadata:{path:string;sha256:string;size:number}[];files:{path:string;sha256:string;size:number}[]}
 interface Outside { execute: () => Promise<unknown> }
 
@@ -472,7 +473,7 @@ export class ControlService {
     this.bindings.set(sessionID, binding);
     this.dispatched.set(sessionID, { parent: info.parentID, role: info.agent, background: waiting.background === true });
     const execution = [...this.executions.values()].find(e => e.parent === info.parentID && e.callID === waiting.callID);
-    if (execution) { execution.childID = sessionID; execution.state = 'running'; }
+    if (execution && (execution.state === 'starting' || execution.state === 'running')) { execution.childID = sessionID; execution.state = 'running'; } // A settled execution is never revived by a late bind.
     this.record(sessionID, 'bind', true, undefined, { role: binding.role, via: 'dispatch', sdkParentID: info.parentID, sdkAgent: info.agent, callID: waiting.callID, challengeId: waiting.challengeId, sdkMs });
     return binding;
     });
@@ -524,9 +525,9 @@ export class ControlService {
         background = owned.background;
       }
       args = { ...args, background };
-      if ([...this.executions.values()].some(e => e.parent === binding.sessionID && e.callID === body.callID)) throw new ControlDenied('duplicate dispatch call');
       const key = binding.sessionID + '/' + body.callID;
       const prior = this.syncCalls.get(key);
+      if (!prior && [...this.executions.values()].some(e => e.parent === binding.sessionID && e.callID === body.callID)) throw new ControlDenied('duplicate dispatch call');
       const fingerprint = fingerprintJson(args);
       if (prior) {
         if (prior.state === 'done') throw new ControlDenied('sync call terminal');
@@ -546,21 +547,22 @@ export class ControlService {
         throw new ControlDenied('sync active call');
       }
       this.registerDispatch(binding, typeof body.callID === 'string' ? body.callID : '', args);
-      if (args.background !== true) {
-        this.syncCalls.set(key, {parent:binding.sessionID, callID:String(body.callID), role:args.subagent_type as Role,
-          childID:typeof args.task_id === 'string' ? args.task_id : undefined,
-          source:{status:'unknown', userMessageID:null, reason:'missing_source', observedAt:null},
+      // Both modes mint the one execution identity of this call; background/sync only decides how the result is awaited and delivered.
+      const ref = randomUUID();
+      const taskID = typeof args.task_id === 'string' ? args.task_id : undefined;
+      const execution: Execution = { mode: background ? 'background' : 'sync', source: {status:'unknown',userMessageID:null,observedAt:null,reason:'missing_source'}, resultFacts:null, ref, run: this.options.runId ?? 'run', parent: binding.sessionID, callID: String(body.callID), role: args.subagent_type as Role, version: this.versions.get(binding.sessionID+'/'+String(args.subagent_type)), challengeId: taskID ? this.bindings.get(taskID)?.challengeId : this.pending.get(binding.sessionID)?.get(args.subagent_type as Role)?.challengeId, childID: taskID, state: taskID ? 'running' : 'starting', delivered: !background };
+      this.executions.set(ref, execution);
+      this.versions.delete(binding.sessionID+'/'+String(args.subagent_type));
+      this.record(binding.sessionID, 'task.execution', true, undefined, {...execution});
+      if (!background) {
+        this.syncCalls.set(key, {parent:binding.sessionID, callID:String(body.callID), role:args.subagent_type as Role, execution:ref,
+          get childID() { return execution.childID; }, set childID(id) { execution.childID = id; },
+          get source() { return execution.source; }, set source(source) { execution.source = source; },
+          get facts() { return execution.resultFacts; }, set facts(facts) { execution.resultFacts = facts ?? null; },
           state:'active', fingerprint, displayed:false});
+        return { allowed: true, taskBackground: background };
       }
-      if (args.background === true) {
-        const ref = randomUUID();
-        const taskID = typeof args.task_id === 'string' ? args.task_id : undefined;
-        this.executions.set(ref, { source: {status:'unknown',userMessageID:null,observedAt:null,reason:'missing_source'}, resultFacts:null, ref, run: this.options.runId ?? 'run', parent: binding.sessionID, callID: String(body.callID), role: args.subagent_type as Role, version: this.versions.get(binding.sessionID+'/'+String(args.subagent_type)), challengeId: taskID ? this.bindings.get(taskID)?.challengeId : this.pending.get(binding.sessionID)?.get(args.subagent_type as Role)?.challengeId, childID: taskID, state: taskID ? 'running' : 'starting', delivered: false });
-        this.versions.delete(binding.sessionID+'/'+String(args.subagent_type));
-        this.record(binding.sessionID, 'task.execution', true, undefined, {...this.executions.get(ref)});
-        return { allowed: true, taskDescription: `[ctf:${ref}]`, taskBackground: background };
-      }
-      return { allowed: true, taskBackground: background };
+      return { allowed: true, taskDescription: `[ctf:${ref}]`, taskBackground: background };
     }
     return { allowed: true };
   }
@@ -956,11 +958,19 @@ export class ControlService {
     this.pending.set(binding.sessionID, byRole);
   }
 
+  /** The only place a synchronous call ends its execution; a terminal or cancelled execution is never revived or overwritten by a late event. */
+  private settleSync(c: SyncCall, state: 'completed' | 'failed' | 'cancelled'): void {
+    const e = this.executions.get(c.execution);
+    if (!e || (e.state !== 'starting' && e.state !== 'running')) return;
+    e.state = state;
+    this.record(c.parent, 'sync.settled', true, undefined, {ref: e.ref, callID: e.callID, childID: e.childID, state});
+  }
+
   private taskEvent(parent: string, body: Record<string, unknown>): {ok: true} {
     const sync=this.syncCalls.get(parent+'/'+body.callID);
-    if(sync && body.state==='error' && sync.state!=='done'){sync.state='done';sync.facts=unknownChildResult(sync.source,'native_error');for(const [role,waiting] of this.pending.get(parent)??[])if(waiting.callID===sync.callID)this.pending.get(parent)!.delete(role);this.record(parent,'sync.failed',true,undefined,{callID:sync.callID,childID:sync.childID,source:{...sync.source},facts:{...sync.facts}});}
+    if(sync && body.state==='error' && sync.state!=='done'){sync.state='done';sync.facts=unknownChildResult(sync.source,'native_error');this.settleSync(sync,'failed');for(const [role,waiting] of this.pending.get(parent)??[])if(waiting.callID===sync.callID)this.pending.get(parent)!.delete(role);this.record(parent,'sync.failed',true,undefined,{callID:sync.callID,childID:sync.childID,source:{...sync.source},facts:{...sync.facts}});}
     const execution = [...this.executions.values()].find(e => e.parent === parent && e.callID === body.callID);
-    if (!execution || body.state !== 'error' || execution.state !== 'starting') return {ok: true};
+    if (!execution || execution.mode !== 'background' || body.state !== 'error' || execution.state !== 'starting') return {ok: true};
     execution.state = 'failed'; execution.delivered = true; execution.delivery = 'stop_reply'; execution.result = typeof body.error === 'string' ? body.error : 'native task error';
     for (const [role, waiting] of this.pending.get(parent) ?? []) if (waiting.callID === execution.callID) this.pending.get(parent)!.delete(role);
     this.record(parent, 'task.start.failed', true, undefined, {ref: execution.ref, callID: execution.callID});
@@ -1059,7 +1069,8 @@ export class ControlService {
       this.record(sessionID, 'task.correlate', true, undefined, { callID, childSessionID: child ?? null,
         childBoundToCaller: child ? this.bindings.get(child)?.parentID === sessionID : false });
       const execution = [...this.executions.values()].find(e => e.parent === sessionID && e.callID === callID);
-      if (execution) { if (child && execution.childID && execution.childID !== child) throw new ControlDenied('completion correlation'); if (child) execution.childID = child; if (execution.initialOutput === undefined && typeof body.output === 'string') execution.initialOutput = body.output; }
+      // A synchronous execution takes its child only from the bind; its wait view below judges any different child as untrusted.
+      if (execution?.mode === 'background') { if (child && execution.childID && execution.childID !== child) throw new ControlDenied('completion correlation'); if (child) execution.childID = child; if (execution.initialOutput === undefined && typeof body.output === 'string') execution.initialOutput = body.output; }
       for (const [, waiting] of this.pending.get(sessionID) ?? []) if (waiting.callID === callID && child) waiting.childID = child;
       const c=this.syncCalls.get(sessionID+'/'+callID);
       if(c && c.state==='active') {
@@ -1079,10 +1090,13 @@ export class ControlService {
             const current=this.syncCalls.get(sessionID+'/'+callID), b=child?this.bindings.get(child):undefined, p=this.bindings.get(sessionID);
             if(current!==c || c.state!=='reading')return {ok:true};
             c.state='done';
-            if(this.stopReason || p?.state!=='active' || b?.state!=='active' || Date.now()>=Math.min(p.expiresAt,b.expiresAt)){c.facts=unknownChildResult(c.source,'stopped');this.record(sessionID,'sync.result',true,undefined,{callID:c.callID,childID:c.childID,source:{...c.source},facts:{...c.facts}});return {ok:true};}
+            if(this.stopReason || p?.state!=='active' || b?.state!=='active' || Date.now()>=Math.min(p.expiresAt,b.expiresAt)){c.facts=unknownChildResult(c.source,'stopped');this.settleSync(c,this.stopReason||p?.state!=='active'||(b&&b.state!=='active')||Date.now()>=Math.min(p.expiresAt,b?.expiresAt??Infinity)?'cancelled':'failed');this.record(sessionID,'sync.result',true,undefined,{callID:c.callID,childID:c.childID,source:{...c.source},facts:{...c.facts}});return {ok:true};}
             if (b.parentID !== sessionID || b.role !== c.role || this.dispatched.get(child!)?.parent !== sessionID || this.dispatched.get(child!)?.role !== c.role) facts=unknownChildResult(c.source,'binding_identity');
             else if(c.source.status!==source.status || c.source.userMessageID!==source.userMessageID || c.childID!==child)facts=unknownChildResult(c.source,'source_conflict');
-            c.facts=facts;const display={callID:c.callID,role:c.role,completeness:facts.completeness,reason:facts.reason,finish:facts.finish,textChars:facts.completeness==='unknown'?null:facts.textChars,source:c.source.status};
+            c.facts=facts;
+            // Promotion (running envelope, background metadata) is not a terminal fact: the execution stays running until a trusted terminal is correlated (design §8.2, Q5).
+            if(metadata.background!==true)this.settleSync(c,trusted&&ordinaryCompleted&&facts.reason!=='binding_identity'?'completed':'failed');
+            const display={callID:c.callID,role:c.role,completeness:facts.completeness,reason:facts.reason,finish:facts.finish,textChars:facts.completeness==='unknown'?null:facts.textChars,source:c.source.status};
             this.record(sessionID,'sync.result',true,undefined,{callID:c.callID,childID:c.childID,source:{...c.source},facts:{...facts}});
             if(c.displayed)return {ok:true};c.displayed=true;return {ok:true,syncDisplay:display};
           });
