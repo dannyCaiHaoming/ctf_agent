@@ -406,7 +406,7 @@ job RPC 按 min(timeout_ms + 4000ms, 綁定剩餘時間) + 5000ms 核准；60900
 
 主 session 已對聯合驗證的 368 項交付 hash 與 100 項候選源碼 hash 核對一致，並在保留原始 final 批次的前提下獨立重跑六個完整 runtime 情境和 86 項定向測試，均符合判據；預算情境按預期 budget_exceeded。原批次與主 session 複跑分開保存於[複核記錄](../../gates/g-solver-verification-20261023/joint-async-lifecycle/parent-review.json)，不拼接為同一次運行。主線只同步文檔及證據。
 
-C／RPC 代碼基線為 d83a0c3024271dbf212db319e900fcf527e68b0f 加獨立工作區未提交修改，Node v26.3.0、Vitest 2.1.8；來源、配置及最終 hash 見該報告目錄。公開恢復探針與 runtime/accepted 是不同運行。
+歷史原始證據見 `docs/gates/distilled-design-v1-g-solver-minimal-20261028/evidence.md`。公開恢復探針與 runtime/accepted 是不同運行。
 
 主會話已核對七項來源 hash、原始輸出與判據；獨立復跑長作業 6、配額 16、受保護操作 11、角色 8、停止 9 項，共 50 項通過，並完整重跑 OS fixture。網路以四組原始輸出、權限設定及 15 項服務端日誌作獨立離線核對，未重跑封包探針。各目錄 parent-review.json 區分原始批次與主會話複核；上述通過不抵銷產品未定項。
 
@@ -414,7 +414,7 @@ C／RPC 代碼基線為 d83a0c3024271dbf212db319e900fcf527e68b0f 加獨立工作
 
 ### 9.1 G 已定接入的實作與主 session 核對（2026-10-24）
 
-**本節記錄整合前的獨立工作區驗收；後續主區接入見 §9.2。** 候選位於 `/Users/caihaoming/.codex/worktrees/c323/pentest-agent`，基線 HEAD `d83a0c3024271dbf212db319e900fcf527e68b0f` 加未提交修改。按 §10.1 接入題目綁定、三根文件、HTTP／job、RPC、原生背景交付、恢復、停止與可信收束，並補既定角色權限及使用說明。九項職責保留，未另建 Solver／編排器；未加入 §10.2 延後工程，未新增 D 工具、schema 或發布 stub。
+**本節記錄整合前的獨立工作區驗收；後續主區接入見 §9.2。** 歷史原始證據見 `docs/gates/distilled-design-v1-g-solver-minimal-20261028/evidence.md`。按 §10.1 接入題目綁定、三根文件、HTTP／job、RPC、原生背景交付、恢復、停止與可信收束，並補既定角色權限及使用說明。九項職責保留，未另建 Solver／編排器；未加入 §10.2 延後工程，未新增 D 工具、schema 或發布 stub。
 
 原 joint 工作區已不存在；子 session 從有 manifest 的 C/RPC 原型及保存增量恢復，恢復檔案與原候選 hash 一致後才接入。主 session 核對本次 290 項交付 hash 全部一致，主區基線在回寫前零漂移。E/G 只共用文件分頁，沒有擴展為全域重構。
 

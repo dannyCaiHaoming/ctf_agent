@@ -1,12 +1,46 @@
 # CTF Agent 現狀、教訓與遷移記錄
 
-記錄日期：2026-10-22（Asia/Tokyo）。
+記錄日期：2026-10-28（Asia/Tokyo）。
 
 本文是 [CTF Agent 核心設計 v1](2026-10-22-ctf-agent-design-v1.md) 的配套工程記錄：記錄 design v1 寫成時的程式現狀、與設計的偏離、已有成果與教訓、清理方向及開發指令的收斂對照。它不是設計依據；設計以 design v1 為準，本文只說明「從哪裡來、離目標多遠、清理時怎麼判斷」。本文不構成任何執行授權。
 
 所列程式位置與行為是撰寫時的靜態觀察，其他會話仍可能修改未提交程式；正式實施前需重新核對基線。
 
+## 0. 當前主線狀態（2026-10-28）
+
+本文現將當前主線與 2026-10-22 的歷史對照分開記錄。以下 main 合併狀態沿用本次已確認基線，工程與行為結論依各子 design 的既有記錄；本次只更新文檔，沒有重新執行 git、建置、測試、模型或靶場。第 1–5 節的原始判斷、約束與歷史結論逐字保留，當中的「目前／本次」按各節標明的歷史日期理解，不作 2026-10-28 的未完成清單。
+
+### 0.1 已落地並合入 main：無模型檢查通過的範圍
+
+| 能力 | 當前接入與已有工程證據 | 證明邊界與依據 |
+| --- | --- | --- |
+| 產品入口、角色與知識載入（A／B／C） | 由 launcher 啟動 Coordinator，產品指令、角色與 Skill 使用固定配置副本；原生 task 與真實父子會話綁定、角色權限、共享准入及停止已接線 | 不再是 solveM1 單 Solver 入口；不另建模型循環。載入與控制接線不等於模型遵循或協作有效，見 [A／B](2026-10-22-design-v1-ab-product-assets.md)、[入口](2026-10-22-design-v1-entry-local-debug.md)、[C](2026-10-23-design-v1-c-control-service.md) |
+| E 取題與 Intake | 清單、題面／附件固定、Intake 唯讀 list／read 與 Coordinator 原生交接已落地合併；第 2–5 節的材料與權限判據已有無模型檢查 | 已運行靶場與直接附件可進題；平台 API adapter 並非全部完成。另有三題真實取題冒煙，但當時被分派的解題角色尚無工具，不能算三題解出，見 [E §7](2026-10-23-design-v1-e-intake-minimal.md#7-實作與驗證記錄) |
+| G 解題工具與生命週期 | 題目 assign／unassign、三根工作區、HTTP、受管 job、RPC 等待／取消、原生背景交付及收束已合入；主區 typecheck／build、323 項全套與同入口無模型複跑通過 | 證明工具及控制接線；OS／作業網路隔離、持久總配額及跨重啟恢復仍有限制，見 [G §9.2／§10](2026-10-23-design-v1-g-solver-minimal.md) |
+| D 候選 → 獨立驗證 → 可信完成 | 發布、固定包、獨立 Verifier、固定報告與可信完成五接口已接入合併；三層 Verifier 與受限自動嘗試亦已接入，定向 131 項、全套 591 項及 typecheck／build 通過 | 直接核實 → LLM 審閱 → 無法確定時依可信限制嘗試；保留 inconclusive，不把模型意見當裁判。新策略的自然交接與真實裁判接入未驗證，見 [D §5–8.1](2026-10-24-design-v1-d-candidate-verification-minimal.md)、[歷史問題與限制](2026-10-26-design-v1-d-evidence-to-completion.md) |
+| 同步分派的可信執行身份 | 同步／背景共用本輪 execution；同步結算、同 child 續接、來源與 artifact／package 發布已修復並合入 main（merge `c120e143`）；原生 scripted 鏈覆蓋 r6 原失敗點，合併後全套 597 項通過 | 不更改顯式 background 值，不開放同步 Verifier，不擴工具／網路權限；Q5 promotion 未實作，見 [執行歸屬 §8](2026-10-25-design-v1-sync-resume-provenance.md#8-r6支持同步任务交付已实现并通过无模型验证promotion-为已知缺口) |
+| A+D 收斂：未測線索注入＋有界交回 | 這裡 A、D 是收斂候選編號，並非核心設計 A／D 章節。Coordinator 分派／恢復帶入未測具體線索，Recon／Domain Solver 回報狀態，Critic 對照被忽略線索；角色 prompt 加入有界問題、停止條件及交回後停滯評估。兩片同批合入 main（merge `3ad11f48`，含 `862b85ee`／`6e282fd5`），tsc／build／555 項確定性檢查通過 | 僅角色 prompt，無新工具、接口、schema 或 host 喚醒機制；不忙輪詢，Critic 只建議、Coordinator 決定。裝配通過不證明先測線索或及時交回，見 [線索帳本 §7](2026-10-28-design-v1-b-lead-ledger-convergence.md#7-实现结果20261028候选-a-已落地)、[路線復核 §5.7](2026-10-25-design-v1-negative-evidence-and-route-review.md#57-实现结果20261028候选-d-已落地) |
+
+上述檢查屬不同版本、不同批次的既有結果，不拼接為同一次全鏈驗收，也不是本次重跑結果。不能由「已合併、無模型綠燈」推定真實模型行為改善、完整產品發布或 solved。
+
+### 0.2 真實運行的已知結果：r6 修復與 r7 未解分開記錄
+
+- **既有成功證據不抹除：** 2026-10-24 本地 Docker mfw 第二批曾在同批完成獨立 recompute、可信 local judge accepted 並保存 solved；這只證明該次本地單題鏈路。首批因預算停止，不能與第二批拼接；亦不能替 r5、r6、r7 或 2026-10-28 新策略背書，見 [D §7.2](2026-10-24-design-v1-d-candidate-verification-minimal.md#72-真模型本地整链证据与限制)。
+- **r5 保持歷史 inconclusive、無 completion。** 原件直引與 HTTP 來源交接已修復，三層策略不再讓證明不足一律禁止預算內嘗試；五類歷史 blocker 與原報告仍保留，不能追補 verified／solved，見 [D 證據到完成](2026-10-26-design-v1-d-evidence-to-completion.md)。
+- **r6 的 artifact.publish 阻塞已修復；r6 本身仍未解出。** 原同步 Recon／Engineer 已綁定卻沒有 execution，11 次發布被拒；缺角色參數的兩次分派是另項正確拒絕。修復前後的原生無模型鏈已覆蓋同步發布、精確 bytes、Engineer 固定包與同 child 續接。原 run 另有 Recon 遲至約 24.8 分鐘才首次發布、30 分鐘 deadline 的效率問題，不被發布修復掩蓋，見 [執行歸屬 §8.1–8.4](2026-10-25-design-v1-sync-resume-provenance.md)。
+- **r7 仍未解出，缺口是證據到行動與長程發散。** Recon 已發布具體路線線索，Domain Solver 已有相應操作能力，卻在 78 次 HTTP 中未測該線索，末段約 20 分鐘持續通用搜索；30 分鐘 deadline 到時仍無 Engineer／Verifier／裁判鏈。Recovery Critic 准入 0 次，長子任務未交回使 Coordinator 無 turn 評估停滯。這不能歸成靶場缺答案或 Recon 完全沒給線索；A+D 是此後的收斂修改，未經新真實 run 驗收，見 [路線優先級 §1–2](2026-10-28-design-v1-b-evidence-to-action-route-priority.md)、[路線復核 §5.1／§5.6–5.7](2026-10-25-design-v1-negative-evidence-and-route-review.md)。
+
+### 0.3 仍未驗證／保留的缺口
+
+**真實行為仍待有明確授權的 run。** 同步身份修復在真實模型下的效果、三層 Verifier／受限提交的自然行為，以及 A+D 是否讓 Solver 在通用深挖前先測未測線索、及時交回並由 Critic 提出 redirect，均不能由無模型檢查推定。需要另外明確目標、模型／provider、批次及 token／時間授權；本次文檔整理不授權 r8 或任何重跑，不把規則已寫、清單已注入或 Critic 次數當收益。
+
+**Q5 promotion 是已記錄、現有證據支持在產品自身分派中很可能不可達的缺口，並未實作或證偽。** 若同步完成信封實際帶 `metadata.background===true`，execution 會保留 running、同 child 續接被拒並阻止正常收尾；不誤標 completed，最壞撐到 deadline。r6 長同步任務沒有 promotion，無頭產品也無 TUI／模型轉背景操作，但 OpenCode 核心來源無法在本倉庫靜態排除。維持 [§8.4 的限制與觀察點](2026-10-25-design-v1-sync-resume-provenance.md#84-实现与无模型验证结果2026-10-28)：真實出現該信號時再處理可信終態關聯，不把普通同步完成的通過寫成 Q5 通過，不恢復舊補丁、provider 旁路或 OpenCode fork。
+
+發布鏡像、作業 OS／網路隔離、持久總配額、跨重啟恢復、平台 adapter，以及具體題目才需要的瀏覽器／PTY／TCP，仍按各子 design 的限制與依賴處理，不能由 E／G／D 已接通推成全數完成。Skill 載入與方法收益也分開：r4 曾載入而未解，r7 全 run 無 Skill 調用；路線優先級內容增量仍非已交付收益。這些限制不自動恢復歷史待辦或新增當前交付項。
+
 ## 1. 清理方向
+
+**歷史語境（2026-10-22）：** 本節保留當時的清理決定與重建依賴，不代表目前仍停在清理或尚未接入 E／G／D；當前落地狀態見第 0 節。以下清理範圍不是本次文檔整理的刪除授權。
 
 順序：先以 design v1 作為判斷依據，再執行精簡；清理時以 design v1 判斷刪除與保留，清理完成後依真實剩餘能力修訂 design。清理本身是第一個交付，不以保持舊 CLI、測試、gate 或調試入口可運行為前提，也不為維持它們新增相容層。
 
@@ -41,6 +75,8 @@
 
 ## 2. 靜態對照結論（v1.19.3 源碼，未運行）
 
+**以下是 2026-10-22 退役入口的原始靜態對照，逐字保留，不是當前接法。** 本節的「目前／現有」只指當時版本；當前入口為 launcher＋Coordinator、固定產品資產副本與按角色受控的原生／自訂工具，見第 0.1 節。固定版本的原生能力判斷與當時未運行的證明邊界仍保留。
+
 本節依據當時程式、產品需求、官方文件及 OpenCode **v1.19.3 標籤原始碼**作靜態對照，沒有啟動 OpenCode、模型、測試或靶場。來源能力不等於本產品運行時已驗證可用。
 
 主要問題不是 OpenCode 缺少 Agent／Skill／Reference 能力，而是目前產品接線把其中多項能力關閉或繞過。現有程式確實使用 OpenCode 的模型與工具循環，但產品入口仍是單一 Solver、硬編碼指令及宿主直接執行候選處理，尚未形成完整多 Agent 架構。
@@ -58,6 +94,8 @@
 兩項更正：不能把複製 Reference 當成完成接入；也不能把 `OPENCODE_DISABLE_EXTERNAL_SKILLS` 解釋成禁用所有原生 Skill。固定版本仍會掃描受控配置目錄和 `skills.paths`。目前 Web Skill 缺原生 metadata，直接搬入目錄仍不足。
 
 ## 3. 與 design v1 的偏離
+
+**第 3.1–3.9 節保留 2026-10-22 的偏離診斷及對應方案。** 「尚未接入／未開放／待驗證」是當時狀態；目前已落地與仍有限制的對照見第 3.10 節，不將舊診斷當作未完成清單。
 
 ### 3.1 單一 Solver 取代產品入口
 
@@ -106,7 +144,19 @@ CLI 目前直接接收 target 和 materials；平台服務主要是 local oracle
 | 3.7 取題入口未接入 | E | 已覆蓋 |
 | 3.8 環境及工具仍屬切片能力 | F（Docker）、G（工具集與領域入口）、H（可調用能力），另由 B 承接知識服務去留 | 工具方向及邊界已補入；具體工具版本、ARM64 可用性與執行隔離仍待實作驗證 |
 
+### 3.10 偏離的當前去向（2026-10-28）
+
+| 歷史偏離 | 當前主線 |
+| --- | --- |
+| 3.1–3.3 單 Solver、硬編碼指令、產品指令缺位 | 入口與 A／B 已由固定產品文件及 Coordinator 原生分派承接；舊 solveM1 路線不是當前架構依據 |
+| 3.4–3.5 工具攔截、子會話身份未接通 | C／G 已接通角色可見性與宿主核准、真實父子會話、題目／工作區及共享預算；同步 execution 增量已合入，Q5 限制另列第 0.3 節 |
+| 3.6 候選處理不等於多 Agent | D 五接口及獨立 Verifier 已接通；最新三層策略無模型通過，真實行為仍待驗證，不沿用舊「必須 verified 才能提交」前置 |
+| 3.7 取題缺位 | E 最小接入與 Intake 唯讀工具已合併；平台 adapter 仍依具體來源需要，不能讓 Solver 猜平台操作 |
+| 3.8 工具與環境只屬切片 | G 文件／HTTP／job 已合併，不再只有附件讀取與候選登記；發布環境與隔離等限制依 G §10 保留。舊 packages/reference 不恢復，知識載入沿用固定 Skill／Reference |
+
 ## 4. 已有成果與教訓
+
+**本節以下保留 2026-10-22 的成果摘要、證據留存狀態與教訓。** 新入口的取題、mfw 整鏈以及 r5／r6／r7 結果已分別補在第 0 節，不能用任何一批成功抵銷另一批失敗。
 
 以下是舊記錄的摘要，本次未重跑，也不表示清理後原入口仍然可用。保存的是能力證據的範圍與工程判斷，不加入題目解法或源碼材料。標註「歷史摘要」者，其原始證據（`docs/gates/` 運行輸出、舊 spec／plan）已於 2026-10-22 精簡中刪除，不再可原樣重驗；未標註者所依據的代碼與測試仍在倉庫中。
 
@@ -127,6 +177,8 @@ CLI 目前直接接收 target 和 materials；平台服務主要是 local oracle
 
 ## 5. 開發指令收斂與歷史來源
 
+**本節記錄 2026-10-22 已執行的指令收斂及歷史來源，不是本次對 AGENTS.md 或其他文檔的新改動。** 原決定與約束保留；目前入口與責任位置另補如下。
+
 開發用 `AGENTS.md`「設計與當前範圍」一節原把下表三份舊文件列為架構依據、階段與驗收依據及當前任務入口。本次清理已在同一變更內把這些入口改指向 design v1 與本文，並刪除三份舊文件；此後刪除或退役任一依據文件時，須在同一變更內更新 `AGENTS.md` 的對應入口，不能留下失效鏈接，或讓開發指令繼續以已退役文件為依據。
 
 產品運行約定最終歸入產品 `AGENTS.md`（design v1 的 1.2、A），開發用 `AGENTS.md` 只保留倉庫開發所需規矩，兩者不重複全文：
@@ -146,6 +198,14 @@ CLI 目前直接接收 target 和 materials；平台服務主要是 local oracle
 | 2026-10-14-general-ctf-agent-system-design.md（已刪除） | 九項責任、OpenCode 邊界、驗證模式、候選有效性、預算／副作用／恢復、工具與資料隔離、ARM64 發布和結果證據 | 指定平台中心、過度服務拆分、完整 schema／gate／階段前置及未校準數字直接當硬門檻 |
 | 2026-10-16-ctf-agent-mvp-roadmap.md（已刪除） | 真實能力與確定性檢查的區分、性能門檻需事前校準、避免基礎建設長期阻塞解題 | M0–M6、軌跡進度及舊階段順序 |
 | 2026-10-20-m1-autonomous-first-challenge-plan.md（已刪除） | 單題成果的有限證明、非同步請求、附件／會話／候選能力、供應商停止與誤授權教訓，見本文第 4 節 | S1–S6 排程、單 Solver 主線、題目專屬路線、全部 run 記錄永久保存 |
+
+當前主要責任位置（依上述子 design 記錄；本次未改程式）：
+
+- `apps/launcher`：產品啟動、run 準備、控制服務與 RPC；`challenges.ts`／`run-prep.ts`／`intake-tools.ts` 承接 E。
+- `apps/launcher/src/control-service.ts` 與 `workspace-tools.ts`／`http-tools.ts`／`job-tools.ts`：身份、題目、執行與 G 受管能力；`verification-results.ts`／`completion-tools.ts` 等承接 D 記錄與可信完成。
+- `apps/opencode-plugin`：公開 hooks／受管工具接線；`product/AGENTS.md`、`product/opencode/agents/`、`product/skills/`：產品約定、角色與按需方法。A+D 收斂落在角色 prompt，沒有另建線索 registry 或調度器。
+
+**下列「本地主要實作」是 2026-10-22 原始位置清單，逐字保留供歷史追蹤；不是當前可運行入口或檔案仍存在的承諾。**
 
 本地主要實作：
 

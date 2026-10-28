@@ -28,9 +28,9 @@
 
 ## 1. r5 当时成功了什么、卡在哪里（历史记录）
 
-原 run：`/Users/caihaoming/Documents/pentest-agent-run-data/throwback-debug-20261027-r5/runs/throwback-debug-20261027-r5-1/`。OpenCode 1.19.3，`volcano-coding/deepseek-v4-1-flash-261017`，产品版本 `6fa6c6621464bcdd11ac618fa930b7d1bdbe9bbd`、productDirty=false。以下路径相对此 run。
+历史原始证据见 `docs/gates/distilled-design-v1-d-evidence-to-completion-20261028/evidence.md`。
 
-固定 version `f0a80e86-ab0f-4495-9bcf-8e17a934f1a1`；Verifier execution `6cd43d83-dd02-4eaa-a0de-1a9aed8e40ee`；报告 `0063135b-b061-419c-8000-51cff36d601a`。原报告为 verified/replay，宿主为 inconclusive/candidateEqual=null，`evidence/completion-results.json` 为空。
+历史原始证据见 `docs/gates/distilled-design-v1-d-evidence-to-completion-20261028/evidence.md`。原报告为 verified/replay，宿主为 inconclusive/candidateEqual=null，`evidence/completion-results.json` 为空。
 
 | 链路 | 已核对事实 | 不能据此声称 |
 | --- | --- | --- |
@@ -40,7 +40,7 @@
 | 报告 → Coordinator | 完整21271-byte报告单页读回，长度/hash匹配，五类 blocker 保留 | 不是流过期、报告截断或接收丢失 |
 | Coordinator → 裁判 | 没有请求判定；启动器已注入 `local-throwback-exact-v1` | 不是裁判拒绝，也不是无裁判配置；未 accepted/solved |
 
-证据入口：`evidence/verification-results.json`、`publications.json`、`completion-results.json`；消息 session 尾部依次为 Solver `e85097228ffesBV9OZcvUuv7wA`、Engineer `e85082c3affea69is6996v3tFR`、Verifier `e85073cd1ffeU9jRvO4OdTiSeV`、Coordinator `e851e43c9ffep6sSbfl5yXfzei`（文件名 `evidence/messages-ses_<id>.json`）。启动器为 run 上两级 `run-once.mts`；不读取／复制私有答案。
+历史原始证据见 `docs/gates/distilled-design-v1-d-evidence-to-completion-20261028/evidence.md`。启动器为 run 上两级 `run-once.mts`；不读取／复制私有答案。
 
 解释机械结果的实现：[verification-results](../../../apps/launcher/src/verification-results.ts)、[control-service](../../../apps/launcher/src/control-service.ts)、[completion-tools](../../../apps/launcher/src/completion-tools.ts)。**根本断点是主张、必要条件、证据用途与可用方法未形成一致契约；五项并非同一种 bug，也不全是误报。**
 
@@ -131,8 +131,7 @@ r5 当时的代码按旧规则降级是历史事实，不代表新策略仍应�
 
 2026-10-27 在不访问原题、其他服务或网络、不读取私有 oracle 的条件下完成。输入为 r5 preparation `77016744-85ab-47ac-8973-b1d553d59691` 中的 `replay.py`：6371 bytes，SHA-256 `d1f7d54b18d69a7d288ad01e9cd015e737cbfcb1db1a3669c263fb14615084df`，与原报告 preparation.files 一致；执行前后原文件和隔离副本 hash 均未变。驱动使用 Python 3.13.10，只把模块的 `http` 边界替换为离线模拟器，调用未改动的 `main()`，并在加载和调用前阻断 socket 连接。
 
-- **A：本次写入有效。** 初始无页面；匹配写入返回302并把页面设为包含 `flag{offline_marker}` 的新页；随后读取200。脚本返回0，stdout 为 `FLAG: flag{offline_marker}`。
-- **B：写入未更新、旧页仍在。** 初始已有包含同一非秘密标记的旧页；同一匹配写入返回302但不改变页面；随后读取200仍是旧页。脚本仍返回0，stdout 与 A 完全相同。
+历史原始证据见 `docs/gates/distilled-design-v1-d-evidence-to-completion-20261028/evidence.md`。
 - **控制。** 两例都实际经过 `GET / → POST /admin → GET /admin/pages → POST /admin/pages/flagchk → GET /flagchk`；请求字段、nonce/route 校验、写入 payload hash 和状态序列一致，差异仅来自模拟器初始状态及该次写入是否更新页面。没有真实 socket 尝试，产品代码／既有测试未改。
 
 **结论：** 在这个明确的离线条件下，原脚本无法区分“本次写入产生的新页面”和“写入返回302但未生效后读到的旧页面”；只看退出0与提取到的匹配字符串，不足以证明整条获取链在本次执行中产生了该内容。该结论支持前述静态推断，但不证明 r5 实际读了旧页面，也不证明目标存在该故障。该历史实验不修脚本、不新增 host gate、不改变原报告或solved；新版将这一限制作为审阅依据和诊断，而非要求Verifier补证的前置。最小去敏记录见[离线对照证据](../../gates/d-artifact-handoff-20261024/replay-stale-page-20261027.json)。
