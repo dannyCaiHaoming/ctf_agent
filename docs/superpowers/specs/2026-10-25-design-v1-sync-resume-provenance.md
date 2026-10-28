@@ -146,7 +146,7 @@ r3 是后台创建后漏参续接，r6 是首次有效调用就显式同步。�
 
 ### 8.4 实现与无模型验证结果（2026-10-28）
 
-据 §8.1 根因在独立 worktree（Sonnet 执行）实现最小接线并通过无模型验证。实现**尚未提交、尚未合入主区**，位于会话分支 `claude/sync-execution-identity-70a1b0` 的工作区。无真实模型调用，未改 `opencode-plugin`。
+据 §8.1 根因在独立 worktree（Sonnet 执行）实现最小接线并通过无模型验证，已提交（`b2f64c56`）并合入主区（merge `c120e143`，本地，未 push）。无真实模型调用。实现本身未改 `opencode-plugin`；随后（§8.4 末「说明对齐」）单独对齐了工具说明与角色文案。
 
 **单一身份的接法（落实 §8.2「不维护两份可能矛盾的状态」）：** `Execution` 增 `mode:'sync'|'background'` 字段；同步与后台都在 `tool.before` 铸造**同一个** execution（同步的 `delivered` 初始为 true 且不带 `[ctf:ref]` 描述，后台行为不变）。`SyncCall` 退化为结果交付视图，其 `childID`／`source`／`facts` 经访问器直接读写所属 execution，故两者不可能分歧。新增 `settleSync` 为同步 execution 的**唯一**结束出口：原生正常返回→completed；`task.event` error／返回 child 不符／binding 缺失→failed；stop／过期／撤销→cancelled；已终态者不被迟到事件复活（`bindFromSdk` 亦只改非终态 execution）。同步 `tool.after` 的 child 不一致由抛 `completion correlation` 改为走 failed。
 
@@ -154,10 +154,14 @@ r3 是后台创建后漏参续接，r6 是首次有效调用就显式同步。�
 - r6 失败链已消除：改前跑新加原生 scripted 链复现 r6（`task-executions`／`publications` 0 条，审计 `denied: artifact execution`／`artifact source`／`package execution`）；改后同链成功——同步 Recon 写文件并发布、bytes 精确，同题 Engineer 读取并固定 package，同 child 再同步续接一轮再发布。3 个 execution `mode` 均 `sync`、状态均 `completed`、ref 互异，第二轮复用同一 child；审计顺序为 铸造→绑定→首次受管工具→`sync.settled`；旧产物 producer 不变。
 - r3 保留：后台创建→漏参续接仍后台；显式 `false` 续接实际同步且能交付；再漏参仍继承创建默认。
 - 负例仍拒：原生 error／返回 child 不符／stop 均结算且其后不可发布；迟到 `tool.after` 不覆盖已知错误；同 child 同时只一轮活跃、同一 callID 不可重放、同步 Verifier 仍被拒、Intake 不获发布权限。
-- 验证手段：`npx tsc --noEmit`、`npm run build`、`npm run test:deterministic`（38 文件／554 项）全绿；新增原生 scripted 链 `tests/manual/g-sync-delivery.ts`（本地确定性 stub provider + 真实 `launch()`，不写 `docs/gates`、不依赖 loopback 靶场）。既有反证断言按行为翻转（`control-service.test.ts` 1 处、`g-async-lifecycle.test.ts` 5 处 `toHaveLength` 由「同步续接不建 execution」改为「每个同步调用恰好一个 execution」），另加 6 条新测试。
+- 验证手段：`npx tsc --noEmit`、`npm run build`、`npm run test:deterministic`（38 文件／554 项）全绿；新增原生 scripted 链 `tests/manual/g-sync-delivery.ts`（本地确定性 stub provider + 真实 `launch()`，不写 `docs/gates`、不依赖 loopback 靶场）。既有反证断言按行为翻转（`control-service.test.ts` 1 处、`g-async-lifecycle.test.ts` 5 处 `toHaveLength` 由「同步续接不建 execution」改为「每个同步调用恰好一个 execution」），另加 6 条新测试。合并主区后完整回归 `npm test`：**49 文件／597 项全绿**（`test:deterministic` 为其中 555 项）。
 
-**未解缺口（Q5，promotion，按设计未实现）：** 同步调用若返回 running／promotion（完成信封带 `metadata.background===true`），execution 保持 `running`、无出口结算，同 child 后续续接被 `execution still active` 拒绝，父 idle 判断持续认为有未完成工作。未恢复旧 SyncCall→Execution 补丁，也未猜关联。**尚无证据表明 OpenCode 1.19.3 的 `background:false` 实际会发生 promotion**，故此缺口在真实 run 是否可达未知。要解须先确认 promotion 是否真实发生并取得可信终态关联接法，属后续卡点，不在本次范围。
+**未解缺口（Q5，promotion，按设计未实现）：** 同步调用若返回 running／promotion（完成信封带 `metadata.background===true`），execution 保持 `running`、无出口结算，同 child 后续续接被 `execution still active` 拒绝，父 idle 判断持续认为有未完成工作。未恢复旧 SyncCall→Execution 补丁，也未猜关联。
 
-**顺带发现（未处理）：** `tests/manual/g-team-integration.ts` 在本次改动**之前**即已失效（HEAD 代码跑亦 `phase 12≠13`，其断言与现同步 execution 语义冲突），未改；`apps/opencode-plugin/src/index.ts` 的 `artifact.publish` 工具描述仍写 “in a native background task”，属给模型的提示文字、B 范围，未改。
+**可达性判定（2026-10-28 复核）：现有证据支持此缺口不可达于产品自身分派，故按限制记录、不实现 Q5。** 依据：r6 真实 run 中一个同步 Recon 持续约 24 分钟，其 control-audit 的 promotion／`background:true` 记录为 **0 条**（仅 3 条 `task.correlate`、3 条 `sync.result`，均为正常同步完成），即 OpenCode 1.19.3 未把长前台任务自动转后台；无头产品路径也没有触发 promotion 的交互动作（无 TUI 用户操作、模型无「转后台」工具）。promotion 信号只能来自 OpenCode 核心（不在仓库源码内，无法静态证伪），且现有防呆**失败安全**（不误标 completed、不污染状态；最坏为被转后台的同步 child 无法续接、run 撑到 deadline，而非静默错误）。**观察点：** 真实 run 若在同步调用上实际出现 `metadata.background===true`，回到此卡点设计可信终态关联，不恢复旧 SyncCall→Execution 补丁／provider 旁路／OpenCode fork。
+
+**说明对齐（2026-10-28，消除错误说明、非提示词修 bug）：** 下列文案此前仍称产物只能在后台任务发布，与同步已支持冲突，已对齐实际能力、保留 Verifier 后台要求：`apps/opencode-plugin/src/index.ts` 的 `artifact.publish` 描述由「in a native background task」改为「whether this task was dispatched synchronously or in the background」；`product/opencode/agents/engineer.md`、`recon.md`、`domain-solver.md` 发布句去掉「原生背景任務內」前提（同步或背景分派皆可发布）；`product/opencode/agents/coordinator.md` 分派说明区分「长任务推荐 `background=true`」与「recon／domain-solver／engineer 同步亦可、两者同样能发布」，verifier 仍强制 `background=true`。此为文案对齐，未改代码逻辑。
+
+**仍未处理：** `tests/manual/g-team-integration.ts` 在本次改动**之前**即已失效（HEAD 代码跑亦 `phase 12≠13`，其断言与现同步 execution 语义冲突），未改，属 B 范围。
 
 **真实模型行为仍未验证。** 本片只证明无模型下的身份与生命周期接线；是否在真实 run 下消除 r6、以及 promotion 可达性，需另行取得模型 token／时间授权后验证。
