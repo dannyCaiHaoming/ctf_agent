@@ -1,5 +1,5 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, statSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import {
@@ -17,6 +17,91 @@ beforeAll(() => {
   root = mkdtempSync(join(tmpdir(), 'job-tools-'));
   jobsRoot = join(root, 'jobs');
   process.env[SENTINEL_NAME] = SENTINEL_VALUE;
+});
+
+describe('job.run terminal excerpts', () => {
+  const cases = [
+    { name: 'empty streams', expression: 'Buffer.alloc(0)', bytes: Buffer.alloc(0), encoding: 'utf8', previewBytes: 0 },
+    { name: 'readable multibyte text', expression: "Buffer.from('错误：缺少参数\\n')", bytes: Buffer.from('错误：缺少参数\n'), encoding: 'utf8', previewBytes: 22 },
+    { name: 'invalid UTF-8 binary', expression: 'Buffer.from([255,0,195,40])', bytes: Buffer.from([255, 0, 195, 40]), encoding: 'base64', previewBytes: 4 },
+    { name: 'binary control bytes', expression: 'Buffer.from([0,1,2,65])', bytes: Buffer.from([0, 1, 2, 65]), encoding: 'base64', previewBytes: 4 },
+    { name: 'UTF-8 BOM', expression: "Buffer.from('\\ufefftext')", bytes: Buffer.from('\ufefftext'), encoding: 'utf8', previewBytes: 7 },
+    { name: 'multibyte preview boundary', expression: "Buffer.from('a'.repeat(2047)+'中尾')", bytes: Buffer.from('a'.repeat(2047) + '中尾'), encoding: 'utf8', previewBytes: 2047 },
+    { name: 'escaped text budget', expression: "Buffer.from('\\n'.repeat(3000))", bytes: Buffer.from('\n'.repeat(3000)), encoding: 'utf8', previewBytes: 1024 },
+    { name: 'binary preview budget', expression: 'Buffer.alloc(4096,255)', bytes: Buffer.alloc(4096, 255), encoding: 'base64', previewBytes: 1536 },
+    { name: 'omitted preview without source truncation', expression: 'Buffer.alloc(4096,97)', bytes: Buffer.alloc(4096, 97), encoding: 'utf8', previewBytes: 2048 },
+    { name: 'source truncation', expression: 'Buffer.alloc(1048577,97)', bytes: Buffer.alloc(1048576, 97), encoding: 'utf8', previewBytes: 2048, truncated: true }
+  ];
+
+  it.each(cases)('$name retains byte-exact continuation for both streams', async ({ name, expression, bytes, encoding, previewBytes, truncated }) => {
+    const manager = new JobManager({ jobsRoot });
+    const b = binding(`excerpt-${name.replaceAll(' ', '-')}`);
+    const started = await manager.run(b, {
+      argv: [process.execPath, '-e', `const b=${expression};process.stdout.write(b);process.stderr.write(b);`], wait_ms: 5000
+    });
+    const terminal = await manager.waitSettled(b, started.job);
+    expect(terminal).toMatchObject({ job: started.job, state: 'exited', exitCode: 0, signal: null, reapIncomplete: false });
+    for (const stream of ['stdout', 'stderr'] as const) {
+      const preview = terminal.excerpts[stream];
+      expect(preview).toMatchObject({
+        stream, offset: 0, encoding, capturedLength: bytes.length,
+        previewOmitted: bytes.length > previewBytes, truncated: truncated ?? false,
+        nextCursor: bytes.length > previewBytes ? String(previewBytes) : null
+      });
+      expect(Buffer.byteLength(JSON.stringify(preview.data)) - 2).toBeLessThanOrEqual(2048);
+      const prefix = Buffer.from(preview.data, preview.encoding);
+      expect(prefix).toEqual(bytes.subarray(0, previewBytes));
+      const chunks = [prefix];
+      let cursor = preview.nextCursor;
+      while (cursor !== null) {
+        const page = manager.read(b, { job: terminal.job, stream, cursor });
+        expect(page.offset).toBe(Number(cursor));
+        chunks.push(Buffer.from(page.data, 'base64'));
+        cursor = page.nextCursor;
+      }
+      expect(Buffer.concat(chunks)).toEqual(bytes);
+      // Neither paging nor cancellation gains a new output field.
+      expect(manager.read(b, { job: terminal.job, stream })).not.toHaveProperty('excerpts');
+    }
+    expect(await manager.cancel(b, terminal.job)).not.toHaveProperty('excerpts');
+  });
+
+  it('returns a short stderr error and empty stdout from captured memory', async () => {
+    const manager = new JobManager({ jobsRoot });
+    const b = binding('excerpt-error');
+    const started = await manager.run(b, {
+      argv: [process.execPath, '-e', "process.stderr.write('missing input\\n');process.exitCode=2"], wait_ms: 5000
+    });
+    await manager.waitSettled(b, started.job);
+    writeFileSync(join(jobsRoot, b.sessionId, started.job, 'stderr.bin'), 'edited file');
+    const terminal = await manager.waitSettled(b, started.job);
+    expect(terminal).toMatchObject({ state: 'exited', exitCode: 2, signal: null, reapIncomplete: false });
+    expect(terminal.excerpts).toEqual({
+      stdout: { stream: 'stdout', offset: 0, encoding: 'utf8', data: '', capturedLength: 0, previewOmitted: false, truncated: false, nextCursor: null },
+      stderr: { stream: 'stderr', offset: 0, encoding: 'utf8', data: 'missing input\n', capturedLength: 14, previewOmitted: false, truncated: false, nextCursor: null }
+    });
+  });
+
+  it.each(['timed_out', 'cancelled'] as const)('retains partial dual-stream output when %s', async state => {
+    const manager = new JobManager({ jobsRoot });
+    const b = binding(`excerpt-${state}`);
+    const controller = new AbortController();
+    const started = await manager.run(b, {
+      argv: [process.execPath, '-e', "process.stdout.write('partial out');process.stderr.write('partial err');setInterval(()=>{},1000)"],
+      wait_ms: 0, timeout_ms: state === 'timed_out' ? 1500 : 60000
+    }, { signal: controller.signal, deadline: Date.now() + 60000, onRegistered: () => {} });
+    expect(started).not.toHaveProperty('excerpts');
+    try {
+      await waitUntil(() => manager.read(b, { job: started.job, stream: 'stderr' }).data.length > 0);
+      if (state === 'cancelled') controller.abort();
+      const terminal = await manager.waitSettled(b, started.job);
+      expect(terminal).toMatchObject({ state, reapIncomplete: false });
+      expect(terminal.excerpts).toEqual({
+        stdout: { stream: 'stdout', offset: 0, encoding: 'utf8', data: 'partial out', capturedLength: 11, previewOmitted: false, truncated: false, nextCursor: null },
+        stderr: { stream: 'stderr', offset: 0, encoding: 'utf8', data: 'partial err', capturedLength: 11, previewOmitted: false, truncated: false, nextCursor: null }
+      });
+    } finally { await manager.cancelAll(); }
+  });
 });
 
 afterAll(() => {

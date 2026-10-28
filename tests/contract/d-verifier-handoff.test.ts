@@ -40,6 +40,14 @@ describe('D third interface',()=>{
   expect(await readFile(join(f.root,'X/work/verifier',ready.directory,'solve.cjs'),'utf8')).toBe("process.stdout.write('candidate')");
   const j=await f.exec('verifier','job.run',{preparation:ready.preparation,argv:[process.execPath,'solve.cjs'],timeout_ms:5000});
   expect((f.s.audit.find(a=>a.op==='verification.job.input')!.detail as any).after).toBe('pending');expect(j.exitCode).toBe(0);expect(j.inputAssociation.version).toBe(p.version);expect(j.inputAssociation.continuousIntegrity).toBe('unknown');
+  const execution=f.s.executionSnapshot().find(e=>e.role==='verifier')!;
+  expect(j).toMatchObject({state:'exited',exitCode:0,signal:null,reapIncomplete:false,excerpts:{
+   stdout:{stream:'stdout',offset:0,encoding:'utf8',data:'candidate',capturedLength:9,previewOmitted:false,truncated:false,nextCursor:null},
+   stderr:{stream:'stderr',offset:0,encoding:'utf8',data:'',capturedLength:0,previewOmitted:false,truncated:false,nextCursor:null}
+  }});
+  expect(j.inputAssociation).toEqual({version:p.version,preparation:ready.preparation,execution:execution.ref,argv:[process.execPath,'solve.cjs'],files:ready.files,metadata:ready.metadata,before:'matched',after:'matched',continuousIntegrity:'unknown',undeclaredDependencies:'unknown'});
+  const terminalAudit=f.s.audit.find(a=>a.op==='verification.job.terminal')!.detail as any;
+  expect(terminalAudit).toEqual({...j.inputAssociation,job:j.job,terminal:{job:j.job,state:'exited',exitCode:0,signal:null,reapIncomplete:false}});
   expect(Buffer.from((await f.exec('verifier','job.read',{job:j.job,stream:'stdout'})).data,'base64').toString()).toBe('candidate');
  });
  it('V1 rejects missing/wrong-role/foreign version and never inherits on resume',async()=>{

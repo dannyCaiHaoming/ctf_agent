@@ -21,6 +21,8 @@ const DEFAULT_TIMEOUT_MS = 60000;
 const MAX_TIMEOUT_MS = 600000;
 const DEFAULT_WAIT_MS = 5000;
 const MAX_WAIT_MS = 30000;
+/** Maximum JSON-encoded excerpt data per stream (excluding its surrounding quotes and metadata). */
+const EXCERPT_DATA_BYTES = 2048;
 
 export type JobState = 'running' | 'exited' | 'timed_out' | 'cancelled' | 'failed_to_start';
 
@@ -118,7 +120,7 @@ export class JobManager {
     if (operation?.signal.aborted) this.stop(job, 'cancelled');
 
     await Promise.race([job.exited.promise, delay(waitMs)]);
-    return snapshot(job);
+    return job.state === 'running' ? snapshot(job) : terminalSnapshot(job);
   }
 
   /** One page of stdout or stderr, base64 so that concatenated pages are byte-exact. */
@@ -158,7 +160,7 @@ export class JobManager {
     return snapshot(job);
   }
 
-  async waitSettled(binding: JobBinding, handle: string) { const job = this.own(binding, handle); await job.done.promise; return snapshot(job); }
+  async waitSettled(binding: JobBinding, handle: string) { const job = this.own(binding, handle); await job.done.promise; return terminalSnapshot(job); }
 
   async cancelAll(sessionId?: string): Promise<void> {
     const jobs = [...this.jobs.values()].filter(j => (!sessionId || j.sessionId === sessionId) && !j.settled);
@@ -233,6 +235,49 @@ export class JobManager {
 
 function snapshot(job: Job) {
   return { job: job.id, state: job.state, exitCode: job.exitCode, signal: job.signal, reapIncomplete: job.reapIncomplete };
+}
+
+/** A quick look at captured bytes only; neither this preview nor a null cursor proves complete evidence. */
+function terminalSnapshot(job: Job) {
+  return { ...snapshot(job), excerpts: {
+    stdout: streamExcerpt(job.stdout, 'stdout', job.settled),
+    stderr: streamExcerpt(job.stderr, 'stderr', job.settled)
+  } };
+}
+
+function streamExcerpt(stream: Stream, name: 'stdout' | 'stderr', settled: boolean) {
+  // Copy only the bounded prefix from host memory, never an editable output file or the entire stream.
+  const prefix = Buffer.concat(stream.chunks, Math.min(stream.bytes, EXCERPT_DATA_BYTES));
+  let text: string | undefined;
+  try {
+    // Streaming decoding leaves a partial final codepoint for job.read instead of inventing a replacement.
+    const decoded = new TextDecoder('utf-8', { fatal: true, ignoreBOM: true }).decode(prefix, { stream: prefix.length < stream.bytes });
+    if (!/[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f-\u009f]/u.test(decoded)) text = decoded;
+  } catch { /* Invalid UTF-8 is returned byte-exactly as base64. */ }
+  let encoding: 'utf8' | 'base64';
+  let data: string;
+  let length: number;
+  if (text === undefined) {
+    encoding = 'base64';
+    const bytes = prefix.subarray(0, Math.floor(EXCERPT_DATA_BYTES / 4) * 3);
+    data = bytes.toString('base64');
+    length = bytes.length;
+  } else {
+    encoding = 'utf8';
+    data = '';
+    length = 0;
+    let encodedBytes = 0;
+    for (const character of text) {
+      const cost = Buffer.byteLength(JSON.stringify(character)) - 2;
+      if (encodedBytes + cost > EXCERPT_DATA_BYTES) break;
+      data += character;
+      length += Buffer.byteLength(character);
+      encodedBytes += cost;
+    }
+  }
+  return { stream: name, offset: 0, encoding, data, capturedLength: stream.bytes,
+    previewOmitted: length < stream.bytes, truncated: stream.truncated,
+    nextCursor: settled && length >= stream.bytes ? null : String(length) };
 }
 
 /** Shape check only: 1–32 items, each a string of at most 4 KiB without `\0`. */

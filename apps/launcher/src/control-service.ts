@@ -751,12 +751,14 @@ export class ControlService {
               this.record(binding.sessionID,'verification.job.input',true,undefined,structuredClone(association));
             }
             result = await this.jobs.run(jobBinding, args, { signal: operation.controller.signal, deadline: operation.deadline, onRegistered: job => { operation.job = job; if(operation.execution) this.outputSources.set(job,{source:{...this.source(binding,'job',job,operation.execution),callID:call}}); } });
-            const done = this.jobs.waitSettled(jobBinding, operation.job!).then(async snapshot=>{
+            const done = this.jobs.waitSettled(jobBinding, operation.job!).then(async terminal=>{
+              // Keep the existing verification record/evidence shape; excerpts are reply-only diagnostics.
+              const {excerpts,...snapshot}=terminal;
               if(association&&preparation){try{await this.packages.checkPrepared(roots.workDir,preparation);association.after='matched';}catch{association.after='changed_or_unreadable';}
                 this.verificationJobs.set(operation.job!,{sessionID:binding.sessionID,execution:operation.execution!,version:String(association.version),association:structuredClone(association),terminal:{state:snapshot.state,exitCode:snapshot.exitCode}});
                 this.record(binding.sessionID,'verification.job.terminal',true,undefined,{...association,job:operation.job,terminal:snapshot});
-                return {...snapshot,inputAssociation:association};}
-              return snapshot;
+                return {...snapshot,excerpts,inputAssociation:association};}
+              return {...snapshot,excerpts};
             });
             keep = true;
             void done.then(snapshot => this.settleResource(operation, snapshot.reapIncomplete ? 'cleanup_unknown' : snapshot.state));
