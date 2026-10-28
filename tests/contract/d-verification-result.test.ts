@@ -116,3 +116,38 @@ describe('D fourth interface',()=>{
  });
 
 });
+
+describe('D minimal review contract',()=>{
+ it.each([['llm','verified'],['unable','inconclusive']])('accepts minimal %s review without invented integrity requirements',async(mode,judgment)=>{
+  const f=await fixture();const p=await f.exec('engineer','package.publish',f.args);await f.bind('verifier','verifier','X',p.version);
+  const a={mode,judgment,rationale:'Review existing theory only; external state remains unknown',sourceFlow:'Existing fixed extraction and explanation'};
+  const r=await f.exec('verifier','verification.report',a);const page=await f.exec('root','verification.read',{challenge:'X',version:p.version,result:r.result});expect(page.completionAdmission.allowed).toBe(true);expect(page.effectiveJudgment).toBe(judgment);const stored=f.s.verificationResultSnapshot()[0]!;expect(stored.original.requirements).toBeUndefined();expect(stored.hostChecks.candidateEqual).toBeNull();
+ });
+ it('parse errors and foreign evidence never become an LLM report',async()=>{
+  const f=await fixture();const p=await f.exec('engineer','package.publish',f.args);await f.bind('verifier','verifier','X',p.version);
+  for(const a of [{mode:'unable',judgment:'verified',rationale:'invalid',sourceFlow:'existing'}, {mode:'llm',judgment:'verified',rationale:'invalid',sourceFlow:'existing',comparison:{evidence:0,start:0,end:1}}, {mode:'llm',judgment:'verified',rationale:'invalid',sourceFlow:'existing',evidence:[{kind:'artifact',ref:'foreign',necessary:true,context:'unresolved'}]}])await expect(f.exec('verifier','verification.report',a)).rejects.toThrow();expect(f.s.verificationResultSnapshot()).toHaveLength(0);
+ });
+});
+
+it('plugin schema admits minimal LLM/unable reports to the host without adding claims',async()=>{
+ const {createCtfAgentHooks}=await import('../../apps/opencode-plugin/src/index.js');const {tool}=await import('@opencode-ai/plugin');
+ const hooks=createCtfAgentHooks({controlUrl:'http://127.0.0.1:12345',controlToken:'x'.repeat(40),tools:['verification.report']});
+ const schema=tool.schema.object(hooks.tool!.ctf_verification_report!.args);
+ for(const [mode,judgment] of [['llm','verified'],['unable','inconclusive']]){const a={mode,judgment,rationale:'Existing materials review',sourceFlow:'Fixed explanation'};expect(schema.parse(a)).toEqual(a);}
+});
+
+it('LLM citation cannot silently preserve support after a known input mutation even if restored later',async()=>{
+ const f=await ready("require('node:fs').writeFileSync('data/input.bin','CHANGED');process.stdout.write('candidate')");
+ await writeFile(join(f.root,'X/work/verifier',f.prep.directory,'data/input.bin'),Buffer.from([0,255,13,10]));
+ const r=await f.exec('verifier','verification.report',{mode:'llm',judgment:'verified',rationale:'Review existing execution with recorded limits',sourceFlow:'Already captured job output',evidence:[{kind:'job',job:f.j.job,stream:'stdout',necessary:true,context:'Necessary observed output'}]});
+ expect(f.s.verificationResultSnapshot()[0]!.effectiveJudgment).toBe('inconclusive');const page=await f.exec('root','verification.read',{challenge:'X',version:f.p.version,result:r.result});expect(page.completionAdmission).toMatchObject({allowed:true,layer:'unable'});
+});
+
+it('LLM removes mandatory job proof but keeps every explicit necessary condition in effective judgment',async()=>{
+ const f=await fixture();const p=await f.exec('engineer','package.publish',f.args);await f.bind('verifier','verifier','X',p.version);
+ const a={mode:'llm',judgment:'verified',rationale:'Review existing material with unresolved declared conditions',sourceFlow:'Existing theory only',premises:[{statement:'Required instance state',status:'unknown'}],issues:['Necessary inference unresolved'],requirements:{continuousIntegrity:true,declaredDependenciesOnly:true}};
+ const r=await f.exec('verifier','verification.report',a);const page=await f.exec('root','verification.read',{challenge:'X',version:p.version,result:r.result});
+ expect(page.effectiveJudgment).toBe('inconclusive');expect(page.currentAvailability.usable).toBe(false);expect(page.completionAdmission).toMatchObject({allowed:true,layer:'unable'});
+ for(const reason of ['required premise unknown','unresolved verifier issues','continuous integrity unknown','undeclared dependencies unknown'])expect(page.currentAvailability.reasons).toContain(reason);
+ const stored=f.s.verificationResultSnapshot()[0]!;expect(stored.original.premises).toEqual(a.premises);expect(stored.original.issues).toEqual(a.issues);expect(stored.original.requirements).toEqual(a.requirements);expect(stored.hostChecks.candidateEqual).toBeNull();
+});

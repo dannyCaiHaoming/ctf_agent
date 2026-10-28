@@ -72,6 +72,11 @@ export class CandidatePackages {
  async checkPrepared(work:string,p:{directory:string;metadata:{path:string;sha256:string;size:number}[];files:{path:string;sha256:string;size:number}[]}){
   for(const f of [...p.metadata,...p.files.map(f=>({...f,path:p.directory+'/'+f.path}))]){const bytes=await snapshotFile(work,f.path.split('/'));if(bytes.length!==f.size||hash(bytes)!==f.sha256)deny();}
  }
+ async candidateBytes(run:string,challenge:string,version:string,active:()=>void){
+  const chunks:Buffer[]=[];let cursor:string|undefined;
+  do{const p=await this.read(run,challenge,{version,component:'candidate',...(cursor?{cursor}:{})});chunks.push(Buffer.from(p.data,'base64'));cursor=p.nextCursor??undefined;active();}while(cursor);
+  return Buffer.concat(chunks);
+ }
  async read(run:string,challenge:string,args:Record<string,unknown>){
   const parsed=readInput.safeParse(args);if(!parsed.success)deny();const a=parsed.data!;
   if((a.component==='file')!==!!a.path)deny();
@@ -80,9 +85,9 @@ export class CandidatePackages {
   if(m.schema!==1||m.run!==run||m.challenge!==challenge||m.engineer.sessionID!==fixed.source.sessionID||m.engineer.execution!==fixed.source.execution)deny();
   const original=await this.publication(run,challenge,m.candidate.publication.ref);
   const candidate=Buffer.from(m.candidate.data,'base64');
-  if(original.record.sha256!==m.candidate.publication.sha256||!candidate.equals(original.bytes.subarray(m.candidate.start,m.candidate.end))||candidate.length!==m.candidate.size||hash(candidate)!==m.candidate.sha256)deny();
+  if(!Number.isSafeInteger(m.candidate.start)||!Number.isSafeInteger(m.candidate.end)||m.candidate.start<0||m.candidate.end<=m.candidate.start||m.candidate.end>original.bytes.length||original.record.size!==m.candidate.publication.size||original.record.sha256!==m.candidate.publication.sha256||!candidate.equals(original.bytes.subarray(m.candidate.start,m.candidate.end))||candidate.length!==m.candidate.size||hash(candidate)!==m.candidate.sha256)deny();
   let selected:Buffer|undefined=a.component==='manifest'?fixed.bytes:a.component==='candidate'?candidate:undefined;
-  for(const f of m.files){
+  for(const f of a.component==='candidate'?[]:m.files){
    let bytes:Buffer;
    if(f.kind==='artifact'){const p=await this.publication(run,challenge,f.publication.ref);if(p.record.sha256!==f.publication.sha256||p.record.size!==f.publication.size)deny();bytes=p.bytes;}
    else{bytes=Buffer.from(f.data,'base64');if(bytes.length!==f.size||hash(bytes)!==f.sha256)deny();}

@@ -12,10 +12,10 @@ export const PAGE_BYTES = 32768;
 /** Thrown for any refusal; the control service turns `code` into a fixed denial message. */
 export class IntakeRefused extends Error { constructor(readonly code: string) { super(code); } }
 
-export function listChallenges(challenges: PreparedChallenge[]) {
+export function listChallenges(challenges: PreparedChallenge[], completion?: (challenge:PreparedChallenge)=>unknown) {
   return {
     challenges: challenges.map(c => ({
-      id: c.id, title: c.title,
+      id: c.id, title: c.title,...(completion?{completion:completion(c)}:{}),
       target: c.target ? (c.target.protocol === 'tcp' ? { protocol: 'tcp', host: c.target.host, port: c.target.port } : { protocol: c.target.protocol, url: c.target.url })
         : '無網路目標',
       reachabilityCheckedAt: c.reachability?.checkedAt ?? null,

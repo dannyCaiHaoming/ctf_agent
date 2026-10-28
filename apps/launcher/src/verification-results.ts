@@ -7,14 +7,14 @@ const text=z.string().min(1).max(8192).refine(s=>!s.includes('\0'));
 const range={start:z.number().int().safe().nonnegative().optional(),end:z.number().int().safe().nonnegative().optional()};
 const selection={...range,necessary:z.boolean(),context:text};
 export const reportSchema=z.object({
- judgment:z.enum(['verified','rejected','inconclusive']),mode:z.enum(['recompute','evidence_audit','replay']),rationale:text,sourceFlow:text,
- premises:z.array(z.object({statement:text,status:z.enum(['assumed','unknown'])}).strict()).max(32),issues:z.array(text).max(32),
- requirements:z.object({continuousIntegrity:z.boolean(),declaredDependenciesOnly:z.boolean()}).strict(),
+ judgment:z.enum(['verified','rejected','inconclusive']),mode:z.enum(['recompute','evidence_audit','replay','llm','unable']),rationale:text,sourceFlow:text,
+ premises:z.array(z.object({statement:text,status:z.enum(['assumed','unknown'])}).strict()).max(32).optional(),issues:z.array(text).max(32).optional(),
+ requirements:z.object({continuousIntegrity:z.boolean(),declaredDependenciesOnly:z.boolean()}).strict().optional(),
  evidence:z.array(z.discriminatedUnion('kind',[
   z.object({kind:z.literal('job'),job:text,stream:z.enum(['stdout','stderr']),...selection}).strict(),
   z.object({kind:z.literal('artifact'),ref:text,...selection}).strict()
- ])).max(16),comparison:z.object({evidence:z.number().int().nonnegative(),start:z.number().int().safe().nonnegative(),end:z.number().int().safe().nonnegative()}).strict().optional()
-}).strict();
+ ])).max(16).default([]),comparison:z.object({evidence:z.number().int().nonnegative(),start:z.number().int().safe().nonnegative(),end:z.number().int().safe().nonnegative()}).strict().optional()
+}).strict().refine(r=>r.mode!=='unable'||r.judgment==='inconclusive',{message:'unable requires inconclusive'}).refine(r=>!['llm','unable'].includes(r.mode)||r.comparison===undefined,{message:'comparison is for direct recompute'});
 export const resultReadSchema=z.object({challenge:text,version:text,result:text,cursor:z.string().regex(/^\d{1,15}$/).optional()}).strict();
 export type Selection=z.infer<typeof reportSchema>['evidence'][number];
 export interface Evidence {kind:string;source:unknown;size:number;sha256:string;encoding:'base64';data:string;start:number;end:number;originalComplete:boolean|null;rangeComplete:true;necessary:boolean;context:string;association?:Record<string,unknown>;terminal?:{state:string;exitCode:number|null};preparation?:string}
@@ -38,18 +38,20 @@ export class VerificationResults {
   const expected=await candidate();active();const evidence:Evidence[]=[];
   for(const s of original.evidence){evidence.push(await resolve(s));active();}
   const blockers:string[]=[];
+  const direct=!['llm','unable'].includes(original.mode);
   if(original.mode==='replay')blockers.push('replay unavailable');
-  if(!evidence.some(e=>e.necessary))blockers.push('no necessary evidence');
-  if(original.premises.some(p=>p.status==='unknown'))blockers.push('required premise unknown');
-  if(original.issues.length)blockers.push('unresolved verifier issues');
+  if(direct&&!evidence.some(e=>e.necessary))blockers.push('no necessary evidence');
+  if(original.premises?.some(p=>p.status==='unknown'))blockers.push('required premise unknown');
+  if(original.issues?.length)blockers.push('unresolved verifier issues');
   let candidateEqual:boolean|null=null;
   for(const e of evidence.filter(e=>e.necessary)){
-   if(e.originalComplete!==true)blockers.push('necessary source incomplete or unknown');
    if(e.association?.after==='changed_or_unreadable')blockers.push('prepared inputs changed_or_unreadable');
+   if(e.originalComplete!==true)blockers.push('necessary source incomplete or unknown');
    if(e.terminal&&(e.terminal.state!=='exited'||e.terminal.exitCode!==0))blockers.push('necessary job unsuccessful');
-   if(original.requirements.continuousIntegrity&&e.association?.continuousIntegrity!=='proven')blockers.push('continuous integrity unknown');
-   if(original.requirements.declaredDependenciesOnly&&e.association?.undeclaredDependencies!=='proven_absent')blockers.push('undeclared dependencies unknown');
   }
+  const necessary=evidence.filter(e=>e.necessary);
+  if(original.requirements?.continuousIntegrity&&(!necessary.length||necessary.some(e=>e.association?.continuousIntegrity!=='proven')))blockers.push('continuous integrity unknown');
+  if(original.requirements?.declaredDependenciesOnly&&(!necessary.length||necessary.some(e=>e.association?.undeclaredDependencies!=='proven_absent')))blockers.push('undeclared dependencies unknown');
   if(original.mode==='recompute'){
    if(!evidence.some(e=>e.necessary&&e.kind==='job'&&e.association))blockers.push('recompute requires own version-bound job');
    const c=original.comparison,e=c&&evidence[c.evidence];
@@ -57,20 +59,24 @@ export class VerificationResults {
    else{const b=Buffer.from(e.data,'base64');if(c.end<c.start||c.end>b.length)deny('comparison range');candidateEqual=b.subarray(c.start,c.end).equals(expected);if(original.judgment==='verified'&&!candidateEqual)blockers.push('candidate bytes differ');}
   }
   // No promotion from equality. A dishonest semantic assertion remains a semantic gap.
-  const effectiveJudgment=blockers.length?'inconclusive':original.judgment;
+  const effectiveJudgment=original.judgment==='rejected'?'rejected':blockers.length?'inconclusive':original.judgment;
   const row:Stored={...ctx,result:randomUUID(),original,effectiveJudgment,evidence,hostChecks:{blockers:[...new Set(blockers)],candidateEqual,semanticAssessment:'verifier_assertion_not_host_proven'},createdAt:Date.now()};
   active(); // Atomic synchronous compare-and-set: no awaited IO between final check and commit.
   const raced=this.executions.get(key);if(raced){const r=this.records.get(raced)!;if(JSON.stringify(r.original)!==JSON.stringify(original))deny('conflicting report');return {result:r.result,duplicate:true,effectiveJudgment:r.effectiveJudgment};}
   this.records.set(row.result,row);this.executions.set(key,row.result);
   return {result:row.result,duplicate:false,effectiveJudgment};
  }
- async read(run:string,args:Record<string,unknown>,check:(r:Stored)=>Promise<{blocking:string[];warnings:{evidenceIndex:number;reason:string}[]}>,active:()=>void){
+ async read(run:string,args:Record<string,unknown>,check:(r:Stored)=>Promise<{blocking:string[];warnings:{evidenceIndex:number;reason:string}[];hardBlocking?:string[]}>,active:()=>void){
   const a=resultReadSchema.safeParse(args);if(!a.success)deny('read arguments');const v=a.data!,found=this.records.get(v.result);
   if(!found||found.run!==run||found.challenge!==v.challenge||found.version!==v.version)deny('specified result');const r=found!;
   const invalid=await check(structuredClone(r));active();
+  const effectiveJudgment=r.original.judgment==='rejected'?'rejected':(invalid.blocking.length||invalid.hardBlocking?.length)?'inconclusive':r.effectiveJudgment;
+  const layer=effectiveJudgment==='inconclusive'?'unable':r.original.mode==='llm'?'llm':'direct';
+  const hard=[...(invalid.hardBlocking??[]),...(r.original.judgment==='rejected'?['verifier rejected']:[])];
+  const completionAdmission={allowed:hard.length===0,reasons:hard,layer,limitations:[...r.hostChecks.blockers,...invalid.blocking]};
   const bytes=Buffer.from(JSON.stringify(r));const offset=Number(v.cursor??'0');if(!Number.isSafeInteger(offset)||offset>bytes.length)deny('cursor');const end=Math.min(offset+32768,bytes.length);
-  return {result:r.result,challenge:r.challenge,version:r.version,effectiveJudgment:r.effectiveJudgment,semanticAssessment:r.hostChecks.semanticAssessment,evidenceCount:r.evidence.length,necessaryEvidence:r.evidence.flatMap((e,i)=>e.necessary?[i]:[]),
-   currentAvailability:{usable:r.effectiveJudgment!=='inconclusive'&&invalid.blocking.length===0,reasons:[...r.hostChecks.blockers,...invalid.blocking],warnings:invalid.warnings,checkedAt:Date.now(),premises:'see fixed report; assumptions are not host proofs'},
+  return {result:r.result,challenge:r.challenge,version:r.version,effectiveJudgment,storedEffectiveJudgment:r.effectiveJudgment,completionAdmission,summary:{mode:r.original.mode,judgment:r.original.judgment,rationale:r.original.rationale.slice(0,1024),sourceFlow:r.original.sourceFlow.slice(0,1024),issues:(r.original.issues??[]).map(s=>s.slice(0,256)).slice(0,8),issueCount:r.original.issues?.length??0},semanticAssessment:r.hostChecks.semanticAssessment,evidenceCount:r.evidence.length,necessaryEvidence:r.evidence.flatMap((e,i)=>e.necessary?[i]:[]),
+   currentAvailability:{usable:effectiveJudgment!=='inconclusive'&&invalid.blocking.length===0&&!invalid.hardBlocking?.length,reasons:[...r.hostChecks.blockers,...invalid.blocking,...(invalid.hardBlocking??[])],warnings:invalid.warnings,checkedAt:Date.now(),premises:'see fixed report; assumptions are not host proofs'},
    report:{size:bytes.length,sha256:sha256(bytes),encoding:'base64',data:bytes.subarray(offset,end).toString('base64'),offset,nextCursor:end<bytes.length?String(end):null,done:end===bytes.length,pageBytes:32768}};
  }
 }

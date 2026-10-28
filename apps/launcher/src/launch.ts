@@ -32,7 +32,8 @@ const COORDINATOR = 'coordinator';
 export interface LaunchOptions {
   profile: string; runsRoot?: string; runId?: string; product?: string; deadlineMs?: number;
   /** Test seam: called once after the start message is sent, with the launcher's own SDK client. */
-  completionJudges?:import('./completion-tools.js').CompletionJudge extends infer J ? Readonly<Record<string,J>> : never;
+  /** Host-only adapters include nonsecret submission limits; absent limits refuse submission. */
+  completionJudges?:Readonly<Record<string,import('./completion-tools.js').CompletionJudge>>;
   onStarted?: (context: { client: OpencodeClient; rootId: string }) => Promise<void>;
 }
 interface Copy { path: string; sha256: string; source: string }

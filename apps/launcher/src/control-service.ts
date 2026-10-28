@@ -582,8 +582,8 @@ export class ControlService {
     if (name === 'progress.read') {
       this.checkProgress(binding, name);
       const args = (body.args ?? {}) as Record<string, unknown>;
-      return progressDigest(this.audit, { runId: this.options.runId ?? 'run', redactions: this.options.redactions, limit: typeof args.limit === 'number' ? args.limit : undefined,
-        usage: { ...this.usageSnapshot().total } });
+      return {...progressDigest(this.audit, { runId: this.options.runId ?? 'run', redactions: this.options.redactions, limit: typeof args.limit === 'number' ? args.limit : undefined,
+        usage: { ...this.usageSnapshot().total } }),completion:{challenges:(this.options.challenges??[]).map(c=>this.completions.status(this.options.runId??'run',c.id,this.options.completionJudges?.[c.id])),budget:{admittedModelCalls:this.admitted,maxModelCalls:this.options.budget.maxModelCalls,observedTokens:this.observed,maxObservableTokens:this.options.budget.maxObservableTokens,deadline:this.options.expiresAt,stopped:this.stopReason??null}}};
     }
     if (name === 'progress.note') {
       this.checkProgress(binding, name);
@@ -614,7 +614,7 @@ export class ControlService {
         if(version)this.versions.set(binding.sessionID+'/'+role,version);
         this.record(binding.sessionID,'assign',true,undefined,{role,challenge,version});return {challenge,version};
       };
-      if(version)return {execute:async()=>{await this.packages.read(this.options.runId??'run',challenge!,{version,component:'manifest'});return this.serial(commit);}};
+      if(version)return {execute:async()=>{await this.packages.candidateBytes(this.options.runId??'run',challenge!,version,()=>this.live(binding));return this.serial(commit);}};
       return commit();
     }
     if(name==='verification.read') {
@@ -624,16 +624,15 @@ export class ControlService {
     if(name==='completion.request') {
       if(binding.role!=='coordinator')throw new ControlDenied('tool not permitted');
       const args=(body.args??{}) as Record<string,unknown>,run=this.options.runId??'run';
-      const active=()=>{if(signal?.aborted)throw new ControlDenied('rpc abandoned');this.live(binding);if(this.stopReason)throw new ControlDenied('run stopped');};
+      const active=()=>{if(signal?.aborted)throw new ControlDenied('rpc abandoned');this.live(binding);if(this.stopReason)throw new ControlDenied('run stopped');if(Date.now()>=this.options.expiresAt)throw new ControlDenied('deadline');if(this.admitted>=this.options.budget.maxModelCalls||this.observed>=this.options.budget.maxObservableTokens)throw new ControlDenied('budget');};
       return {execute:async()=>{
         const result=await this.completions.request(run,args,this.options.completionJudges?.[String(args.challenge)],async()=>{
           const page=await this.verificationResults.read(run,args,r=>this.checkVerification(r),active);
-          if(page.effectiveJudgment!=='verified'||!page.currentAvailability.usable)throw new ControlDenied('completion requires current verified result');
-          const chunks:Buffer[]=[];let cursor:string|undefined;
-          do{const p=await this.packages.read(run,String(args.challenge),{version:args.version,component:'candidate',...(cursor?{cursor}:{})});chunks.push(Buffer.from(p.data,'base64'));cursor=p.nextCursor??undefined;}while(cursor);
+          if(!page.completionAdmission.allowed)throw new ControlDenied(page.completionAdmission.reasons.join('; '));
+          const bytes=await this.packages.candidateBytes(run,String(args.challenge),String(args.version),active);
           // Recheck after bytes are loaded; do not mix results/versions across awaited reads.
-          const check=await this.verificationResults.read(run,args,r=>this.checkVerification(r),active);if(!check.currentAvailability.usable||check.effectiveJudgment!=='verified')throw new ControlDenied('completion invalidated');
-          return Buffer.concat(chunks);
+          const check=await this.verificationResults.read(run,args,r=>this.checkVerification(r),active);if(!check.completionAdmission.allowed)throw new ControlDenied(check.completionAdmission.reasons.join('; '));
+          const finalBytes=await this.packages.candidateBytes(run,String(args.challenge),String(args.version),active);if(!bytes.equals(finalBytes))throw new ControlDenied('fixed candidate changed');return finalBytes;
         },active,signal);
         this.record(binding.sessionID,'completion.saved',true,undefined,result);return result;
       }};
@@ -642,18 +641,20 @@ export class ControlService {
     if (!INTAKE_TOOLS.includes(name)) throw new ControlDenied('no managed tools');
     const args = this.checkIntake(binding, name, body.args);
     const challenges = this.options.challenges ?? [];
-    if (name === 'challenge.list') return listChallenges(challenges);
+    if (name === 'challenge.list') return listChallenges(challenges,c=>this.completions.status(this.options.runId??'run',c.id,this.options.completionJudges?.[c.id]));
     return { execute: async () => { try { return await readMaterial(challenges, args); } catch (error) { throw this.refusal(error); } } };
   }
 
   private async checkVerification(r:import('./verification-results.js').Stored){
-    const reasons:string[]=[],warnings:{evidenceIndex:number;reason:string}[]=[];
+    const reasons:string[]=[],hardBlocking:string[]=[],warnings:{evidenceIndex:number;reason:string}[]=[];
+    try{await this.packages.candidateBytes(r.run,r.challenge,r.version,()=>{});}catch{hardBlocking.push('fixed candidate or original reference unavailable');}
+    const execution=this.executions.get(r.execution);if(!execution||execution.run!==r.run||execution.role!=='verifier'||execution.challengeId!==r.challenge||execution.version!==r.version||execution.childID!==r.sessionID)hardBlocking.push('verification execution mismatch');
     try{await this.packages.read(r.run,r.challenge,{version:r.version,component:'manifest'});}catch{reasons.push('fixed package or dependency unavailable');}
     for(const [evidenceIndex,e] of r.evidence.entries()){
       const changed=(reason:string)=>{if(e.necessary)reasons.push(reason);else warnings.push({evidenceIndex,reason});};
       if(e.kind==='artifact'){try{const src=e.source as {ref:string};await this.publications.bytes(r.run,r.challenge,src.ref);}catch{changed('fixed evidence unavailable');}}
       if(e.preparation){const p=this.preparations.get(e.preparation),b=this.bindings.get(r.sessionID);try{if(!p||!b)throw new Error();await this.packages.checkPrepared(this.roots(b).workDir,p);}catch{changed('relevant prepared dependency changed_or_unreadable');}}
-    }return {blocking:reasons,warnings};
+    }return {blocking:reasons,warnings,hardBlocking};
   }
   private checkProgress(binding: Binding, name: string): void {
     if (!['coordinator', 'recovery-critic'].includes(binding.role)) throw new ControlDenied('tool not permitted', name);
@@ -804,11 +805,7 @@ export class ControlService {
               const output=this.jobs.outputSnapshot(this.jobBinding(binding,roots),selection.job,selection.stream);
               return fixEvidence(selection,output.bytes,{kind:'job',source:{...this.outputSources.get(selection.job)!.source,stream:selection.stream},originalComplete:output.complete,association:structuredClone(j.association),terminal:j.terminal,preparation:String(j.association.preparation)});
             },async()=>{
-              const p=await this.packages.read(operation.run,binding.challengeId!,{version:e.version,component:'candidate'});
-              // Candidate can span pages: use manifest's fixed base64, validated by CandidatePackages.read.
-              const m=await this.packages.read(operation.run,binding.challengeId!,{version:e.version,component:'manifest'});
-              let data=Buffer.from(m.data,'base64');let cursor=m.nextCursor;while(cursor){const n=await this.packages.read(operation.run,binding.challengeId!,{version:e.version,component:'manifest',cursor});data=Buffer.concat([data,Buffer.from(n.data,'base64')]);cursor=n.nextCursor;active();}
-              void p;return Buffer.from(JSON.parse(data.toString()).candidate.data,'base64');
+              return this.packages.candidateBytes(operation.run,binding.challengeId!,e.version,active);
             },active);
             this.record(binding.sessionID,'verification.registered',true,undefined,this.verificationResultSnapshot().find(r=>r.result===(result as {result:string}).result));
           }
