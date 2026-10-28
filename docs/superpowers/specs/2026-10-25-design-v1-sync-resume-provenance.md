@@ -97,7 +97,7 @@ OpenCode 1.19.3 的 task 按每次调用的 background 选择方式，省略默�
 
 主区收口：整合前逐文件 before/after hash 一致，按本片增量合入，范围外已有输入未变；主区 typecheck、build、49 文件／486 项测试全部通过，产品源码 hash 与原生验收一致，因此没有重复原生样本。早期四项新增断言曾有效失败；中间回归因 SDK 替身缺 call 元数据、旧漏参同步假设失败，补足替身并将同步用例显式设 false 后通过，未放宽产品校验。结果已转入本文与 README，plan 删除。本次工作树归档移除，未 commit／push。
 
-## 8. r6：支持同步任务交付（设计已选，接线待验证）
+## 8. r6：支持同步任务交付（已实现并通过无模型验证；promotion 为已知缺口）
 
 ### 8.1 依据与范围
 
@@ -126,7 +126,7 @@ r3 是后台创建后漏参续接，r6 是首次有效调用就显式同步。�
 
 工程上应让同步与后台共享可信身份与发布规则，保留各自结果交付入口。是否让现有 SyncCall 引用 Execution、以及复用哪些字段，由最小验证确定；不得维护两份可能矛盾的来源／活动状态。只将本轮身份必要的停止、错误与收束关系接通，不顺带修改结果分类、恢复策略或完整会话持久化。
 
-### 8.3 最小无模型验证与结果去向（根因已诊断，验证待执行）
+### 8.3 最小无模型验证与结果去向（已实现并通过无模型验证，2026-10-28；结果见 §8.4）
 
 复用既有 contract 文件及已有原生 scripted 驱动；隔离模型凭据、只用本地确定性响应和非秘密字节，不访问原题或私有oracle。不新增 gate体系、持久fixture或全队做题流程。以下是行为覆盖，不要求每行另造测试平台。
 
@@ -140,6 +140,24 @@ r3 是后台创建后漏参续接，r6 是首次有效调用就显式同步。�
 
 **结果去向：** 原生绑定、完成／续接和必要promotion关联均可通过现有公开接口闭合时，回写具体版本与观察，再拆实施plan。若只需现有hook的局部接线，记录位置和边界；若确实缺少可信关联，则记录具体缺口和受影响路径，保留unknown，不宣称全链支持。需要新增入口限制或改变显式模式选择时，回到设计讨论，不自行恢复后台强制、provider旁路或OpenCode fork。不能拿普通completed通过代替promotion成立。
 
-完成本片只证明同步交付身份与生命周期接线，不证明真实模型遵循或CTF解题成功。2026-10-28 已完成只读根因诊断（未改代码、未运行验证、未建 plan、未启真实模型），根因定稿见 §8.1；§8.3 的无模型验证与实施 plan 仍待执行。
+完成本片只证明同步交付身份与生命周期接线，不证明真实模型遵循或CTF解题成功。2026-10-28 已完成只读根因诊断（根因定稿见 §8.1），并据此实现最小接线、通过无模型验证，结果见 §8.4。
 
 **r6 另有一个独立卡点，不被本片 publish 修复掩盖：** 本次 run 在 publish 缺口暴露之前已 `deadline_exceeded`（Recon 约 t=1489s／24.8 分才首次 publish，30 分到时），停止原因是 deadline 而非 token/准入/job 上限。即使同步执行身份修好，throwback 这次也会超时。Recon 效率属 [B 方法泛化与效率](2026-10-26-design-v1-b-method-generalization-and-efficiency.md)范围，不由本片承诺解决。
+
+### 8.4 实现与无模型验证结果（2026-10-28）
+
+据 §8.1 根因在独立 worktree（Sonnet 执行）实现最小接线并通过无模型验证。实现**尚未提交、尚未合入主区**，位于会话分支 `claude/sync-execution-identity-70a1b0` 的工作区。无真实模型调用，未改 `opencode-plugin`。
+
+**单一身份的接法（落实 §8.2「不维护两份可能矛盾的状态」）：** `Execution` 增 `mode:'sync'|'background'` 字段；同步与后台都在 `tool.before` 铸造**同一个** execution（同步的 `delivered` 初始为 true 且不带 `[ctf:ref]` 描述，后台行为不变）。`SyncCall` 退化为结果交付视图，其 `childID`／`source`／`facts` 经访问器直接读写所属 execution，故两者不可能分歧。新增 `settleSync` 为同步 execution 的**唯一**结束出口：原生正常返回→completed；`task.event` error／返回 child 不符／binding 缺失→failed；stop／过期／撤销→cancelled；已终态者不被迟到事件复活（`bindFromSdk` 亦只改非终态 execution）。同步 `tool.after` 的 child 不一致由抛 `completion correlation` 改为走 failed。
+
+**已闭合（经现有公开接口，原生时序成立）：**
+- r6 失败链已消除：改前跑新加原生 scripted 链复现 r6（`task-executions`／`publications` 0 条，审计 `denied: artifact execution`／`artifact source`／`package execution`）；改后同链成功——同步 Recon 写文件并发布、bytes 精确，同题 Engineer 读取并固定 package，同 child 再同步续接一轮再发布。3 个 execution `mode` 均 `sync`、状态均 `completed`、ref 互异，第二轮复用同一 child；审计顺序为 铸造→绑定→首次受管工具→`sync.settled`；旧产物 producer 不变。
+- r3 保留：后台创建→漏参续接仍后台；显式 `false` 续接实际同步且能交付；再漏参仍继承创建默认。
+- 负例仍拒：原生 error／返回 child 不符／stop 均结算且其后不可发布；迟到 `tool.after` 不覆盖已知错误；同 child 同时只一轮活跃、同一 callID 不可重放、同步 Verifier 仍被拒、Intake 不获发布权限。
+- 验证手段：`npx tsc --noEmit`、`npm run build`、`npm run test:deterministic`（38 文件／554 项）全绿；新增原生 scripted 链 `tests/manual/g-sync-delivery.ts`（本地确定性 stub provider + 真实 `launch()`，不写 `docs/gates`、不依赖 loopback 靶场）。既有反证断言按行为翻转（`control-service.test.ts` 1 处、`g-async-lifecycle.test.ts` 5 处 `toHaveLength` 由「同步续接不建 execution」改为「每个同步调用恰好一个 execution」），另加 6 条新测试。
+
+**未解缺口（Q5，promotion，按设计未实现）：** 同步调用若返回 running／promotion（完成信封带 `metadata.background===true`），execution 保持 `running`、无出口结算，同 child 后续续接被 `execution still active` 拒绝，父 idle 判断持续认为有未完成工作。未恢复旧 SyncCall→Execution 补丁，也未猜关联。**尚无证据表明 OpenCode 1.19.3 的 `background:false` 实际会发生 promotion**，故此缺口在真实 run 是否可达未知。要解须先确认 promotion 是否真实发生并取得可信终态关联接法，属后续卡点，不在本次范围。
+
+**顺带发现（未处理）：** `tests/manual/g-team-integration.ts` 在本次改动**之前**即已失效（HEAD 代码跑亦 `phase 12≠13`，其断言与现同步 execution 语义冲突），未改；`apps/opencode-plugin/src/index.ts` 的 `artifact.publish` 工具描述仍写 “in a native background task”，属给模型的提示文字、B 范围，未改。
+
+**真实模型行为仍未验证。** 本片只证明无模型下的身份与生命周期接线；是否在真实 run 下消除 r6、以及 promotion 可达性，需另行取得模型 token／时间授权后验证。
