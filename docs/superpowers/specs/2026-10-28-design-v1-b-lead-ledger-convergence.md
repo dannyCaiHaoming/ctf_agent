@@ -41,3 +41,9 @@
 ## 6. 完成含义
 
 本片完成仅指：**定出线索帐本的存放/维护/消费的最小形式（优先验证 A 能否靠现有交接落地），并明确行为收益只能由真实 run 认账。** 不证明 throwback 可解或泛化。结论定稿后转入 [B 方法论 §7](2026-10-26-design-v1-b-method-generalization-and-efficiency.md)，落地措辞进 `coordinator.md`／solver／`recovery-critic.md`，据此生成的一次性 plan 完成后删除。外部系统引用（PentestGPT PTT 等）待抓原文核对后补确或更正。
+
+## 7. 实现结果（2026-10-28，候选 A 已落地）
+
+选定并实现**候选 A（自动注入，不靠模型主动调工具读）**，仅改角色 prompt、无新工具/接口/schema。`coordinator.md` 新增 `## 未測具體線索交接`：每次原生 `task` 分派/恢复带入未测具体线索（去敏描述、来源 ref、低成本测法），空清单明写、缺来源保留为缺口（非「无线索」），交回后依证据更新 tested/untested/refuted 并带入下次分派与 Critic 复核；`recon.md`／`domain-solver.md` 新增 `## 未測具體線索`：深挖通用枚举/档案搜索/RCE 前先低成本测未测线索，逐条回报状态且保留不确定性（tested≠refuted）；`recovery-critic.md` 增一条：对照被忽略且有来源支持的未测线索作 redirect 建议。候选 B（结构化帐本条目）/C（workspace 文件）/D（宿主派生提示）未采用——A 靠现有 task 交接即可落地。
+
+实现由 GPT-6.1-sol（high reasoning effort，经 codex）完成、主助手复核，`tsc --noEmit`／`build`／`test:deterministic`（38 文件 555 项）全绿，已合入 main（merge `3ad11f48`，含 `862b85ee`），未 push。**行为收益（深挖前先测未测线索、不被发散淹没）仍未验证，须另行授权的真实 run（r8）认账。** 一次性 plan 已删。

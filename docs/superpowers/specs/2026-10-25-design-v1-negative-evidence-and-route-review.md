@@ -192,3 +192,9 @@ L1 已证 on-demand skill 调用不可靠（r7 全 run 0 次）。因此「固�
 - **(i) 没有机制在子执行「进行中」重新唤醒父（Coordinator）。** 父只在子任务**完成**时经 `receiveCompletion`（synthetic `<task state="completed">`）被唤醒；`hasOutstandingWork` 只维持 run 存活、不唤醒。背景分派让父不被阻塞，但父一旦 idle 就只能等完成通知。**要父在执行中周期评估＝必须忙轮询，`coordinator.md:21`「不靠轮询等待」明禁。**
 - **因此重排候选：** **A（Coordinator 背景＋周期评估）现状不可行**（无执行中唤醒、忙轮询被禁）；**B（宿主停滞信号）需新增「执行中通知路径＋更粗的无进展信号」**，是真接口改动，拆 plan 前先记接口影响面。**新增并推荐候选 D：把长 solver 工作切成有界回合交回**——solver 在有界步数／无新证据时主动交回，或 Coordinator 以有界子任务分派，使**既有的交回边界停滞规则（`coordinator.md:26`）自然触发**，不需新唤醒路径、不忙轮询；C（solver 自判交回）是 D 的使能。D 仍依赖模型遵循「有界即交回」，属 prompt／方法层，收益只能真实 run 认账。
 - **下一步最小选型：** 若走 D，是 `coordinator.md`＋solver 角色的有界回合措辞（无新 host 机制），可先无模型验证装配、再 r8 真跑验行为；若走 B，先写 `ctf_progress_read`／通知路径的接口影响面与「无进展」信号定义，再拆最小 plan。两者都不新建 monitor／scheduler、不加 judge 权、Critic 仍只建议、Coordinator 决定。
+
+### 5.7 实现结果（2026-10-28，候选 D 已落地）
+
+选定并实现**候选 D（有界回合交回，无新 host 机制）**，仅改角色 prompt。`coordinator.md` 新增 `## 有界回合分派`：优先以有界回合分派 recon／domain-solver（明列本轮问题与停止条件），并明写「背景分派不会在子执行中重新唤醒 Coordinator，故停滞评估放在每回合交回边界，不忙轮询、不新增唤醒/monitor/scheduler/readiness」；§进度的停滞规则改为「每次回合交回都套用既有停滞规则决定继续/换路/派 Critic，不自动续接深挖」。`recon.md`／`domain-solver.md` 新增 `## 有界回合與交回`：每回合先定问题与停止条件，无进展或有未测线索却欲转向时交回、不拖到 deadline，剩余未测项沿用 §未測具體線索 交接。候选 A（周期评估）判为不可行、B（宿主信号）需新接口暂不做（见 §5.6）。`recovery-critic.md` 职责未改。
+
+实现由 GPT-6.1-sol（high reasoning effort，经 codex）完成、主助手复核，`tsc`／`build`／`test:deterministic`（555）全绿，已合入 main（merge `3ad11f48`，含 `6e282fd5`），与 [线索帐本 A](2026-10-28-design-v1-b-lead-ledger-convergence.md#7-实现结果20261028候选-a-已落地) 同批合入、组合干净。**行为收益（停滞在交回边界被看到并 redirect）仍未验证，须真实 run（r8）认账。** 一次性 plan 已删。
