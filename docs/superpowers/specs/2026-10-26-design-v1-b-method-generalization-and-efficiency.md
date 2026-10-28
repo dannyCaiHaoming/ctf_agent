@@ -2,6 +2,8 @@
 
 日期：2026-10-26；2026-10-27 更新（Asia/Tokyo）。状态：**历史两段的“不据此修补”结论保留；用户已另行确认主动建设“从 Web 输入到可观察效果的机制辨识”。§3.2／§5.1 的最小内容已交付：英文 Reference v1、原 Skill v6 短入口；六情境人工审阅与静态装配检查已完成，已由主助手复核并合回主工作区。模型遵循、泛化和提速未验证。** 本文是[核心 design v1](2026-10-22-ctf-agent-design-v1.md) B／G 的详细子文件，细节以本文为准。沿用 [A／B 资产设计](2026-10-22-design-v1-ab-product-assets.md)的原生 Skill、固定副本和受控 Reference，不另建知识平台。本次只交付该 Markdown 内容切片并同步 B 状态，不运行模型。
 
+> 子片：[证据到行动的路线优先级与收敛（web／CTFd，2026-10-28）](2026-10-28-design-v1-b-evidence-to-action-route-priority.md)——由 r7 实测缺口（线索在手却未测 specific 路线）驱动的聚焦增量，待计划与真实 run 验证。
+
 ## 1. 问题背景与证据
 
 r4：`/Users/caihaoming/Documents/pentest-agent-run-data/throwback-debug-20261026-r4/runs/throwback-debug-20261026-r4-1/`，HEAD `89e47dde` 且含未提交变更，OpenCode 1.19.3、`volcano-coding/deepseek-v4-1-flash-261017`。`state/run.json` 与消息／audit 是统计依据，不把不同 run 成功片段拼成一个结果。
