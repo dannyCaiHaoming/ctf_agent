@@ -150,6 +150,8 @@ Coordinator 脚本从实际 provider 请求里收到的原生完成通知提取�
 
 **状态：聚焦设计，待计划与真实 run 验证；未改产品、未运行模型。** 由 r7 `throwback-debug-20261028-r7-1` 驱动，与 [B 路线优先级增量](2026-10-28-design-v1-b-evidence-to-action-route-priority.md) 的 L1 判定互补：那份管「方法为何无人载入／内容」，本节管「停滞时换路判断为何没被触发」。
 
+> 投资优先序见 [B 方法论 §7](2026-10-26-design-v1-b-method-generalization-and-efficiency.md#7-方向与优先序20261028r7-驱动参考外部-ctf-agent-设计)：本节的候选 D 为**节拍**、B 为**兜底**，均位于「显式线索帐本（强制消费）＋强工具」这一主方向之下，不作主力。
+
 ### 5.1 r7 证据与被钉准的问题
 
 - r7 Recovery Critic **准入 0 次**：换路判断从未被叫起。Domain Solver 末段约 20 分钟重复 flag 档名／env／DB 搜索，却没测 Recon 已浮现的 `/admin/chal/delete`。

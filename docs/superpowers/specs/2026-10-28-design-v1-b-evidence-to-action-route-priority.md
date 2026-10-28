@@ -1,6 +1,8 @@
 # design v1 B：证据到行动的路线优先级与收敛（web／CTFd 方法论增量）
 
-日期：2026-10-28（Asia/Tokyo）。状态：**聚焦 design，待计划与验证；尚未改产品、未运行模型。** 本文是 [B 通用解题方法与耗时优化](2026-10-26-design-v1-b-method-generalization-and-efficiency.md) 的子片，由 r7 实测缺口驱动；沿用 [A／B 资产设计](2026-10-22-design-v1-ab-product-assets.md) 的原生 Skill、固定副本与受控 Reference 和 [Skill 发现与使用](2026-10-24-design-v1-skill-discovery-and-use.md) 的按需载入，不另建知识平台、不铺 web／pwn／crypto 三类模板或 wordlist。
+日期：2026-10-28（Asia/Tokyo）。状态：**聚焦 design，待计划与验证；尚未改产品、未运行模型。** 本文是 [B 通用解题方法与耗时优化](2026-10-26-design-v1-b-method-generalization-and-efficiency.md) 的子片，由 r7 实测缺口驱动；
+
+> 投资优先序见 [B 方法论 §7](2026-10-26-design-v1-b-method-generalization-and-efficiency.md#7-方向与优先序20261028r7-驱动参考外部-ctf-agent-设计)：本片的 Skill 内容增量（C）优先级**最低**（被 L1 门控），排在「显式线索帐本＋强工具」之后。沿用 [A／B 资产设计](2026-10-22-design-v1-ab-product-assets.md) 的原生 Skill、固定副本与受控 Reference 和 [Skill 发现与使用](2026-10-24-design-v1-skill-discovery-and-use.md) 的按需载入，不另建知识平台、不铺 web／pwn／crypto 三类模板或 wordlist。
 
 ## 1. 唯一目标与原始问题
 
