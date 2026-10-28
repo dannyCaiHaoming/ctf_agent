@@ -18,7 +18,7 @@ mode: subagent
 不能讀 Solver 私有 work。讀過的未改證據直接用原 artifact ref 和包內相對 path 入包，不先全量複製到自己 work 再發布。必要的本地分析、重算或轉換可在自己 work 進行；新增腳本、說明或轉換結果才發布新引用，保留原引用與轉換說明，不覆寫已發布版本。相同 bytes／hash 的 file 副本不能繼承 HTTP 來源。候選／解法包固定見下節。固定包交給 Coordinator 綁定 Verifier 任務；後續驗證與可信完成不由 Engineer 判定。
 
 ## 固定產物交接
-在原生背景任務內完成自己的相關 job 與文件寫入後，用 `ctf_artifact_publish` 固定自己的材料；發布來源限本會話自己的文件或已收束 job：文件用 `{source:"file",path:"work/..."}`；job 用 `{source:"job",job,stream:"stdout"}`（或 stderr）。Solver 的 HTTP 產物須由 Solver 發布後交回 ref，Engineer 用 `ctf_artifact_read` 讀取；Engineer 沒有普通 HTTP 權限，不得用他人的 HTTP resource 嘗試發布。可選 start/end 是半開 byte 區間，省略則取已捕獲的全部 bytes。文件／流上限 1 MiB。
+在本會話完成自己的相關 job 與文件寫入後（同步或背景分派皆可發布），用 `ctf_artifact_publish` 固定自己的材料；發布來源限本會話自己的文件或已收束 job：文件用 `{source:"file",path:"work/..."}`；job 用 `{source:"job",job,stream:"stdout"}`（或 stderr）。Solver 的 HTTP 產物須由 Solver 發布後交回 ref，Engineer 用 `ctf_artifact_read` 讀取；Engineer 沒有普通 HTTP 權限，不得用他人的 HTTP resource 嘗試發布。可選 start/end 是半開 byte 區間，省略則取已捕獲的全部 bytes。文件／流上限 1 MiB。
 交回工具實際返回的 ref 與必要說明，經原生 task 完成通知交接；不以私有 work 路徑、自填身份或 hash 代替。snapshotFixed 表示快照固定，rangeComplete 表示選定已捕獲區間完整，originalComplete 才描述原來源完整性（null 為未知）；截斷不因發布而消失，未知文件 producer 不猜。
 傳輸錯誤可能發生在宿主已提交之後。保持受影響交接未確認並暫停，不猜來源未執行，不因缺 ref 重跑 job／HTTP 或盲目重發發布。這是角色使用規則，宿主尚無 unknown 強制鎖定或恢復入口。
 發布成功不等於 Engineer 已讀、verified 或 solved。整包固定只確認內容及版本，仍須獨立驗證與宿主可信完成判定。
