@@ -154,10 +154,17 @@ function decodeText(bytes: Buffer): string | undefined {
   } catch { return undefined; }
 }
 
-/** Literal, line-based matching: `needle` never becomes a regular expression. A needle containing a newline cannot match. */
+/** Literal, line-based matching: needles never become regular expressions. A needle containing a newline cannot match. */
 export async function searchWorkspace(root: WorkspaceRoots, args: Record<string, unknown>, published?: Array<{path:string;bytes:Buffer}>) {
-  if (typeof args.needle !== 'string' || args.needle === '') refuse('needle');
-  const needle = args.needle;
+  let needles: string[];
+  if (args.needles === undefined) {
+    if (typeof args.needle !== 'string' || args.needle === '') refuse('needle');
+    needles = [args.needle];
+  } else {
+    if (!Array.isArray(args.needles) || args.needles.length === 0 ||
+      !Array.from(args.needles).every(needle => typeof needle === 'string' && needle !== '')) refuse('needles');
+    needles = args.needles;
+  }
   const files: string[] = [];
   const virtualFiles = new Map<string, string>();
   const fixedBytes = new Map<string, Buffer>();
@@ -185,7 +192,7 @@ export async function searchWorkspace(root: WorkspaceRoots, args: Record<string,
     }
   }
 
-  const matches: { path: string; line: number; snippet: string }[] = [];
+  const matches: { path: string; line: number; snippet: string; offset: number; needle: string }[] = [];
   let outputBytes = 0;
   let truncated = false;
   search: for (const file of files) {
@@ -195,11 +202,19 @@ export async function searchWorkspace(root: WorkspaceRoots, args: Record<string,
     if (text === undefined) continue;
     const lines = text.split('\n');
     for (const [index, line] of lines.entries()) {
-      if (!line.includes(needle)) continue;
+      const needle = needles.find(needle => line.includes(needle));
+      if (needle === undefined) continue;
+      // Offsets and snippet lengths count Unicode code points, not UTF-16 code units.
+      const offset = Array.from(line.slice(0, line.indexOf(needle))).length;
+      const chars = Array.from(needle.endsWith('\r') ? line : line.replace(/\r$/, ''));
+      const before = Math.floor(Math.max(0, SEARCH_SNIPPET_CHARS - Array.from(needle).length) / 2);
+      const start = Math.max(0, Math.min(offset - before, chars.length - SEARCH_SNIPPET_CHARS));
       const match = {
         path: virtualFiles.get(file)!,
         line: index + 1,
-        snippet: Array.from(line.replace(/\r$/, '')).slice(0, SEARCH_SNIPPET_CHARS).join('')
+        snippet: chars.slice(start, start + SEARCH_SNIPPET_CHARS).join(''),
+        offset,
+        needle
       };
       const size = Buffer.byteLength(JSON.stringify(match));
       if (matches.length >= SEARCH_MATCH_LIMIT || outputBytes + size > SEARCH_OUTPUT_BYTES) { truncated = true; break search; }
@@ -207,5 +222,5 @@ export async function searchWorkspace(root: WorkspaceRoots, args: Record<string,
       outputBytes += size;
     }
   }
-  return { path: scope, needle, matches, truncated };
+  return { path: scope, ...(args.needles === undefined ? { needle: needles[0]! } : { needles }), matches, truncated };
 }
