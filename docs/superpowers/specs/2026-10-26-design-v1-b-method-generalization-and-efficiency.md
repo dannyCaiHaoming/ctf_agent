@@ -21,7 +21,9 @@ r4：`/Users/caihaoming/Documents/pentest-agent-run-data/throwback-debug-2026102
 
 当前主区 HEAD `dc1eb98dca1c6a97c9bce0bc65750ce4484bd26f` 加已有文档改动；原 run 版本仍按上表，不将当前修复追溯到 r4。以下只读检查消息工具 parts、进度事件及固定资产，没有读取 reasoning、运行模型或重放目标请求。
 
-- run 固定 `opencode/config/opencode/skills/web-session-diagnosis/SKILL.md` 与当前产品文件 SHA-256 均为 `5d09095c1036d410671efc15a7afdf26b664a37218ebf8c83759346e5d83e8a3`；附属 Reference 均为 `80ead0af4b63b90523acf250efbe8d68c33ada1500fc3b89b05bf4b8733a6d90`。本片可直接对照相同内容，不能据此称整个产品／运行配置相同。
+历史原始证据见 [docs/gates/distilled-b-method-generalization-and-efficiency-20261029/evidence.md](../../gates/distilled-b-method-generalization-and-efficiency-20261029/evidence.md)。
+
+- 本片可直接对照相同内容，不能据此称整个产品／运行配置相同。
 - Solver 的原生 skill 调用成功：`evidence/messages-ses_e8c489f8dffeMS33QdITentS1T.json`，消息 `msg_173b7607f0014lw9XNZ9ttNcpL`、part `prt_173b763b0001wvMRaBVI7Csznq`；Critic 的调用也成功。各返回 11581 字符。整批消息未见原生 read 读取附属 Reference；两条 read 均是 Intake 的非 Skill 路径错误。未读取不证明该 Reference 必需或读取后必有收益；还要排除其他受管路径已经提供等价内容。
 - 当前 Skill 已包含可证伪实验、前置条件、业务后果、无新证据不重复与换路规则；Reference 已包含源码／版本／运行行为的条件性对照。因此“再加一段假设驱动原则”尚无充分理由。
 
@@ -29,8 +31,8 @@ r4：`/Users/caihaoming/Documents/pentest-agent-run-data/throwback-debug-2026102
 
 | 片段 | 原记录定位 | 为什么检查／不能推出什么 |
 | --- | --- | --- |
-| A：Solver 加载 Skill 之前的同参数 HTTP 组 | fingerprint `8277b4618551cf5ad794214bd266457d188cff3e6d0a807f23647b96c18d4ee1`；seq 1294、1312、1330、1342、1360、1378、1390、1408；elapsedMs 438203–490279 | 8 次请求可核对是否有新的状态或证据支持；52.076 秒只是首末调用起点跨度，不是可节省时间。不能从尚未加载就认定漏选 |
-| B：Solver 加载 Skill 后的同参数 HTTP 组 | fingerprint `d413b27445de76ebc4f61c0fe92a08970e32e428e01e0b9899d70be5427484a9`；seq 2258、2270、2282、2299；elapsedMs 1062911–1071990 | 4 次请求可检查已有方法是否适用及被执行；9.079 秒不是可节省时间。与 A 的任务阶段不同，二者不是加载前后的因果对照 |
+| A：Solver 加载 Skill 之前的同参数 HTTP 组 | [A 原记录定位](../../gates/distilled-b-method-generalization-and-efficiency-20261029/evidence.md) | 8 次请求可核对是否有新的状态或证据支持；52.076 秒只是首末调用起点跨度，不是可节省时间。不能从尚未加载就认定漏选 |
+| B：Solver 加载 Skill 后的同参数 HTTP 组 | [B 原记录定位](../../gates/distilled-b-method-generalization-and-efficiency-20261029/evidence.md) | 4 次请求可检查已有方法是否适用及被执行；9.079 秒不是可节省时间。与 A 的任务阶段不同，二者不是加载前后的因果对照 |
 
 fingerprint 只表示工具参数分组，不包含全部目标状态、共享 cookie jar、并行角色副作用或实验目的。真正判断必须连接相应 callID 的输入、结果、前后操作和当时可见材料；缺少状态证据则保留 unknown。初始工作只完成定位；本次已补充这两个片段的语义复核，结果见 §1.2。一次初始统计脚本假定每条事件有 facts 而报 KeyError，改为容许缺失字段后取得上述索引；失败输出不作统计依据。
 
@@ -48,13 +50,8 @@ fingerprint 只表示工具参数分组，不包含全部目标状态、共享 c
 
 | GET seq／callID | 直接前提与相对变化 | 新观察及紧邻动作 |
 | --- | --- | --- |
-| 1294／`call_00_6d6o4kcboyshluzs0sgpxgbz` | POST 1288；变更一个业务字段 | 200，5449 B；与前一观察不同的正文，seq 1300 完整读取后改写该字段 |
-| 1312／`call_00_kih4p7i68j8hle111ula2ua1` | POST 1306；同字段新值 | 200，6218 B；正文再次变化，seq 1318 完整读取，随后尝试另一输入 |
 | 1330／`call_00_jaqmaf4pz9co7p3jrj8cstjh` | POST 1324；同字段新值 | 500，24791 B；preview 已出现 `TemplateSyntaxError`。紧邻 POST 1336 调整输入，下一项恢复 200；这是局部语法失败及修正，不能当作整条路线失败 |
-| 1342／`call_00_ima91wn0sxnfo2gzz9cc2y4n` | POST 1336；针对上一失败改值 | 200，6008 B；seq 1348 完整读取后继续改值；恢复正常页面与产生不同内容均有记录 |
-| 1360／`call_00_7tk1ng5f5hwsqi8mkic1zj23` | POST 1354；同字段新值 | 200，5516 B；seq 1366 完整读取后换下一输入 |
 | 1378／`call_00_5qd3ihn21b7scuvtppulc40h` | POST 1372；同字段新值 | 200，2638 B；随后 POST 1384 再改值；该次只返回 2048 字符 preview，未见紧邻正文续读，不能证明省略部分已被使用 |
-| 1390／`call_00_shbg724ateswb1p9sblln1bl` | POST 1384；同字段新值 | 200，3870 B；seq 1396 完整读取后再改值 |
 | 1408／`call_00_i1ty5ypdp0bl4ddaker7sogl` | POST 1402；同字段新值 | 200，4091 B；seq 1414 完整读取，紧邻 POST 1420 将该业务字段清空；没有继续追查清空后的效果 |
 
 八份保存正文 hash 均不同。关键不是长度或 hash 差异本身，而是已记录的不同前置写入、语法拒绝与随后恢复、以及多次保存正文读取，足以否定“参数相同所以目标状态没有相关变化”的前提。具体新增内容对求解有多大价值、是否有更短的探测顺序、最后清空是否恢复初态，均不由本片裁定。A 的状态写入和响应 continuation 方法具有适用性；虽未在这个会话看到原生 skill 调用，但 user 的线索、表单／页面事实和实际读写已提供部分等价操作前提，不能仅由未加载判定发现失败。没有比较修订或 handler 源码的工具事实，不能强行要求先读源码／版本 Reference。
@@ -190,7 +187,7 @@ Skill 回答“在什么情况下怎样推进”；Reference 提供具体知识�
 
 静态检查：两份产品文档的五处相对链接及锚点有效；frontmatter 按既有 launcher 解析规则有效，name 与目录一致；五份本片 Markdown 的 UTF-8、相对链接及 `git diff --check` 检查通过。只读核对 `apps/launcher/src/launch.ts` 的 `listFiles`／`collectLayer` 与复制循环：附属目录递归纳入固定资产副本，新路径无第二层冲突、无符号链接；没有启动 launcher 或新增运行时测试。核心 B 之外与旧 Reference 的本次前后 hash 不变。可报告内容已交付、静态装配已检查，不能报告实际发现／读取／遵循或速度提升。未运行全套工程测试、真实模型或目标请求；usage 为 `unavailable`。
 
-本次产品资产 SHA-256：Skill v6 `0f93c48c4fc9527d47868ff3faa382e21c5fe90fcbe038159b20021bfafc217f`；Reference v1 `4ce0f4497071800e0df3291557af17df3e0c3cfd7bb98135e7c2bda94d6cda42`。这些标识内容版本，不证明运行时已加载。
+历史原始证据见 [docs/gates/distilled-b-method-generalization-and-efficiency-20261029/evidence.md](../../gates/distilled-b-method-generalization-and-efficiency-20261029/evidence.md)。这些标识内容版本，不证明运行时已加载。
 
 **后续真实能力验收：** 内容交付后才安排另行授权的固定预算对照，不阻挡先完成内容。保持同一修复后产品、题目初态、模型／provider、预算和停止规则，只改变本片资产；使用没有看过答案且不进入内容示例的适用题，以及不适用情境。观察是否选到有区分力的实验、正确读取反馈并推进可验证结果；同时记录首个有效观察／候选／有效完成时间、实际 token、错误结论与失败。加载率、少调用或更早停止都不能单独算收益；无收益就按观察修正或撤回增量，不能删失败样本。批次、样本与 token 上限届时明确，当前不生成或执行模型运行命令。
 
