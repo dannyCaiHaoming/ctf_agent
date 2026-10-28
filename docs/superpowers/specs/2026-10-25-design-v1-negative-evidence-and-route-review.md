@@ -136,7 +136,7 @@ Coordinator 脚本从实际 provider 请求里收到的原生完成通知提取�
 
 本节更新当前完成状态，不改写 §3.4 的 scripted 条件。原 run 为 `/Users/caihaoming/Documents/pentest-agent-run-data/throwback-debug-20261026-r4/runs/throwback-debug-20261026-r4-1/`；`state/run.json` 记录 HEAD `89e47dde` 且 productDirty=true，OpenCode 1.19.3、`volcano-coding/deepseek-v4-1-flash-261017`。不能将此运行归成后续 `b1afa29a` 干净提交的真实验收。
 
-`evidence/messages-ses_e8c489f8dffeMS33QdITentS1T.json` 与 `evidence/messages-ses_e8c4e20c8ffeK8MCXYu73eos6U.json` 分别记录 Domain Solver、Recovery Critic 成功调用 `web-session-diagnosis`。Critic 同时完成 `ctf_progress_read`，下一条 assistant 消息为 finish=length、output=0、reasoning=8000，没有 `progress.note` 或有效复盘正文。这证明实际读取入口可达；不能据此验收事实选材、独立判断、停止决策或提速，也不能仅凭输入较长断定空输出根因。源头取证与事实交接的目标仍保留，空正文后续策略见《空正文恢复设计》（工作區未提交草案 `2026-10-26-design-v1-c-empty-result-recovery.md`），尚未实施。
+`evidence/messages-ses_e8c489f8dffeMS33QdITentS1T.json` 与 `evidence/messages-ses_e8c4e20c8ffeK8MCXYu73eos6U.json` 分别记录 Domain Solver、Recovery Critic 成功调用 `web-session-diagnosis`。Critic 同时完成 `ctf_progress_read`，下一条 assistant 消息为 finish=length、output=0、reasoning=8000，没有 `progress.note` 或有效复盘正文。这证明实际读取入口可达；不能据此验收事实选材、独立判断、停止决策或提速，也不能仅凭输入较长断定空输出根因。源头取证与事实交接的目标仍保留，空正文后续策略见[空正文恢复设计](2026-10-26-design-v1-c-empty-result-recovery.md)，尚未实施。
 
 ## 4. 是否能从根源解决，以及下一步边界
 

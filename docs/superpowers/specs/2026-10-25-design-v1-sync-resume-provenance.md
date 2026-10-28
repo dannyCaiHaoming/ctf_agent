@@ -1,6 +1,10 @@
-# design v1 C／D／G：创建时保存前后台参数，续接漏写时补上
+# design v1 C／D／G：任务参数继承与同步交付身份
 
-日期：2026-10-25（Asia/Tokyo）。**状态：最小修复及无模型验收已完成，已合回主工作区并随 `b1afa29a` 提交；一次性 plan 已删除。** 本文是[核心 design v1](2026-10-22-ctf-agent-design-v1.md)的第一优先级详细子文件，细节以本文为准。沿用旧路径；此前同步执行归属、四角色强制后台及扩大的生命周期方案不再作为本次要求。
+更新：2026-10-28（Asia/Tokyo）。本文是[核心 design v1](2026-10-22-ctf-agent-design-v1.md) C／D／G 的任务执行归属子文件，沿用原路径。
+
+**当前决策：支持已获准同步运行的 Recon／Domain Solver／Engineer 完整交付成果，execution 不再以后台模式为存在前提。设计与最小验证见 §8；尚未实现或执行本轮验证。** 不扩大 Verifier 权限，不恢复四角色强制后台或整套旧生命周期补丁。
+
+**历史已完成：** §1–7 记录 r3 的创建方式保存／续接漏参修复，已随 `b1afa29a` 提交。该轮主动排除了同步发布，不能将其通过解释为 r6 问题已修。以下“本次／移出范围”均指当时批次；§8 仅重新纳入当前交付直接依赖的执行身份与结算，不恢复其他旧待办。
 
 ## 1. 唯一目标与原始问题
 
@@ -92,3 +96,46 @@ OpenCode 1.19.3 的 task 按每次调用的 background 选择方式，省略默�
 未引入模式锁定、task.error 永久 revoke、promotion、SyncCall 转 Execution、stopChild／F1/F2/F3 改造或同步发布扩权；原发布与 Verifier 校验保留。显式切换的完整发布能力、错误／停止生命周期与跨 run 恢复仍在范围外；未因本片补参新增模式拒绝。本片已按逐文件 before/after hash 合回 `/Users/caihaoming/Documents/pentest-agent`，原有 dirty 输入保留；未 commit／push。必要原生摘录保存在既有证据目录，报告与单次原始样本保留于主区忽略目录 `runs/task-parameter-minimal/`；本次独立工作树验收收口后归档移除。
 
 主区收口：整合前逐文件 before/after hash 一致，按本片增量合入，范围外已有输入未变；主区 typecheck、build、49 文件／486 项测试全部通过，产品源码 hash 与原生验收一致，因此没有重复原生样本。早期四项新增断言曾有效失败；中间回归因 SDK 替身缺 call 元数据、旧漏参同步假设失败，补足替身并将同步用例显式设 false 后通过，未放宽产品校验。结果已转入本文与 README，plan 删除。本次工作树归档移除，未 commit／push。
+
+## 8. r6：支持同步任务交付（设计已选，接线待验证）
+
+### 8.1 依据与范围
+
+r6 `throwback-debug-20261028-r6-1` 中，两次后台分派的保存参数缺少 subagent_type，被拒为 role not dispatchable；随后 Recon／Engineer 明确同步分派成功，但11次 artifact.publish 均因缺 execution 被拒。会话／题目已绑定，task-executions、publications、verification-results、completion-results 均为空。对应来源为 `/Users/caihaoming/Documents/pentest-agent-run-data/throwback-debug-20261028-r6/REPORT.md` 及该 run 的 control-audit／root messages；不是后台能力不可用，也不是 r5 五项报告限制再次阻塞。
+
+r3 是后台创建后漏参续接，r6 是首次有效调用就显式同步。旧补参规则继续有效；本次补齐其未覆盖的交付身份。采用**同步和后台均可拥有可信本轮执行身份**，保留长任务推荐后台，不恢复角色一刀切后台限制，不把显式 false 偷改为 true。
+
+范围是已有角色权限内的来源记录、artifact/package 交付与必要生命周期接线。Verifier 仍沿用既有后台准入、独立会话及每轮 version/preparation 绑定；本次不开放同步 Verifier，不新增网络／工具权限。Intake 等已有同步用途保持，不因此获得发布权限。不得恢复旧补丁中的永久错误撤销、通用恢复框架或整套调度改造。
+
+### 8.2 execution 的建立、绑定、结束和续接
+
+下表是目标行为，不承诺当前结构或公开 hook 已完成全部接线。复用 ControlService、原生 task、既有 call/source/binding 与结果出口；不另建一套任务 registry，不由模型填写 execution。
+
+| 阶段 | 宿主规则 |
+| --- | --- |
+| 建立 | 校验角色、父所有权、题目声明、模式参数及预算／停止边界后，在原生任务开始前为获准调用建立唯一的本轮执行引用，关联 run、parent、callID、role、challenge及适用的version。新建与续接均如此；同步／后台只决定等待和交付方式。缺 subagent_type 明确返回缺角色，不能猜角色或改调度方式。被拒调用不产生可用执行身份 |
+| 绑定 | 初始为待绑定；沿现有 SDK parent/agent 和原生 call→child 关系准确绑定 session，并关联本轮 user/source。新 child 首次受管操作前必须完成；续接也要关联本次call，不能仅凭已绑定session或同角色套用上次执行。缺失、冲突或并发轮次不明时拒绝受影响操作，不借历史 execution |
+| 使用 | 获准执行期间，workspace.write、HTTP、job 等来源记录绑定本轮身份；artifact/package 发布继续严格核对同run／同题／来源、bytes、hash及活动权限。资源产生时固定身份，不在发布失败后补造。旧资源保留原producer，当前选择者按既有 selectedExecution 语义记录；普通文件来源未知仍为unknown/null |
+| 正常结束 | 同步从可信原生 completed 返回结算，后台从既有可信完成通知结算。身份、call和child核对后，只结束对应执行，不影响同session历史轮次。同步返回与后台通知各沿既有出口记录交付，不重复唤醒。生命周期完成、报告完整性与solved分别记录；正文为空或unknown不等于执行仍在运行 |
+| 错误／停止 | 分派启动失败、原生task错误、取消和deadline按真实事实结算本轮及其资源；迟到事件不能复活执行或覆盖已知错误。不因一次普通错误永久禁用session。停止／结果未知继续保留既有边界，不允许凭不明状态新开一轮绕过未决资源；不为本片新增通用重试政策 |
+| 续接 | 同一child的前轮已具备既有可续接条件、无冲突活动执行时，新call建立新execution；旧产物／来源身份不改写。省略background仍继承创建默认，显式值保留且不修改默认。模式变化不重置预算、题目、资源或版本要求；同步完成后必须能合法继续，不能遗留永远running的execution |
+
+**运行中转后台不是新一次执行。** 原生同步调用若返回 running／promotion，只表示等待方式变化，不可标 completed、不可创建第二个来源身份或释放原执行。后续只能依公开接口可信关联的终态结算，父 idle 不能提前收尾。这一关联的具体接法是 §8.3 的待验证点；不直接恢复旧 SyncCall 转 Execution 补丁，也不从自由文本猜关联。
+
+工程上应让同步与后台共享可信身份与发布规则，保留各自结果交付入口。是否让现有 SyncCall 引用 Execution、以及复用哪些字段，由最小验证确定；不得维护两份可能矛盾的来源／活动状态。只将本轮身份必要的停止、错误与收束关系接通，不顺带修改结果分类、恢复策略或完整会话持久化。
+
+### 8.3 最小无模型验证与结果去向（尚未执行）
+
+复用既有 contract 文件及已有原生 scripted 驱动；隔离模型凭据、只用本地确定性响应和非秘密字节，不访问原题或私有oracle。不新增 gate体系、持久fixture或全队做题流程。以下是行为覆盖，不要求每行另造测试平台。
+
+| 要回答的问题 | 最小观察与判据 |
+| --- | --- |
+| r6 原失败点能否消除 | 首次同步分派来源角色→可信绑定→写文件／产生来源→artifact.publish→同题Engineer读取并固定package。先复现现代码 execution缺失，再核对本轮身份和精确bytes；不是绕过publish或预造ref |
+| r3 修复与显式选择是否保留 | 后台创建→漏参续接仍实际后台；显式false续接实际同步且能交付；后续再漏参仍继承创建默认。每轮执行引用不同，旧产物producer保持原值 |
+| 是否在真实原生时序下及时绑定 | 一个最小原生scripted同步交付链，观察首次工具前身份、完成后释放及同child下一轮；不能仅用手工注入execution的替身证明绑定成立 |
+| 结束／错误会不会串轮或放行非法发布 | 在既有定向测试检查正常结束、启动失败／task错误、停止后的当前轮结算与拒绝；错parent／child／题目、无执行身份仍拒绝。已结束资源的合法读取与本轮新发布按各自既有权限处理 |
+| 同步转后台是否保留同一执行 | 复用公开task接口的最小promotion观察：running不结束、不重复建身份；后续可信终态关联原执行，且不因父idle提前结束run。不扩成通用promotion框架 |
+
+**结果去向：** 原生绑定、完成／续接和必要promotion关联均可通过现有公开接口闭合时，回写具体版本与观察，再拆实施plan。若只需现有hook的局部接线，记录位置和边界；若确实缺少可信关联，则记录具体缺口和受影响路径，保留unknown，不宣称全链支持。需要新增入口限制或改变显式模式选择时，回到设计讨论，不自行恢复后台强制、provider旁路或OpenCode fork。不能拿普通completed通过代替promotion成立。
+
+完成本片只证明同步交付身份与生命周期接线，不证明真实模型遵循或CTF解题成功。本次仅回补设计；未修改代码、运行上述验证、创建实施plan或启动真实模型。
