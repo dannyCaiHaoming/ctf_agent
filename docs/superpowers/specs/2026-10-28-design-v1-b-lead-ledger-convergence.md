@@ -46,4 +46,6 @@
 
 选定并实现**候选 A（自动注入，不靠模型主动调工具读）**，仅改角色 prompt、无新工具/接口/schema。`coordinator.md` 新增 `## 未測具體線索交接`：每次原生 `task` 分派/恢复带入未测具体线索（去敏描述、来源 ref、低成本测法），空清单明写、缺来源保留为缺口（非「无线索」），交回后依证据更新 tested/untested/refuted 并带入下次分派与 Critic 复核；`recon.md`／`domain-solver.md` 新增 `## 未測具體線索`：深挖通用枚举/档案搜索/RCE 前先低成本测未测线索，逐条回报状态且保留不确定性（tested≠refuted）；`recovery-critic.md` 增一条：对照被忽略且有来源支持的未测线索作 redirect 建议。候选 B（结构化帐本条目）/C（workspace 文件）/D（宿主派生提示）未采用——A 靠现有 task 交接即可落地。
 
-实现由 GPT-6.1-sol（high reasoning effort，经 codex）完成、主助手复核，`tsc --noEmit`／`build`／`test:deterministic`（38 文件 555 项）全绿，已合入 main（merge `3ad11f48`，含 `862b85ee`），未 push。**行为收益（深挖前先测未测线索、不被发散淹没）仍未验证，须另行授权的真实 run（r8）认账。** 一次性 plan 已删。
+实现由 GPT-6.1-sol（high reasoning effort，经 codex）完成、主助手复核，`tsc --noEmit`／`build`／`test:deterministic`（38 文件 555 项）全绿，已合入 main（merge `3ad11f48`，含 `862b85ee`），未 push。
+
+**r8-2 首个真实行为证据（2026-10-29，含 A+D 的 main `60654f0d`）：** 该 run 解出 throwback（约 12 分钟），Domain Solver **直接测了 r7 从未请求的 `/admin/chal/delete`**（经证据核对为真实 `ctf_http_request` 调用；「未测线索」词汇在交接中在场），与 A 的意图一致，r7「有线索却不测、发散」的失败未重现。**但为单题、单次、非受控样本**：同批另有同步执行身份修复，加上 LLM 跑间方差，不能把解出单独归因到 A；行为收益需重复跑分方差 + 换题泛化才算证实。详见 [现状 §0.2](2026-10-22-ctf-agent-current-state-and-migration.md#02-真實運行的已知結果r6-修復與-r7-未解分開記錄)。

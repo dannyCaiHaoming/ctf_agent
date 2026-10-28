@@ -197,4 +197,6 @@ L1 已证 on-demand skill 调用不可靠（r7 全 run 0 次）。因此「固�
 
 选定并实现**候选 D（有界回合交回，无新 host 机制）**，仅改角色 prompt。`coordinator.md` 新增 `## 有界回合分派`：优先以有界回合分派 recon／domain-solver（明列本轮问题与停止条件），并明写「背景分派不会在子执行中重新唤醒 Coordinator，故停滞评估放在每回合交回边界，不忙轮询、不新增唤醒/monitor/scheduler/readiness」；§进度的停滞规则改为「每次回合交回都套用既有停滞规则决定继续/换路/派 Critic，不自动续接深挖」。`recon.md`／`domain-solver.md` 新增 `## 有界回合與交回`：每回合先定问题与停止条件，无进展或有未测线索却欲转向时交回、不拖到 deadline，剩余未测项沿用 §未測具體線索 交接。候选 A（周期评估）判为不可行、B（宿主信号）需新接口暂不做（见 §5.6）。`recovery-critic.md` 职责未改。
 
-实现由 GPT-6.1-sol（high reasoning effort，经 codex）完成、主助手复核，`tsc`／`build`／`test:deterministic`（555）全绿，已合入 main（merge `3ad11f48`，含 `6e282fd5`），与 [线索帐本 A](2026-10-28-design-v1-b-lead-ledger-convergence.md#7-实现结果20261028候选-a-已落地) 同批合入、组合干净。**行为收益（停滞在交回边界被看到并 redirect）仍未验证，须真实 run（r8）认账。** 一次性 plan 已删。
+实现由 GPT-6.1-sol（high reasoning effort，经 codex）完成、主助手复核，`tsc`／`build`／`test:deterministic`（555）全绿，已合入 main（merge `3ad11f48`，含 `6e282fd5`），与 [线索帐本 A](2026-10-28-design-v1-b-lead-ledger-convergence.md#7-实现结果20261028候选-a-已落地) 同批合入、组合干净。
+
+**r8-2（2026-10-29）对 D 的意义有限：D 仍未验证。** 该 run 解出 throwback，但 **Recovery Critic 准入为 0**——没有停滞、没有触发交回边界换路；解题靠 Domain Solver 直接测对路线（属 A 的作用域），不是「停滞后被 redirect 救回」（D 的作用域）。因此 D 的停滞→Critic 机制在此 run **未被行使，仍未验证**；要验 D 需要一个真会停滞、需换路的 run。详见 [现状 §0.2](2026-10-22-ctf-agent-current-state-and-migration.md#02-真實運行的已知結果r6-修復與-r7-未解分開記錄)。
