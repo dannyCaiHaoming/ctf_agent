@@ -9,8 +9,10 @@ export interface ReleaseProfile {
   challenges?: string;
   reference: { enabled: boolean };
   budget: { wallClockMs: number; maxSteps: number; maxToolJobs: number; maxObservableTokens: number;
-    /** Total recon model-call admissions per run/challenge, including the closure reserve. Both fields must be configured together. */
-    reconMaxModelCalls?: number; reconClosureReserve?: number };
+    /** Explicit pathological recon ceiling B per run/challenge, selected by the run owner before launch; not a natural handoff target. Absent pair means OFF/unavailable, with global budgets unchanged. */
+    reconMaxModelCalls?: number;
+    /** Reserve R within B (0<R<B): closure starts at B-R, exhaustion at B. Configure both safe integers together; no implicit defaults. */
+    reconClosureReserve?: number };
   os: { platform: 'macos' | 'linux' };
 }
 

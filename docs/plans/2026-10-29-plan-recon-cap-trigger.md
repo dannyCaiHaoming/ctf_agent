@@ -56,6 +56,27 @@
 
 未来实施遵守 `CLAUDE.md:47–52` 的独立 session／独立 worktree 约定；**当前禁止 git，不创建 worktree**。未来执行前必须具备相应授权并核对未提交工作；本草稿不覆盖当前禁令。一步结束即停，返回人类评审，不自动启动下一 run 或扩大设计。
 
+### §0 实施结果（2026-10-30，Asia/Tokyo）
+
+本次依人类明确批准执行上述一步，原文的“待批准／未来授权”是草稿时状态；不含真实 run 授权。工作区 `/Users/caihaoming/Documents/pa-wt-cap`，分支 `codex/recon-cap-trigger`，基线 `de5639fec0d35e3c057566afef5347ec56554725`，Node `v26.3.0`、本地 Vitest `2.1.9`。初始仅有未跟踪的 `node_modules` 软链接，保留原状。
+
+- 实际修改：`apps/launcher/src/control-service.ts`、`apps/cli/src/composition/releaseProfile.ts` 的语义／计数注释，`config/release-profile.schema.json` 的 description，`tests/contract/slow-tools.test.ts` 的回归，以及本记录。`launch-evidence.test.ts` 无接线缺口证据，未修改。没有修改实际 profile、历史资料或 design 决策。
+- **运行逻辑未变**：现有参数化谓词满足离线判据；两个 TS 文件移除注释后的编译 JS 与基线相同，schema 除 description 外结构相同。缺省仍 OFF，无隐式 B/R。最终 ControlService SHA-256：`e0ab1f90456047d1889ae17d145b0eae4e4fbe74ded469d48cf8aeca1f770bb0`。
+- 新增 4 项参数化行为用例：512/10 在 14、25、35、142 次保持 exploration、重复相同 workspace.list 且无发布后自然同步交回；35/10 在 24 exploration、25 closure、28 次自然交回；512/10 与另一组 73/6 在 B−R−1／B−R／B 精确切换，两工具入口拒绝探索且无新资源／spawn，收束出口保留，B+1 不准入、只局部停止并保留 refs／unknown，父任务可继续，不产生 solved。补 3 项非法输入（负 R、非安全整数 B/R）拒绝；加强 OFF 至 143 次仍可探索、全局第 145 次被拒及两字段均无默认。所有 B/R 仅为测试输入，既有设施仅增加可选全局准入额度参数。
+
+| 检查 | 退出码／结果 |
+| --- | --- |
+| `./node_modules/.bin/vitest run tests/contract/slow-tools.test.ts tests/contract/launch-evidence.test.ts` | 1；40 passed、48 failed（88）；含下述已修正的 2 项新断言，其余为回环 EPERM／相关超时；另有缓存写入 EPERM。日志 `/tmp/pa-cap-targeted.log`。 |
+| `npm run typecheck` | 0；最终版本通过，日志 `/tmp/pa-cap-typecheck-final.log`。 |
+| `npm run build` | 0；最终版本通过，日志 `/tmp/pa-cap-build-final.log`。 |
+| `npm test` | 1；38 文件通过、13 文件失败；577 passed、90 failed、18 skipped（685），12 unhandled errors；含同 2 项新断言，以及回环 EPERM、目录写入 EPERM、超时和后续 lease expired。完整日志 `/tmp/pa-cap-test.log`，失败名称索引 `/tmp/pa-cap-failure-index.log`。 |
+| 修正后补充离线回归 | 0；32 passed、22 未选中；命令见下，日志 `/tmp/pa-cap-offline-regression.log`。 |
+| 静态差异复核 | `git diff --check` 通过；无独立 reviewer，已自复核文件范围、运行逻辑与 schema 形状。 |
+
+补充命令：`./node_modules/.bin/vitest run tests/contract/slow-tools.test.ts -t 'explicit recon|recon cap closes|recon closure preserves|recon exhaustion at either|background recon|global model cap|recon continuation|recon rechecks|unconfigured recon cap|release profile|maxToolJobs' --cache=false`。它保留并验证已有局部停止、跨 session／题目、异步重查、并发与 maxToolJobs 断言；未选中的回环测试不计通过。
+
+首轮两项新用例误把 workspace.list 的已 settled 资源记录断言为空；核对真实记录后修正为数量等于调用数、全为已 settled 的 workspace.list 且无 job，修正后通过。完整命令统计保留首轮原始结果，未将补充结果拼接为全套通过。沙箱禁止 `127.0.0.1` 监听；既有 `node_modules` 指向主仓库，其 `.vite/vitest/results.json` 及既有 bootstrap 测试 `.tmp-secret-profile.json` 写入被拒。未提权、改软链接或越界修复；补充命令只禁用测试缓存。**实施已落地，完整集成验收仍受阻**。仅证明无模型机械边界，不证明真实模型 B 硬停或解题能力；没有网络查询、模型／挑战 run、commit／push，一步结束即停。
+
 ## 草稿核对记录
 
 本次仅静态阅读现有源码／测试和三个 audit 的机械字段、计数、时间及终态；没有执行测试、模型或挑战。真实 B 硬停仍未验证：r13 只到 28<35，r14/r15 cap OFF。既有测试描述见 `tests/contract/slow-tools.test.ts:94–144`，不能把“存在测试”写成“本次测试通过”。完整计数、seq 锚点及结果限制记录于 design §10.3b。
