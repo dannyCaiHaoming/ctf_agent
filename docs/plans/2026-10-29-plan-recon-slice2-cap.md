@@ -43,4 +43,23 @@
 
 ## 1. 结果记录（执行后填写）
 
-当前仅草案；无实现、无测试执行、无 run。执行者在此记录实际改动、机制测试结果与失败；真实行为逐项记 not run-verified。结论归入设计 §10.3 后再按规则处理本一次性 plan。
+2026-10-29，人类在本次独立实施 session 明确批准本切片，覆盖 §0 原草案阶段的授权描述。在现有 `codex/recon-slice2-cap` 分支实施；遵守本次禁止 Git 命令的要求，只读 `.git/HEAD`，以修改前文件副本逐文件核对差异，未声称已通过 Git 确认整仓 clean。未执行 Git／commit／push，未访问外网、调用真实模型或运行 challenge。
+
+实际改动：
+
+- `apps/cli/src/composition/releaseProfile.ts` 与 `config/release-profile.schema.json` 增加可选 `reconMaxModelCalls`（总额度 B，含收束）和 `reconClosureReserve`（R）；成对配置，loader 校验安全整数及 `0<R<B`。JSON schema 描述类型、正数和成对依赖，跨字段大小关系由 loader 校验。未配置时不填默认、不启用该 bound，额度 unavailable；未改变旧预算字段校验语义。
+- `apps/launcher/src/launch.ts` 只将两个 profile 字段传入现有 RunBudget。
+- `apps/launcher/src/control-service.ts` 在 model.call 的既有串行 admission 内，通过可信 Binding 匹配唯一 running Execution（run／parent／child／role／challenge），累计当前 Execution 的 admittedTurns，同时以单 run ControlService 内的 challenge 键持有 Recon 总计数。续接换 Execution、新建 session 均不删除／重置题目累计额度。Execution 保存该次准入时的收束事实；工具权限按题目累计状态判断。
+- 达 `B−R` 后进入 closure；`tool.before`、managed execute／prepare 均检查，异步目录准备后、spawn／HTTP 开始前再次检查。拒绝 `job.run`、`http.request`、`workspace.view/search/diff`、原生 `skill/read` 等探索入口，message 为可读 `recon closure: exploration disabled — publish needed materials and hand off`。保留原权限内的 `workspace.list/read/write`、`job.read/cancel`、`artifact.publish/read` 与 B 内剩余 model.call；不新增路径权限或绕过分页／来源验证。
+- 第 B 次准入将额度标为 exhausted，仍让这次已派发模型调用完成文字交回；下一次 model/tool host 入口拒绝并复用 `stopChild`，不在 chat.params 内中断刚准入的模型调用。局部耗尽分支仅调用 stopChild，不调用 stopAll；全局 admission 的 budget／stop／expiry 检查保持在局部检查之前。这是步数预留，不是局部墙钟 SLA，也不延长全局 deadline。
+- 局部停止保留 Execution cancelled、resultFacts unknown；保存该 session 已确认发布的真实 refs，经现有同步 `syncDisplay` 返回 localStop 原因、refs 和 stopChild 结果（abort／资源不确定仍 unknown）。原有 background 模式只消费既有相关联原生完成 notice 来显示局部停止事实，保持 cancelled／unknown、不复活 Execution，不切换派单模式、不增加唤醒机制。全局停止／过期后不再展示本地停止回执。未修改 plugin 或 artifact transport。
+- 已开始的 job／HTTP 不因软边界被取消或假装完成；仍由原 Resource controller／deadline 与局部硬停取消路径负责。准备尚未完成的探索请求在 await 后被拒绝且不 spawn；running job 仍可 read/cancel，未 settled 输出仍不能 publish。
+
+测试与结果：
+
+- 扩展现有 `tests/contract/slow-tools.test.ts`（20 个新用例）及 `tests/contract/launch-evidence.test.ts`（1 个新用例），使用真实 ControlService、JobManager、发布与 workspace 实现，只替代 SDK／外部模型；未新增 fixture 目录或 gate。
+- 覆盖软边界前放行、全部指定探索入口在 before／execute 拒绝且无资源注册／spawn、收束 allow 集合、私有路径和跨题 artifact 隔离、R 次模型准入、两处工具入口及 model 入口硬停、abort 未确认的 unknown、父级实际 plugin 输出中的局部原因和真实 ref、原生 error 事件后仍可返回停止事实、其他角色／题目继续运行且局部 stopAll 零调用、续接／新 session 不重置、目录准备竞态无晚 spawn、在途 job 保持 running／不能伪发布、未配置不启用、合法与十组非法 B/R、全局 model cap 优先，以及 profile→launch→host→plugin 接线。既有整套隔离／来源／分页／unknown 回归仍通过。
+- RED 阶段：15 个用例因缺失功能按预期失败，1 个未配置用例通过。GREEN 调试中修正了新测试对 workspace.read 回执格式的错误预期（真实为 text），未改产品既有格式。首次 RPC 测试被沙箱本机回环监听 EPERM 阻止，获准在可本机回环环境执行后通过；无外网请求。
+- 最终 `npx tsc --noEmit`、`npm run build` 均 exit 0；`npm run test:deterministic` 为 40 文件／636 测试通过、exit 0；`npm test` 为 51 文件／678 测试通过、exit 0。执行后仅回填本节，未再修改受测代码。完成实现自检，无独立子 Agent review；未发现需越界修复的已证实产品缺陷。
+
+真实 Recon 能否在 closure 内消费拒绝信号、整理／发布正确材料并交回可用 refs：**not run-verified**，仍需目标／provider／token／批次明确授权的 run。机制测试不证明真实解题能力、交接成功或 solved。本次不更新任何角色文件或父 design，不实施 §10.6／OCR／视觉。结论尚未转入 design，保留此一次性 plan 供设计者接收结果。

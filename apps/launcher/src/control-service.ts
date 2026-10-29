@@ -44,6 +44,9 @@ export interface RunBudget {
   maxObservableTokens: number;
   /** Cumulative job.run admissions across all roles/challenges; absent means unavailable, not zero. */
   maxToolJobs?: number;
+  /** Optional recon total B and closure reserve R (0<R<B); absent means unavailable. */
+  reconMaxModelCalls?: number;
+  reconClosureReserve?: number;
 }
 
 export interface Binding {
@@ -106,7 +109,9 @@ export const PROGRESS_TOOLS = ['progress.read', 'progress.note'] as const;
 export const MANAGED_TOOLS = [...INTAKE_TOOLS, 'challenge.assign', 'challenge.unassign', 'task.stop', 'verification.read', 'completion.request', ...PROGRESS_TOOLS, ...SOLVER_TOOLS];
 interface Resource { run: string; sessionID: string; challengeId: string; callID: string; tool: string; state: 'active' | 'settled' | 'unknown'; result?: string; job?: string; controller: AbortController; deadline: number; execution?: string; timer?: ReturnType<typeof setTimeout>; done?: Promise<unknown>; detachRpc?: () => void }
 interface TaskStopResult { state: 'stopped' | 'unknown' | 'completed' | 'failed'; resources: 'settled' | 'unknown'; sessionAbort: 'confirmed' | 'unknown' | 'not_required'; executionRef?: string }
-interface Execution { mode: 'sync' | 'background'; source: ChildSource; resultFacts: ChildResult | null; version?: string; ref: string; run: string; parent: string; callID: string; role: Role; challengeId?: string; childID?: string; state: 'starting' | 'running' | 'completed' | 'failed' | 'cancelled'; delivered: boolean; noticeMessageID?: string; delivery?: 'queued' | 'consumed' | 'suppressed' | 'stop_reply'; lateResult?: string; initialOutput?: string; result?: string }
+interface ReconTurns { admittedTurns: number; state: 'exploration' | 'closure' | 'exhausted' }
+interface ReconStop { reason: string; refs: string[]; result?: TaskStopResult }
+interface Execution { mode: 'sync' | 'background'; source: ChildSource; resultFacts: ChildResult | null; recon?: ReconTurns; reconStop?: ReconStop; version?: string; ref: string; run: string; parent: string; callID: string; role: Role; challengeId?: string; childID?: string; state: 'starting' | 'running' | 'completed' | 'failed' | 'cancelled'; delivered: boolean; noticeMessageID?: string; delivery?: 'queued' | 'consumed' | 'suppressed' | 'stop_reply'; lateResult?: string; initialOutput?: string; result?: string }
 /** Result-delivery view of a synchronous dispatch. Identity, source and facts live only on its Execution (the accessors below), so the two cannot disagree. */
 interface SyncCall {parent:string;callID:string;role:Role;execution:string;childID?:string;source:ChildSource;state: 'active' | 'reading' | 'done'; fingerprint:string;displayed:boolean;facts?:ChildResult|null}
 interface Preparation {sessionID:string;execution:string;version:string;directory:string;metadata:{path:string;sha256:string;size:number}[];files:{path:string;sha256:string;size:number}[]}
@@ -138,6 +143,8 @@ export class ControlService {
   rootId?: string;
   admitted = 0;
   private admittedJobs = 0;
+  /** This ControlService owns one run. Challenge keys survive all recon executions/sessions in that run. */
+  private readonly reconTurns = new Map<string, ReconTurns>();
   private seq = 0;
   /** Epoch ms of construction; audit `t` is relative to it. */
   readonly startedAt = Date.now();
@@ -227,7 +234,11 @@ export class ControlService {
         if (operation === 'model.call') {
           try { await this.refreshObserved(); } catch { throw new ControlDenied('usage unavailable'); }
         }
-        if (operation === 'tool.before' && body.tool === 'read') await this.checkReadPath((body.args ?? {}) as Record<string, unknown>);
+        if (operation === 'tool.before' && body.tool === 'read') {
+          // Reject closure before path I/O as well as again in the serialized tool precheck.
+          await this.serial(() => { this.live(binding!); this.checkReconTool(binding!, 'read'); });
+          await this.checkReadPath((body.args ?? {}) as Record<string, unknown>);
+        }
       }
       const prepared = await this.serial(() => {
         if (signal?.aborted) throw new ControlDenied('rpc abandoned');
@@ -241,9 +252,10 @@ export class ControlService {
             const completionDisplays = completionRefs.map(ref => {
               const e = this.executions.get(ref)!;
               const child = e.childID ? this.bindings.get(e.childID) : undefined;
-              if (e.parent !== sessionID || e.noticeMessageID !== body.messageID || e.delivery !== 'queued' || !child || child.state !== 'active' || Date.now() >= child.expiresAt) throw new ControlDenied('completion correlation');
+              if (e.parent !== sessionID || e.noticeMessageID !== body.messageID || e.delivery !== 'queued' || !child || child.state !== 'active' && !e.reconStop || Date.now() >= child.expiresAt) throw new ControlDenied('completion correlation');
               const f = e.resultFacts!;
-              return { ref: e.ref, role: e.role, completeness: f.completeness, reason: f.reason, finish: f.finish, textChars: f.completeness === 'unknown' ? null : f.textChars, source: e.source.status };
+              return { ref: e.ref, role: e.role, completeness: f.completeness, reason: f.reason, finish: f.finish, textChars: f.completeness === 'unknown' ? null : f.textChars, source: e.source.status,
+                ...(e.reconStop ? { localStop: e.reconStop } : {}) };
             });
             return completionDisplays.length ? { bound: true, completionDisplays } : { bound: true };
           }
@@ -494,14 +506,62 @@ export class ControlService {
       throw new ControlDenied('budget', JSON.stringify({ admitted: this.admitted, observedTokens: this.observed }));
     }
     if(binding.role==='verifier')this.verifierExecution(binding);
+    const recon = this.reconQuota(binding);
+    if (recon) {
+      this.checkReconExhausted(binding, recon);
+      const execution = this.reconExecution(binding);
+      recon.admittedTurns++;
+      recon.state = recon.admittedTurns >= this.options.budget.reconMaxModelCalls! ? 'exhausted' :
+        recon.admittedTurns >= this.options.budget.reconMaxModelCalls! - this.options.budget.reconClosureReserve! ? 'closure' : 'exploration';
+      execution.recon = { admittedTurns: (execution.recon?.admittedTurns ?? 0) + 1, state: recon.state };
+      this.record(binding.sessionID, 'recon.admitted', true, undefined, { execution: execution.ref, ...recon });
+    }
     this.admitted++;
     const requestMessageIDs = new Set(Array.isArray(body.requestMessageIDs) ? body.requestMessageIDs.filter((id): id is string => typeof id === 'string') : []);
     for (const e of this.executions.values()) if (e.parent === binding.sessionID && e.delivery === 'queued' && requestMessageIDs.has(e.noticeMessageID!)) { e.delivery = 'consumed'; this.record(binding.sessionID, 'task.delivered', true, undefined, {ref: e.ref, messageID: e.noticeMessageID, admitNo: this.admitted}); }
     return { maxOutputTokens: maxObservableTokens - this.observed, admitNo: this.admitted, role: binding.role };
   }
 
+  private reconQuota(binding: Binding): ReconTurns | undefined {
+    if (binding.role !== 'recon' || this.options.budget.reconMaxModelCalls === undefined || this.options.budget.reconClosureReserve === undefined) return;
+    if (!binding.challengeId) throw new ControlDenied('recon challenge');
+    let quota = this.reconTurns.get(binding.challengeId);
+    if (!quota) { quota = { admittedTurns: 0, state: 'exploration' }; this.reconTurns.set(binding.challengeId, quota); }
+    return quota;
+  }
+
+  private reconExecution(binding: Binding): Execution {
+    const active = [...this.executions.values()].filter(e => e.childID === binding.sessionID && e.role === 'recon' &&
+      e.run === (this.options.runId ?? 'run') && e.challengeId === binding.challengeId && e.parent === binding.parentID && e.state === 'running');
+    if (active.length !== 1) throw new ControlDenied('recon execution');
+    return active[0]!;
+  }
+
+  private checkReconExhausted(binding: Binding, quota: ReconTurns): void {
+    if (quota.state !== 'exhausted') return;
+    const reason = 'recon closure: model-call budget exhausted';
+    const execution = this.reconExecution(binding);
+    execution.reconStop = { reason, refs: this.publicationSnapshot().filter(p => p.source.sessionID === binding.sessionID &&
+      p.source.run === execution.run && p.source.challenge === binding.challengeId).map(p => p.ref) };
+    execution.resultFacts = unknownChildResult(execution.source, reason);
+    // Mark/revoke synchronously via the existing local path; SDK/resource waits never hold the state queue.
+    // The Bth admitted call may finish its text handoff. Stop at the next host entry, never mid-model-call.
+    void this.stopChild(binding).then(result => { execution.reconStop!.result = result; });
+    throw new ControlDenied(reason);
+  }
+
+  private checkReconTool(binding: Binding, name: string): void {
+    const quota = this.reconQuota(binding);
+    if (!quota) return;
+    this.checkReconExhausted(binding, quota);
+    if (quota.state === 'closure' && !['workspace.list', 'workspace.read', 'workspace.write', 'job.read', 'job.cancel', 'artifact.publish', 'artifact.read'].includes(name)) {
+      throw new ControlDenied('recon closure: exploration disabled — publish needed materials and hand off');
+    }
+  }
+
   private toolBefore(binding: Binding, body: Record<string, unknown>): unknown {
     const tool = typeof body.tool === 'string' ? body.tool : '';
+    this.checkReconTool(binding, SOLVER_TOOLS.find(name => `ctf_${name.replaceAll('.', '_')}` === tool) ?? tool);
     if (tool === 'ctf_challenge_assign' || tool === 'ctf_challenge_unassign') {
       this.checkDeclaration(binding, body.args, tool === 'ctf_challenge_assign');
       return { allowed: true }; // Precheck only: execution is the declaration's linearization point.
@@ -589,6 +649,7 @@ export class ControlService {
 
   private executeManaged(binding: Binding, body: Record<string, unknown>, signal?: AbortSignal): unknown {
     const name = typeof body.tool === 'string' ? body.tool : '';
+    this.checkReconTool(binding, name);
     if (name === 'progress.read') {
       this.checkProgress(binding, name);
       const args = (body.args ?? {}) as Record<string, unknown>;
@@ -707,6 +768,7 @@ export class ControlService {
 
   private prepareSolver(binding: Binding, name: string, args: Record<string, unknown>, call: unknown, rpcSignal?: AbortSignal): Outside {
     this.checkSolver(binding, name);
+    this.checkReconTool(binding, name);
     if (typeof call !== 'string' || !/^[\w.-]{1,128}$/.test(call)) throw new ControlDenied('call id');
     const key = `${binding.sessionID}/${call}`;
     if (this.resources.has(key)) throw new ControlDenied('duplicate tool call');
@@ -743,6 +805,8 @@ export class ControlService {
           const roots = this.roots(binding);
           await Promise.all([mkdir(roots.workDir, { recursive: true }), mkdir(roots.publishedDir, { recursive: true })]);
           operation.controller.signal.throwIfAborted(); this.live(binding);
+          // Preparation can await while another model admission crosses the boundary. No exploration has started yet.
+          this.checkReconTool(binding, name);
           let result: unknown;
           if (name === 'http.request') {
             const challenge = this.options.challenges!.find(c => c.id === binding.challengeId)!;
@@ -1082,6 +1146,14 @@ export class ControlService {
         if (!match) continue;
         const e = this.executions.get(match[3]!);
         if (!e || e.parent !== parent || e.childID !== match[1]) throw new ControlDenied('completion correlation');
+        if (e.reconStop && e.delivery === 'stop_reply' && !e.noticeMessageID) {
+          // A native local-abort notice can deliver stop facts, never a completed child report.
+          e.noticeMessageID = typeof body.messageID === 'string' ? body.messageID : undefined;
+          e.delivery = this.stopReason ? 'suppressed' : 'queued';
+          accepted.push(e.ref);
+          this.record(parent, 'task.result', true, undefined, { ref: e.ref, resultFacts: e.resultFacts, localStop: e.reconStop });
+          continue;
+        }
         if (e.delivered) { e.lateResult=part.text;this.record(parent,'task.completion.ignored',true,undefined,{ref:e.ref,reason:'duplicate or late',messageID:body.messageID});throw new ControlDenied('duplicate completion'); }
         accepted.push(e.ref);
         e.state=match[2]==='completed'?'completed':'failed';e.result=part.text;
@@ -1128,6 +1200,21 @@ export class ControlService {
       if (execution?.mode === 'background') { if (child && execution.childID && execution.childID !== child) throw new ControlDenied('completion correlation'); if (child) execution.childID = child; if (execution.initialOutput === undefined && typeof body.output === 'string') execution.initialOutput = body.output; }
       for (const [, waiting] of this.pending.get(sessionID) ?? []) if (waiting.callID === callID && child) waiting.childID = child;
       const c=this.syncCalls.get(sessionID+'/'+callID);
+      if (c && execution?.reconStop && !c.displayed && child === c.childID && metadata.parentSessionId === sessionID) {
+        return { execute: async () => {
+          const result = await this.childStops.get(child!);
+          return this.serial(() => {
+            if (c.displayed) return { ok: true };
+            c.state = 'done'; c.displayed = true;
+            c.facts = unknownChildResult(c.source, execution.reconStop!.reason);
+            this.record(sessionID, 'sync.result', true, undefined, { callID, childID: child, facts: c.facts, localStop: execution.reconStop });
+            // The existing plugin renders syncDisplay verbatim; no plugin/transport changes are needed.
+            if (this.stopReason || this.bindings.get(sessionID)?.state !== 'active' || Date.now() >= this.options.expiresAt) return { ok: true };
+            return { ok: true, syncDisplay: { callID, role: c.role, completeness: 'unknown', reason: execution.reconStop!.reason,
+              finish: null, textChars: null, source: c.source.status, localStop: { ...execution.reconStop!, result } } };
+          });
+        } };
+      }
       if(c && c.state==='active') {
         c.state='reading';
         const binding=child?this.bindings.get(child):undefined, parent=this.bindings.get(sessionID);
