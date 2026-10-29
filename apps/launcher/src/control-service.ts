@@ -44,8 +44,9 @@ export interface RunBudget {
   maxObservableTokens: number;
   /** Cumulative job.run admissions across all roles/challenges; absent means unavailable, not zero. */
   maxToolJobs?: number;
-  /** Optional recon total B and closure reserve R (0<R<B); absent means unavailable. */
+  /** Explicit pathological recon ceiling B per service/run + challenge; chosen before the run, not a handoff target. Absent pair means OFF/unavailable. */
   reconMaxModelCalls?: number;
+  /** Closure reserve R within B (0<R<B), not extra calls; natural handoff may occur before either boundary. */
   reconClosureReserve?: number;
 }
 
@@ -511,6 +512,8 @@ export class ControlService {
       this.checkReconExhausted(binding, recon);
       const execution = this.reconExecution(binding);
       recon.admittedTurns++;
+      // Admission count only, never semantic coverage: B-R enters closure, B marks exhausted.
+      // R is inside B; global admission limits above still take priority.
       recon.state = recon.admittedTurns >= this.options.budget.reconMaxModelCalls! ? 'exhausted' :
         recon.admittedTurns >= this.options.budget.reconMaxModelCalls! - this.options.budget.reconClosureReserve! ? 'closure' : 'exploration';
       execution.recon = { admittedTurns: (execution.recon?.admittedTurns ?? 0) + 1, state: recon.state };
@@ -523,6 +526,7 @@ export class ControlService {
   }
 
   private reconQuota(binding: Binding): ReconTurns | undefined {
+    // No implicit B/R. This service/run owns cumulative challenge counts; sessions and redispatches do not reset them.
     if (binding.role !== 'recon' || this.options.budget.reconMaxModelCalls === undefined || this.options.budget.reconClosureReserve === undefined) return;
     if (!binding.challengeId) throw new ControlDenied('recon challenge');
     let quota = this.reconTurns.get(binding.challengeId);
@@ -546,6 +550,7 @@ export class ControlService {
     execution.resultFacts = unknownChildResult(execution.source, reason);
     // Mark/revoke synchronously via the existing local path; SDK/resource waits never hold the state queue.
     // The Bth admitted call may finish its text handoff. Stop at the next host entry, never mid-model-call.
+    // Tools/publication are not guaranteed at B: this check runs before the closure tool allowance.
     void this.stopChild(binding).then(result => { execution.reconStop!.result = result; });
     throw new ControlDenied(reason);
   }

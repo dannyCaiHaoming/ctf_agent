@@ -28,8 +28,8 @@
         "maxSteps": { "type": "integer", "minimum": 1 },
         "maxToolJobs": { "type": "integer", "minimum": 1 },
         "maxObservableTokens": { "type": "integer", "minimum": 1 },
-        "reconMaxModelCalls": { "type": "integer", "minimum": 2, "description": "Optional total recon model-call bound B per run/challenge, including closure. Runtime validation also requires R<B." },
-        "reconClosureReserve": { "type": "integer", "minimum": 1, "description": "Optional closure reserve R within B; 0<R<B, validated by loadReleaseProfile." }
+        "reconMaxModelCalls": { "type": "integer", "minimum": 2, "description": "Explicit pathological ceiling B for recon model-call admissions per run/challenge, chosen by the run owner before launch; natural handoff may occur earlier. Includes the closure reserve. Both fields absent means OFF/unavailable with no implicit defaults; global budgets still apply. loadReleaseProfile requires safe integers with 0<R<B." },
+        "reconClosureReserve": { "type": "integer", "minimum": 1, "description": "Explicit closure reserve R within B, not extra calls: closure starts at B-R and exhaustion at B. Configure both safe integers together with 0<R<B, validated by loadReleaseProfile. Both fields absent means OFF/unavailable." }
       },
       "dependentRequired": { "reconMaxModelCalls": ["reconClosureReserve"], "reconClosureReserve": ["reconMaxModelCalls"] },
       "additionalProperties": false

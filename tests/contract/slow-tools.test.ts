@@ -24,7 +24,7 @@ async function server(handler: RequestListener) {
   clean.push(() => new Promise<void>(r => { s.close(() => r()); s.closeAllConnections(); }));
   return `http://127.0.0.1:${(s.address() as { port: number }).port}`;
 }
-async function fixture(target?: string, expiresAt = Date.now() + 60000, maxToolJobs?: number, reconBudget: { reconMaxModelCalls?: number; reconClosureReserve?: number } = {}) {
+async function fixture(target?: string, expiresAt = Date.now() + 60000, maxToolJobs?: number, reconBudget: { reconMaxModelCalls?: number; reconClosureReserve?: number } = {}, maxModelCalls = 50) {
   const dir = await mkdtemp(join(tmpdir(), 'g-c-slow-')); clean.push(() => rm(dir, { recursive: true, force: true }));
   const challenges = await Promise.all(['X', 'Y'].map(async id => {
     const materialsDir = join(dir, id, 'materials'); await mkdir(materialsDir, { recursive: true });
@@ -33,7 +33,7 @@ async function fixture(target?: string, expiresAt = Date.now() + 60000, maxToolJ
   }));
   const client = { session: { get: async ({ sessionID }: { sessionID: string }) => ({ data: { parentID: 'root', agent: sessionID.startsWith('eng') ? 'engineer' : 'recon' } }),
     messages: async ({ sessionID }: { sessionID: string }) => ({ data: sessionID === 'root' ? [{ info: { id: 'dispatches', sessionID: 'root', role: 'user' }, parts: c.audit.filter(r => r.op === 'dispatch.register').map(r => { const callID = (r.detail as { callID: string }).callID; return { type: 'tool', tool: 'task', callID, state: { metadata: { sessionId: callID.slice(9) } } }; }) }] : [] }), children: async () => ({ data: [] }), abort: vi.fn(async (_input: { sessionID: string }): Promise<{ data: boolean }> => ({ data: true })) } };
-  const c = new ControlService({ client: client as never, runId: 'run-fixture', budget: { maxModelCalls: 50, maxObservableTokens: 10000, maxToolJobs, ...reconBudget }, expiresAt,
+  const c = new ControlService({ client: client as never, runId: 'run-fixture', budget: { maxModelCalls, maxObservableTokens: 10000, maxToolJobs, ...reconBudget }, expiresAt,
     workdir: join(dir, 'opencode'), skillRoot: dir, challenges } as never); c.bindRoot('root'); clean.push(() => c.stopAll('cleanup'));
   async function bind(id: string, challenge = 'X', background = false) {
     const role = id.startsWith('eng') ? 'engineer' : 'recon';
@@ -52,6 +52,75 @@ const reconBudget = { reconMaxModelCalls: 5, reconClosureReserve: 2 };
 const reconTurn = (c: ControlService, id = 'a') => c.handle(id, 'model.call', { agent: 'recon' });
 const exploration = ['job.run', 'http.request', 'workspace.view', 'workspace.search', 'workspace.diff', 'skill', 'read'];
 const beforeTool = (name: string) => name.includes('.') ? `ctf_${name.replaceAll('.', '_')}` : name;
+
+it.each([
+  { b: 512, r: 10, turns: 142, checkpoints: [14, 25, 35, 142], closureAt: 502 },
+  { b: 35, r: 10, turns: 28, checkpoints: [24, 25, 28], closureAt: 25 }
+])('explicit recon B=$b/R=$r permits natural sync return after $turns calls without publication', async ({ b, r, turns, checkpoints, closureAt }) => {
+  const { c, client } = await fixture(undefined, undefined, undefined, { reconMaxModelCalls: b, reconClosureReserve: r }, b + 2);
+  const stopAll = vi.spyOn(c, 'stopAll');
+  for (let n = 1; n <= turns; n++) {
+    await reconTurn(c);
+    // Identical tool calls without publications must not trigger an earlier closure.
+    expect(await execute(c, 'a', 'workspace.list', { path: 'work' })).toHaveProperty('entries');
+    if (!checkpoints.includes(n)) continue;
+    expect(c.executionSnapshot().find(e => e.childID === 'a')?.recon).toEqual({ admittedTurns: n, state: n >= closureAt ? 'closure' : 'exploration' });
+    for (const tool of exploration.filter(t => t !== 'read')) {
+      const check = c.handle('a', 'tool.before', { tool: beforeTool(tool), args: {} });
+      if (n < closureAt) await expect(check).resolves.toMatchObject({ allowed: true });
+      else await expect(check).rejects.toThrow('recon closure: exploration disabled');
+    }
+  }
+  expect(c.publicationSnapshot()).toEqual([]);
+  expect(c.resourceSnapshot()).toHaveLength(turns);
+  expect(c.resourceSnapshot().every(resource => resource.tool === 'workspace.list' && resource.state === 'settled' && !resource.job)).toBe(true);
+  await expect(c.handle('root', 'tool.after', { tool: 'task', callID: 'dispatch-a', metadata: { sessionId: 'a', parentSessionId: 'root' },
+    output: '<task id="a" state="completed">\n</task>' })).resolves.toMatchObject({ ok: true });
+  expect(c.executionSnapshot().find(e => e.childID === 'a')).toMatchObject({ state: 'completed', resultFacts: { completeness: 'unknown' } });
+  expect(c.executionSnapshot().find(e => e.childID === 'a')?.reconStop).toBeUndefined();
+  expect(c.completionSnapshot()).toEqual([]);
+  expect(client.session.abort).not.toHaveBeenCalled();
+  expect(stopAll).not.toHaveBeenCalled();
+  expect(c.stopReason).toBeUndefined();
+  await expect(c.handle('root', 'model.call', { agent: 'coordinator' })).resolves.toMatchObject({ role: 'coordinator' });
+});
+
+it.each([{ b: 512, r: 10 }, { b: 73, r: 6 }])('explicit recon B=$b/R=$r enforces B-R and B without a global stop', async ({ b, r }) => {
+  const { c, client } = await fixture(undefined, undefined, undefined, { reconMaxModelCalls: b, reconClosureReserve: r }, b + 2);
+  const stopAll = vi.spyOn(c, 'stopAll');
+  const job = await execute(c, 'a', 'job.run', { argv: ['sleep', '30'], wait_ms: 0 }, 'existing') as { job: string };
+  for (let n = 1; n < b - r; n++) await reconTurn(c);
+  expect(c.executionSnapshot().find(e => e.childID === 'a')?.recon).toEqual({ admittedTurns: b - r - 1, state: 'exploration' });
+  expect(await c.handle('a', 'tool.before', { tool: 'ctf_job_run', args: {} })).toMatchObject({ allowed: true });
+  await reconTurn(c);
+  expect(c.executionSnapshot().find(e => e.childID === 'a')?.recon).toEqual({ admittedTurns: b - r, state: 'closure' });
+  for (const tool of exploration) {
+    await expect(c.handle('a', 'tool.before', { tool: beforeTool(tool), callID: `before-${tool}`, args: {} })).rejects.toThrow('recon closure: exploration disabled');
+    await expect(c.handle('a', 'tool.execute', { tool, callID: `execute-${tool}`, args: { argv: ['true'] } })).rejects.toThrow('recon closure: exploration disabled');
+  }
+  expect(c.resourceSnapshot()).toMatchObject([{ callID: 'existing', state: 'active', job: job.job }]);
+  expect(c.resourceSnapshot()).toHaveLength(1);
+  expect(await execute(c, 'a', 'job.read', { job: job.job, stream: 'stdout' })).toMatchObject({ state: 'running' });
+  expect(await execute(c, 'a', 'job.cancel', { job: job.job })).toMatchObject({ state: 'cancelled' });
+  await execute(c, 'a', 'workspace.write', { path: 'work/notes', content: 'baseline' });
+  expect(await execute(c, 'a', 'workspace.list', { path: 'work' })).toHaveProperty('entries');
+  expect(await execute(c, 'a', 'workspace.read', { path: 'work/notes' })).toMatchObject({ text: 'baseline' });
+  const published = await execute(c, 'a', 'artifact.publish', { source: 'file', path: 'work/notes' }) as { ref: string };
+  expect(await execute(c, 'a', 'artifact.read', { ref: published.ref })).toMatchObject({ data: 'YmFzZWxpbmU=' });
+  for (let n = b - r; n < b; n++) await reconTurn(c);
+  expect(c.executionSnapshot().find(e => e.childID === 'a')).toMatchObject({ state: 'running', recon: { admittedTurns: b, state: 'exhausted' } });
+  expect(c.bindings.get('a')?.state).toBe('active');
+  expect(client.session.abort).not.toHaveBeenCalled();
+  await expect(reconTurn(c)).rejects.toThrow(/recon closure.*exhausted/);
+  await vi.waitFor(() => expect(c.audit.some(e => e.op === 'task.stop.result')).toBe(true));
+  expect(c.audit.filter(e => e.op === 'recon.admitted')).toHaveLength(b);
+  expect(c.executionSnapshot().find(e => e.childID === 'a')).toMatchObject({ state: 'cancelled', reconStop: { refs: [published.ref] }, resultFacts: { completeness: 'unknown' } });
+  expect(c.bindings.get('a')?.state).toBe('revoked');
+  expect(c.completionSnapshot()).toEqual([]);
+  expect(stopAll).not.toHaveBeenCalled();
+  expect(c.stopReason).toBeUndefined();
+  await expect(c.handle('root', 'model.call', { agent: 'coordinator' })).resolves.toMatchObject({ role: 'coordinator' });
+});
 
 it('recon cap closes exploration at B-R in both hooks, with readable denials and no registered resource or spawn', async () => {
   const { c, dir } = await fixture(undefined, undefined, undefined, reconBudget);
@@ -187,11 +256,16 @@ it('recon rechecks closure after asynchronous preparation without spawning an ad
   expect(await readdir(join(dir, 'state/jobs')).catch(() => [])).toEqual([]);
 });
 
-it('unconfigured recon cap stays unavailable and never restricts exploration', async () => {
-  const { c } = await fixture();
-  for (let i = 0; i < 8; i++) await reconTurn(c);
+it('unconfigured recon cap stays unavailable beyond 142 calls while the global limit still applies', async () => {
+  const { c } = await fixture(undefined, undefined, undefined, {}, 144);
+  for (let i = 0; i < 143; i++) await reconTurn(c);
   expect(await execute(c, 'a', 'job.run', { argv: ['true'] })).toMatchObject({ state: 'exited' });
   expect(c.executionSnapshot().find(e => e.childID === 'a')?.recon).toBeUndefined();
+  expect(c.audit.some(e => e.op === 'recon.admitted')).toBe(false);
+  await expect(c.handle('root', 'model.call', { agent: 'coordinator' })).resolves.toMatchObject({ role: 'coordinator' });
+  await expect(reconTurn(c)).rejects.toThrow('budget denied');
+  expect(c.stopReason).toBe('budget');
+  expect(c.executionSnapshot().find(e => e.childID === 'a')?.reconStop).toBeUndefined();
 });
 
 it('release profile loads valid recon B/R and leaves both absent when unconfigured', async () => {
@@ -200,6 +274,7 @@ it('release profile loads valid recon B/R and leaves both absent when unconfigur
     budget: { wallClockMs: 1000, maxSteps: 20, maxToolJobs: 3, maxObservableTokens: 10000 }, os: { platform: 'macos' } };
   await writeFile(path, JSON.stringify(base));
   expect((await loadReleaseProfile(path)).budget).not.toHaveProperty('reconMaxModelCalls');
+  expect((await loadReleaseProfile(path)).budget).not.toHaveProperty('reconClosureReserve');
   await writeFile(path, JSON.stringify({ ...base, budget: { ...base.budget, ...reconBudget } }));
   expect((await loadReleaseProfile(path)).budget).toMatchObject(reconBudget);
 });
@@ -208,6 +283,9 @@ it.each([
   { reconMaxModelCalls: 5 }, { reconClosureReserve: 2 },
   { reconMaxModelCalls: 0, reconClosureReserve: 1 }, { reconMaxModelCalls: 5, reconClosureReserve: 0 },
   { reconMaxModelCalls: 5, reconClosureReserve: 5 }, { reconMaxModelCalls: 5, reconClosureReserve: 6 },
+  { reconMaxModelCalls: 5, reconClosureReserve: -1 },
+  { reconMaxModelCalls: Number.MAX_SAFE_INTEGER + 1, reconClosureReserve: 2 },
+  { reconMaxModelCalls: Number.MAX_SAFE_INTEGER + 2, reconClosureReserve: Number.MAX_SAFE_INTEGER + 1 },
   { reconMaxModelCalls: 5.5, reconClosureReserve: 2 }, { reconMaxModelCalls: 5, reconClosureReserve: 1.5 },
   { reconMaxModelCalls: '5', reconClosureReserve: 2 }, { reconMaxModelCalls: 5, reconClosureReserve: null }
 ])('release profile rejects invalid or incomplete recon B/R: %j', async extra => {
