@@ -21,6 +21,10 @@
 
 deepseek 是**远端 API**。§1 的严格读法是「r9 图承载 flag，不得发到外部视觉服务」——若成立，A（远端 deepseek 看真图）对**真实含 flag 图**不可用，只能走本地视觉模型（B）或 C。但另一种读法：挑战的渲染图是**题目材料**，解题角色本就要处理它（如同现在把题面 HTML／源码文本发给远端 deepseek 解题一样），CLAUDE.md 禁的是**控制凭据与 oracle 私有答案**，非题目自身内容。**这两种读法得出相反结论，属用户的 scope/安全政策判断，本设计不自行拍板。** 探针只验证了无敏感合成图，从未发送真实 r9 图。
 
+### 0.3 候选 A 最小接线已实现（2026-10-29，装配验证，端到端待真跑）
+
+用户已确认政策：真实题目渲染图可发给远端 deepseek 解题模型（视为题目材料）。据此实现候选 A 的最小接线（分支 `codex/image-view`，commit `4704058c`，未合并）：新增 `workspace.view(path)` 工具——host 对 root-qualified 的 materials/work/published 图像（PNG/JPEG，按内容 magic 判定、≤1 MiB、O_NOFOLLOW+重 stat+有界读、published 走既有严格 ref/hash 校验），返回 ToolResult `attachments:[{type:file,mime,url:data:...;base64}]`，OpenCode 对 openai-compatible 适配器转成合成 user 消息交模型（探针已验该路径可读）；输出仅去敏 metadata、不含 bytes，图中文字为不可信数据，仅授四个 workspace 角色，不做 OCR/判定、不冒充 verified/solved。recon/domain-solver 角色已加一句事实性提示指向该工具。**验证到装配/契约层（tsc/build/test:deterministic 608/608）；模型是否真的看到并精确读出，尤其 r9 低解析手写 + 26-byte 逐字精确，仍 UNKNOWN，须授权的 seizurecipher 真跑认账（精度风险见 §0.1）。** C（确定性几何分析）仍可作并行/兜底。
+
 还有一个独立于技术的范围门槛：用户明确禁止向任何外部视觉服务发送秘密／flag。r9 的图像本身承载 flag，故不能把原图、含答案裁剪、坐标或可逆编码发到外部视觉模型来规避禁令。A/B 的远端探针只允许无敏感合成材料；技术探针通过也不授权发送真实 r9 图。实际含 flag 图的模型观察需要满足边界的本地模型路径且另获授权，否则选 C/D。已有远端文本模型授权不能自动解释为图片外发豁免。
 
 ## 1. 来源、研究范围与模型门槛
