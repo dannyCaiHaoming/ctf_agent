@@ -149,10 +149,10 @@ function eventKind(op: string, role?: string): ProgressEvent['kind'] {
 }
 
 function statusFor(record: AuditRecord, result?: unknown): string {
-  if (!record.allow) return record.reason === 'cleanup_unknown' ? 'unknown' : 'denied';
+  if (!record.allow) return record.reason === 'cleanup_unknown' || (record.op === 'tool.settled' && result === 'cleanup_unknown') ? 'unknown' : 'denied';
   if (record.op === 'model.call') return 'admitted';
   if (record.op === 'tool.registered' || record.op === 'dispatch.register' || record.op === 'bind') return 'started';
-  if (record.op === 'tool.settled') return typeof result === 'string' && result === 'completed' ? 'succeeded' : 'failed';
+  if (record.op === 'tool.settled') return result === 'completed' || (result === 'exited' && object(record.detail).exitCode === 0) ? 'succeeded' : 'failed';
   if (record.op === 'task.completion' || record.op === 'completion.saved' || record.op === 'progress.note' || record.op === 'verification.registered') return 'completed';
   return 'observed';
 }
@@ -191,7 +191,7 @@ function safeDetail(op: string, raw: unknown, redactions: readonly string[]): Re
         safeArgs: Object.fromEntries(Object.entries(safeArgs).map(([k, v]) => [k, typeof v === 'string' ? shortText(v, redactions, 300) : v])),
         argFingerprint: safeString(detail.argFingerprint, redactions) };
     }
-    case 'tool.settled': return pick(detail, ['callID', 'tool', 'job', 'result', 'durationMs'], redactions);
+    case 'tool.settled': return pick(detail, ['callID', 'tool', 'job', 'result', 'exitCode', 'durationMs'], redactions);
     case 'tool.before': case 'tool.execute': case 'tool.after': return pick(detail, ['tool', 'callID', 'result'], redactions);
     case 'assign': case 'assign.clear': return pick(detail, ['role', 'challenge', 'version', 'cleared'], redactions);
     case 'dispatch.register': case 'dispatch.resume': return pick(detail, ['role', 'callID', 'taskId', 'challengeId', 'version', 'argsFingerprint', 'declarationConsumed'], redactions);

@@ -761,7 +761,7 @@ export class ControlService {
               return {...snapshot,excerpts};
             });
             keep = true;
-            void done.then(snapshot => this.settleResource(operation, snapshot.reapIncomplete ? 'cleanup_unknown' : snapshot.state));
+            void done.then(snapshot => this.settleResource(operation, snapshot.reapIncomplete ? 'cleanup_unknown' : snapshot.state, snapshot.exitCode));
             // Decision prototype: retain the same RPC/call until terminal cleanup, without a model polling loop.
             if (args.completion === 'terminal' || args.wait_ms === undefined) result = await done;
           } else if (name === 'artifact.publish') {
@@ -895,10 +895,10 @@ export class ControlService {
     return { materialsDir: challenge.materialsDir, publishedDir: join(base, 'published'), workDir: join(base, 'work', binding.sessionID) };
   }
   private jobBinding(binding: Binding, roots: WorkspaceRoots): JobBinding { return { sessionId: binding.sessionID, challengeId: binding.challengeId!, ...roots }; }
-  private settleResource(resource: Resource, result: string): void {
+  private settleResource(resource: Resource, result: string, exitCode?: number | null): void {
     if (resource.state === 'settled') return;
     clearTimeout(resource.timer); resource.detachRpc?.(); resource.state = result === 'cleanup_unknown' ? 'unknown' : 'settled'; resource.result = result;
-    this.record(resource.sessionID, 'tool.settled', result !== 'cleanup_unknown', undefined, { callID: resource.callID, tool: resource.tool, job: resource.job, result });
+    this.record(resource.sessionID, 'tool.settled', result !== 'cleanup_unknown', undefined, { callID: resource.callID, tool: resource.tool, job: resource.job, result, ...(exitCode !== undefined ? { exitCode } : {}) });
   }
   private async cancelResources(sessionID?: string): Promise<void> {
     const resources = [...this.resources.values()].filter(r => (!sessionID || r.sessionID === sessionID) && r.state !== 'settled');

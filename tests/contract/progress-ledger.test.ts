@@ -3,7 +3,7 @@ import { mkdtemp, readFile, rm } from 'node:fs/promises';
 import { realpathSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { ProgressLedger, renderProgressMarkdown, summarizeToolArgs } from '../../apps/launcher/src/progress-ledger.js';
+import { ProgressLedger, progressDigest, renderProgressMarkdown, summarizeToolArgs } from '../../apps/launcher/src/progress-ledger.js';
 
 const cleanup: Array<() => Promise<unknown>> = [];
 afterEach(async () => { for (const fn of cleanup.splice(0).reverse()) await fn(); });
@@ -11,6 +11,28 @@ const SECRET = 'provider-secret-progress-0123456789';
 const CANDIDATE = 'flag{fictional_progress_candidate}';
 
 describe('progress ledger safe projection', () => {
+  it.each([
+    { result: 'exited', exitCode: 0, allow: true, status: 'succeeded' },
+    { result: 'exited', exitCode: 7, allow: true, status: 'failed' },
+    { result: 'exited', exitCode: null, allow: true, status: 'failed' },
+    { result: 'exited', exitCode: undefined, allow: true, status: 'failed' },
+    { result: 'timed_out', exitCode: 0, allow: true, status: 'failed' },
+    { result: 'cancelled', exitCode: 0, allow: true, status: 'failed' },
+    { result: 'failed_to_start', exitCode: null, allow: true, status: 'failed' },
+    { result: 'cleanup_unknown', exitCode: 0, allow: false, status: 'unknown' },
+    { result: 'completed', exitCode: undefined, allow: true, status: 'succeeded' }
+  ])('classifies $result with exitCode=$exitCode as $status', ({ result, exitCode, allow, status }) => {
+    const detail = { callID: 'terminal-call', tool: result === 'completed' ? 'http.request' : 'job.run', result,
+      ...(exitCode !== undefined ? { exitCode } : {}) };
+    const digest = progressDigest([
+      { seq: 1, t: 1, at: 1, sessionID: 'solver', op: 'tool.settled', allow, detail }
+    ], { runId: 'run-terminal' });
+    const recent = digest.recent as Array<{ status: string; facts: Record<string, unknown> }>;
+    expect(recent).toHaveLength(1);
+    expect(recent[0]).toMatchObject({ status, facts: detail });
+    if (exitCode === undefined) expect(recent[0]!.facts).not.toHaveProperty('exitCode');
+  });
+
   it('keeps useful tool shape but never copies bodies, queries, argv or candidates', () => {
     const job = summarizeToolArgs('job.run', {
       argv: ['/usr/bin/python3', '-c', `print(${JSON.stringify(SECRET)})`, CANDIDATE], timeout_ms: 30000
