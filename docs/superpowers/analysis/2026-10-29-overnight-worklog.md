@@ -52,6 +52,6 @@ seizurecipher 的解题是客户端 canvas 几何视觉解码（226 坐标还原
 
 1. 这一串（5 code + 4 docs）要不要 merge 进 main？（我未合、未 push。）本夜 commit 见上方表格 + `bcc7652b` job 状态修正。
 2. 要不要 push main（含之前的 r8-2 记录等一串未 push 提交）？
-3. **影像/看图能力**（r9 核心卡点）：是否值得做？牵涉解题模型影像输入能力、成本与 scope，建议先写聚焦 design 再决定——这是 novel 能力，不像之前的工具扩展那样低风险。
+3. **影像/看图能力**（r9 核心卡点）：聚焦 design 草稿已写并提交（`5012c101`，[图像观察能力 design](../specs/2026-10-29-design-v1-image-observation.md)，DRAFT/pending-feasibility）。两道可行性门槛：模型能否收图=UNKNOWN（有正向网络信号但未端到端实测）、OpenCode 图片路径=源码 confirmed 但本项目组合 UNKNOWN。推荐 C（job.run 内确定性几何分析，最合薄控制层）先行，A（模型看图）须先做 §4 的低成本合成图探针——**该探针是真实模型调用，需你另行授权 token/provider/model/批次预算**，我未自主执行。待你定：先走 C、先做 A 探针、还是暂缓。
 4. **r9 重跑**：本轮被配额中止、对解题能力不算数；额度 03:10+0800 后若要补验，需另行授权再跑一次。
 5. 下一步大方向：接入更多 misc/crypto 题以真实暴露工具缺口，还是继续 web 侧。
