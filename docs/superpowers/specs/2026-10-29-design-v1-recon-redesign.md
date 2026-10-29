@@ -203,6 +203,65 @@ recon 的交付是**有证据的基线＋可交接路线**：已知材料、入�
 
 **窄技术待验证点**：一次已经发出的 model.call 可能跨过软截止；当前 chat.params 只限制 maxOutputTokens（`Plugin:148–152`），没有证据证明可中断推理后继续同一同步 task 收束。故推荐首落步数预留：在下一轮调用前进入收束，并保留全局硬 deadline；它是步数约束，不宣称严格局部墙钟 SLA。若人类要求严格局部墙钟且在途模型也必须获得完整 closure，需先核实原生公开接口能否安全完成；不默认切 async、不暗加唤醒／自动续接。既有循环检查包含 `refreshObserved`、SDK status 等 await（`C:345–347,413–423`；`L:261–292`），其时延也不能忽略。
 
+### 10.3b DESIGN UPDATE：自然交回优先，显式高上限仅作异常兜底（待人类评审）
+
+**状态与替代范围（2026-10-30）**：本节是设计草稿，不是实施或真实运行授权。保留 §10.3 原文作为历史依据；本节建议取代其“统一的固定调用阈值适合作为常规 Recon 收束时点”的使用方式，以及其中把步数 cap 等同于及时交回的预期。保留 B/R 配置、局部 closure、可信计数、同题累计、全局预算优先及独立局部停止的边界。**不是否定所有固定数值上限：否定的是跨题一律用紧阈值来决定何时结束正常侦察。** 以下只涉及预算、准入与生命周期，不解读任务内容。
+
+#### 证据与统计口径
+
+本节源码引用使用本次读取的仓库行号，简称 **CS**=`apps/launcher/src/control-service.ts`、**RP**=`apps/cli/src/composition/releaseProfile.ts`、**Schema**=`config/release-profile.schema.json`。历史 §10.2–10.3 的 C/L 行号不作为当前实现行号。
+
+审计根目录为 `/Users/caihaoming/Documents/pentest-agent-run-data/`；三个 run 的相对目录如下，每个目录下 **A** 指 `evidence/control-audit.json`，**S** 指 `state/run.json`：
+
+- **r13**：`seizurecipher-debug-20261029-r13-recon-cap/runs/seizurecipher-debug-20261029-r13-recon-cap-1/`。
+- **r14**：`mfw-debug-20261029-r14-recon-exploit/runs/mfw-debug-20261029-r14-recon-exploit-1/`。
+- **r15**：`throwback-debug-20261029-r15-recon-exploit/runs/throwback-debug-20261029-r15-recon-exploit-1/`。
+
+计数为对各 A 的完整 JSON 数组筛选 `role == "recon"`，分别统计 `op` 和 `allow`；HTTP 为 `op == "tool.before" && detail.tool == "ctf_http_request"`，发布为 `op == "artifact.published"`。不把 tool.before 等同于执行成功、HTTP 成功或网络请求实际完成；不读取参数、响应、产物正文或候选内容。时间为审计 `at` 差值，不是模型推理耗时。下表每行来源即相应 A 全量计数，定位锚点另列。
+
+| run | 生效 cap | model.call 准入／拒绝 | tool.before 准入／拒绝 | HTTP tool.before 准入 | artifact.published | 首末模型准入跨度 | 首模型准入至交回记录 |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| r13 | B=35，R=10；S:40–47 | 28／0 | 40／1 | 3 | 5 | 120,310 ms | 132,367 ms |
+| r14 | 两字段缺省，OFF；S:37–42 | 14／0 | 23／0 | 11 | 3 | 86,320 ms | 97,723 ms |
+| r15 | 两字段缺省，OFF；S:37–42 | 142／0 | 189／0 | 127 | 1 | 751,492 ms | 768,708 ms |
+
+三个 S 的全局配置相同：wallClockMs=1,800,000、maxSteps=3,000、maxToolJobs=100、maxObservableTokens=5,000,000（r13 S:41–44；r14/r15 S:38–41）。这些是历史预算，不是本次授权或新默认值。
+
+- r13 A seq **41–298** 为首末 Recon model.call；seq **248** 为第 24 次 exploration，**255** 为第 25 次 closure，**257** 拒绝一次探索 tool.before，**297** 为第 28 次 closure；seq **300** 的 `task.result` 为 `finish=stop, completeness=complete`。这证明局部 closure 后仍能交回；28<35，**没有覆盖 B 耗尽硬停**。最终 S:3 为 deadline_exceeded，不把局部交回说成整场成功。
+- r14 A seq **46–177** 为首末 model.call；seq **179–180** 为同步结束／结果，`state=completed`、`finish=stop, completeness=complete`。无 cap、无 Recon 拒绝记录，自然交回发生在 14 次准入后。
+- r15 A seq **45–1132** 为首末 model.call；seq **1134–1135** 为同步结束／结果，`state=completed`、`finish=stop, completeness=complete`。无 cap、无 Recon 拒绝记录，自然交回发生在 142 次准入后。seq **1595** `completion.saved` 的机械结果为 `state=confirmed, sent=true, solved=true`；只引用结果状态，不解读提交内容，不把 S:3 的 completed 单独当 solved 证据。
+
+**结论及限度**：r13 的窄阈值成功触发收束；r14/r15 在无 cap 时均能自行交回，调用量却相差约十倍。若把 B=35/R=10 套到 r15，按现有逻辑第 25 次准入后就会禁止继续探索，无法保留所观察到的 142 次自然轨迹；“可能因此失去 solve”是反事实风险，未经重跑证明。三例支持放弃统一紧阈值，不能证明所有题都会自然交回，也不能从计数判断哪一轮语义上已无收益。把 r13 视为已知过跑场景是本次人类提供的任务背景；这里不通过内容分析重新判定病态。
+
+#### 当前机械契约与薄层约束
+
+当前 `admit` 先检查全局预算，再按 Recon 累计准入加一：`n>=B` 标 exhausted，否则 `n>=B-R` 标 closure（CS:498–522）。因此第 B−R 次已是 closure，第 B 次可完成文本交回，但下一次受检查的模型／工具入口才走 `checkReconExhausted`；不能写成“B−R 次探索全部执行完后才收束”或“第 B 次立即中断模型”（CS:540–550）。
+
+`reconQuota` 只对已配置两字段的 Recon 生效，并以 challengeId 在当前 service/run 内累计；execution 单独记数，同题重派不退款（CS:509–537）。`checkReconTool` 的 closure 白名单为 workspace.list/read/write、job.read/cancel、artifact.publish/read；探索被拒绝但保留发布出口（CS:553–564）。硬停保存已发布 refs 和 unknown result facts，走 stopChild；局部 cap 不调用 stopAll（CS:540–550）。全局 token/step 耗尽仍有自己的 stopAll，不能因“never stopAll on closure”删除它（CS:359–366,498–506）。
+
+**约束／设计决定**：host 只使用可核验的 model.call 数、经过时间、tool.before 数、规范化工具调用指纹、发布计数、拒绝计数；这些都不等于覆盖度。是否已映射足够范围、是否继续调查、材料是否有价值由 Recon／Strategy 判断。不得把路径、页面、产物数量或模型自述包装成 host 的覆盖评分；不得让 host 阅读正文判定“有无新知识”。这沿用 host 负责身份／预算、模型负责选择／解释的职责（`AGENTS.md:16–20`），也是本次明确约束。
+
+#### 选项与取舍（均为设计候选评价，不声称已验证）
+
+| 选项 | 对三例的机械影响 | 代价与风险 | 决定 |
+| --- | --- | --- | --- |
+| (a) 宽松／弹性预算，按类型或 run 配置 | 事前给已知过跑 run 紧 B；给未知／大调用量 run 高 B，可同时容纳 r13 的紧约束与 r15 的 142 次轨迹。现有 RP:11–13,53–58 已支持每份 profile 提供 B/R。 | 谁分类、谁加预算必须明确；host 自动按“web 大小”分类会越界。随指纹／发布自动扩额可能被变体无限续费，还需新状态。 | 只采用**运行负责人事前显式选 profile**；首切不加类型分发表、运行中扩额或新配置层。 |
+| (b) 连续 N 次准入无新发布且无新指纹则 closure | 能捕捉完全重复调用，但只有 1 次发布的 r15 说明“发布稀疏”本身不能代表停滞；本次未计算连续无新指纹窗口，不能宣称此规则能区分 r13/r15。 | 合法长分析／重试可能误触；改参数、nonce、路径或重复发布可逃避；规范化过强又误合并。工具成功／新指纹也不表示语义收益。 | 不纳入首切。若以后有明确误跑证据再研究，至少需要显式 N、宽松最小启动额度、在途 settled 的窗口定义和独立最高 B；不得以语义评估修补误判。即使加这些边界也不能消除误伤。 |
+| (c) 自然交回为主，固定数只留作高异常上限 | r14 的 14、r15 的 142 都不应接近 closure；r13 仍可显式用历史紧配置。现有状态机足以执行。 | 对未事先识别的过跑，止损更晚；高 B 不能保证先于全局墙钟/token 触发，也不能保证任何规模的正常任务都不被截断。 | **推荐最小形式：(c)＋(a) 的事前人工配置。** 不建立自动弹性或收益代理。 |
+
+时间触发也只是机械兜底：三例首调用至交回分别约 132／98／769 秒，统一短时限同样可能截断 r15；调用跨度不能推导可泛化时间限额。首切不增加局部计时器、监控、唤醒或严格墙钟 SLA，沿用已有全局 deadline（本节审计计时；§10.3 最后段）。
+
+#### 推荐最小契约与首切可实施边界
+
+1. **未配置仍 OFF/unavailable**，既不填隐式高默认，也不保留隐式 35。两字段要么都缺省，要么是满足 `0<R<B` 的安全整数；沿用 RP:53–58 与 Schema:23–35。OFF 只关闭局部 Recon cap，不关闭全局预算。
+2. **配置负责人是运行负责人／人类，不是 Recon、Coordinator 或 host 分类器。** 在 run 前按允许成本、历史机械计数与目标范围选择既有 release profile；未知规模可保持 OFF，若需要兜底则明确给高 B/R。不得因高 B 自动提高全局预算，不得运行中重置／扩额；同 run 多题当前共享同一配置数值、各题独立累计，不新增每题 override map（CS:525–537；RP:11–13）。
+3. **供评审的显式宽松配置示例为 B=512、R=10，closure 点 502**：502 约为已观察最大值 142 的 3.54 倍，给出显著余量；保留历史 R=10 避免同时改两种策略。512 是候选工程余量，不是三例估计出的最优值、生产默认或本次真实调用授权；R=10 也未证明普适。历史 B=35/R=10 仅作已知过跑场景的显式选择，不作为通用模板。这些值只进入显式配置／测试输入，runtime 不硬编码。以后不同预算可换值而不改程序。
+4. **closure 公式不另造**：仅当已配置且累计 n 达到 B−R 时收束，B 为最终局部上限；自然交回可发生在任意更早时点，不等待凑满配额。阈值表达的是预算压力，不是“已经侦察充分”。本推荐实质是改变 cap 的使用政策和配置量级；当前 CS:509–558 已能执行，不为制造代码差异另加 mode、阈值函数、计分器或 scheduler。首个实施切片是澄清配置语义并用现有入口验证高配额、紧配额、OFF 三种行为；若原谓词完全满足，不要求修改它。
+5. **保留 closure 与硬停出口**：准入／工具入口及异步重查不得绕过；同题换 session／重新派单不重置。局部 closure 或耗尽绝不 stopAll；父任务得到真实状态、可确认 refs 与局部原因，abort 不确定保持 unknown。并发限制及 maxToolJobs 不变。全局 deadline/token/step 仍优先，不能保证剩余预算一定足够 R 次交付。
+6. **硬停证据严格分层**：本次只读发现既有无模型用例覆盖 B 后拒绝、只 abort 本 child、stopAll 未调用及 unknown 传播（`tests/contract/slow-tools.test.ts:94–144`）；本次未执行。r13 止于 28<35，r14/r15 未配置 cap，三例均未验证真实模型达到 B 的硬停分支。首切可做无模型边界回归，仍须把真实硬停标为未验证；不得以测试通过或正常交回代替它。
+
+本节不改变已有章节的其他交付项，也不恢复历史待办；所有实施／模型运行均待另行授权。本次仅写设计与单步计划供人类评审，无产品修改、git、网络或挑战运行。
+
 ### 10.4 修复 Coordinator→Recon→Solver 的发布与消费链
 
 **诊断事实与文本来源分开。** `R12:156–162` 记录实际分派分别要求 Recon“不自行发布产物”、Solver“不发布产物”，随后传私有 work 路径，seq 816–819 拒绝且 publications.json 为空。当前 `product/opencode/agents/coordinator.md:20` 反而明确同步／背景均可发布；`:40–43` 的 ref 交接主要写成“给 Engineer”；`:25–31` 的 recon/solver 分派要求未明确落实上游产物消费。因此不能声称仓库 prompt 存在一条可直接删除的“不发布”原句，也不能证明仅改 wording 就会改变模型行为。
