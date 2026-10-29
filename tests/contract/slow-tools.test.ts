@@ -23,7 +23,7 @@ async function server(handler: RequestListener) {
   clean.push(() => new Promise<void>(r => { s.close(() => r()); s.closeAllConnections(); }));
   return `http://127.0.0.1:${(s.address() as { port: number }).port}`;
 }
-async function fixture(target?: string, expiresAt = Date.now() + 60000) {
+async function fixture(target?: string, expiresAt = Date.now() + 60000, maxToolJobs?: number) {
   const dir = await mkdtemp(join(tmpdir(), 'g-c-slow-')); clean.push(() => rm(dir, { recursive: true, force: true }));
   const challenges = await Promise.all(['X', 'Y'].map(async id => {
     const materialsDir = join(dir, id, 'materials'); await mkdir(materialsDir, { recursive: true });
@@ -32,7 +32,7 @@ async function fixture(target?: string, expiresAt = Date.now() + 60000) {
   }));
   const client = { session: { get: async ({ sessionID }: { sessionID: string }) => ({ data: { parentID: 'root', agent: sessionID.startsWith('eng') ? 'engineer' : 'recon' } }),
     messages: async ({ sessionID }: { sessionID: string }) => ({ data: sessionID === 'root' ? [{ info: { id: 'dispatches', sessionID: 'root', role: 'user' }, parts: c.audit.filter(r => r.op === 'dispatch.register').map(r => { const callID = (r.detail as { callID: string }).callID; return { type: 'tool', tool: 'task', callID, state: { metadata: { sessionId: callID.slice(9) } } }; }) }] : [] }), children: async () => ({ data: [] }), abort: async () => ({ data: true }) } };
-  const c = new ControlService({ client: client as never, runId: 'run-fixture', budget: { maxModelCalls: 50, maxObservableTokens: 10000 }, expiresAt,
+  const c = new ControlService({ client: client as never, runId: 'run-fixture', budget: { maxModelCalls: 50, maxObservableTokens: 10000, maxToolJobs }, expiresAt,
     workdir: join(dir, 'opencode'), skillRoot: dir, challenges } as never); c.bindRoot('root'); clean.push(() => c.stopAll('cleanup'));
   async function bind(id: string, challenge = 'X') {
     const role = id.startsWith('eng') ? 'engineer' : 'recon';
@@ -46,6 +46,101 @@ async function execute(c: ControlService, sessionID: string, tool: string, args:
   await c.handle(sessionID, 'tool.before', { tool: `ctf_${tool.replaceAll('.', '_')}`, callID, args });
   return c.handle(sessionID, 'tool.execute', { tool, args, callID }, signal);
 }
+
+it('maxToolJobs counts admissions across roles/challenges, not prechecks, reads, cancels or artifacts; concurrent N+1 has no spawn', async () => {
+  const { c, bind, dir } = await fixture(undefined, undefined, 3); await bind('eng-other', 'Y');
+  const args = { argv: [process.execPath, '-e', "process.stdout.write('baseline')"], timeout_ms: 5000 };
+  for (let i = 0; i < 3; i++) await c.handle('a', 'tool.before', { tool: 'ctf_job_run', callID: 'first', args });
+  const first = await execute(c, 'a', 'job.run', args, 'first') as { job: string };
+  expect(await execute(c, 'a', 'job.read', { job: first.job, stream: 'stdout' })).toMatchObject({ data: 'YmFzZWxpbmU=', done: true });
+  expect(await execute(c, 'a', 'job.cancel', { job: first.job })).toMatchObject({ state: 'exited' });
+  await execute(c, 'a', 'workspace.write', { path: 'work/notes', content: 'baseline' });
+  const p = await execute(c, 'a', 'artifact.publish', { source: 'file', path: 'work/notes' }) as { ref: string };
+  expect(await execute(c, 'a', 'artifact.read', { ref: p.ref })).toMatchObject({ data: 'YmFzZWxpbmU=' });
+  await execute(c, 'eng-other', 'job.run', args, 'second');
+  const contenders = ['a', 'eng-other'];
+  // Both prechecks see the last slot; execute must atomically recheck and consume it.
+  await Promise.all(contenders.map(sid => c.handle(sid, 'tool.before', { tool: 'ctf_job_run', callID: 'last', args })));
+  const results = await Promise.allSettled(contenders.map(sid => c.handle(sid, 'tool.execute', { tool: 'job.run', callID: 'last', args })));
+  expect(results.filter(r => r.status === 'fulfilled')).toHaveLength(1);
+  const denied = results.find(r => r.status === 'rejected') as PromiseRejectedResult;
+  expect(denied.reason.message).toMatch(/job limit.*remainingJobs=0/);
+  const loser = contenders[results.findIndex(r => r.status === 'rejected')]!;
+  expect(c.resourceSnapshot().some(r => r.sessionID === loser && r.callID === 'last')).toBe(false);
+  expect(c.resourceSnapshot().filter(r => r.tool === 'job.run' && r.job)).toHaveLength(3);
+  const fs = await import('node:fs/promises');
+  const jobDirs = await Promise.all(contenders.map(sid => fs.readdir(join(dir, 'state/jobs', sid))));
+  expect(jobDirs.flat()).toHaveLength(3);
+  await expect(execute(c, 'a', 'job.run', args, 'precheck-denied')).rejects.toThrow(/job limit.*remainingJobs=0/);
+  await expect(c.handle('a', 'tool.execute', { tool: 'job.run', callID: 'execute-denied', args })).rejects.toThrow(/job limit.*remainingJobs=0/);
+  expect(c.resourceSnapshot().some(r => r.callID === 'execute-denied')).toBe(false);
+  expect(c.stopReason).toBeUndefined();
+  expect([...c.bindings.values()].every(b => b.state === 'active')).toBe(true);
+  // Exhaustion leaves the publication/consumption and native synchronous return exits open.
+  const after = await execute(c, 'a', 'artifact.publish', { source: 'file', path: 'work/notes' }) as { ref: string };
+  expect(await execute(c, 'a', 'artifact.read', { ref: after.ref })).toMatchObject({ data: 'YmFzZWxpbmU=' });
+  expect(await execute(c, 'a', 'job.read', { job: first.job, stream: 'stdout' })).toMatchObject({ done: true });
+  await execute(c, 'a', 'job.cancel', { job: first.job });
+  await expect(c.handle('root', 'tool.after', { tool: 'task', callID: 'dispatch-a', metadata: { sessionId: 'a' }, output: 'material refs delivered' })).resolves.toMatchObject({ ok: true });
+});
+
+it('maxToolJobs consumes before asynchronous job preparation and never stops an existing job', async () => {
+  const { c, bind } = await fixture(undefined, undefined, 1); await bind('b', 'Y');
+  const entered = gate(), release = gate();
+  fsGate.suffix = '/X/work/a'; fsGate.entered = entered.resolve; fsGate.wait = release.promise;
+  const args = { argv: ['sleep', '30'], wait_ms: 0 };
+  const pending = c.handle('a', 'tool.execute', { tool: 'job.run', callID: 'held', args });
+  void pending.catch(() => {}); // Cleanup may cancel it if an assertion fails before release.
+  try {
+    await entered.promise;
+    await expect(c.handle('b', 'tool.execute', { tool: 'job.run', callID: 'overflow', args })).rejects.toThrow(/job limit.*remainingJobs=0/);
+    expect(c.resourceSnapshot()).toMatchObject([{ callID: 'held', tool: 'job.run' }]);
+    expect(c.resourceSnapshot()[0]!.job).toBeUndefined();
+  } finally { fsGate.suffix = ''; release.resolve(); }
+  const running = await pending as { job: string };
+  expect(c.stopReason).toBeUndefined();
+  expect(await execute(c, 'a', 'job.read', { job: running.job, stream: 'stdout' })).toMatchObject({ state: 'running' });
+  expect(await execute(c, 'a', 'job.cancel', { job: running.job })).toMatchObject({ state: 'cancelled' });
+});
+
+it('maxToolJobs validates identity/callID before charging, and cancellation or failed spawn never refunds admission', async () => {
+  const { c } = await fixture(undefined, undefined, 2);
+  const args = { argv: ['sleep', '30'], wait_ms: 0 };
+  await expect(c.handle('root', 'tool.execute', { tool: 'job.run', callID: 'wrong-role', args })).rejects.toThrow('tool not permitted');
+  await expect(c.handle('a', 'tool.execute', { tool: 'job.run', callID: '../bad', args })).rejects.toThrow('call id');
+  const first = await execute(c, 'a', 'job.run', args, 'once') as { job: string };
+  await expect(c.handle('a', 'tool.execute', { tool: 'job.run', callID: 'once', args })).rejects.toThrow('duplicate tool call');
+  await execute(c, 'a', 'job.cancel', { job: first.job });
+  expect(await execute(c, 'a', 'job.run', { argv: ['ctf-slice2-no-such-program'] }, 'failed')).toMatchObject({ state: 'failed_to_start' });
+  await expect(c.handle('a', 'tool.execute', { tool: 'job.run', callID: 'third', args })).rejects.toThrow(/job limit.*remainingJobs=0/);
+  expect(c.resourceSnapshot().filter(r => r.tool === 'job.run')).toHaveLength(2);
+});
+
+it('maxToolJobs leaves session concurrency independent and charges a capacity-denied admission', async () => {
+  const { c } = await fixture(undefined, undefined, 4);
+  const args = { argv: ['sleep', '30'], wait_ms: 0 };
+  const first = await execute(c, 'a', 'job.run', args, 'one') as { job: string };
+  await execute(c, 'a', 'job.run', args, 'two');
+  await expect(execute(c, 'a', 'job.run', args, 'three')).rejects.toThrow('session job limit');
+  await execute(c, 'a', 'job.cancel', { job: first.job });
+  expect(await execute(c, 'a', 'job.run', args, 'four')).toMatchObject({ state: 'running' });
+  await expect(execute(c, 'a', 'job.run', args, 'five')).rejects.toThrow(/job limit.*remainingJobs=0/);
+});
+
+it('unconfigured maxToolJobs reports unavailable rather than a fabricated remaining count', async () => {
+  const { c } = await fixture();
+  expect(await c.handle('a', 'tool.before', { tool: 'ctf_job_run', callID: 'unconfigured', args: { argv: ['true'] } })).toMatchObject({ allowed: true, remainingJobs: 'unavailable' });
+});
+
+it('maxToolJobs=0 denies the first job without a handle while leaving artifact publication open', async () => {
+  const { c } = await fixture(undefined, undefined, 0);
+  await expect(execute(c, 'a', 'job.run', { argv: ['true'] }, 'zero')).rejects.toThrow(/job limit.*remainingJobs=0/);
+  await expect(c.handle('a', 'tool.execute', { tool: 'job.run', callID: 'direct-zero', args: { argv: ['true'] } })).rejects.toThrow(/job limit.*remainingJobs=0/);
+  expect(c.resourceSnapshot()).toEqual([]);
+  await execute(c, 'a', 'workspace.write', { path: 'work/notes', content: 'baseline' });
+  expect(await execute(c, 'a', 'artifact.publish', { source: 'file', path: 'work/notes' })).toHaveProperty('ref');
+  expect(c.stopReason).toBeUndefined();
+});
 
 // Moving the slow response back into C's global serial queue makes the admission race lose.
 it('real C lets another session admit and revoke before a blocked HTTP body is released', async () => {
@@ -193,7 +288,7 @@ it('concurrent same-session same-tool calls retain distinct trusted markers and 
 });
 
 it('real C applies session and challenge job limits with independent capacity in another challenge', async () => {
-  const { c, bind } = await fixture();
+  const { c, bind } = await fixture(undefined, undefined, 20);
   for (const id of ['b', 'c', 'd']) await bind(id); await bind('e', 'Y');
   const args = { argv: ['sleep', '30'], wait_ms: 0 };
   for (const id of ['a', 'b', 'c', 'd']) { await execute(c, id, 'job.run', args); await execute(c, id, 'job.run', args); }

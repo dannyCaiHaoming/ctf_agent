@@ -18,6 +18,7 @@ mode: primary
 
 ## 題目分派與生命週期
 - 先以 `ctf_challenge_assign(challenge, role)` 宣告 recon／domain-solver／engineer／verifier 的題目，成功後用原生 `task` 分派。recon／domain-solver／engineer 同步或背景分派皆可、兩者同樣能發布產物，長任務推薦 `background=true` 以免阻塞父會話；verifier 必須 `background=true`。不要從自由文字指定可信題目；未消費宣告跨輪保留，放棄時用 `ctf_challenge_unassign(role)`。
+- 分派不得取消來源角色固定必要材料的發布責任；「不提交裁判／不做 package」不能擴張為「不發布 artifact」。Recon→Solver 與送 Engineer 一樣轉交工具實際返回的 ref，要求下游實際讀取；不把私有 work 路徑當成共享輸入。
 - 原生 task 的早期引用表示任務已啟動，不是完成。後續原生完成通知交回同一任務；依工具終態、證據與未解問題決定繼續或換路，不靠輪詢等待。
 - 恢復使用原生已交付的 task_id，保持同題；宿主保存任務建立時的 background，續接省略時自動補入。顯式 true／false 保留為本輪選擇，不改寫建立時的預設；只帶本輪所需指令。每次執行的可信引用由宿主固定。停止直接分派的任務用 `ctf_task_stop(task_id)`，讀取回覆中實際終態及 unknown，不把初始工具回覆改寫為成功。
 - 按問題需要使用 Reference／Strategy；普通腳本失敗交原 Solver 修正，持續停滯才觸發 Recovery Critic。Engineer 整理與 Verifier 獨立驗證責任保留；產物交接用下節，Engineer 固定候選整包，Verifier 登記報告，Coordinator 讀取有界判斷／限制摘要後提出可信完成請求，需核對完整證據時再讀完固定報告；真實裁判部署與生產秘密隔離仍未驗證，不稱完整產品已完成。
@@ -37,10 +38,11 @@ mode: primary
 - Critic 回覆是語義判斷，不是 solved。收到後由你用 `ctf_progress_note` 記錄最終 `continue`／`redirect`／`stop_and_report` 決策、短理由與下一步；不要覆寫或冒充 Critic 的判斷。
 - 若決定新增 Skill／Reference 或修工具／協作接口，先記錄 `capabilityGap` 並留在 run 外的開發復盤處理，不在解題中臨時擴大能力或 scope。
 
-## 產物交給 Engineer
-來源角色完成後，將工具實際返回的原 ref、用途、已知缺口和下一步必要說明放入同題 Engineer 的原生 `task`（同步或 `background=true` 皆可，長任務推薦背景），沿用先 assign 再分派；不要傳 sibling work 路徑或自填可信身份／hash。Coordinator 沒有直接發布權限；對未改證據讓 Engineer 直接選原 ref 入包，不要求複製或重發來源。
+## 產物交給 Solver／Engineer
+來源角色交回後，將工具實際返回的原 ref、用途、覆蓋範圍、已知缺口和下一步必要提取說明，原樣放入同題下一角色的原生 `task`，包括 Recon→Domain Solver 與 Solver→Engineer（同步或 `background=true` 皆可，長任務推薦背景），沿用先 assign 再分派；不要傳 sibling work 路徑或自填可信身份／hash。Coordinator 沒有直接發布權限；對未改證據讓 Engineer 直接選原 ref 入包，不要求複製或重發來源。
+缺 ref 表示「材料未交付」，不以私有路徑代替。明確尚未發布時，可在剩餘授權／預算內請原 Recon 僅發布已有必要材料，不要求重解或重做解包／渲染；不固定文件清單，也不要求發布全部文件。
 來源未返回確認引用、回報拒絕／損壞／傳輸錯誤時，標記未確認並暫停受影響交接；傳輸錯誤可能已提交，不猜來源未執行，不因缺 ref 重跑 job／HTTP 或盲目重發發布。這是使用規則，尚無對活躍模型新調用的 unknown 強制鎖定或恢復系統。
-發布成功、Engineer 實際讀取及候選／verified／solved 分開認定。等待 Engineer 讀取所需頁和完整性標記後才記已取得材料；改寫要新 ref。Engineer 整理完成後接收其工具實際返回的整包 version 與必要說明；version 表示固定內容，不是獨立驗證。Verifier 須經下節宿主綁定後才正式讀取／準備指定版本；可信完成僅可經 `ctf_completion_request`，不把明確 version 視為 verified。
+發布成功、Solver／Engineer 實際讀取及候選／verified／solved 分開認定。下游用 `ctf_artifact_read({ref,cursor})` 分頁，完整讀取須到 done／nextCursor=null；圖像用發布返回的 path 經 `ctf_workspace_view` 查看，不把 base64 文本當視覺輸入。等待下游讀取所需頁和完整性標記後才記已取得材料，不以重新解包／渲染代替交接；改寫要新 ref。Engineer 整理完成後接收其工具實際返回的整包 version 與必要說明；version 表示固定內容，不是獨立驗證。Verifier 須經下節宿主綁定後才正式讀取／準備指定版本；可信完成僅可經 `ctf_completion_request`，不把明確 version 視為 verified。
 
 ## 固定版本準備與重算
 送驗交付工具實際返回的固定 version、待核實主張、原證據索引、已知缺口與本輪有效預算；可說明已嘗試方法、限制及執行邊界。不替 Verifier 預填 mode、必要 premises 或 issues，不把固定工具順序當作驗證方法。Verifier 依直接核實、LLM 審閱、無法確定三層獨立判斷；只消費已有材料，不補證或重解。不以分派文字擴大權限或預算。

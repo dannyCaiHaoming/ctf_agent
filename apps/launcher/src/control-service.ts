@@ -42,6 +42,8 @@ export interface RunBudget {
   maxModelCalls: number;
   /** Upper bound on observed input+output+reasoning tokens (release profile `maxObservableTokens`). */
   maxObservableTokens: number;
+  /** Cumulative job.run admissions across all roles/challenges; absent means unavailable, not zero. */
+  maxToolJobs?: number;
 }
 
 export interface Binding {
@@ -135,6 +137,7 @@ export class ControlService {
   stopReason?: string;
   rootId?: string;
   admitted = 0;
+  private admittedJobs = 0;
   private seq = 0;
   /** Epoch ms of construction; audit `t` is relative to it. */
   readonly startedAt = Date.now();
@@ -509,7 +512,11 @@ export class ControlService {
     const progress = PROGRESS_TOOLS.find(name => `ctf_${name.replaceAll('.', '_')}` === tool);
     if (progress) { this.checkProgress(binding, progress); return { allowed: true }; }
     const managed = SOLVER_TOOLS.find(name => `ctf_${name.replaceAll('.', '_')}` === tool);
-    if (managed) { this.checkSolver(binding, managed); return { allowed: true, rpcTimeoutMs: this.waitLimit(binding, managed, (body.args ?? {}) as Record<string, unknown>) + 5000 }; }
+    if (managed) {
+      this.checkSolver(binding, managed);
+      const jobs = managed === 'job.run' ? { remainingJobs: this.checkToolJobs() } : {};
+      return { allowed: true, ...jobs, rpcTimeoutMs: this.waitLimit(binding, managed, (body.args ?? {}) as Record<string, unknown>) + 5000 };
+    }
     const intake = INTAKE_BY_ID.get(tool);
     if (intake) { this.checkIntake(binding, intake, body.args); return { allowed: true }; }
     const allowed = Object.hasOwn(NATIVE_TOOL_ROLES, tool) && NATIVE_TOOL_ROLES[tool]!.includes(binding.role);
@@ -689,6 +696,15 @@ export class ControlService {
     return Math.max(0, Math.min(wait, binding.expiresAt - Date.now()));
   }
 
+  private checkToolJobs(): number | 'unavailable' {
+    const max = this.options.budget.maxToolJobs;
+    if (max === undefined) return 'unavailable';
+    const remainingJobs = Math.max(0, max - this.admittedJobs);
+    // Keep the reason in the message: the existing RPC transports denial messages only.
+    if (remainingJobs === 0) throw new ControlDenied('job limit; remainingJobs=0');
+    return remainingJobs;
+  }
+
   private prepareSolver(binding: Binding, name: string, args: Record<string, unknown>, call: unknown, rpcSignal?: AbortSignal): Outside {
     this.checkSolver(binding, name);
     if (typeof call !== 'string' || !/^[\w.-]{1,128}$/.test(call)) throw new ControlDenied('call id');
@@ -701,6 +717,12 @@ export class ControlService {
       if(name==='package.read'&&args.version!==e.version)throw new ControlDenied('verification version');
     }
     this.waitLimit(binding, name, args);
+    if (name === 'job.run') {
+      // handle's serial section owns this check+consume, before any async preparation/spawn.
+      // Prechecks never consume; failed starts/cancellation never refund an admitted call.
+      this.checkToolJobs();
+      this.admittedJobs++;
+    }
     const duration = name === 'http.request' ? Math.min(typeof args.timeout_ms === 'number' ? args.timeout_ms : 15000, 60000) :
       name === 'job.run' ? Math.min(typeof args.timeout_ms === 'number' ? args.timeout_ms : 60000, 600000) : 15000;
     const operation: Resource = { run: this.options.runId ?? 'run', sessionID: binding.sessionID, challengeId: binding.challengeId!, callID: call, tool: name,

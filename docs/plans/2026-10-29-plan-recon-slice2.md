@@ -1,6 +1,6 @@
 # Recon slice 2：首个可实施切片（评审草案）
 
-日期：2026-10-29。依据：[Recon 重设计 §10](../superpowers/specs/2026-10-29-design-v1-recon-redesign.md#10-slice-2宿主约束可消费交接与预算可见性评审草案)，尤其 §10.4；架构边界依该设计引用的 V1／AGENTS。一次性交接物，只有本 plan 引用 design。**本次仅写草案，不执行以下工作。**
+日期：2026-10-29。依据：[Recon 重设计 §10](../superpowers/specs/2026-10-29-design-v1-recon-redesign.md#10-slice-2宿主约束可消费交接与预算可见性评审草案)，尤其 §10.4、§10.5；架构边界依该设计引用的 V1／AGENTS。一次性交接物，只有本 plan 引用 design。**初稿仅为草案；随后人类明确批准实施 §0 的 A＋B first cut 与无模型验证，结果见 §1。草案中的“未来／尚未授权”保留为历史语境，以该次授权为准；不含真实模型或后续切片授权。**
 
 ## 0. 当前一步：打通可消费交接链 + 接线 maxToolJobs 累计准入
 
@@ -59,3 +59,14 @@
 ## 1. 当前交接记录
 
 2026-10-29：完成草案与代码证据自检；无实现、无测试执行、无独立评审、无 Git／联网／挑战运行。整体 slice-2 的 cap、累计 jobs 和预算可见性仅为设计，未进入此 §0 实施范围。数值与严格墙钟接口问题见 design §10.7；不阻塞先审阅本步交接修复草案。
+
+### §0 first cut 实施记录（2026-10-29，取代上段的当前状态）
+
+- 人类明确批准 A 交接链＋B maxToolJobs，沿用当前 `codex/recon-slice2` 工作区；未运行 Git 命令，修改前只读 HEAD／index 与工作文件比对，已跟踪文件无未提交工作树差异。未 commit／push、安装依赖、访问外网或运行 challenge／真实模型。
+- A：对齐 Coordinator／Recon／Domain Solver 三份角色约定；不提交／不打包不取消必要 artifact 发布，缺 ref 即材料未交付，Recon→Solver 原样转交真实 ref，下游 artifact.read 分页到 done／nextCursor=null，图像用发布 path 查看，不以私有 work 或重新解包／渲染替代交接。按下一角色实际需要选材料，无固定文件清单或全部发布要求。
+- A 合约：扩展 `d-artifact-handoff.test.ts`，真实 ControlService／ArtifactPublisher，只有 SDK 身份／消息替身；原生同步 task 准入与可信子绑定产生 Recon Execution，发布非秘密 32773 bytes，Coordinator 原样转交返回 ref，同题空 work Solver 两页读到相同 bytes。原文件发布后修改不影响快照，私有绝对路径／sibling traversal、伪造 ref、异题 ref、已发布 bytes 被篡改均拒绝；全链无 job，不预置 binding／publication／hash。
+- B：RunBudget 增加可选 maxToolJobs，launcher 传现有 profile 值；prepareSolver 通过身份、唯一 callID 与既有参数检查后，在同一 serial 状态段检查并累计一次，先于资源异步准备／spawn。tool.before 只预检；失败启动、取消、JobManager 容量拒绝不退还已准入计数。N+1 拒绝无资源／句柄／job 目录，消息为 `denied: job limit; remainingJobs=0`，不 stopAll。未配置时 job 准入预检标 `remainingJobs: unavailable`，不伪造剩余量、不新增默认值；没有增加全工具预算快照。
+- B 合约：扩展既有 `slow-tools.test.ts` 六例，覆盖同 run 跨角色／题目累计、两个预检同时看到最后名额但 execute 只准一个、异步准备前扣数、身份／callID 拒绝不扣、重复 callID、取消／启动失败不退款、0／未配置，以及耗尽后 job.read/cancel、artifact.publish/read 和原生同步交回出口继续可用。既有 2/session、8/challenge 测试在 maxToolJobs=20 下仍通过；JobManager 未改。
+- 红绿验证：缺少接线时五个 maxToolJobs 用例按预期失败（包括末名额两个 execute 都成功）；新增同步交接用例在既有真实机制上通过。首次完整局部测试在沙箱内遇到回环监听 EPERM／既有 HTTP 超时；允许本地回环后重跑通过，无外网访问。最终验证均 exit 0：`npx tsc --noEmit`；`npm run build`；`npm run test:deterministic`（40 文件／615 测试）；`npm test`（51 文件／657 测试）。完整集包含最终两份局部合约的全部 51 测试。
+- 版本定位：ControlService SHA-256 `ecdca0116c8372d33deffea0e54d451d0364dde8d97e2d80c10b4ac910b36160`；launch SHA-256 `c3dc40f7078e30fea546c38517eb5ec1463041aae55d70c4f090d1f6f601e064`。原始命令日志留本机 `/tmp/recon-slice2-{red-targeted,green-targeted,contract,tsc,build,deterministic,test}.log`，未新增 gate 或报告文件。
+- 自查范围：host 只改上述累计准入／传参；未改 plugin、JobManager、artifact transport、其他预算校验器／默认值，未实现 per-recon cap、收束模式或窄预算快照。没有独立评审或真实模型行为验收；**仅接线可用，真实 Coordinator 正确分派、Recon 实际发布、Solver 实际消费仍未验证，需要后续明确授权 run**。不据此宣布完整 slice-2、时间分配、精确转写、verified 或 solved 改善。保留本 plan，停止于 §0 first cut。

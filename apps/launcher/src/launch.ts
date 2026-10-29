@@ -225,7 +225,7 @@ async function runLaunch(options: LaunchOptions, rpc: { url: string; token: stri
   };
   const sessionIds = new Set<string>();
   const deadlineAt = Date.now() + deadlineMs; // one deadline for the launcher loop and for every binding's expiry
-  const control = new ControlService({ completionJudges:options.completionJudges, client, runId, budget: { maxModelCalls: profile.budget.maxSteps, maxObservableTokens: profile.budget.maxObservableTokens },
+  const control = new ControlService({ completionJudges:options.completionJudges, client, runId, budget: { maxModelCalls: profile.budget.maxSteps, maxObservableTokens: profile.budget.maxObservableTokens, maxToolJobs: profile.budget.maxToolJobs },
     expiresAt: deadlineAt, workdir: real.opencode, skillRoot: join(configDirectory, 'skills'), challenges: prepared, redactions: secrets, onAudit: record => progress.append(record) });
   attach(control);
   const fail = (event: string, cause: unknown) => { status = 'failed'; mark(event, scrub(String(cause))); };
