@@ -8,6 +8,7 @@ import { createHash, randomUUID } from 'node:crypto';
 import { mkdir, realpath } from 'node:fs/promises';
 import { dirname, isAbsolute, join, resolve, sep } from 'node:path';
 import type { OpencodeClient } from '@opencode-ai/sdk/v2';
+import type { ToolResult } from '@opencode-ai/plugin/tool';
 import { INTAKE_TOOLS, IntakeRefused, checkMaterialPath, findChallenge, listChallenges, readMaterial } from './intake-tools.js';
 import { createHttpTools, CookieJar, HttpRefused } from './http-tools.js';
 import { JobManager, JobRefused, type JobBinding } from './job-tools.js';
@@ -15,9 +16,9 @@ import { ArtifactPublisher, snapshotWork, type HttpResponseFacts, type ArtifactS
 import { VerificationResults,fixEvidence } from './verification-results.js';
 import { CandidatePackages } from './candidate-package-tools.js';
 import { filePage } from './file-page.js';
-import { diffWorkspace, listWorkspace, readWorkspace, searchWorkspace, splitWorkspacePath, writeWorkspace, WorkspaceRefused, type WorkspaceRoots } from './workspace-tools.js';
+import { diffWorkspace, listWorkspace, readWorkspace, searchWorkspace, splitWorkspacePath, viewWorkspace, writeWorkspace, WorkspaceRefused, type WorkspaceRoots } from './workspace-tools.js';
 import type { PreparedChallenge } from './run-prep.js';
-import { fingerprintJson, progressDigest, summarizeToolArgs, validateProgressNote } from './progress-ledger.js';
+import { fingerprintJson, progressDigest, redactProgressText, summarizeToolArgs, validateProgressNote } from './progress-ledger.js';
 
 export const ROLES = ['coordinator', 'intake', 'recon', 'reference', 'strategy', 'domain-solver', 'engineer', 'verifier', 'recovery-critic'] as const;
 export type Role = typeof ROLES[number];
@@ -98,7 +99,7 @@ export function summarizeUsage(messages: Message[]): SessionUsage {
   return usage;
 }
 
-export const SOLVER_TOOLS = ['workspace.list', 'workspace.read', 'workspace.search', 'workspace.diff', 'workspace.write', 'http.request', 'job.run', 'job.read', 'job.cancel', 'artifact.publish', 'artifact.read', 'package.publish', 'package.read', 'package.prepare', 'verification.report'];
+export const SOLVER_TOOLS = ['workspace.list', 'workspace.read', 'workspace.search', 'workspace.view', 'workspace.diff', 'workspace.write', 'http.request', 'job.run', 'job.read', 'job.cancel', 'artifact.publish', 'artifact.read', 'package.publish', 'package.read', 'package.prepare', 'verification.report'];
 export const PROGRESS_TOOLS = ['progress.read', 'progress.note'] as const;
 export const MANAGED_TOOLS = [...INTAKE_TOOLS, 'challenge.assign', 'challenge.unassign', 'task.stop', 'verification.read', 'completion.request', ...PROGRESS_TOOLS, ...SOLVER_TOOLS];
 interface Resource { run: string; sessionID: string; challengeId: string; callID: string; tool: string; state: 'active' | 'settled' | 'unknown'; result?: string; job?: string; controller: AbortController; deadline: number; execution?: string; timer?: ReturnType<typeof setTimeout>; done?: Promise<unknown>; detachRpc?: () => void }
@@ -838,6 +839,24 @@ export class ControlService {
               const fixed=await this.publications.bytes(operation.run,binding.challengeId!,match[1]);
               result={path:args.path,size:fixed.bytes.length,sha256:fixed.record.sha256,...filePage(fixed.bytes,args.cursor,()=>{throw new ControlDenied('cursor');})};
             } else result=await readWorkspace(roots,args);
+          }
+          else if (name === 'workspace.view') {
+            const segments = splitWorkspacePath(args.path);
+            const published = [];
+            if (segments[0] === 'published') {
+              const match = /^published\/([\w-]+)\.bin$/.exec(args.path as string);
+              if (!match) throw new ControlDenied('artifact source');
+              const fixed = await this.publications.bytes(operation.run, binding.challengeId!, match[1]);
+              published.push({ path: args.path as string, bytes: fixed.bytes });
+            }
+            const image = await viewWorkspace(roots, args, published);
+            operation.controller.signal.throwIfAborted(); this.live(binding);
+            if (this.stopReason) throw new ControlDenied('run stopped');
+            // <=4*ceil(1 MiB/3) base64 characters plus bounded metadata; never put image bytes in output.
+            result = {
+              output: JSON.stringify({ path: redactProgressText(segments.join('/'), this.options.redactions).slice(0, 500), mime: image.mime, sha256: image.sha256, size: image.size }),
+              attachments: [{ type: 'file', mime: image.mime, url: `data:${image.mime};base64,${image.bytes.toString('base64')}` }]
+            } satisfies ToolResult;
           }
           else if (name === 'workspace.diff') {
             const published = [];
