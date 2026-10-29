@@ -38,8 +38,20 @@
 - 工具分析里 misc/crypto/pwn 的 ARM64 预装、HTTP 批量对照（#1）、源码→动作定位（#3）、浏览器/TCP/PTY 都**未实作**，按真实接入题型或实测瓶颈再定。
 - 两份分析的外部系统引用（PentestGPT/EnIGMA 等）是训练知识 + 本夜部分联网，未逐条核原论文。
 
+## r9（seizurecipher）分析与处理（2026-10-29）
+
+seizurecipher 的解题是客户端 canvas 几何视觉解码（226 坐标还原成画面文字=flag），是第一道非典型 web 题。
+
+- **run 结论先说前提：对解题能力不下结论。** r9 在约 90% 墙钟（27 分）时被**外部 provider 五小时账户配额 429（AccountQuotaExceeded）**中止，不是本地预算/deadline/能力停；额度 `2026-10-29 03:10 +0800` 重设。中止前：Recon 找到真正数据通道（客户端 `lol.js`/`coords.txt` 226 坐标）并重绘视觉、发 artifact；Domain-solver 已抓到 flag **外形**（`{` `}` 与两条 `_`，排除多种编码）。
+- **核心能力缺口（新、题型驱动，工具分析已预言）：看图能力缺失。** managed workspace 是文字/metadata，agent 无法直接查看 `fine.png`；系统 Vision OCR 对低解析手写单笔画输出乱码。**属新且 novel 的能力（影像输入），牵涉解题模型能否吃图、成本、scope——未自主实作，留设计决策。**
+- **系统 bug（已修，commit `bcc7652b`）：** r9 实证 94/94 job 记 result='exited' 且无 exitCode，progress ledger 把非 'completed' 一律标 failed，故 90 个 exit-0 成功显示 failed（经 progress_read 误导 Coordinator/Critic）。已修为按 exitCode 分类，并顺带修正 cleanup_unknown 原被误标 denied→unknown。tsc 绿、test:deterministic 598/598。
+- **D 仍未验证**：Recovery Critic 又 0 次（配额在第二次停滞形成前中止）。
+- **good hygiene（report #3，prompt 层，未改）：** 已有「先写 answer.txt 再回报」设计，可把「无 answer 档即不得声称有候选」列为人工检查点；下次同题重跑保留新 session + 小输出策略。
+
 ## 早上可决策项
 
-1. 这一串（4 code + 3 docs）要不要 merge 进 main？（我未合、未 push。）
+1. 这一串（5 code + 4 docs）要不要 merge 进 main？（我未合、未 push。）本夜 commit 见上方表格 + `bcc7652b` job 状态修正。
 2. 要不要 push main（含之前的 r8-2 记录等一串未 push 提交）？
-3. 下一步：接入 misc/crypto（如 seizurecipher r9）以真实暴露工具缺口，还是继续 web 侧？
+3. **影像/看图能力**（r9 核心卡点）：是否值得做？牵涉解题模型影像输入能力、成本与 scope，建议先写聚焦 design 再决定——这是 novel 能力，不像之前的工具扩展那样低风险。
+4. **r9 重跑**：本轮被配额中止、对解题能力不算数；额度 03:10+0800 后若要补验，需另行授权再跑一次。
+5. 下一步大方向：接入更多 misc/crypto 题以真实暴露工具缺口，还是继续 web 侧。
