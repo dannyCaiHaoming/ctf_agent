@@ -15,7 +15,7 @@ import { ArtifactPublisher, snapshotWork, type HttpResponseFacts, type ArtifactS
 import { VerificationResults,fixEvidence } from './verification-results.js';
 import { CandidatePackages } from './candidate-package-tools.js';
 import { filePage } from './file-page.js';
-import { listWorkspace, readWorkspace, searchWorkspace, writeWorkspace, WorkspaceRefused, type WorkspaceRoots } from './workspace-tools.js';
+import { diffWorkspace, listWorkspace, readWorkspace, searchWorkspace, splitWorkspacePath, writeWorkspace, WorkspaceRefused, type WorkspaceRoots } from './workspace-tools.js';
 import type { PreparedChallenge } from './run-prep.js';
 import { fingerprintJson, progressDigest, summarizeToolArgs, validateProgressNote } from './progress-ledger.js';
 
@@ -98,7 +98,7 @@ export function summarizeUsage(messages: Message[]): SessionUsage {
   return usage;
 }
 
-export const SOLVER_TOOLS = ['workspace.list', 'workspace.read', 'workspace.search', 'workspace.write', 'http.request', 'job.run', 'job.read', 'job.cancel', 'artifact.publish', 'artifact.read', 'package.publish', 'package.read', 'package.prepare', 'verification.report'];
+export const SOLVER_TOOLS = ['workspace.list', 'workspace.read', 'workspace.search', 'workspace.diff', 'workspace.write', 'http.request', 'job.run', 'job.read', 'job.cancel', 'artifact.publish', 'artifact.read', 'package.publish', 'package.read', 'package.prepare', 'verification.report'];
 export const PROGRESS_TOOLS = ['progress.read', 'progress.note'] as const;
 export const MANAGED_TOOLS = [...INTAKE_TOOLS, 'challenge.assign', 'challenge.unassign', 'task.stop', 'verification.read', 'completion.request', ...PROGRESS_TOOLS, ...SOLVER_TOOLS];
 interface Resource { run: string; sessionID: string; challengeId: string; callID: string; tool: string; state: 'active' | 'settled' | 'unknown'; result?: string; job?: string; controller: AbortController; deadline: number; execution?: string; timer?: ReturnType<typeof setTimeout>; done?: Promise<unknown>; detachRpc?: () => void }
@@ -751,15 +751,17 @@ export class ControlService {
               this.record(binding.sessionID,'verification.job.input',true,undefined,structuredClone(association));
             }
             result = await this.jobs.run(jobBinding, args, { signal: operation.controller.signal, deadline: operation.deadline, onRegistered: job => { operation.job = job; if(operation.execution) this.outputSources.set(job,{source:{...this.source(binding,'job',job,operation.execution),callID:call}}); } });
-            const done = this.jobs.waitSettled(jobBinding, operation.job!).then(async snapshot=>{
+            const done = this.jobs.waitSettled(jobBinding, operation.job!).then(async terminal=>{
+              // Keep the existing verification record/evidence shape; excerpts are reply-only diagnostics.
+              const {excerpts,...snapshot}=terminal;
               if(association&&preparation){try{await this.packages.checkPrepared(roots.workDir,preparation);association.after='matched';}catch{association.after='changed_or_unreadable';}
                 this.verificationJobs.set(operation.job!,{sessionID:binding.sessionID,execution:operation.execution!,version:String(association.version),association:structuredClone(association),terminal:{state:snapshot.state,exitCode:snapshot.exitCode}});
                 this.record(binding.sessionID,'verification.job.terminal',true,undefined,{...association,job:operation.job,terminal:snapshot});
-                return {...snapshot,inputAssociation:association};}
-              return snapshot;
+                return {...snapshot,excerpts,inputAssociation:association};}
+              return {...snapshot,excerpts};
             });
             keep = true;
-            void done.then(snapshot => this.settleResource(operation, snapshot.reapIncomplete ? 'cleanup_unknown' : snapshot.state));
+            void done.then(snapshot => this.settleResource(operation, snapshot.reapIncomplete ? 'cleanup_unknown' : snapshot.state, snapshot.exitCode));
             // Decision prototype: retain the same RPC/call until terminal cleanup, without a model polling loop.
             if (args.completion === 'terminal' || args.wait_ms === undefined) result = await done;
           } else if (name === 'artifact.publish') {
@@ -837,6 +839,18 @@ export class ControlService {
               result={path:args.path,size:fixed.bytes.length,sha256:fixed.record.sha256,...filePage(fixed.bytes,args.cursor,()=>{throw new ControlDenied('cursor');})};
             } else result=await readWorkspace(roots,args);
           }
+          else if (name === 'workspace.diff') {
+            const published = [];
+            for (const path of new Set([args.a, args.b])) {
+              const segments = splitWorkspacePath(path);
+              if (segments[0] !== 'published') continue;
+              const match = /^published\/([\w-]+)\.bin$/.exec(path as string);
+              if (!match) throw new ControlDenied('artifact source');
+              const fixed = await this.publications.bytes(operation.run, binding.challengeId!, match[1]);
+              published.push({ path: path as string, bytes: fixed.bytes });
+            }
+            result = await diffWorkspace(roots, args, published);
+          }
           else if (name === 'workspace.search') {
             const published=[];
             if(args.path===undefined || args.path===null || typeof args.path==='string'&&args.path.startsWith('published')) {
@@ -881,10 +895,10 @@ export class ControlService {
     return { materialsDir: challenge.materialsDir, publishedDir: join(base, 'published'), workDir: join(base, 'work', binding.sessionID) };
   }
   private jobBinding(binding: Binding, roots: WorkspaceRoots): JobBinding { return { sessionId: binding.sessionID, challengeId: binding.challengeId!, ...roots }; }
-  private settleResource(resource: Resource, result: string): void {
+  private settleResource(resource: Resource, result: string, exitCode?: number | null): void {
     if (resource.state === 'settled') return;
     clearTimeout(resource.timer); resource.detachRpc?.(); resource.state = result === 'cleanup_unknown' ? 'unknown' : 'settled'; resource.result = result;
-    this.record(resource.sessionID, 'tool.settled', result !== 'cleanup_unknown', undefined, { callID: resource.callID, tool: resource.tool, job: resource.job, result });
+    this.record(resource.sessionID, 'tool.settled', result !== 'cleanup_unknown', undefined, { callID: resource.callID, tool: resource.tool, job: resource.job, result, ...(exitCode !== undefined ? { exitCode } : {}) });
   }
   private async cancelResources(sessionID?: string): Promise<void> {
     const resources = [...this.resources.values()].filter(r => (!sessionID || r.sessionID === sessionID) && r.state !== 'settled');

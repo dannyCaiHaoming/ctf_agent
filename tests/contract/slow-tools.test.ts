@@ -235,6 +235,10 @@ it('terminal candidate keeps one execute pending beyond wait_ms, permits admissi
   expect(Buffer.from(early.data, 'base64').toString()).toBe('early\n'); expect(early.done).toBe(false);
   expect(await Promise.race([c.handle('b', 'model.call', { agent: 'recon' }), new Promise(r => setTimeout(() => r('blocked'), 300))])).toMatchObject({ role: 'recon' });
   expect(await pending).toMatchObject({ job: handle, state: 'exited', exitCode: 0 });
+  expect(await pending).toMatchObject({ excerpts: {
+    stdout: { stream: 'stdout', offset: 0, encoding: 'utf8', data: 'early\nlate\n', capturedLength: 11, previewOmitted: false, truncated: false, nextCursor: null },
+    stderr: { stream: 'stderr', offset: 0, encoding: 'utf8', data: '', capturedLength: 0, previewOmitted: false, truncated: false, nextCursor: null }
+  } });
   const late = await execute(c, 'a', 'job.read', { job: handle, stream: 'stdout', cursor: early.nextCursor }) as { data: string; done: boolean };
   expect(Buffer.from(late.data, 'base64').toString()).toBe('late\n'); expect(late.done).toBe(true);
   expect(c.audit.filter(r => r.op === 'tool.settled' && (r.detail as { callID?: string } | undefined)?.callID === 'terminal-one')).toHaveLength(1);
@@ -248,6 +252,10 @@ it('terminal candidate cancellation is idempotent and returns to the same call w
   const handle = c.resourceSnapshot().find(r => r.callID === 'terminal-cancel')!.job!;
   expect(await execute(c, 'a', 'job.cancel', { job: handle })).toMatchObject({ state: 'cancelled' });
   expect(await pending).toMatchObject({ job: handle, state: 'cancelled' });
+  expect(await pending).toMatchObject({ excerpts: {
+    stdout: { stream: 'stdout', offset: 0, encoding: 'utf8', data: '', capturedLength: 0, previewOmitted: false, truncated: false, nextCursor: null },
+    stderr: { stream: 'stderr', offset: 0, encoding: 'utf8', data: '', capturedLength: 0, previewOmitted: false, truncated: false, nextCursor: null }
+  } });
   expect(await execute(c, 'a', 'job.cancel', { job: handle })).toMatchObject({ state: 'cancelled' });
   expect(c.audit.filter(r => r.op === 'tool.settled' && (r.detail as { callID?: string } | undefined)?.callID === 'terminal-cancel')).toHaveLength(1);
 });
@@ -293,6 +301,10 @@ it('terminal candidate reports incomplete reaping as unknown and keeps its slot 
   try {
     await execute(c, 'a', 'job.cancel', { job: handle });
     expect(await pending).toMatchObject({ job: handle, state: 'cancelled', reapIncomplete: true });
+    expect(await pending).toMatchObject({ excerpts: {
+      stdout: { stream: 'stdout', offset: 0, encoding: 'utf8', data: '', capturedLength: 0, previewOmitted: false, truncated: false, nextCursor: null },
+      stderr: { stream: 'stderr', offset: 0, encoding: 'utf8', data: '', capturedLength: 0, previewOmitted: false, truncated: false, nextCursor: null }
+    } });
     expect(c.resourceSnapshot().find(r => r.callID === 'terminal-unknown')).toMatchObject({ state: 'unknown', result: 'cleanup_unknown' });
     await execute(c, 'a', 'job.run', { argv: ['sleep', '30'], wait_ms: 0 }, 'remaining-slot');
     await expect(execute(c, 'a', 'job.run', { argv: ['true'], completion: 'terminal' }, 'blocked-slot')).rejects.toThrow('session job limit');

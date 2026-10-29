@@ -4,8 +4,10 @@ import { chmod, mkdir, mkdtemp, readFile, readdir, rm, stat, symlink, writeFile 
 import { realpathSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { tool } from '@opencode-ai/plugin';
+import { createCtfAgentHooks } from '../../apps/opencode-plugin/src/index.js';
 import {
-  WorkspaceRefused, listWorkspace, readWorkspace, searchWorkspace, writeWorkspace
+  WorkspaceRefused, diffWorkspace, listWorkspace, readWorkspace, searchWorkspace, writeWorkspace
 } from '../../apps/launcher/src/workspace-tools.js';
 
 // One fixture tree per run: <base>/ws is the challenge root, <base>/outside holds a file the root must never reach.
@@ -30,6 +32,116 @@ beforeAll(async () => {
   await writeFile(join(root, 'work', 'real.txt'), 'real\n');
   await mkdir(join(root, 'work', 'sub'));
   await writeFile(join(root, 'work', 'sub', 'f.txt'), 'sub\n');
+});
+
+describe('workspace.diff: saved literal lines only', () => {
+  async function diff(a: string, b: string) {
+    await writeFile(join(root, 'work', 'diff-a.txt'), a);
+    await writeFile(join(root, 'work', 'diff-b.txt'), b);
+    return diffWorkspace(roots, { a: 'work/diff-a.txt', b: 'work/diff-b.txt' });
+  }
+
+  it('returns additions, removals and changes with original line numbers on both sides', async () => {
+    const result = await diff('same\nold.*\nanchor\nremove\nend\n', 'same\nnew.*\nanchor\nend\nadded\n');
+    expect(result).toEqual({
+      a: 'work/diff-a.txt', b: 'work/diff-b.txt', skipped: [], truncated: false,
+      differences: [
+        { type: 'changed', a: { line: 2, text: 'old.*\n' }, b: { line: 2, text: 'new.*\n' } },
+        { type: 'removed', a: { line: 4, text: 'remove\n' }, b: null },
+        { type: 'added', a: null, b: { line: 5, text: 'added\n' } }
+      ]
+    });
+    expect((await diff('a\na\nb\na\n', 'a\nb\na\n')).differences).toEqual([
+      { type: 'removed', a: { line: 2, text: 'a\n' }, b: null }
+    ]);
+  });
+
+  it('handles equal, empty and newline-only differences literally', async () => {
+    expect((await diff('界\n', '界\n')).differences).toEqual([]);
+    expect((await diff('', '')).differences).toEqual([]);
+    expect((await diff('', 'x\n')).differences).toEqual([{ type: 'added', a: null, b: { line: 1, text: 'x\n' } }]);
+    expect((await diff('x', '')).differences).toEqual([{ type: 'removed', a: { line: 1, text: 'x' }, b: null }]);
+    expect((await diff('x\r\n', 'x\n')).differences).toEqual([
+      { type: 'changed', a: { line: 1, text: 'x\r\n' }, b: { line: 1, text: 'x\n' } }
+    ]);
+    expect((await diff('x\n', 'x')).differences).toEqual([
+      { type: 'changed', a: { line: 1, text: 'x\n' }, b: { line: 1, text: 'x' } }
+    ]);
+  });
+
+  it('caps serialized output at 32768 bytes, including Unicode and long lines', async () => {
+    const result = await diff(('界'.repeat(90) + '\n').repeat(300), ('😀'.repeat(90) + '\n').repeat(300));
+    expect(result.truncated).toBe(true);
+    expect(result.differences.length).toBeGreaterThan(0);
+    expect(result.differences.length).toBeLessThan(300);
+    expect(Buffer.byteLength(JSON.stringify(result))).toBeLessThanOrEqual(32768);
+    expect(result.differences[0]).toEqual({ type: 'changed', a: { line: 1, text: '界'.repeat(90) + '\n' }, b: { line: 1, text: '😀'.repeat(90) + '\n' } });
+    const nextLine = result.differences.length + 1;
+    const next = { type: 'changed', a: { line: nextLine, text: '界'.repeat(90) + '\n' }, b: { line: nextLine, text: '😀'.repeat(90) + '\n' } };
+    expect(Buffer.byteLength(JSON.stringify({ ...result, differences: [...result.differences, next] }))).toBeGreaterThan(32768);
+    const fits = await diff('a'.repeat(1000), 'b'.repeat(1000));
+    expect(fits.truncated).toBe(false);
+    const long = await diff('a'.repeat(40000), 'b'.repeat(40000));
+    expect(long).toMatchObject({ differences: [], truncated: true });
+    expect(Buffer.byteLength(JSON.stringify(long))).toBeLessThanOrEqual(32768);
+  });
+
+  it('aligns reordered literal lines without losing either side', async () => {
+    expect((await diff('a\nb\nc\n', 'c\na\nb\n')).differences).toEqual([
+      { type: 'added', a: null, b: { line: 1, text: 'c\n' } },
+      { type: 'removed', a: { line: 3, text: 'c\n' }, b: null }
+    ]);
+  });
+
+  it('refuses malformed paths, directories, symlinks and escaped roots on either side', async () => {
+    await symlink(join(root, 'work', 'real.txt'), join(root, 'work', 'diff-inside-link'));
+    await symlink(outside, join(root, 'work', 'diff-outside-link'));
+    for (const path of [undefined, null, 1, '', '.', '../outside/secret.txt', 'work/../materials/brief.txt',
+      'work//real.txt', 'work/./real.txt', 'work\\real.txt', 'work/real\0.txt', 'real.txt', outside,
+      'work', 'materials', 'published', 'work/diff-inside-link', 'work/diff-outside-link/secret.txt']) {
+      for (const side of ['a', 'b']) {
+        await expect(diffWorkspace(roots, { a: 'work/real.txt', b: 'work/real.txt', [side]: path })).rejects.toBeInstanceOf(WorkspaceRefused);
+      }
+    }
+    await expect(diffWorkspace({ ...roots, workDir: join(root, 'work', 'diff-outside-link') },
+      { a: 'work/secret.txt', b: 'materials/brief.txt' })).rejects.toBeInstanceOf(WorkspaceRefused);
+  });
+
+  it('reports binary, invalid UTF-8 and oversized inputs as skipped without treating them as equal', async () => {
+    for (const [name, bytes, reason] of [
+      ['nul', Buffer.from('hello\0'), 'binary'], ['invalid', Buffer.from([255]), 'binary'],
+      ['large', Buffer.alloc(1024 * 1024 + 1, 120), 'oversized']
+    ] as const) {
+      const path = `work/diff-${name}`;
+      await writeFile(join(root, path), bytes);
+      for (const args of [{ a: path, b: 'work/real.txt' }, { a: 'work/real.txt', b: path }]) {
+        expect(await diffWorkspace(roots, args)).toMatchObject({ differences: [], skipped: [{ path, reason }], truncated: false });
+      }
+    }
+    expect((await diff('x'.repeat(1024 * 1024), 'x'.repeat(1024 * 1024))).skipped).toEqual([]);
+  });
+
+  it('uses only selected published snapshots when provided, never raw published files', async () => {
+    const published = [{ path: 'published/snapshot.bin', bytes: Buffer.from('saved\n') }];
+    const result = await diffWorkspace(roots, { a: 'materials/brief.txt', b: 'published/snapshot.bin' }, published);
+    expect(result.differences).toEqual([
+      { type: 'changed', a: { line: 1, text: 'hello 世界\n' }, b: { line: 1, text: 'saved\n' } }
+    ]);
+    await expect(diffWorkspace(roots, { a: 'published/p.txt', b: 'work/real.txt' }, published)).rejects.toBeInstanceOf(WorkspaceRefused);
+    await expect(diffWorkspace(roots, { a: 'work/real.txt', b: 'published/p.txt' }, [])).rejects.toBeInstanceOf(WorkspaceRefused);
+    expect((await diffWorkspace(roots, { a: 'published/p.txt', b: 'work/real.txt' })).skipped).toEqual([]);
+    expect((await diffWorkspace(roots, { a: 'work/real.txt', b: 'published/binary.bin' },
+      [{ path: 'published/binary.bin', bytes: Buffer.from([0]) }])).skipped).toEqual([{ path: 'published/binary.bin', reason: 'binary' }]);
+  });
+
+  it('requires two root-qualified paths in the plugin schema', () => {
+    const hooks = createCtfAgentHooks({ controlUrl: 'http://127.0.0.1:43210/control', controlToken: 'x'.repeat(40), tools: ['workspace.diff'] });
+    const schema = tool.schema.object(hooks.tool!['ctf_workspace_diff']!.args);
+    expect(schema.safeParse({ a: 'work/before.txt', b: 'published/snapshot.bin' }).success).toBe(true);
+    for (const args of [{}, { a: 'work/a' }, { a: '.', b: 'work/b' }, { a: 'a', b: 'work/b' }, { a: 'work/a', b: '/tmp/b' }]) {
+      expect(schema.safeParse(args).success).toBe(false);
+    }
+  });
 });
 
 afterAll(async () => {
@@ -104,6 +216,182 @@ describe('workspace tools (G-V3)', () => {
     expect(literal.matches).toEqual([expect.objectContaining({ path: 'work/regex.txt', line: 1 })]);
     const metaOnly = await searchWorkspace(roots, { path: 'work/regex.txt', needle: '.*' });
     expect(metaOnly.matches).toEqual([]);
+  });
+
+  it('centers bounded snippets on late hits and reports Unicode character offsets', async () => {
+    const lines = [
+      '😀'.repeat(250) + 'TARGET' + '界'.repeat(250),
+      'TARGET' + 'x'.repeat(300),
+      'x'.repeat(300) + 'TARGET\r',
+      'x'.repeat(250) + 'TARGET'.repeat(25) + 'x'.repeat(300)
+    ];
+    await writeFile(join(root, 'work', 'centered.txt'), lines.join('\n'));
+    const result = await searchWorkspace(roots, { path: 'work/centered.txt', needle: 'TARGET' });
+    expect(result).toMatchObject({ path: 'work/centered.txt', needle: 'TARGET', truncated: false });
+    expect(result.matches).toHaveLength(4);
+    for (const [index, offset] of [250, 0, 300, 250].entries()) {
+      const match = result.matches[index]!;
+      expect(match.snippet).toContain('TARGET');
+      expect(match).toMatchObject({ line: index + 1, offset, needle: 'TARGET' });
+      expect(Array.from(match.snippet)).toHaveLength(200);
+      expect(match.snippet).not.toContain('�');
+    }
+    expect(result.matches[0]!.snippet).toBe('😀'.repeat(97) + 'TARGET' + '界'.repeat(97));
+    expect(result.matches[1]!.snippet.startsWith('TARGET')).toBe(true);
+    expect(result.matches[2]!.snippet.endsWith('TARGET')).toBe(true);
+    const wide = await searchWorkspace(roots, { path: 'work/centered.txt', needle: 'TARGET'.repeat(25) });
+    expect(wide.matches[0]!.snippet).toContain('TARGET'.repeat(25));
+  });
+
+  it('matches any literal needle and labels one hit per line in needle order', async () => {
+    await writeFile(join(root, 'work', 'multi.txt'), 'alpha\nbeta\nbeta alpha\na.b*(\naxb*(\n');
+    const result = await searchWorkspace(roots, { path: 'work/multi.txt', needles: ['alpha', 'beta', 'a.b*('] });
+    expect(result).toMatchObject({ needles: ['alpha', 'beta', 'a.b*('], truncated: false });
+    expect(result.matches).toEqual([
+      { path: 'work/multi.txt', line: 1, snippet: 'alpha', offset: 0, needle: 'alpha' },
+      { path: 'work/multi.txt', line: 2, snippet: 'beta', offset: 0, needle: 'beta' },
+      { path: 'work/multi.txt', line: 3, snippet: 'beta alpha', offset: 5, needle: 'alpha' },
+      { path: 'work/multi.txt', line: 4, snippet: 'a.b*(', offset: 0, needle: 'a.b*(' }
+    ]);
+    const both = await searchWorkspace(roots, { path: 'work/multi.txt', needle: 'missing', needles: ['beta'] });
+    expect(both.matches.map(match => match.line)).toEqual([2, 3]);
+  });
+
+  it('rejects absent or empty needles and malformed multi-needle inputs', async () => {
+    for (const args of [{}, { needle: '' }, { needles: [] }, { needles: [''] }, { needles: ['ok', 1] }, { needles: 'ok' }, { needles: null }]) {
+      await expect(searchWorkspace(roots, args)).rejects.toBeInstanceOf(WorkspaceRefused);
+    }
+    const hooks = createCtfAgentHooks({ controlUrl: 'http://127.0.0.1:43210/control', controlToken: 'x'.repeat(40), tools: ['workspace.search'] });
+    const schema = tool.schema.object(hooks.tool!['ctf_workspace_search']!.args);
+    expect(schema.safeParse({ needle: 'ok' }).success).toBe(true);
+    expect(schema.safeParse({ needle: '' }).success).toBe(false);
+    expect(schema.safeParse({ needles: ['alpha', 'beta'] }).success).toBe(true);
+    for (const needles of [[], [''], ['ok', 1], 'ok', null]) expect(schema.safeParse({ needles }).success).toBe(false);
+  });
+
+  it('keeps search match and output-byte limits with truthful truncation', async () => {
+    await writeFile(join(root, 'work', 'match-limit.txt'), 'hit\n'.repeat(201));
+    const capped = await searchWorkspace(roots, { path: 'work/match-limit.txt', needles: ['hit'] });
+    expect(capped.matches).toHaveLength(200);
+    expect(capped.truncated).toBe(true);
+    expect(capped.coverage).toMatchObject({ filesExamined: 1, stoppedEarly: true, skippedByReason: { binary: 0, oversized: 0 } });
+    await writeFile(join(root, 'work', 'match-limit.txt'), 'hit\n'.repeat(200));
+    expect((await searchWorkspace(roots, { path: 'work/match-limit.txt', needle: 'hit' })).truncated).toBe(false);
+    expect((await searchWorkspace(roots, { path: 'work/match-limit.txt', needle: 'hit' })).coverage.stoppedEarly).toBe(false);
+    await writeFile(join(root, 'work', 'byte-limit.txt'), ('界'.repeat(250) + 'hit' + '界'.repeat(250) + '\n').repeat(200));
+    const bytes = await searchWorkspace(roots, { path: 'work/byte-limit.txt', needles: ['hit'] });
+    expect(bytes.truncated).toBe(true);
+    expect(bytes.coverage.stoppedEarly).toBe(true);
+    expect(bytes.matches.length).toBeGreaterThan(0);
+    expect(bytes.matches.length).toBeLessThan(200);
+    expect(bytes.matches.every(match => match.snippet.includes('hit'))).toBe(true);
+    const outputBytes = bytes.matches.reduce((sum, match) => sum + Buffer.byteLength(JSON.stringify(match)), 0);
+    expect(outputBytes).toBeLessThanOrEqual(32768);
+    expect(outputBytes + Buffer.byteLength(JSON.stringify(bytes.matches.at(-1)))).toBeGreaterThan(32768);
+  });
+
+  it('preserves root and path scopes, published snapshots, file skipping and symlink refusal', async () => {
+    const needle = 'search-scope-marker';
+    await mkdir(join(root, 'work', 'search-scope'));
+    await writeFile(join(root, 'materials', 'search-scope.txt'), needle);
+    await writeFile(join(root, 'published', 'search-scope.txt'), needle);
+    await writeFile(join(root, 'work', 'search-scope', 'ok.txt'), needle);
+    await writeFile(join(root, 'work', 'search-scope', 'binary.txt'), needle + '\0');
+    await writeFile(join(root, 'work', 'search-scope', 'invalid.txt'), Buffer.concat([Buffer.from(needle), Buffer.from([255])]));
+    await writeFile(join(root, 'work', 'search-scope', 'large.txt'), needle + 'x'.repeat(1024 * 1024));
+    await writeFile(join(root, 'work', 'search-scope', 'boundary.txt'), needle + 'x'.repeat(1024 * 1024 - needle.length));
+    await symlink(join(outside, 'secret.txt'), join(root, 'work', 'search-scope', 'link.txt'));
+    const scoped = await searchWorkspace(roots, { path: 'work/search-scope', needles: [needle, 'SECRET'] });
+    expect(scoped.matches.map(match => match.path)).toEqual(['work/search-scope/boundary.txt', 'work/search-scope/ok.txt']);
+    expect(scoped.truncated).toBe(false);
+    const coverage = {
+      filesExamined: 2, skippedByReason: { binary: 2, oversized: 1 }, stoppedEarly: false,
+      skipped: [
+        { path: 'work/search-scope/binary.txt', reason: 'binary' },
+        { path: 'work/search-scope/invalid.txt', reason: 'binary' },
+        { path: 'work/search-scope/large.txt', reason: 'oversized' }
+      ],
+      skippedPathsOmitted: false
+    };
+    expect(scoped.coverage).toEqual(coverage);
+    const absent = await searchWorkspace(roots, { path: 'work/search-scope', needle: 'no-such-search-coverage-hit' });
+    expect(absent).toMatchObject({ matches: [], truncated: false, coverage });
+    for (const path of ['materials', 'work', 'published', 'work/search-scope/ok.txt']) {
+      const single = await searchWorkspace(roots, { path, needle });
+      const multi = await searchWorkspace(roots, { path, needles: [needle] });
+      expect(multi.matches).toEqual(single.matches);
+      expect(multi.matches.length).toBeGreaterThan(0);
+      expect(multi.matches.every(match => match.path.startsWith(path))).toBe(true);
+    }
+    const all = await searchWorkspace(roots, { needles: [needle] });
+    expect(all.matches.map(match => match.path)).toEqual(['materials/search-scope.txt', 'published/search-scope.txt', 'work/search-scope/boundary.txt', 'work/search-scope/ok.txt']);
+    const published = [{ path: 'published/snapshot.bin', bytes: Buffer.from(needle) }];
+    for (const path of ['published', 'published/snapshot.bin']) {
+      expect((await searchWorkspace(roots, { path, needles: [needle] }, published)).matches.map(match => match.path)).toEqual(['published/snapshot.bin']);
+    }
+    for (const path of ['.', '../outside', 'work/../materials', 'search-scope.txt', outside, 'work/search-scope/link.txt']) {
+      await expect(searchWorkspace(roots, { path, needles: [needle] })).rejects.toBeInstanceOf(WorkspaceRefused);
+    }
+  });
+
+  it.each(['match', 'output'])('reports %s-limit early stop separately from encountered skips', async (limit) => {
+    const path = `work/coverage-${limit}`;
+    await mkdir(join(root, path));
+    await writeFile(join(root, path, 'a.bin'), Buffer.from([0]));
+    const line = limit === 'match' ? 'coverage-hit\n' : '界'.repeat(250) + 'coverage-hit' + '界'.repeat(250) + '\n';
+    await writeFile(join(root, path, 'b.txt'), line.repeat(201));
+    await writeFile(join(root, path, 'c-large.txt'), Buffer.alloc(1024 * 1024 + 1, 120));
+    await writeFile(join(root, path, 'd.txt'), 'unexamined');
+    const result = await searchWorkspace(roots, { path, needle: 'coverage-hit' });
+    expect(result.truncated).toBe(true);
+    expect(result.coverage).toEqual({
+      filesExamined: 1, skippedByReason: { binary: 1, oversized: 0 }, stoppedEarly: true,
+      skipped: [{ path: `${path}/a.bin`, reason: 'binary' }], skippedPathsOmitted: false
+    });
+  });
+
+  it('bounds skipped paths while retaining full counts and marking omitted entries', async () => {
+    const published = Array.from({ length: 25 }, (_, i) => ({ path: `published/skip-${i}.bin`, bytes: Buffer.from([0]) }));
+    const exact = await searchWorkspace(roots, { path: 'published', needle: 'absent' }, published.slice(0, 20));
+    expect(exact.coverage.skipped).toHaveLength(20);
+    expect(exact.coverage.skippedPathsOmitted).toBe(false);
+    const overflow = await searchWorkspace(roots, { path: 'published', needle: 'absent' }, published);
+    expect(overflow).toMatchObject({ matches: [], truncated: false, coverage: {
+      filesExamined: 0, skippedByReason: { binary: 25, oversized: 0 }, stoppedEarly: false, skippedPathsOmitted: true
+    } });
+    expect(overflow.coverage.skipped).toEqual(published.slice(0, 20).map(({ path }) => ({ path, reason: 'binary' })));
+    const longPaths = published.map(({ bytes }, i) => ({ path: `published/${'x'.repeat(3000)}-${i}`, bytes }));
+    const long = await searchWorkspace(roots, { path: 'published', needle: 'absent' }, longPaths);
+    expect(long.coverage).toMatchObject({
+      filesExamined: 0, skippedByReason: { binary: 25, oversized: 0 }, stoppedEarly: false, skippedPathsOmitted: true
+    });
+    expect(Buffer.byteLength(JSON.stringify(long.coverage))).toBeLessThan(2300);
+    const widePaths = published.map(({ bytes }, i) => ({ path: `published/${'x'.repeat(500)}-${i}`, bytes }));
+    const wide = await searchWorkspace(roots, { path: 'published', needle: 'absent' }, widePaths);
+    expect(wide.coverage.skippedPathsOmitted).toBe(true);
+    expect(wide.coverage.skippedByReason).toEqual({ binary: 25, oversized: 0 });
+    expect(wide.coverage.skipped.length).toBeGreaterThan(0);
+    expect(wide.coverage.skipped.length).toBeLessThan(20);
+    expect(Buffer.byteLength(JSON.stringify(wide.coverage.skipped))).toBeLessThanOrEqual(2048);
+  });
+
+  it('reports coverage only for the requested published snapshot scope', async () => {
+    const published = [
+      { path: 'published/text.txt', bytes: Buffer.from('no hit') },
+      { path: 'published/binary.bin', bytes: Buffer.from([0]) },
+      { path: 'published/large.bin', bytes: Buffer.alloc(1024 * 1024 + 1) }
+    ];
+    const all = await searchWorkspace(roots, { path: 'published', needle: 'absent' }, published);
+    expect(all.coverage).toMatchObject({ filesExamined: 1, skippedByReason: { binary: 1, oversized: 1 }, stoppedEarly: false });
+    const single = await searchWorkspace(roots, { path: 'published/binary.bin', needle: 'absent' }, published);
+    expect(single.coverage).toEqual({
+      filesExamined: 0, skippedByReason: { binary: 1, oversized: 0 }, stoppedEarly: false,
+      skipped: [{ path: 'published/binary.bin', reason: 'binary' }], skippedPathsOmitted: false
+    });
+    const empty = await searchWorkspace(roots, { path: 'published', needle: 'absent' }, []);
+    expect(empty.coverage).toEqual({
+      filesExamined: 0, skippedByReason: { binary: 0, oversized: 0 }, stoppedEarly: false, skipped: [], skippedPathsOmitted: false
+    });
   });
 
   it('8 marks a list of more than 500 entries as truncated and returns exactly 500 of them', async () => {

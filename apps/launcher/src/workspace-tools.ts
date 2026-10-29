@@ -154,10 +154,132 @@ function decodeText(bytes: Buffer): string | undefined {
   } catch { return undefined; }
 }
 
-/** Literal, line-based matching: `needle` never becomes a regular expression. A needle containing a newline cannot match. */
+interface DiffLine { line: number; text: string }
+interface LineDifference { type: 'added' | 'removed' | 'changed'; a: DiffLine | null; b: DiffLine | null }
+
+/** Keep terminators: CRLF and a missing final newline are literal differences, not normalization. */
+function diffLines(text: string): string[] {
+  const lines: string[] = [];
+  let start = 0;
+  while (start < text.length) {
+    const newline = text.indexOf('\n', start);
+    const end = newline === -1 ? text.length : newline + 1;
+    lines.push(text.slice(start, end));
+    start = end;
+  }
+  return lines;
+}
+
+/**
+ * Patience alignment: equal unique lines anchor an increasing sequence; unmatched runs are
+ * paired as literal replacements. This need not be a minimum edit script. Limit alignment
+ * depth so repeated/pathological lines cannot cause quadratic work or recursive stack growth.
+ */
+function* lineDifferences(a: string[], b: string[]): Generator<LineDifference> {
+  const pending = [{ aStart: 0, aEnd: a.length, bStart: 0, bEnd: b.length, depth: 0 }];
+  while (pending.length) {
+    let { aStart, aEnd, bStart, bEnd, depth } = pending.pop()!;
+    while (aStart < aEnd && bStart < bEnd && a[aStart] === b[bStart]) { aStart++; bStart++; }
+    while (aStart < aEnd && bStart < bEnd && a[aEnd - 1] === b[bEnd - 1]) { aEnd--; bEnd--; }
+    const anchors: { a: number; b: number }[] = [];
+    if (depth < 32 && aStart < aEnd && bStart < bEnd) {
+      const unique = (lines: string[], start: number, end: number) => {
+        const positions = new Map<string, number>();
+        for (let i = start; i < end; i++) positions.set(lines[i]!, positions.has(lines[i]!) ? -1 : i);
+        return positions;
+      };
+      const aPositions = unique(a, aStart, aEnd);
+      const bPositions = unique(b, bStart, bEnd);
+      const candidates: { a: number; b: number; previous: number }[] = [];
+      const tails: number[] = [];
+      for (const [text, ai] of aPositions) {
+        const bi = bPositions.get(text);
+        if (ai < 0 || bi === undefined || bi < 0) continue;
+        let low = 0, high = tails.length;
+        while (low < high) {
+          const mid = (low + high) >>> 1;
+          if (candidates[tails[mid]!]!.b < bi) low = mid + 1; else high = mid;
+        }
+        candidates.push({ a: ai, b: bi, previous: low === 0 ? -1 : tails[low - 1]! });
+        tails[low] = candidates.length - 1;
+      }
+      let index = tails.at(-1) ?? -1;
+      while (index !== -1) {
+        const match = candidates[index]!;
+        anchors.push(match);
+        index = match.previous;
+      }
+      anchors.reverse();
+    }
+    if (anchors.length) {
+      const gaps = [];
+      for (const anchor of anchors) {
+        gaps.push({ aStart, aEnd: anchor.a, bStart, bEnd: anchor.b, depth: depth + 1 });
+        aStart = anchor.a + 1; bStart = anchor.b + 1;
+      }
+      gaps.push({ aStart, aEnd, bStart, bEnd, depth: depth + 1 });
+      // LIFO keeps the emitted differences in source order without recursive calls.
+      for (let i = gaps.length - 1; i >= 0; i--) pending.push(gaps[i]!);
+      continue;
+    }
+    while (aStart < aEnd || bStart < bEnd) {
+      const left = aStart < aEnd ? { line: aStart + 1, text: a[aStart++]! } : null;
+      const right = bStart < bEnd ? { line: bStart + 1, text: b[bStart++]! } : null;
+      if (left && right && left.text === right.text) continue;
+      yield { type: left ? right ? 'changed' : 'removed' : 'added', a: left, b: right };
+    }
+  }
+}
+
+/** Compare two already-saved files, never fetching their sources or assigning a semantic verdict. */
+export async function diffWorkspace(root: WorkspaceRoots, args: Record<string, unknown>, published?: Array<{ path: string; bytes: Buffer }>) {
+  const paths = [splitWorkspacePath(args.a), splitWorkspacePath(args.b)];
+  const skipped: { path: string; reason: 'binary' | 'oversized' }[] = [];
+  async function read(segments: string[]): Promise<string[] | undefined> {
+    const path = segments.join('/');
+    let bytes: Buffer;
+    if (segments[0] === 'published' && published) {
+      const fixed = published.find(file => file.path === path);
+      if (!fixed) refuse('workspace path');
+      bytes = fixed.bytes;
+    } else {
+      const realRoot = await realRootOf(root, segments[0]!);
+      const { abs, details } = await walk(realRoot, segments.slice(1), false);
+      if (!details?.isFile()) refuse('workspace path');
+      await assertInside(realRoot, abs);
+      if (details.size > SEARCH_FILE_LIMIT) { skipped.push({ path, reason: 'oversized' }); return; }
+      bytes = await readFile(abs);
+    }
+    if (bytes.length > SEARCH_FILE_LIMIT) { skipped.push({ path, reason: 'oversized' }); return; }
+    const text = decodeText(bytes);
+    if (text === undefined) { skipped.push({ path, reason: 'binary' }); return; }
+    return diffLines(text);
+  }
+  const a = await read(paths[0]!);
+  const b = await read(paths[1]!);
+  const result = { a: paths[0]!.join('/'), b: paths[1]!.join('/'), differences: [] as LineDifference[], skipped, truncated: false };
+  let outputBytes = Buffer.byteLength(JSON.stringify(result));
+  if (outputBytes > SEARCH_OUTPUT_BYTES) refuse('diff output size');
+  if (a && b) for (const difference of lineDifferences(a, b)) {
+    const size = Buffer.byteLength(JSON.stringify(difference)) + (result.differences.length ? 1 : 0);
+    if (outputBytes + size > SEARCH_OUTPUT_BYTES) { result.truncated = true; break; }
+    result.differences.push(difference);
+    outputBytes += size;
+  }
+  return result;
+}
+
+/** Literal, line-based matching: needles never become regular expressions. A needle containing a newline cannot match. */
 export async function searchWorkspace(root: WorkspaceRoots, args: Record<string, unknown>, published?: Array<{path:string;bytes:Buffer}>) {
-  if (typeof args.needle !== 'string' || args.needle === '') refuse('needle');
-  const needle = args.needle;
+  let needles: string[];
+  if (args.needles === undefined) {
+    if (typeof args.needle !== 'string' || args.needle === '') refuse('needle');
+    needles = [args.needle];
+  } else {
+    if (!Array.isArray(args.needles) || args.needles.length === 0 ||
+      !Array.from(args.needles).every(needle => typeof needle === 'string' && needle !== '')) refuse('needles');
+    needles = args.needles;
+  }
   const files: string[] = [];
   const virtualFiles = new Map<string, string>();
   const fixedBytes = new Map<string, Buffer>();
@@ -185,27 +307,59 @@ export async function searchWorkspace(root: WorkspaceRoots, args: Record<string,
     }
   }
 
-  const matches: { path: string; line: number; snippet: string }[] = [];
+  const matches: { path: string; line: number; snippet: string; offset: number; needle: string }[] = [];
+  const coverage = {
+    // Text files entered by the search loop, including a partially scanned current file.
+    filesExamined: 0,
+    skippedByReason: { binary: 0, oversized: 0 },
+    stoppedEarly: false,
+    skipped: [] as { path: string; reason: 'binary' | 'oversized' }[],
+    skippedPathsOmitted: false
+  };
+  // Bound metadata separately so reporting never changes the existing match/output limits.
+  const skippedPathLimit = 20;
+  const skippedPathBytesLimit = 2048;
+  let skippedPathBytes = 2; // JSON array brackets, plus entries and separators below.
+  function recordSkip(file: string, reason: 'binary' | 'oversized') {
+    coverage.skippedByReason[reason]++;
+    const entry = { path: virtualFiles.get(file)!, reason };
+    const size = Buffer.byteLength(JSON.stringify(entry)) + (coverage.skipped.length ? 1 : 0);
+    if (coverage.skipped.length >= skippedPathLimit || skippedPathBytes + size > skippedPathBytesLimit) {
+      coverage.skippedPathsOmitted = true;
+      return;
+    }
+    coverage.skipped.push(entry);
+    skippedPathBytes += size;
+  }
   let outputBytes = 0;
   let truncated = false;
   search: for (const file of files) {
     const bytes=fixedBytes.get(file);
-    if ((bytes?.length ?? (await lstat(file)).size) > SEARCH_FILE_LIMIT) continue;
+    if ((bytes?.length ?? (await lstat(file)).size) > SEARCH_FILE_LIMIT) { recordSkip(file, 'oversized'); continue; }
     const text = decodeText(bytes ?? await readFile(file));
-    if (text === undefined) continue;
+    if (text === undefined) { recordSkip(file, 'binary'); continue; }
+    coverage.filesExamined++;
     const lines = text.split('\n');
     for (const [index, line] of lines.entries()) {
-      if (!line.includes(needle)) continue;
+      const needle = needles.find(needle => line.includes(needle));
+      if (needle === undefined) continue;
+      // Offsets and snippet lengths count Unicode code points, not UTF-16 code units.
+      const offset = Array.from(line.slice(0, line.indexOf(needle))).length;
+      const chars = Array.from(needle.endsWith('\r') ? line : line.replace(/\r$/, ''));
+      const before = Math.floor(Math.max(0, SEARCH_SNIPPET_CHARS - Array.from(needle).length) / 2);
+      const start = Math.max(0, Math.min(offset - before, chars.length - SEARCH_SNIPPET_CHARS));
       const match = {
         path: virtualFiles.get(file)!,
         line: index + 1,
-        snippet: Array.from(line.replace(/\r$/, '')).slice(0, SEARCH_SNIPPET_CHARS).join('')
+        snippet: chars.slice(start, start + SEARCH_SNIPPET_CHARS).join(''),
+        offset,
+        needle
       };
       const size = Buffer.byteLength(JSON.stringify(match));
-      if (matches.length >= SEARCH_MATCH_LIMIT || outputBytes + size > SEARCH_OUTPUT_BYTES) { truncated = true; break search; }
+      if (matches.length >= SEARCH_MATCH_LIMIT || outputBytes + size > SEARCH_OUTPUT_BYTES) { truncated = true; coverage.stoppedEarly = true; break search; }
       matches.push(match);
       outputBytes += size;
     }
   }
-  return { path: scope, needle, matches, truncated };
+  return { path: scope, ...(args.needles === undefined ? { needle: needles[0]! } : { needles }), matches, truncated, coverage };
 }

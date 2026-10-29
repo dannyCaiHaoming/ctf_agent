@@ -29,6 +29,27 @@ async function fixture() {
 }
 
 describe('D artifact handoff: trusted snapshots, not candidate verification', () => {
+  it('workspace.diff reads registered snapshots and refuses raw, corrupt, cross-challenge and cross-run publications', async () => {
+    const f = await fixture();
+    await f.exec('domain-solver', 'workspace.write', { path: 'work/saved', content: 'before\n' });
+    const p = await f.exec('domain-solver', 'artifact.publish', { source: 'file', path: 'work/saved' });
+    await f.exec('domain-solver', 'workspace.write', { path: 'work/saved', content: 'after\n' });
+    const q = await f.exec('domain-solver', 'artifact.publish', { source: 'file', path: 'work/saved' });
+    expect(await f.exec('engineer', 'workspace.diff', { a: p.path, b: q.path })).toMatchObject({
+      differences: [{ type: 'changed', a: { line: 1, text: 'before\n' }, b: { line: 1, text: 'after\n' } }], truncated: false
+    });
+    await f.exec('engineer', 'workspace.write', { path: 'work/observed', content: 'after\n' });
+    expect((await f.exec('engineer', 'workspace.diff', { a: q.path, b: 'work/observed' })).differences).toEqual([]);
+    await writeFile(join(f.published, 'unregistered.bin'), 'PRIVATE_SENTINEL');
+    for (const side of ['a', 'b']) await expect(f.exec('engineer', 'workspace.diff',
+      { a: p.path, b: q.path, [side]: 'published/unregistered.bin' })).rejects.toThrow('denied');
+    await f.bind('other', 'engineer', 'Y');
+    await expect(f.exec('other', 'workspace.diff', { a: p.path, b: p.path })).rejects.toThrow('denied');
+    const g = await fixture();
+    await expect(g.exec('engineer', 'workspace.diff', { a: p.path, b: p.path })).rejects.toThrow('denied');
+    await writeFile(join(f.published, p.path.slice('published/'.length)), 'corrupt');
+    await expect(f.exec('engineer', 'workspace.diff', { a: p.path, b: q.path })).rejects.toThrow('denied');
+  });
   // Missing publish dispatch is the original failure; the expected bytes are independent fixtures.
   it('H1/H3 fixes exact binary bytes, retains old version and separates equal-content provenance',async()=>{
     const f=await fixture();
