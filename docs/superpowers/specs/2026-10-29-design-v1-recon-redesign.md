@@ -1,6 +1,6 @@
 # Recon 协同重设计：题内记录、及时交回与按需方法
 
-日期：2026-10-29（Asia/Tokyo）。状态：**供人类审阅的设计草案，未实施、未运行验收**。
+日期：2026-10-29（Asia/Tokyo）。状态：**设计草案；人类随后批准的 §10.4 交接对齐＋§10.5 maxToolJobs first cut 已实现并通过无模型验证，真实模型行为未验证，其余 slice-2 范围未实施**。
 
 归属：[核心 design v1](2026-10-22-ctf-agent-design-v1.md) §1.2、§1.4、§2.B／C 的 recon 细节子文件，不另立架构依据。本文件捕获本次人类已确认的 A1＋B3 和职责边界；研究中仍写作“候选”的选项，不能覆盖本次决定。正式纳入时，对应章节应注明 recon 细节以本子文件为准；本次只准写指定两文件，故未修改父 design 添加入口（`AGENTS.md:30–35`）。设计不构成实施、模型调用或 git 授权（`2026-10-22-ctf-agent-design-v1.md:7–9`，下文简称 **V1**）。
 
@@ -133,6 +133,8 @@ recon 的交付是**有证据的基线＋可交接路线**：已知材料、入�
 
 ## 7. 切片计划：当前一片与条件去向
 
+**2026-10-29 更新：slice 1 verified FAILED（r12）。** 下表及 §4、§8、§9 保留 slice-1 设计时的历史措辞，不再表示 slice 1 未部署或 host 仍须延期。r12 已部署短骨架和可选 Skill，但 skill/read 均为 0、workspace.write 为 0、未尝试创建主本、artifact.publish 为 0；Recon 仍有 95 model.call、66 jobs、51 次 view 尝试（49 成功），继续 render → view → adjust 字形循环。可选 Skill 未加载本身不违规，失败在必要记录、职责边界和可消费交接没有落地。约 29.5 分钟是会话生命周期；有效交回为 950.293 秒（15:50.293），其后约 818.720 秒为空闲，不能都算作探索。依据：下文 **R12:19–50,73–93,156–185**。这与 r11 再次印证 L1“约定／prompt 单独不可靠”；人类已选择 slice 2 的 **host-enforced recon bound＋修复发布交接＋可信预算可见性**，细节以新增 §10 为准。只批准本次设计草案，不构成实施或重跑授权。
+
 | 切片 | 能力边界 | 何时停止／进入其他去向 |
 | --- | --- | --- |
 | **切片 1：当前唯一实施目标** | 约定层结构：`recon.md` 极短骨架＋一份按需方法 Skill＋A1 主本与交回／恢复约定。复用 workspace、artifact、task；无 host 改动，行为可由 run 核验。当前仅设计草案，角色和 Skill 尚未改。 | 完成资产／内容核对后，真实行为待独立授权 run；若结构有效就到此停止。不能因没有模型授权把静态通过写成行为通过。 |
@@ -160,3 +162,108 @@ recon 的交付是**有证据的基线＋可交接路线**：已知材料、入�
 真实验证须沿用产品入口、保留版本、初始条件、知识／工具配置、失败及实际用量；usage 缺失记 `unavailable`。同批要求不能用不同 run 的局部成功拼接；r11 是失败对照，不是新版行为结果（`V1:93–95`；`AGENTS.md:39–43`）。
 
 静态审阅只证明约定一致、资产可发现／可读取；真实 run 才能证明本次角色行为，且不能自动外推效率、通用解题率、精确视觉能力或 solved。solved 仍按 V1 §1.3 的独立审阅与可信裁判整题完成判定。**当前交付只有两份审阅草案；无实现、无行为验收、无 challenge run。**
+
+## 10. Slice 2：宿主约束、可消费交接与预算可见性（评审草案）
+
+### 10.1 已定目标、证据口径与红线
+
+人类已选定三个部分作为同一主题：限制 Recon 对全队时间的占用，限额内留出发布／交回窗口，使 Solver 真正取得固定证据，并让各角色看到宿主已知的预算。不是再次征询是否需要 host 兜底。§4 的延期条件已由 r12 满足；§8 的“host 延期决定”仅作历史记录。当前代码仍无本节新增能力。
+
+新增证据缩写（行号是本次只读工作区快照；未用 Git 核验版本或 dirty 状态，不能将当前代码冒充 r12 完整部署快照）：
+
+- **R12**：`/Users/caihaoming/Documents/pentest-agent-run-data/seizurecipher-debug-20261029-r12-recon-slice1/runs/seizurecipher-debug-20261029-r12-recon-slice1-1/recon-r12-diagnosis.md`。失败行为取自该诊断，未重算 transcript、未读 oracle 或输出答案。
+- **R12-state**：同 run 的 `state/run.json:35–39`，本次直接读取 budget：wallClockMs=1800000、maxSteps=3000、maxToolJobs=100、maxObservableTokens=5000000。这些是历史配置，不是本设计的新默认值。
+- **C**：`apps/launcher/src/control-service.ts`；**J**：`apps/launcher/src/job-tools.ts`；**P**：`apps/launcher/src/progress-ledger.ts`；**A**：`apps/launcher/src/artifact-tools.ts`；**L**：`apps/launcher/src/launch.ts`；**Plugin**：`apps/opencode-plugin/src/index.ts`。下文均为这些文件的 file:line 引用。
+
+红线：只在薄控制层已有预算／task 机制上做小增量；**NO scheduler / monitor / watchdog / wakeup / framework / DAG / planner**，不重造求解循环、不 fork OpenCode。保留 recon→solver 的同步 dispatch，不把 background 当作解决方案；现有 Verifier 的 background 规则不在修改范围。交接只用 artifact.publish/read，无新 transport、共享可写 work 或整目录自动复制。recon 不成为 planner；无 auto-evolving、memory、RAG。依据：`AGENTS.md:16–19,26–35`、`CLAUDE.md:21–25,58–64`、`V1:13,43–47,133–135`。宿主 cap 只改善**时间／资源分配**，不会提高精确字形转写能力；后者是独立轨道，不纳入 slice 2（`R12:143–150,204–210`）。
+
+### 10.2 当前链路：已确认的强制点与缺口
+
+| 链路 | 当前实现及证据 | 对设计的约束 |
+| --- | --- | --- |
+| 全局墙钟 | `L:204,227–229` 用 deadlineMs 覆盖值或 profile.wallClockMs，在 OpenCode 启动后计算 deadlineAt；`L:261–292` 既有循环检查 deadline 并 stopAll。`C:198–199,471–472` 根／子 binding 共享 expiresAt，`C:432–435` 每次 live 检查过期。 | wallClockMs 不是每个子任务的独立额度，也不是从 launch 最初一刻起计时；已有循环和准入点足以承载小扩展，不加计时服务。循环含 SDK await，不能承诺精确毫秒硬实时停止。 |
+| 模型步数／token | `C:40–45` RunBudget 只有 maxModelCalls/maxObservableTokens；`L:228` 将 maxSteps 映射到 maxModelCalls。`C:224–250,483–497` 在刷新 usage 后串行再检查，按全 run admitted 计 model.call；达到上限 stopAll。`C:344–350` 检查已观察 token。 | maxSteps 是 admitted model calls，不是工具数或 per-task turns；需另在已有 Execution 上归属当前任务轮次，不能从 assistant 消息数猜。usage 不完整不冒充实测全量。 |
+| 工具准入／执行 | `C:500–515` tool.before 检查权限和超时；`C:692–715` execute 再检查、按 session/callID 去重并登记 Resource；`C:717–754` 异步准备后检查 live，再启动真实 job。 | 新预算检查必须覆盖 before 和 execute，串行执行处只扣一次；异步等待后重查关闭／停止，不能只靠 prompt 或 before。 |
+| 绑定与同步任务 | `C:438–479` SDK 父子身份和原生 task call 关联后绑定；`C:519–566` 两种模式都建 Execution，sync 另有结果视图；`C:965–990` 续接校验所有权及 active execution。`C:995–1004,1096–1134` 可信终态结算及 syncDisplay。 | 用现有 Execution/Binding，不能另建任务平台；续接有新 Execution，不能借此重置同一 Recon 配额。 |
+| 发布／私有路径 | `C:911–914` work 映射到调用 session；`C:836–841` 普通 read 落到 readWorkspace；`apps/launcher/src/workspace-tools.ts:51–59,99–108` 路径缺失拒绝。`C:770–792,825` 发布／读取走 registry；`A:57–85` 固定 bytes、生成 ref、按 run/challenge 及 hash 核对并分页。 | r12 Solver 读 `work/points_from_lol.txt` 实际是在读自己的空 work，拒绝是隔离正确，不应放开 sibling work。 |
+| 预算可见性 | `C:585–589` 已在 progress.read 的 `completion.budget` 返回 admittedModelCalls、maxModelCalls、observedTokens、maxObservableTokens、deadline、stopped；`C:662–664` 仅 Coordinator/Critic 可读。`P:314–327` 本体是事件摘要、usage 与重复调用分组。 | 不是“host 没有预算接口”；缺少剩余量、任务归属和默认可见路径，Recon/Solver 不应为此获得全量进度日志权限。 |
+
+### 10.3 最小 per-recon bound 与收束窗口
+
+**已定行为**：探索额度耗尽先进入受限收束，不立即撤销 binding；收束仍允许整理必要记录、发布已有证据、原生交回。收束到期才停止该 Recon，保留已发布引用与未完成原因；不因某 Recon 耗尽局部额度就 stopAll 整队。全局 deadline、token/step 上限及显式停止始终优先，窗口不得延长总预算。`C:315–331` 的 stopChild 会 revoke、取消资源并 abort，`C:432–435,790` 随后无法 publish，因此**不能拿现成硬 stop 当软收束入口**（`R12:181–192,204–208`）。
+
+**推荐的最小机制（待实施核验）**：优先以宿主计数的 model.call **步数上限＋预留收束轮次**落地；墙钟边界复用现有 deadline 检查，不要求模型计时。步数可确定性拦住无休止 render/view 变体，避免一开始就引入异步唤醒。若同时配置 Recon 墙钟上限，则在既有 `checkBudget` 调用及 admission 边界检查软／硬截止；不新增 timer loop。数值由单独预算配置决定，不在本文指定 cap 数字，r11/r12 的 3–5 分钟只是未经批准的估计。
+
+1. **归属与防重置。** `Execution` 保存当前调用的 admitted turns 和收束事实；同一 run/challenge 的 Recon 额度由现有 host 预算持有并累计，复用或新建 Recon session 不重置。前者回答“当前任务几轮”，后者避免 Coordinator 通过续接／重开绕过上限。这是本文推荐的窄配额作用域，不给其他角色新增配额系统。首次 Recon 可信绑定时启用墙钟（若配置），后续保持原截止；不从 prompt 中采信 elapsed/remaining（`C:107,137,455–477,550–563,970–980`）。
+2. **窗口在总额度之内。** 设 Recon 总调用额度为 B、收束预留为 R，要求 0<R<B；探索最多 B−R 次，收束仍最多使用原 B 内的剩余调用。若采用墙钟，同样从局部总时间内扣除 closure 时间，并裁剪到全局 expiresAt；总／局部预算不足以容纳收束时明确拒绝继续探索或直接报告不足，不虚构“保证交付”。不硬写 B、R 或分钟值。配置只允许宿主装载，不由 Coordinator 自增。
+3. **强制内容是工具能力，不是语义判卷。** 收束期间禁止新的 job.run、http.request、workspace.view、搜索／diff、skill/read 等继续探索入口；仅保留本会话 workspace.list/read/write、已有 job.read/cancel、artifact.publish/read 和最终文字交回所需模型调用。写权限仍限私有 work，发布仍按原权限、大小与完整性规则。不给 job.run “最后一次处理”的例外，否则可继续同一循环。准入在 `C:483–512,692–715` 重查；收束事实通过 §10.6 的现有返回路径展示。不判断字形、路线价值或文本是否真的总结。
+4. **在途工作。** 已准入 job／HTTP 不在切换软边界时假装完成；复用 Resource deadline/controller，执行前在异步等待后重查，最多运行到局部硬截止与全局 deadline 的较早者。已进入收束但资源未 settled 时，不能发布它的 job 流（`J:146–152`）；返回已有材料及该缺口。文件快照不会把未知 producer 升级为可信 producer（`C:773–779`）。
+5. **已有同步结束路径。** 收束正常返回沿用 `toolAfter`／`settleSync`；空正文、length、未知来源仍按既有 completeness 分类，不能因为 cap 命中改成 complete。硬边界复用局部 stopChild 及取消路径并保留 unknown；父 Coordinator 应得到局部 stop 原因和可确认 refs，不得只见无信息 abort。全局仍可运行时由原生同步 task 解除等待后继续（`C:995–1004,1096–1134`）。
+6. **提前固定，避免空手。** 不把所有发布延后到最后一轮：有首份可用基线就发布必要快照，收束时只补已改变材料及简短记录。host 能保证不再准入探索、保留窗口和已确认 ref；**不能保证模型在窗口内一定写完或自然语言总结正确**。若窗口内仍无可消费产物，记 slice-2 交接行为失败，不把止损当验收成功（`R12:93,158–162,189–192`）。
+
+**窄技术待验证点**：一次已经发出的 model.call 可能跨过软截止；当前 chat.params 只限制 maxOutputTokens（`Plugin:148–152`），没有证据证明可中断推理后继续同一同步 task 收束。故推荐首落步数预留：在下一轮调用前进入收束，并保留全局硬 deadline；它是步数约束，不宣称严格局部墙钟 SLA。若人类要求严格局部墙钟且在途模型也必须获得完整 closure，需先核实原生公开接口能否安全完成；不默认切 async、不暗加唤醒／自动续接。既有循环检查包含 `refreshObserved`、SDK status 等 await（`C:345–347,413–423`；`L:261–292`），其时延也不能忽略。
+
+### 10.4 修复 Coordinator→Recon→Solver 的发布与消费链
+
+**诊断事实与文本来源分开。** `R12:156–162` 记录实际分派分别要求 Recon“不自行发布产物”、Solver“不发布产物”，随后传私有 work 路径，seq 816–819 拒绝且 publications.json 为空。当前 `product/opencode/agents/coordinator.md:20` 反而明确同步／背景均可发布；`:40–43` 的 ref 交接主要写成“给 Engineer”；`:25–31` 的 recon/solver 分派要求未明确落实上游产物消费。因此不能声称仓库 prompt 存在一条可直接删除的“不发布”原句，也不能证明仅改 wording 就会改变模型行为。
+
+**已定交接契约**：
+
+- Coordinator 的派单不能覆盖来源角色的发布职责；“不提交裁判／不做 package”不得写成“不发布 artifact”。Recon→Solver 同样执行真实 ref 交接，不只 Engineer 路径执行。`product/opencode/agents/recon.md:20–24`、`domain-solver.md:30–34` 已有发布契约，修订时保持一致。
+- Recon 在本 session 完成写入／job 后选**下一角色确实需要**的材料发布：已提取的结构数据、来源／基线说明、去敏主本快照，以及确实有用的结构图。不是每题固定文件清单、不是把 94 个文件全部打包，也不强制一张图代表基线完成。使用 `artifact.publish({source:"file",path:"work/..."})` 或现有 settled job／HTTP 来源；host 产生 ref 和 hash（`C:770–792`；`A:57–69`）。
+- 原生 task 交回只带真实 ref、用途、必要提取说明、覆盖范围及未知；Coordinator 原样转交 Solver，不猜 hash、不自造 ref。缺 ref 时明确“材料未交付”，可在剩余额度内请求原 Recon 仅发布已有文件，不能把私有路径冒充输入或默认重跑实验；传输状态未知遵守既有暂停／不盲重发规则。
+- Solver 用 `artifact.read({ref,cursor})` 分页读到需要的 bytes，完整读取要求到 done/nextCursor=null；图像可用发布返回的 path 经既有 workspace.view 查看，不能把 base64 文本当视觉输入。读取可信 ref 与实际消费分开记录；需要本地加工时只在 Solver 自己的 work 写必要派生文件，不另建传输机制（`A:73–85`；`C:825,843–858`；`Plugin:124–126`）。
+- 原始来源缺失、被篡改、异题 ref 必须继续拒绝；文件 producer 未知仍保留 execution:null／originalComplete:null，不借本次交接补造来源（`A:73–78`；`C:773–779`）。Solver 后续交 Engineer 的候选／最小复现证据仍沿用原发布契约，不在此新增候选整理／验证流程。
+
+这是首个推荐实施切片：**修正派单契约并以现有真实 artifact 通道验证跨角色消费**。只加 cap 会把“晚交回但无 ref”变成“早中止但无 ref”；先让局部结束有交付出口，收益直接对应 seq 816–819。这个切片的无模型测试证明接线，不证明模型会遵守；它不替代 §10.3 的 host bound，也不单独宣称 slice 2 完成。
+
+2026-10-29 first cut 结果：三份角色约定已对齐，`d-artifact-handoff.test.ts` 经真实同步 task 准入／SDK 可信子绑定建立 Recon Execution，以真实 ArtifactPublisher 发布非秘密 32773 bytes，经 Coordinator 的原生 task 结果／输入转交原 ref，Solver 在空私有 work 下两页 artifact.read 重组相同 bytes；原文件修改后的快照固定、私有路径、伪造／异题／损坏 ref 拒绝均通过。只替换 SDK 身份／消息事实，无预置 publications／bindings，不运行解包／渲染 job。此结果验证控制链和 bytes，不验证真实模型会遵守约定，也未新增图像能力或验证视觉判读。
+
+### 10.5 maxToolJobs：当前为未接入，最小补齐全 run 累计准入
+
+`R12:172–183` 已排除重复事件计数：134 个不同 callID 的真实 job.run，第 101 个在 seq 1147 仍准入。当前源码进一步定位：
+
+- `apps/cli/src/composition/releaseProfile.ts:11,47–49` 读取并校验 maxToolJobs；`R12-state:35–39` 保存了 100。
+- **`L:228–229` 创建 ControlService 时只传 maxSteps 与 maxObservableTokens；`C:40–45` 根本没有 maxToolJobs 字段。** `C:692–715,754` 也没有全局累计 job gate。
+- `J:15–16,177–180` 仅对尚未 settled 或清理未知的 job 限制每 session 2、每 challenge 8；与配置中的 100 无关。settled job 释放的是并发容量，不是一个错误重置的 maxToolJobs 计数器。
+
+因此，**当前代码证实配置未绑定到累计执行准入**；不是 per-session=100，也不是 maxToolJobs 的并发语义或已存在计数器的生命周期 bug。该静态根因与 r12 现象一致；未逐字对照 r12 全量部署源码，保留这层版本归因限制。
+
+推荐修复语义：maxToolJobs 是同 run 所有角色／题目累计的 **job.run 准入上限**，独立于并发限额。由 launcher 传入既有 RunBudget；在 `prepareSolver` 的串行状态变更段、验证身份与唯一 callID 后、任何异步启动前原子检查并消耗一次。tool.before 只预检，不扣第二次；execute 不能绕过；job.read/cancel、发布和读取不扣 job 数。已准入但启动失败／取消仍计消耗，明确叫 admitted jobs，不冒充成功进程数，不回退计数、不靠新 session 重置。这样不需要另一套 reservation 生命周期（依据 `C:189–190,229–252,692–709`）。
+
+到达 N 后第 N+1 次应拒绝、无 spawn／无新 job handle；同时到达的两个调用不能都越界。耗尽 job 配额只禁新 job.run，**不自动 stopAll**，否则再次封死 artifact.publish 的收束出口；现有全局时间／模型／token 上限照常约束其他调用。返回明确的 job-limit 原因和 remainingJobs=0。此处是拟议契约，不是现状描述；不提高 100 来掩盖问题，也不顺带修所有 budget 校验器。
+
+2026-10-29 first cut 结果（上述“当前／拟议”为接线前诊断）：launcher 已将既有 profile.budget.maxToolJobs 传入 RunBudget；ControlService.prepareSolver 在 handle 的 serial 状态段、身份／唯一 callID 与既有参数检查后、任何异步准备／spawn 前检查并累计 admittedJobs，tool.before 只预检不计数；所有角色／题目共用一次 run 计数，不回退。拒绝经现有 RPC 的消息返回 `denied: job limit; remainingJobs=0`，没有新句柄，不 stopAll；read/cancel／发布／读取和同步交回不扣 jobs。RunBudget 未配置时为 unavailable（job.run 预检同名字段），不补默认、不实现 §10.6 快照。真实 JobManager 并发 2/session、8/challenge 不变。
+
+验证条件与版本：`codex/recon-slice2`；ControlService SHA-256 `ecdca0116c8372d33deffea0e54d451d0364dde8d97e2d80c10b4ac910b36160`，launch `c3dc40f7078e30fea546c38517eb5ec1463041aae55d70c4f090d1f6f601e064`。既有 `slow-tools.test.ts` 新增六例覆盖跨角色／题目累计、末名额并发和异步准备竞态、身份／callID、无退款、耗尽后出口、0／未配置；原并发测试在已配置累计额度下保留。`npx tsc --noEmit`、build、deterministic（40 文件／615 测试）、全套 npm test（51 文件／657 测试）均 exit 0；首次沙箱回环监听 EPERM／HTTP 超时后，在允许本地回环的环境验证，无外网／provider／challenge run。无独立 review；只证明机制可用，不证明真实 Coordinator／Recon／Solver 行为或完整 slice-2，§10.3、§10.6 不在本次范围。未发现须越界修复的产品缺陷。
+
+### 10.6 窄可信预算信号：复用 progress 与工具返回
+
+由 ControlService 用同一准入计数／deadline 生成小快照，不另建 state framework，也不从模型文字或 progress 事件回算预算。建议字段含义如下（名字可在实施时与现有类型对齐，语义不可省略）：
+
+| 字段 | 来源／边界 |
+| --- | --- |
+| sampledAt、remainingMs | host 当前时间及 max(0, expiresAt−now)，明确这是采样时全 run 剩余时间，不是模型收到时仍精确有效。 |
+| admittedJobs、maxToolJobs、remainingJobs | §10.5 唯一累计准入计数；未接线前不能伪造 remainingJobs=100。没有配置／实现时标 unavailable，不写 0 表示耗尽。 |
+| currentTaskTurns、taskRemainingTurns、phase | 从已绑定当前 Execution 的 model.call 准入取数；Recon 的探索／收束阶段由 host 判定。Coordinator 无子 execution 时用 null，不把全 run admitted 当当前任务轮次。 |
+| taskRemainingMs | 只有配置局部墙钟时才可计算，未配置用 null；与全局 remainingMs 分开。 |
+| stopReason／restrictionReason | 全 run stop、当前 task 收束／上限、job-limit 分开；限制新 jobs 不等于整个 run stopped。没有停止为 null，保留 unknown，不推断 solved。 |
+
+暴露路径必须真能进入模型可见内容：
+
+1. 保留 `progress.read` 原有 `completion.budget` 兼容语义，增加以上小快照；`P:314–327` 只投影，权威数值仍由 C 提供。Coordinator 分派／续接前应读真实预算，不再写“deadline unknown”代替可得事实。但不能只靠它主动读 progress，r12 已证明它可能不读（`R12:185`）。
+2. 在现有受管工具成功返回及受控预算拒绝中附小快照，使 Recon/Solver 每次工具边界都收到；保持工具原字段、分页、图像 attachments 完整。`Plugin:124–126` 把一般返回 JSON 化，workspace.view 则直接返回 ToolResult，故图像路径要把预算加进可见 output，不能只藏在未渲染 metadata。
+3. 原生 task 起始／同步交回也展示同一快照，复用 `chat.message` 的 synthetic text 与 `tool.execute.after` 已有事实展示点（`Plugin:138–140,166–168`）。预算是 host 附加事实，不采信 Coordinator 自报值；不新建通知／唤醒机制。仅在 model.call 的 RPC 结果多一个字段不够：`Plugin:148–152` 目前只使用 maxOutputTokens，模型不会自动看到那个字段。
+4. 不给 Recon/Solver 开完整 progress.read 权限；不暴露其他 session 私有 work、凭据、候选正文、完整 argv 或推理。旧 progress ledger 仅按需要记录预算阶段／拒绝事实，不成为第二计数源（`C:662–664`；`P:194–215,257–283`）。所有 await 后停止检查仍保留。
+
+### 10.7 行为判据、真正待决项与授权
+
+整体 slice-2 验收必须同时看到：host 在参数化探索边界拒绝新探索、窗口内仍能发布／读取／交回；局部耗尽不误停 Coordinator/Solver；同题续接不重置 Recon 配额；同 run 跨 session 第 N+1 个 job 被拒且没有 spawn；真实 refs 经同步任务交到 Solver 并被读取；不主动读 progress 时仍能在既有返回看到可信预算。需要覆盖 in-flight／异步准备竞态、收束空正文、hard-stop 未确认和全局 deadline 优先。只取消成功、工具返回 200、测试全绿或本地文件存在都不等于完整交接，更不等于 solved。
+
+真正待决仅为：
+
+- **数值授权**：Recon 总额度／closure 预留及任何局部墙钟值未批准，不能把 3–5 分钟当默认。配置参数化可先做无模型验证；真实批次前必须确定。
+- **局部墙钟严格程度**：推荐先采用步数上限＋收束轮次；严格墙钟且要求中断中模型仍能收束的接口可行性尚未证实，按 §10.3 的窄验证处理。若必须改 async 才可行，返回人类评审，不自行切换或新增调度。
+- **真实行为批次**：目标、模型/provider、token 总上限、批次及续接／重试范围尚无新授权。确定性测试不能替代 r12 原失败链的真实行为验收，也不新开题目来逃避它。
+
+草案形成阶段只编辑本设计并新建指定单步计划，当时没有产品实现、测试运行、联网、Git 或挑战运行；该阶段只做代码／证据自检，不冒称独立 review。随后获准的 first cut 结果限 §10.4／§10.5 上述记录，不表示批准或实现其余机制；父 design 入口及涉及后续 host 限制的措辞留对应范围处理。

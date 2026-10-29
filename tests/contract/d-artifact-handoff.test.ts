@@ -1,5 +1,5 @@
 import { afterAll, describe, expect, it } from 'vitest';
-import { mkdtemp, mkdir, readFile, writeFile, symlink } from 'node:fs/promises';
+import { mkdtemp, mkdir, readFile, readdir, writeFile, symlink } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { createServer } from 'node:http';
@@ -29,6 +29,72 @@ async function fixture() {
 }
 
 describe('D artifact handoff: trusted snapshots, not candidate verification', () => {
+  it('synchronous Recon -> Coordinator -> Solver hands off real refs and paged fixed bytes, retaining private-path and ref denials', async () => {
+    const root = await mkdtemp(join(tmpdir(), 'd-handoff-sync-'));
+    const materialsDir = join(root, 'X/materials'); await mkdir(materialsDir, { recursive: true });
+    const native = new Map<string, string>(), reports = new Map<string, string>();
+    const inputs = new Map<string, string>();
+    // Only SDK identity/native message facts are doubled. C mints executions and the publisher mints refs.
+    const client = { session: {
+      get: async ({ sessionID }: { sessionID: string }) => ({ data: { id: sessionID, parentID: 'root', agent: sessionID === 'other' ? 'domain-solver' : sessionID } }),
+      children: async () => ({ data: [] }), abort: async () => ({ data: true }),
+      messages: async ({ sessionID }: { sessionID: string }) => ({ data: sessionID === 'root'
+        ? [{ info: { id: 'root-input', sessionID, role: 'user' }, parts: [...native].map(([callID, sessionId]) => ({ type: 'tool', tool: 'task', callID, state: { metadata: { sessionId } } })) }]
+        : [{ info: { id: `input-${sessionID}`, sessionID, role: 'user' }, parts: [{ type: 'text', text: inputs.get(sessionID) }] },
+          { info: { id: `reply-${sessionID}`, sessionID, role: 'assistant', parentID: `input-${sessionID}`, finish: 'stop', time: { completed: 1 } }, parts: [{ type: 'text', text: reports.get(sessionID) ?? 'done' }] }] })
+    } };
+    const c = new ControlService({ runId: 'sync-handoff', client: client as never,
+      budget: { maxModelCalls: 100, maxObservableTokens: 100000 }, expiresAt: Date.now() + 60000,
+      workdir: join(root, 'opencode'), skillRoot: root,
+      challenges: ['X', 'Y'].map(id => ({ id, title: null, target: null, reachability: null, materials: [], materialsDir: join(root, id, 'materials') })) });
+    services.push(c); c.bindRoot('root'); let n = 0;
+    const exec = (sid: string, tool: string, args: object) => c.handle(sid, 'tool.execute', { tool, args, callID: `p${++n}` }) as Promise<any>;
+    async function dispatch(sid: string, role: string, challenge: string, prompt: string) {
+      await exec('root', 'challenge.assign', { role, challenge });
+      const callID = `dispatch-${sid}`;
+      await c.handle('root', 'tool.before', { tool: 'task', callID, args: { subagent_type: role, background: false, prompt } });
+      native.set(callID, sid); inputs.set(sid, prompt);
+      await c.handle(sid, 'chat.message', { agent: role, messageID: `input-${sid}` });
+      return callID;
+    }
+    const callID = await dispatch('recon', 'recon', 'X', 'Publish the non-secret baseline needed by Solver.');
+    const expected = Buffer.concat([Buffer.alloc(32768, 65), Buffer.from([0, 255, 13, 10, 66])]);
+    await exec('recon', 'workspace.write', { path: 'work/baseline', content: expected.toString('base64'), encoding: 'base64' });
+    const p = await exec('recon', 'artifact.publish', { source: 'file', path: 'work/baseline' });
+    expect(p).toMatchObject({ snapshotFixed: true, rangeComplete: true, originalComplete: null });
+    const execution = c.executionSnapshot().find(e => e.callID === callID)!;
+    expect(execution).toMatchObject({ mode: 'sync', role: 'recon', source: { status: 'associated', userMessageID: 'input-recon' } });
+    expect(c.publicationSnapshot().find(r => r.ref === p.ref)!.source).toMatchObject({ execution: execution.ref, sessionID: 'recon' });
+    reports.set('recon', JSON.stringify({ ref: p.ref, path: p.path, purpose: 'baseline', originalComplete: p.originalComplete }));
+    const nativeOutput = `<task id="recon" state="completed">\n<task_result>${reports.get('recon')}</task_result>\n</task>`;
+    const returned = await c.handle('root', 'tool.after', { tool: 'task', callID, metadata: { parentSessionId: 'root', sessionId: 'recon' }, output: nativeOutput }) as any;
+    expect(returned.syncDisplay).toMatchObject({ completeness: 'complete', source: 'associated' });
+    expect(c.executionSnapshot().find(e => e.ref === execution.ref)).toMatchObject({ state: 'completed', resultFacts: { completeness: 'complete', userMessageID: 'input-recon' } });
+    // Coordinator consumes the native task result text; the host stores provenance facts, not report bytes.
+    const delivered = JSON.parse(nativeOutput.split('<task_result>')[1]!.split('</task_result>')[0]!);
+    expect(delivered.ref).toBe(p.ref);
+    await dispatch('domain-solver', 'domain-solver', 'X', JSON.stringify(delivered));
+    expect(await readdir(join(root, 'X/work/domain-solver'))).toEqual([]);
+    await expect(exec('domain-solver', 'workspace.read', { path: join(root, 'X/work/recon/baseline') })).rejects.toThrow('workspace path');
+    await expect(exec('domain-solver', 'workspace.read', { path: 'work/../recon/baseline' })).rejects.toThrow('workspace path');
+    await exec('recon', 'workspace.write', { path: 'work/baseline', content: 'changed after publication' });
+    const ref = JSON.parse(inputs.get('domain-solver')!).ref;
+    let cursor = '0'; const chunks: Buffer[] = [];
+    for (let pages = 0; ; pages++) {
+      expect(pages).toBeLessThan(3);
+      const page = await exec('domain-solver', 'artifact.read', { ref, cursor });
+      chunks.push(Buffer.from(page.data, 'base64'));
+      if (page.done) { expect(page.nextCursor).toBeNull(); break; }
+      expect(page.nextCursor).toBe('32768'); cursor = page.nextCursor;
+    }
+    expect(chunks).toHaveLength(2); expect(Buffer.concat(chunks)).toEqual(expected);
+    expect(c.resourceSnapshot().some(r => r.tool === 'job.run')).toBe(false);
+    await expect(exec('domain-solver', 'artifact.read', { ref: 'forged' })).rejects.toThrow('artifact source');
+    await dispatch('other', 'domain-solver', 'Y', JSON.stringify(delivered));
+    await expect(exec('other', 'artifact.read', { ref })).rejects.toThrow('artifact source');
+    await writeFile(join(root, 'X', p.path), Buffer.alloc(expected.length, 67));
+    await expect(exec('domain-solver', 'artifact.read', { ref })).rejects.toThrow('artifact source');
+  });
   it('workspace.diff reads registered snapshots and refuses raw, corrupt, cross-challenge and cross-run publications', async () => {
     const f = await fixture();
     await f.exec('domain-solver', 'workspace.write', { path: 'work/saved', content: 'before\n' });
