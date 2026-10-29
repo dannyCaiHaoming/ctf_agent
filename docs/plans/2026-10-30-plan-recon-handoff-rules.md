@@ -42,6 +42,11 @@
 
 **执行模型：gpt-6.1-sol（high）。** 理由：需在四个文件间保持一致并保留大量既有约束，属局部判断，不是机械替换。
 
-## 1. 结果记录（执行后填写）
+### 结果记录（2026-10-30）
 
-未执行。
+- 已按 §0 修改四个 prompt 资产：Recon 用四种有依据的交回原因替换旧高／低价值判断，删除“不新增時間／步數限制”，加入继续判准与四项下游交付标准；recon-investigation 升至 Version 2，加入同 URL 前提变化可复验、仅换呈现不足以继续的对照与可执行交付示例；Coordinator 按具体不确定性派单并加入两类例子及按需再调查规则；Domain Solver 增加一句接收待验证前提、经 Coordinator 请求明确调查的约定。
+- 测试断言未修改：未发现既有契约测试断言被替换的旧措辞；未增加测试逻辑。作者已按行为判据自查文字一致性，职责、单一主本、反证范围、去敏、发布与 unknown 规则保留。
+- `npx tsc --noEmit`：通过（exit 0）；`npm run build`：通过（exit 0）；`git diff --check`：通过。
+- `npm run test:deterministic`：失败（exit 1），40 个测试文件中 28 通过／12 失败；636 项中 532 通过／86 失败／18 跳过，另报 10 个未处理错误及末尾缓存写入错误。输出包含 `listen EPERM: operation not permitted 127.0.0.1`、超时、`lease expired`，以及符号链接 `node_modules` 内临时文件和 `.vite/vitest/results.json` 写入 `EPERM`；未扩大权限、重试或修改相关代码，不能宣称全绿。
+- 失败文件：`tests/bootstrap/test-harness.test.ts`；`tests/contract/` 下的 `control-service.test.ts`、`launch-evidence.test.ts`、`workspace-view.test.ts`、`http-lifecycle.test.ts`、`d-h7-rpc-stop.test.ts`、`http-tools.test.ts`、`g-coordinator-stop.test.ts`、`run-prep.test.ts`、`d-artifact-handoff.test.ts`、`runtime-interactive-sessions.test.ts`、`slow-tools.test.ts`。
+- 除四个资产及本记录外未修改受管文件，保留原有 `node_modules` 链接；未联网、未跑挑战／真实模型、未 commit／push。静态文字复核与编译通过不证明模型遵循或实际交付可用，真实行为仍待后续授权 run 验收。
