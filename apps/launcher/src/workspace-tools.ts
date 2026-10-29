@@ -1,7 +1,7 @@
 import { filePage } from './file-page.js';
 import { createHash, randomUUID } from 'node:crypto';
-import type { Stats } from 'node:fs';
-import { lstat, mkdir, readdir, readFile, realpath, rename, rm, writeFile } from 'node:fs/promises';
+import { constants, type Stats } from 'node:fs';
+import { lstat, mkdir, open, readdir, readFile, realpath, rename, rm, writeFile } from 'node:fs/promises';
 import { basename, dirname, isAbsolute, join, relative, sep } from 'node:path';
 
 export interface WorkspaceRoots { materialsDir: string; workDir: string; publishedDir: string }
@@ -106,6 +106,46 @@ export async function readWorkspace(root: WorkspaceRoots, args: Record<string, u
   const bytes = await readFile(abs);
   const base = { path: segments.join('/'), size: bytes.length };
   return { ...base, ...filePage(bytes, args.cursor, refuse) };
+}
+
+/** Deliver one saved image's bytes; signature detection only, no decoding or semantic judgment. */
+export async function viewWorkspace(root: WorkspaceRoots, args: Record<string, unknown>, published?: Array<{ path: string; bytes: Buffer }>) {
+  if (Object.keys(args).some(key => key !== 'path')) refuse('view arguments');
+  const segments = splitWorkspacePath(args.path);
+  if (segments.length < 2) refuse('workspace path');
+  const path = segments.join('/');
+  let bytes: Buffer;
+  if (segments[0] === 'published' && published) {
+    const fixed = published.find(file => file.path === path);
+    if (!fixed) refuse('workspace path');
+    bytes = fixed.bytes;
+  } else {
+    const realRoot = await realRootOf(root, segments[0]!);
+    const { abs, details } = await walk(realRoot, segments.slice(1), false);
+    if (!details?.isFile()) refuse('workspace path');
+    await assertInside(realRoot, abs);
+    if (details.size > SEARCH_FILE_LIMIT) refuse('image size');
+    const handle = await open(abs, constants.O_RDONLY | constants.O_NOFOLLOW);
+    try {
+      const current = await handle.stat();
+      if (!current.isFile()) refuse('workspace path');
+      if (current.size > SEARCH_FILE_LIMIT) refuse('image size');
+      // Read at most limit+1 even if the file grows after stat; the extra byte detects overflow.
+      const buffer = Buffer.alloc(SEARCH_FILE_LIMIT + 1);
+      let size = 0;
+      while (size < buffer.length) {
+        const { bytesRead } = await handle.read(buffer, size, buffer.length - size, size);
+        if (!bytesRead) break;
+        size += bytesRead;
+      }
+      bytes = buffer.subarray(0, size);
+    } finally { await handle.close(); }
+  }
+  if (bytes.length > SEARCH_FILE_LIMIT) refuse('image size');
+  const mime = bytes.subarray(0, 8).equals(Buffer.from([137, 80, 78, 71, 13, 10, 26, 10])) ? 'image/png' :
+    bytes.length >= 3 && bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff ? 'image/jpeg' : undefined;
+  if (!mime) refuse('image type');
+  return { mime, bytes, sha256: createHash('sha256').update(bytes).digest('hex'), size: bytes.length };
 }
 
 function decodeContent(content: unknown, encoding: unknown): Buffer {
