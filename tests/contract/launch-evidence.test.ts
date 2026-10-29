@@ -80,7 +80,18 @@ async function run(failInStart = false, deadlineMs?: number) {
     await hooks['tool.execute.before']!({ sessionID: rootId, tool: 'task', callID: 'dispatch' }, { args: { subagent_type: 'recon' } });
     if (mode !== 'pending') {
       await hooks['chat.message']!({ sessionID: 'child', agent: 'recon' } as never, {} as never);
-      await hooks['tool.execute.after']!({ sessionID: rootId, tool: 'task', callID: 'dispatch', args: {} }, {title:'done', output:'native terminal', metadata:{parentSessionId:rootId, sessionId:'child'}});
+      if (mode === 'recon-cap') {
+        const turn = () => hooks['chat.params']!({ sessionID: 'child', agent: 'recon', model: { providerID: 'fake', id: 'model' } } as never, { maxOutputTokens: 1000 } as never);
+        await turn(); await turn();
+        await expect(hooks['tool.execute.before']!({ sessionID: 'child', tool: 'ctf_job_run', callID: 'pre-cap' }, { args: { argv: ['true'] } })).resolves.toBeUndefined();
+        await turn();
+        await expect(hooks['tool.execute.before']!({ sessionID: 'child', tool: 'ctf_job_run', callID: 'closure' }, { args: { argv: ['true'] } })).rejects.toThrow('recon closure: exploration disabled');
+        await turn(); await turn();
+        await expect(turn()).rejects.toThrow(/recon closure.*exhausted/);
+      }
+      const output = {title:'done', output:'native terminal', metadata:{parentSessionId:rootId, sessionId:'child'}};
+      await hooks['tool.execute.after']!({ sessionID: rootId, tool: 'task', callID: 'dispatch', args: {} }, output);
+      if (mode === 'recon-cap') expect(output.output).toContain('recon closure: model-call budget exhausted');
     }
     if (failInStart) throw error('original run failed');
   } });
@@ -101,6 +112,18 @@ async function checkEvidence() {
   return json('state/run.json');
 }
 describe('launch failure evidence with SDK stand-in only', () => {
+  it('wires optional profile recon budgets through launch into real host admission and plugin denial messages', async () => {
+    mode = 'recon-cap';
+    const path = join(dir, 'profile.json'), profile = JSON.parse(await readFile(path, 'utf8'));
+    profile.budget.reconMaxModelCalls = 5; profile.budget.reconClosureReserve = 2;
+    await writeFile(path, JSON.stringify(profile));
+    expect(await run()).toMatchObject({ code: 0, status: 'completed' });
+    const executions = await json('evidence/task-executions.json');
+    expect(executions[0]).toMatchObject({ role: 'recon', state: 'cancelled', recon: { admittedTurns: 5, state: 'exhausted' }, resultFacts: { completeness: 'unknown' } });
+    const audit = await json('evidence/control-audit.json');
+    expect(audit.filter((r: { op: string }) => r.op === 'recon.admitted')).toHaveLength(5);
+    expect(audit.some((r: { op: string }) => r.op === 'tool.registered')).toBe(false);
+  });
   it('keeps normal success and complete reported usage', async () => {
     expect(await run()).toMatchObject({ code: 0, status: 'completed' });
     const record = await checkEvidence();

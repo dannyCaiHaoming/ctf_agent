@@ -1,11 +1,12 @@
 import { afterEach, expect, it, vi } from 'vitest';
-import { mkdtemp, mkdir, readFile, rm } from 'node:fs/promises';
+import { mkdtemp, mkdir, readFile, readdir, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { createServer, type RequestListener } from 'node:http';
 import { ControlService } from '../../apps/launcher/src/control-service.js';
 import { startControlRpc } from '../../apps/launcher/src/control-rpc.js';
 import { createCtfAgentHooks } from '../../apps/opencode-plugin/src/index.js';
+import { loadReleaseProfile } from '../../apps/cli/src/composition/releaseProfile.js';
 
 const fsGate = vi.hoisted(() => ({ suffix: '', entered: undefined as (() => void) | undefined, wait: undefined as Promise<void> | undefined }));
 vi.mock('node:fs/promises', async original => {
@@ -23,7 +24,7 @@ async function server(handler: RequestListener) {
   clean.push(() => new Promise<void>(r => { s.close(() => r()); s.closeAllConnections(); }));
   return `http://127.0.0.1:${(s.address() as { port: number }).port}`;
 }
-async function fixture(target?: string, expiresAt = Date.now() + 60000, maxToolJobs?: number) {
+async function fixture(target?: string, expiresAt = Date.now() + 60000, maxToolJobs?: number, reconBudget: { reconMaxModelCalls?: number; reconClosureReserve?: number } = {}) {
   const dir = await mkdtemp(join(tmpdir(), 'g-c-slow-')); clean.push(() => rm(dir, { recursive: true, force: true }));
   const challenges = await Promise.all(['X', 'Y'].map(async id => {
     const materialsDir = join(dir, id, 'materials'); await mkdir(materialsDir, { recursive: true });
@@ -31,21 +32,190 @@ async function fixture(target?: string, expiresAt = Date.now() + 60000, maxToolJ
       target: target ? { protocol: 'http' as const, url: target, host: '127.0.0.1', port: Number(new URL(target).port) } : null };
   }));
   const client = { session: { get: async ({ sessionID }: { sessionID: string }) => ({ data: { parentID: 'root', agent: sessionID.startsWith('eng') ? 'engineer' : 'recon' } }),
-    messages: async ({ sessionID }: { sessionID: string }) => ({ data: sessionID === 'root' ? [{ info: { id: 'dispatches', sessionID: 'root', role: 'user' }, parts: c.audit.filter(r => r.op === 'dispatch.register').map(r => { const callID = (r.detail as { callID: string }).callID; return { type: 'tool', tool: 'task', callID, state: { metadata: { sessionId: callID.slice(9) } } }; }) }] : [] }), children: async () => ({ data: [] }), abort: async () => ({ data: true }) } };
-  const c = new ControlService({ client: client as never, runId: 'run-fixture', budget: { maxModelCalls: 50, maxObservableTokens: 10000, maxToolJobs }, expiresAt,
+    messages: async ({ sessionID }: { sessionID: string }) => ({ data: sessionID === 'root' ? [{ info: { id: 'dispatches', sessionID: 'root', role: 'user' }, parts: c.audit.filter(r => r.op === 'dispatch.register').map(r => { const callID = (r.detail as { callID: string }).callID; return { type: 'tool', tool: 'task', callID, state: { metadata: { sessionId: callID.slice(9) } } }; }) }] : [] }), children: async () => ({ data: [] }), abort: vi.fn(async (_input: { sessionID: string }): Promise<{ data: boolean }> => ({ data: true })) } };
+  const c = new ControlService({ client: client as never, runId: 'run-fixture', budget: { maxModelCalls: 50, maxObservableTokens: 10000, maxToolJobs, ...reconBudget }, expiresAt,
     workdir: join(dir, 'opencode'), skillRoot: dir, challenges } as never); c.bindRoot('root'); clean.push(() => c.stopAll('cleanup'));
-  async function bind(id: string, challenge = 'X') {
+  async function bind(id: string, challenge = 'X', background = false) {
     const role = id.startsWith('eng') ? 'engineer' : 'recon';
     await c.handle('root', 'tool.execute', { tool: 'challenge.assign', args: { role, challenge } });
-    await c.handle('root', 'tool.before', { tool: 'task', callID: `dispatch-${id}`, args: { subagent_type: role } });
+    await c.handle('root', 'tool.before', { tool: 'task', callID: `dispatch-${id}`, args: { subagent_type: role, background } });
     await c.handle(id, 'chat.message', { agent: role });
   }
-  await bind('a'); return { c, dir, bind };
+  await bind('a'); return { c, dir, bind, client };
 }
 async function execute(c: ControlService, sessionID: string, tool: string, args: object, callID = `call-${Math.random()}`, signal?: AbortSignal) {
   await c.handle(sessionID, 'tool.before', { tool: `ctf_${tool.replaceAll('.', '_')}`, callID, args });
   return c.handle(sessionID, 'tool.execute', { tool, args, callID }, signal);
 }
+
+const reconBudget = { reconMaxModelCalls: 5, reconClosureReserve: 2 };
+const reconTurn = (c: ControlService, id = 'a') => c.handle(id, 'model.call', { agent: 'recon' });
+const exploration = ['job.run', 'http.request', 'workspace.view', 'workspace.search', 'workspace.diff', 'skill', 'read'];
+const beforeTool = (name: string) => name.includes('.') ? `ctf_${name.replaceAll('.', '_')}` : name;
+
+it('recon cap closes exploration at B-R in both hooks, with readable denials and no registered resource or spawn', async () => {
+  const { c, dir } = await fixture(undefined, undefined, undefined, reconBudget);
+  await reconTurn(c); await reconTurn(c);
+  for (const tool of exploration.filter(t => t !== 'read')) {
+    expect(await c.handle('a', 'tool.before', { tool: beforeTool(tool), args: {} })).toMatchObject({ allowed: true });
+  }
+  await writeFile(join(dir, 'method.md'), 'offline method');
+  expect(await c.handle('a', 'tool.before', { tool: 'read', args: { filePath: join(dir, 'method.md') } })).toMatchObject({ allowed: true });
+  await reconTurn(c); // B-R=3: this admitted call may finish; subsequent tools are restricted.
+  for (const tool of exploration) {
+    await expect(c.handle('a', 'tool.before', { tool: beforeTool(tool), callID: `before-${tool}`, args: {} })).rejects.toThrow(/recon closure: exploration disabled.*publish.*hand off/);
+    await expect(c.handle('a', 'tool.execute', { tool, callID: `execute-${tool}`, args: { argv: ['true'] } })).rejects.toThrow(/recon closure: exploration disabled/);
+  }
+  expect(c.resourceSnapshot()).toEqual([]);
+  expect(await readdir(join(dir, 'state/jobs')).catch(() => [])).toEqual([]);
+  expect(c.stopReason).toBeUndefined(); expect(c.bindings.get('a')?.state).toBe('active');
+});
+
+it('recon closure preserves private workspace, existing jobs, publications and reserved model calls', async () => {
+  const { c, bind } = await fixture(undefined, undefined, undefined, reconBudget); await bind('b', 'Y');
+  const job = await execute(c, 'a', 'job.run', { argv: ['sleep', '30'], wait_ms: 0 }, 'existing') as { job: string };
+  await reconTurn(c); await reconTurn(c); await reconTurn(c);
+  expect(c.resourceSnapshot().find(r => r.callID === 'existing')).toMatchObject({ state: 'active' });
+  expect(await execute(c, 'a', 'job.read', { job: job.job, stream: 'stdout' })).toMatchObject({ state: 'running' });
+  await expect(execute(c, 'a', 'artifact.publish', { source: 'job', job: job.job, stream: 'stdout' })).rejects.toThrow('job not settled');
+  await execute(c, 'a', 'workspace.write', { path: 'work/notes', content: 'baseline' });
+  expect(await execute(c, 'a', 'workspace.list', { path: 'work' })).toHaveProperty('entries');
+  expect(await execute(c, 'a', 'workspace.read', { path: 'work/notes' })).toMatchObject({ text: 'baseline' });
+  await expect(execute(c, 'a', 'workspace.read', { path: 'work/../b/notes' })).rejects.toThrow();
+  const published = await execute(c, 'a', 'artifact.publish', { source: 'file', path: 'work/notes' }) as { ref: string };
+  expect(await execute(c, 'a', 'artifact.read', { ref: published.ref })).toMatchObject({ data: 'YmFzZWxpbmU=' });
+  await expect(execute(c, 'b', 'artifact.read', { ref: published.ref })).rejects.toThrow('artifact source');
+  expect(await execute(c, 'a', 'job.cancel', { job: job.job })).toMatchObject({ state: 'cancelled' });
+  await expect(reconTurn(c)).resolves.toMatchObject({ role: 'recon' });
+  await expect(reconTurn(c)).resolves.toMatchObject({ role: 'recon' });
+});
+
+it('recon exhaustion uses local stopChild, preserves unknown and delivers local reason and confirmed refs through the native sync reply', async () => {
+  const { c, bind, client } = await fixture(undefined, undefined, undefined, reconBudget);
+  await bind('eng-other'); await bind('other', 'Y');
+  await execute(c, 'a', 'workspace.write', { path: 'work/notes', content: 'baseline' });
+  const p = await execute(c, 'a', 'artifact.publish', { source: 'file', path: 'work/notes' }) as { ref: string };
+  client.session.abort.mockResolvedValue({ data: false });
+  const stopAll = vi.spyOn(c, 'stopAll');
+  for (let i = 0; i < 5; i++) await reconTurn(c);
+  await expect(reconTurn(c)).rejects.toThrow(/recon closure.*exhausted/);
+  await vi.waitFor(() => expect(c.audit.find(r => r.op === 'task.stop.result')).toBeDefined());
+  expect(client.session.abort.mock.calls.map(([arg]) => arg.sessionID)).toEqual(['a']);
+  expect(c.bindings.get('a')?.state).toBe('revoked'); expect(stopAll).not.toHaveBeenCalled();
+  expect(c.stopReason).toBeUndefined();
+  const rpc = await startControlRpc((id, op, input, signal) => c.handle(id, op, input, signal)); clean.push(rpc.close);
+  const hooks = createCtfAgentHooks({ controlUrl: rpc.url, controlToken: rpc.token, tools: [] });
+  const output = { title: 'native abort', output: '<task id="a" state="error">aborted</task>', metadata: { sessionId: 'a', parentSessionId: 'root' } };
+  await c.handle('root', 'task.event', { callID: 'dispatch-a', state: 'error' });
+  await hooks['tool.execute.after']!({ sessionID: 'root', tool: 'task', callID: 'dispatch-a', args: {} }, output);
+  expect(output.output).toContain('recon closure: model-call budget exhausted');
+  expect(output.output).toContain(p.ref); expect(output.output).toContain('"completeness":"unknown"');
+  expect(output.output).toContain('"sessionAbort":"unknown"');
+  expect(c.executionSnapshot().find(e => e.childID === 'a')).toMatchObject({ state: 'cancelled', resultFacts: { completeness: 'unknown' } });
+  await expect(c.handle('root', 'model.call', { agent: 'coordinator' })).resolves.toMatchObject({ role: 'coordinator' });
+  await expect(c.handle('eng-other', 'model.call', { agent: 'engineer' })).resolves.toMatchObject({ role: 'engineer' });
+  await expect(reconTurn(c, 'other')).resolves.toMatchObject({ role: 'recon' });
+  expect(await execute(c, 'eng-other', 'job.run', { argv: ['true'] })).toMatchObject({ state: 'exited' });
+});
+
+it('recon exhaustion at either tool entry cancels only its existing job and never starts the requested tool', async () => {
+  for (const operation of ['tool.before', 'tool.execute']) {
+    const { c, client } = await fixture(undefined, undefined, undefined, reconBudget);
+    const job = await execute(c, 'a', 'job.run', { argv: ['sleep', '30'], wait_ms: 0 }, 'in-flight') as { job: string };
+    for (let i = 0; i < 5; i++) await reconTurn(c);
+    await expect(c.handle('a', operation, { tool: operation === 'tool.before' ? 'ctf_job_run' : 'job.run', callID: 'overflow', args: { argv: ['true'] } })).rejects.toThrow(/recon closure.*exhausted/);
+    await vi.waitFor(() => expect(c.audit.find(r => r.op === 'task.stop.result')).toBeDefined());
+    expect(c.resourceSnapshot().find(r => r.job === job.job)).toMatchObject({ state: 'settled', result: 'cancelled' });
+    expect(c.resourceSnapshot().some(r => r.callID === 'overflow')).toBe(false);
+    expect(client.session.abort.mock.calls.map(([arg]) => arg.sessionID)).toEqual(['a']);
+    expect(c.stopReason).toBeUndefined();
+  }
+});
+
+it('background recon local stop uses its existing correlated native completion notice, preserving unknown without reviving it', async () => {
+  const { c, bind } = await fixture(undefined, undefined, undefined, { reconMaxModelCalls: 2, reconClosureReserve: 1 });
+  await bind('bg', 'Y', true);
+  await reconTurn(c, 'bg'); await reconTurn(c, 'bg');
+  await expect(reconTurn(c, 'bg')).rejects.toThrow(/recon closure.*exhausted/);
+  await vi.waitFor(() => expect(c.audit.find(r => r.sessionID === 'bg' && r.op === 'task.stop.result')).toBeDefined());
+  const e = c.executionSnapshot().find(e => e.childID === 'bg')!;
+  const body = { agent: 'coordinator', messageID: 'local-notice', parts: [{ type: 'text', synthetic: true,
+    text: `<task id="bg" state="error">\n<summary>Background task failed: [ctf:${e.ref}]</summary>` }] };
+  expect(await c.handle('root', 'chat.message', body)).toMatchObject({ completionDisplays: [{ completeness: 'unknown', reason: 'recon closure: model-call budget exhausted', localStop: { result: { state: 'stopped' } } }] });
+  expect(c.executionSnapshot().find(e => e.childID === 'bg')).toMatchObject({ state: 'cancelled', delivery: 'queued', resultFacts: { completeness: 'unknown' } });
+  await expect(c.handle('root', 'chat.message', body)).rejects.toThrow('duplicate completion');
+  expect(c.stopReason).toBeUndefined();
+});
+
+it('global model cap takes priority when recon reserve is also exhausted', async () => {
+  const { c } = await fixture(undefined, undefined, undefined, reconBudget);
+  for (let i = 0; i < 5; i++) await reconTurn(c);
+  for (let i = 0; i < 45; i++) await c.handle('root', 'model.call', { agent: 'coordinator' });
+  await expect(reconTurn(c)).rejects.toThrow('budget denied');
+  expect(c.stopReason).toBe('budget');
+  expect(c.executionSnapshot().find(e => e.childID === 'a')?.reconStop).toBeUndefined();
+});
+
+it('recon continuation and fresh same-challenge sessions share quota while Execution retains per-call attribution', async () => {
+  const { c, bind } = await fixture(undefined, undefined, undefined, reconBudget);
+  await reconTurn(c); await reconTurn(c);
+  await c.handle('root', 'tool.after', { tool: 'task', callID: 'dispatch-a', metadata: { sessionId: 'a', parentSessionId: 'root' }, output: '<task id="a" state="completed">baseline</task>' });
+  await c.handle('root', 'tool.before', { tool: 'task', callID: 'resume-a', args: { subagent_type: 'recon', task_id: 'a' } });
+  await reconTurn(c); // Cumulative=3, current execution=1.
+  await bind('fresh');
+  await expect(execute(c, 'fresh', 'job.run', { argv: ['true'] })).rejects.toThrow('recon closure');
+  await reconTurn(c, 'fresh'); await reconTurn(c, 'fresh');
+  await expect(reconTurn(c, 'fresh')).rejects.toThrow(/recon closure.*exhausted/);
+  await bind('newest');
+  await expect(reconTurn(c, 'newest')).rejects.toThrow(/recon closure.*exhausted/);
+  expect(c.executionSnapshot().filter(e => e.childID === 'a').map(e => e.recon)).toEqual([
+    { admittedTurns: 2, state: 'exploration' }, { admittedTurns: 1, state: 'closure' }
+  ]);
+});
+
+it('recon rechecks closure after asynchronous preparation without spawning an admitted-but-not-started job', async () => {
+  const { c, dir } = await fixture(undefined, undefined, undefined, reconBudget);
+  await reconTurn(c); await reconTurn(c);
+  const entered = gate(), release = gate();
+  fsGate.suffix = '/X/work/a'; fsGate.entered = entered.resolve; fsGate.wait = release.promise;
+  const pending = c.handle('a', 'tool.execute', { tool: 'job.run', callID: 'held-recon', args: { argv: ['sleep', '30'], wait_ms: 0 } });
+  void pending.catch(() => {});
+  try { await entered.promise; await reconTurn(c); }
+  finally { fsGate.suffix = ''; release.resolve(); }
+  await expect(pending).rejects.toThrow('recon closure: exploration disabled');
+  expect(c.resourceSnapshot().find(r => r.callID === 'held-recon')?.job).toBeUndefined();
+  expect(await readdir(join(dir, 'state/jobs')).catch(() => [])).toEqual([]);
+});
+
+it('unconfigured recon cap stays unavailable and never restricts exploration', async () => {
+  const { c } = await fixture();
+  for (let i = 0; i < 8; i++) await reconTurn(c);
+  expect(await execute(c, 'a', 'job.run', { argv: ['true'] })).toMatchObject({ state: 'exited' });
+  expect(c.executionSnapshot().find(e => e.childID === 'a')?.recon).toBeUndefined();
+});
+
+it('release profile loads valid recon B/R and leaves both absent when unconfigured', async () => {
+  const { dir } = await fixture(); const path = join(dir, 'profile.json');
+  const base = { profileId: 'test', opencode: { configPath: 'opencode.json' }, reference: { enabled: false },
+    budget: { wallClockMs: 1000, maxSteps: 20, maxToolJobs: 3, maxObservableTokens: 10000 }, os: { platform: 'macos' } };
+  await writeFile(path, JSON.stringify(base));
+  expect((await loadReleaseProfile(path)).budget).not.toHaveProperty('reconMaxModelCalls');
+  await writeFile(path, JSON.stringify({ ...base, budget: { ...base.budget, ...reconBudget } }));
+  expect((await loadReleaseProfile(path)).budget).toMatchObject(reconBudget);
+});
+
+it.each([
+  { reconMaxModelCalls: 5 }, { reconClosureReserve: 2 },
+  { reconMaxModelCalls: 0, reconClosureReserve: 1 }, { reconMaxModelCalls: 5, reconClosureReserve: 0 },
+  { reconMaxModelCalls: 5, reconClosureReserve: 5 }, { reconMaxModelCalls: 5, reconClosureReserve: 6 },
+  { reconMaxModelCalls: 5.5, reconClosureReserve: 2 }, { reconMaxModelCalls: 5, reconClosureReserve: 1.5 },
+  { reconMaxModelCalls: '5', reconClosureReserve: 2 }, { reconMaxModelCalls: 5, reconClosureReserve: null }
+])('release profile rejects invalid or incomplete recon B/R: %j', async extra => {
+  const { dir } = await fixture(); const path = join(dir, 'profile.json');
+  await writeFile(path, JSON.stringify({ profileId: 'test', opencode: { configPath: 'opencode.json' }, reference: { enabled: false },
+    budget: { wallClockMs: 1000, maxSteps: 20, maxToolJobs: 3, maxObservableTokens: 10000, ...extra }, os: { platform: 'macos' } }));
+  await expect(loadReleaseProfile(path)).rejects.toThrow(/recon/);
+});
 
 it('maxToolJobs counts admissions across roles/challenges, not prechecks, reads, cancels or artifacts; concurrent N+1 has no spawn', async () => {
   const { c, bind, dir } = await fixture(undefined, undefined, 3); await bind('eng-other', 'Y');

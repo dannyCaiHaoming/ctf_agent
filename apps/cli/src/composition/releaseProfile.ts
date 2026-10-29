@@ -8,7 +8,9 @@ export interface ReleaseProfile {
   opencode: { configPath: string; binaryPath?: string };
   challenges?: string;
   reference: { enabled: boolean };
-  budget: { wallClockMs: number; maxSteps: number; maxToolJobs: number; maxObservableTokens: number };
+  budget: { wallClockMs: number; maxSteps: number; maxToolJobs: number; maxObservableTokens: number;
+    /** Total recon model-call admissions per run/challenge, including the closure reserve. Both fields must be configured together. */
+    reconMaxModelCalls?: number; reconClosureReserve?: number };
   os: { platform: 'macos' | 'linux' };
 }
 
@@ -47,5 +49,11 @@ function assertReleaseProfile(value: unknown): asserts value is ReleaseProfile {
   const budget = profile.budget as Record<string, unknown>;
   for (const key of ['wallClockMs', 'maxSteps', 'maxToolJobs', 'maxObservableTokens']) {
     if (typeof budget[key] !== 'number' || budget[key] <= 0) throw new Error(`invalid budget.${key}`);
+  }
+  const b = budget.reconMaxModelCalls, r = budget.reconClosureReserve;
+  if (b !== undefined || r !== undefined) {
+    if (typeof b !== 'number' || !Number.isSafeInteger(b) || typeof r !== 'number' || !Number.isSafeInteger(r) || r <= 0 || r >= b) {
+      throw new Error('invalid recon budget: reconMaxModelCalls and reconClosureReserve require integers with 0<R<B');
+    }
   }
 }
