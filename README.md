@@ -217,6 +217,8 @@ npm run typecheck
 npm run build
 ```
 
+產品 launcher 預設使用 DeepSeek 官方 API 的 `deepseek-flash`，密鑰由本地 `.env` 的 `DEEPSEEK_API_KEY` 載入。取得本批模型調用與 token 預算授權後，可從倉庫根目錄執行 `npx tsx apps/launcher/src/launch.ts`；其他 provider 透過 `--profile` 指定。配置與最小工具往返驗證範圍見 [配置說明](config/README.md)。
+
 ## 9. 目錄導覽
 
 | 路徑 | 內容 |

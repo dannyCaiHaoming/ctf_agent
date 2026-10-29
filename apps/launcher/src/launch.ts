@@ -4,7 +4,7 @@
 // child sessions, forwards tool calls or writes follow-up prompts. The control service (control-service.ts) runs in
 // this process: the product plugin binds sessions, admits model calls and authorizes tools through a loopback RPC.
 //
-// Usage: npx tsx apps/launcher/src/launch.ts --profile <release-profile.json>
+// Usage: npx tsx apps/launcher/src/launch.ts [--profile <release-profile.json>]
 //          [--runs-root <dir>] [--run-id <id>] [--product <dir>] [--deadline-ms <n>]
 import { createHash, randomUUID } from 'node:crypto';
 import { execFileSync } from 'node:child_process';
@@ -27,10 +27,11 @@ import { loadReleaseProfile } from '../../cli/src/composition/releaseProfile.js'
 
 export const START_MESSAGE = '開始運行。按產品運行約定，由 Coordinator 組織各角色並經 Intake 取得題目。';
 const COORDINATOR = 'coordinator';
+const DEFAULT_PROFILE = fileURLToPath(new URL('../../../config/release-profile.deepseek.example.json', import.meta.url));
 
 
 export interface LaunchOptions {
-  profile: string; runsRoot?: string; runId?: string; product?: string; deadlineMs?: number;
+  profile?: string; runsRoot?: string; runId?: string; product?: string; deadlineMs?: number;
   /** Test seam: called once after the start message is sent, with the launcher's own SDK client. */
   /** Host-only adapters include nonsecret submission limits; absent limits refuse submission. */
   completionJudges?:Readonly<Record<string,import('./completion-tools.js').CompletionJudge>>;
@@ -133,7 +134,7 @@ async function runLaunch(options: LaunchOptions, rpc: { url: string; token: stri
   const mainRepo = git(repoRoot, 'rev-parse', '--git-common-dir');
   const forbiddenRoots = [repoReal, productDir, ...(mainRepo ? [dirname(await realpath(resolve(repoRoot, mainRepo)))] : [])];
 
-  const profile = await loadReleaseProfile(options.profile);
+  const profile = await loadReleaseProfile(options.profile ?? DEFAULT_PROFILE);
   const loaded = await loadOpenCodeConfig(profile.opencode.configPath);
 
   // 1. Run data location: outside the repository / product, never inside any git work tree; realpath before use.
@@ -392,22 +393,21 @@ async function nearest(path: string): Promise<string> {
   return current;
 }
 
-function parseArgs(argv: string[]): LaunchOptions {
+export function parseLaunchArgs(argv: string[]): LaunchOptions {
   const values: Record<string, string> = {};
   for (let i = 0; i < argv.length; i += 2) {
     const key = argv[i]!;
     if (!key.startsWith('--') || argv[i + 1] === undefined) throw new Error(`invalid argument ${key}`);
     values[key.slice(2)] = argv[i + 1]!;
   }
-  if (!values.profile) throw new Error('--profile is required');
-  return { profile: values.profile, runsRoot: values['runs-root'], runId: values['run-id'], product: values.product,
+  return { profile: values.profile ?? DEFAULT_PROFILE, runsRoot: values['runs-root'], runId: values['run-id'], product: values.product,
     deadlineMs: values['deadline-ms'] ? Number(values['deadline-ms']) : undefined };
 }
 
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   try {
     await loadLocalEnv();
-    const result = await launch(parseArgs(process.argv.slice(2)));
+    const result = await launch(parseLaunchArgs(process.argv.slice(2)));
     console.log(JSON.stringify(result));
     process.exitCode = result.code;
   } catch (error) {
