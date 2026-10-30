@@ -8,6 +8,7 @@ export interface ReleaseProfile {
   opencode: { configPath: string; binaryPath?: string };
   challenges?: string;
   reference: { enabled: boolean };
+  learning?: { enabled?: boolean; maxObservableTokens: number; wallClockMs: number };
   budget: { wallClockMs: number; maxSteps: number; maxToolJobs: number; maxObservableTokens: number;
     /** Explicit pathological recon ceiling B per run/challenge, selected by the run owner before launch; not a natural handoff target. Absent pair means OFF/unavailable, with global budgets unchanged. */
     reconMaxModelCalls?: number;
@@ -29,7 +30,7 @@ export async function loadReleaseProfile(path: string): Promise<ReleaseProfile> 
 function assertReleaseProfile(value: unknown): asserts value is ReleaseProfile {
   if (!value || typeof value !== 'object') throw new Error('invalid release profile');
   const profile = value as Record<string, unknown>;
-  const allowed = new Set(['profileId', 'solverMode', 'solverProfile', 'opencode', 'challenges', 'reference', 'budget', 'os']);
+  const allowed = new Set(['profileId', 'solverMode', 'solverProfile', 'opencode', 'challenges', 'reference', 'budget', 'os', 'learning']);
   if (Object.keys(profile).some(key => !allowed.has(key) && key !== 'model')) throw new Error('release profile contains unknown fields');
   if (profile.model !== undefined || profile.solverMode === 'm0') throw new Error('direct-provider profiles are retired; use an OpenCode release profile');
   if (profile.opencode === undefined) throw new Error('OpenCode opencode.configPath is required');
@@ -47,6 +48,12 @@ function assertReleaseProfile(value: unknown): asserts value is ReleaseProfile {
     if (Object.keys(solverProfile).some(key => !['promptTemplateVersion', 'toolManifestVersion'].includes(key)) ||
       typeof solverProfile.promptTemplateVersion !== 'string' || !solverProfile.promptTemplateVersion ||
       typeof solverProfile.toolManifestVersion !== 'string' || !solverProfile.toolManifestVersion) throw new Error('invalid M1 solverProfile versions');
+  }
+  if(profile.learning!==undefined) {
+    const learning=profile.learning as Record<string,unknown>;
+    if(!learning||typeof learning!=='object'||Object.keys(learning).some(k=>!['enabled','maxObservableTokens','wallClockMs'].includes(k))||
+      learning.enabled!==undefined&&typeof learning.enabled!=='boolean'||
+      !Number.isSafeInteger(learning.maxObservableTokens)||Number(learning.maxObservableTokens)<=0||!Number.isSafeInteger(learning.wallClockMs)||Number(learning.wallClockMs)<=0)throw new Error('invalid learning budget');
   }
   const budget = profile.budget as Record<string, unknown>;
   for (const key of ['wallClockMs', 'maxSteps', 'maxToolJobs', 'maxObservableTokens']) {

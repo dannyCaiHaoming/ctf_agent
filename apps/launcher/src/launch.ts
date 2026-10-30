@@ -1,3 +1,5 @@
+import {ExperienceStore} from './experience-store.js';
+import {learnEpisodes} from './episode-learning.js';
 // Debug/release entry launcher: prepares an isolated run directory, copies product assets, starts
 // `opencode serve` through startManagedOpenCode, sends one fixed start message to the coordinator,
 // waits for the root session to go idle (or the deadline) and saves state + evidence. It never creates
@@ -208,10 +210,11 @@ async function runLaunch(options: LaunchOptions, rpc: { url: string; token: stri
   const scrub = (text: string) => secrets.reduce((acc, s) => (s ? acc.split(s).join('<redacted>') : acc), text);
   const progress = new ProgressLedger({ directory: runDir, runId, redactions: secrets, startedAt: t0 });
   await progress.initialize();
+  const experience = new ExperienceStore(join(runsRoot, 'experience.sqlite'),secrets);
   const controller = new AbortController();
   mark('start', { runId, deadlineMs });
   const engine = await startManagedOpenCode({ directory: real.opencode, config: config as never, environment: loaded.environment,
-    binaryPath: profile.opencode.binaryPath, signal: controller.signal });
+    binaryPath: profile.opencode.binaryPath, signal: controller.signal }).catch(error=>{experience.close();throw error;});
   mark('opencode_started', { version: engine.version });
   const client = engine.client;
   let rootId = '';
@@ -225,7 +228,7 @@ async function runLaunch(options: LaunchOptions, rpc: { url: string; token: stri
   };
   const sessionIds = new Set<string>();
   const deadlineAt = Date.now() + deadlineMs; // one deadline for the launcher loop and for every binding's expiry
-  const control = new ControlService({ completionJudges:options.completionJudges, client, runId, budget: { maxModelCalls: profile.budget.maxSteps, maxObservableTokens: profile.budget.maxObservableTokens, maxToolJobs: profile.budget.maxToolJobs,
+  const control = new ControlService({ experienceStore:experience, completionJudges:options.completionJudges, client, runId, budget: { maxModelCalls: profile.budget.maxSteps, maxObservableTokens: profile.budget.maxObservableTokens, maxToolJobs: profile.budget.maxToolJobs,
     reconMaxModelCalls: profile.budget.reconMaxModelCalls, reconClosureReserve: profile.budget.reconClosureReserve },
     expiresAt: deadlineAt, workdir: real.opencode, skillRoot: join(configDirectory, 'skills'), challenges: prepared, redactions: secrets, onAudit: record => progress.append(record) });
   attach(control);
@@ -234,6 +237,16 @@ async function runLaunch(options: LaunchOptions, rpc: { url: string; token: stri
     try { await writeFile(path, scrub(JSON.stringify(value, null, 2)), { flag: 'wx' }); }
     catch (cause) { fail('evidence_write_error', `${path}: ${String(cause)}`); }
   };
+  const learningInputErrors:Array<{phase:string;at:number;status:'pending';error:string}>=[];
+  let learningSummary:{status:string;inputErrors:typeof learningInputErrors}={status:'pending',inputErrors:learningInputErrors};
+  const learningFailure=(phase:string,cause:unknown)=>{
+    const detail={phase,at:Date.now(),status:'pending' as const,error:scrub(String(cause))};learningInputErrors.push(detail);mark('learning_input_error',detail);
+  };
+  const saveLearning=async(path:string,value:unknown)=>{
+    try{await writeFile(path,scrub(JSON.stringify(value,null,2)),{flag:'wx'});}
+    catch(cause){learningFailure('evidence:'+basename(path),cause);learningSummary.status='pending';}
+  };
+  let eagerLearningFailed=false;
   const enumerated = new Set<string>();
   const descendants = async (id: string): Promise<void> => {
     if (enumerated.has(id)) return;
@@ -261,6 +274,10 @@ async function runLaunch(options: LaunchOptions, rpc: { url: string; token: stri
     let idleSource = '';
     while (true) {
       await control.checkBudget();
+      if(!eagerLearningFailed&&control.completionSnapshot().some(r=>r.solved)) {
+        try{await control.learningInputs(true);}
+        catch(cause){eagerLearningFailed=true;learningFailure('settled_input',cause);}
+      }
       const reason = control.stopReason ?? (Date.now() >= deadlineAt ? 'deadline' : undefined);
       if (reason) {
         status = reason === 'deadline' ? 'deadline_exceeded' : 'budget_exceeded';
@@ -355,8 +372,19 @@ async function runLaunch(options: LaunchOptions, rpc: { url: string; token: stri
   }
   // Abort failures are evidence of unsuccessful cleanup, never a successful completed run.
   if (control.audit.some(r => !r.allow && ['aborted', 'stop_enumerated'].includes(r.op))) status = 'failed';
+  // Persist fixed sanitized inputs while publications and native sessions are still available.
+  let episodes:import('./experience-store.js').Episode[]=[];
+  try { episodes=await control.learningInputs(); await saveLearning(join(real.evidence,'episode-inputs.json'),episodes.map(e=>({id:e.episode_id,version:e.version,input_hash:e.input_hash,outcome:e.outcome}))); }
+  catch(cause){learningFailure('final_input',cause);}
   try { await engine.close(); mark('opencode_closed'); } catch (cause) { fail('opencode_close_error', cause); }
   try { await rpc.close(); } catch (cause) { fail('rpc_close_error', cause); }
+  try {
+    const learning=await learnEpisodes({store:experience,episodes,directory:join(runDir,'learning'),config:loaded.config,environment:loaded.environment,binaryPath:profile.opencode.binaryPath,
+      budget:profile.learning?.enabled===false?undefined:profile.learning,explicitStop:!['completed','deadline','budget','error'].includes(control.stopReason??'')});
+    learningSummary.status=learningInputErrors.length?(learning.status==='completed'?'partial':'pending'):learning.status;
+    await saveLearning(join(real.evidence,'learning.json'),{...learning,status:learningSummary.status,input_capture:{status:learningInputErrors.length?'pending':'completed',errors:learningInputErrors}});
+  }catch(cause){learningFailure('learning',cause);learningSummary.status='pending';}
+  finally{experience.close();}
   const total = control.usageSnapshot().total;
   for (const usage of unboundUsage) {
     total.input += usage.input; total.output += usage.output; total.reasoning += usage.reasoning;
@@ -383,7 +411,7 @@ async function runLaunch(options: LaunchOptions, rpc: { url: string; token: stri
   await save(join(real.evidence, 'assets.json'), { productRevision, copies });
   await save(join(real.state, 'run.json'), { runId, status, rootResult, rootSessionId: rootId || null, sessions: [...sessionIds],
     deadlineMs, opencodeVersion: engine.version, model: loaded.config.model, configSha256: sha256(JSON.stringify({ ...config, plugin: undefined })), productRevision,
-    budget: profile.budget, admittedModelCalls: control.admitted, stopReason: control.stopReason ?? null, usageTotal,
+    learning:learningSummary,budget: profile.budget, admittedModelCalls: control.admitted, stopReason: control.stopReason ?? null, usageTotal,
     paths: real, timeline });
   return { code: status === 'completed' ? 0 : 1, status, runDir };
 }

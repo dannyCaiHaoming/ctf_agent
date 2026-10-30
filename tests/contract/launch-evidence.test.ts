@@ -15,6 +15,7 @@ vi.mock('node:fs/promises', async importOriginal => {
   } };
 });
 import { launch } from '../../apps/launcher/src/launch.js';
+import { ControlService } from '../../apps/launcher/src/control-service.js';
 
 const SECRET = 'fictional-evidence-key-0123456789';
 const msg = (sessionID: string) => ({ info: { id: `msg-${sessionID}`, sessionID, role: 'assistant', agent: 'coordinator',
@@ -69,7 +70,7 @@ beforeEach(async () => {
   client = makeClient(); close = vi.fn(async () => { if (mode === 'close') throw error('close failed'); });
   fake.start.mockImplementation(async (options: { config: typeof config }) => { config = options.config; return { client, close, version: 'fake-sdk-1' }; });
 });
-afterEach(async () => { fake.failWrite = ''; delete process.env.LAUNCH_EVIDENCE_TEST_KEY; await rm(dir, { recursive: true, force: true }); });
+afterEach(async () => { vi.restoreAllMocks();fake.failWrite = ''; delete process.env.LAUNCH_EVIDENCE_TEST_KEY; await rm(dir, { recursive: true, force: true }); });
 async function run(failInStart = false, deadlineMs?: number) {
   return launch({ profile: join(dir, 'profile.json'), runsRoot: join(dir, 'runs'), runId: 'run', deadlineMs, onStarted: async ({ rootId }) => {
     const opts = config.plugin[0]![1];
@@ -303,4 +304,36 @@ describe('root final report provenance', () => {
     expect((await json('state/run.json')).rootResult.completeness).toBe('complete');
   });
 
+});
+
+
+describe('R2 learning input failures remain separate from solve lifecycle',()=>{
+ it('keeps solving after eager capture throws, preserves trusted solved, and reports pending learning',async()=>{
+  const completion={intent:'trusted-result',challenge:'offline',state:'confirmed',solved:true,businessOutcome:'accepted'};
+  vi.spyOn(ControlService.prototype,'completionSnapshot').mockReturnValue([completion] as never);
+  const capture=vi.spyOn(ControlService.prototype,'learningInputs').mockRejectedValue(new Error('input capture DB failure'));
+  let statuses=0;const original=client.session.status;
+  client.session.status=async()=>{statuses++;if(statuses===1)return {data:{root:{type:'busy'},child:{type:'busy'}}};return original();};
+  expect(await run()).toMatchObject({code:0,status:'completed'});expect(statuses).toBeGreaterThanOrEqual(3);
+  expect(capture.mock.calls.map(c=>c[0])).toEqual([true,undefined]);
+  const state=await json('state/run.json');expect(state).toMatchObject({status:'completed',stopReason:'completed',learning:{status:'pending'}});
+  expect(state.learning.inputErrors.map((e:any)=>e.phase)).toEqual(['settled_input','final_input']);
+  expect(await json('evidence/completion-results.json')).toEqual([completion]);
+  const audit=await json('evidence/control-audit.json');expect(audit.filter((r:any)=>r.op==='stop_marked').map((r:any)=>r.detail.reason)).toEqual(['completed']);
+  expect(await json('evidence/learning.json')).toMatchObject({status:'pending',input_capture:{status:'pending'}});
+ });
+ it.each(['episode-inputs.json','learning.json'])('does not fail a completed solve if learning sidecar %s cannot be saved',async file=>{
+  fake.failWrite='/'+file;expect(await run()).toMatchObject({code:0,status:'completed'});
+  const state=await json('state/run.json');expect(state.status).toBe('completed');expect(state.stopReason).toBe('completed');
+  expect(state.learning.status).toBe('pending');expect(state.learning.inputErrors.some((e:any)=>e.phase==='evidence:'+file)).toBe(true);
+  expect(JSON.stringify(state.timeline)).toContain('learning_input_error');
+ });
+});
+
+it('R2: final input persistence failure alone leaves the completed solve unchanged',async()=>{
+ vi.spyOn(ControlService.prototype,'learningInputs').mockRejectedValue(new Error('final draft persistence failure'));
+ expect(await run()).toMatchObject({code:0,status:'completed'});
+ const state=await json('state/run.json');expect(state).toMatchObject({status:'completed',stopReason:'completed',learning:{status:'pending'}});
+ expect(state.learning.inputErrors.map((e:any)=>e.phase)).toEqual(['final_input']);
+ expect(await json('evidence/learning.json')).toMatchObject({status:'pending',input_capture:{status:'pending'}});
 });

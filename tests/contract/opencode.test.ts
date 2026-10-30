@@ -111,7 +111,7 @@ describe('OpenCode public adapter', () => {
     } as never);
     expect(fetchMock).toHaveBeenCalledWith(new URL('http://127.0.0.1:43210/control'), expect.objectContaining({
       headers: expect.objectContaining({ authorization: 'Bearer bridge-test-token-that-is-long-enough-123' }),
-      body: JSON.stringify({ sessionID: 'session-1', operation: 'tool.execute', input: { tool: 'workspace.read', args: { path: 'x' }, callID: 'call-from-hook' } })
+      body: JSON.stringify({ sessionID: 'session-1', operation: 'tool.execute', input: { tool: 'workspace.read', args: { path: 'x' }, callID: 'call-from-hook', messageID: 'message-1' } })
     }));
   });
 

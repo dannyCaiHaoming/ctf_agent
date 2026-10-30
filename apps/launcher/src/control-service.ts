@@ -1,3 +1,4 @@
+import { ExperienceStore, type ProcessScope } from './experience-store.js';
 import { classifyChildResult, unknownChildResult, type ChildSource, type ChildResult } from './child-result.js';
 import {CompletionRequests,type CompletionJudge} from './completion-tools.js';
 // Control service (design v1 C): lives in the launcher process, owns the session binding table, the run budget
@@ -22,6 +23,7 @@ import { fingerprintJson, progressDigest, redactProgressText, summarizeToolArgs,
 
 export const ROLES = ['coordinator', 'intake', 'recon', 'reference', 'strategy', 'domain-solver', 'engineer', 'verifier', 'recovery-critic'] as const;
 export type Role = typeof ROLES[number];
+const PROCESS_CLOSURE_TOOLS=['read','skill','package.read','workspace.list','workspace.read','workspace.search','workspace.view','workspace.diff','workspace.write','job.read','job.cancel','artifact.publish','artifact.read','recon.read','recon.note','experience.read'];
 const CHALLENGE_ROLES: readonly Role[] = ['recon', 'domain-solver', 'engineer', 'verifier'];
 const isRole = (value: unknown): value is Role => typeof value === 'string' && (ROLES as readonly string[]).includes(value);
 
@@ -106,8 +108,9 @@ export function summarizeUsage(messages: Message[]): SessionUsage {
 }
 
 export const SOLVER_TOOLS = ['workspace.list', 'workspace.read', 'workspace.search', 'workspace.view', 'workspace.diff', 'workspace.write', 'http.request', 'job.run', 'job.read', 'job.cancel', 'artifact.publish', 'artifact.read', 'package.publish', 'package.read', 'package.prepare', 'verification.report'];
+export const EXPERIENCE_TOOLS = ['recon.note','recon.read','experience.search','experience.read'] as const;
 export const PROGRESS_TOOLS = ['progress.read', 'progress.note'] as const;
-export const MANAGED_TOOLS = [...INTAKE_TOOLS, 'challenge.assign', 'challenge.unassign', 'task.stop', 'verification.read', 'completion.request', ...PROGRESS_TOOLS, ...SOLVER_TOOLS];
+export const MANAGED_TOOLS = [...INTAKE_TOOLS, 'challenge.assign', 'challenge.unassign', 'task.stop', 'verification.read', 'completion.request', ...PROGRESS_TOOLS, ...EXPERIENCE_TOOLS, ...SOLVER_TOOLS];
 interface Resource { run: string; sessionID: string; challengeId: string; callID: string; tool: string; state: 'active' | 'settled' | 'unknown'; result?: string; job?: string; controller: AbortController; deadline: number; execution?: string; timer?: ReturnType<typeof setTimeout>; done?: Promise<unknown>; detachRpc?: () => void }
 interface TaskStopResult { state: 'stopped' | 'unknown' | 'completed' | 'failed'; resources: 'settled' | 'unknown'; sessionAbort: 'confirmed' | 'unknown' | 'not_required'; executionRef?: string }
 interface ReconTurns { admittedTurns: number; state: 'exploration' | 'closure' | 'exhausted' }
@@ -119,6 +122,7 @@ interface Preparation {sessionID:string;execution:string;version:string;director
 interface Outside { execute: () => Promise<unknown> }
 
 export interface ControlOptions {
+  experienceStore?: ExperienceStore;
   completionJudges?:Readonly<Record<string,CompletionJudge>>;
   runId?: string;
   client: OpencodeClient;
@@ -216,7 +220,8 @@ export class ControlService {
     const body = (input && typeof input === 'object' ? input : {}) as Record<string, unknown>;
     try {
       if (!sessionID || !/^[\w.-]{1,128}$/.test(sessionID)) throw new ControlDenied('unbound session');
-      if (!['chat.message', 'model.call', 'tool.before', 'tool.execute', 'tool.after', 'task.event'].includes(operation)) throw new ControlDenied('unknown operation');
+      if (!['chat.message', 'model.call', 'tool.before', 'tool.execute', 'tool.after', 'task.event', 'process.event'].includes(operation)) throw new ControlDenied('unknown operation');
+      if (operation === 'process.event') { this.processEvent(sessionID, body); return { recorded:true }; }
       if (operation === 'task.event') return await this.serial(() => this.taskEvent(sessionID, body));
       // Runtime-synthetic native completion is consumed once before admission; stopped runs retain it without waking.
       const completionRefs = operation === 'chat.message' ? await this.receiveCompletion(sessionID, body) : [];
@@ -241,6 +246,7 @@ export class ControlService {
           await this.checkReadPath((body.args ?? {}) as Record<string, unknown>);
         }
       }
+      this.recordProcess(binding, operation, body, 'running');
       const prepared = await this.serial(() => {
         if (signal?.aborted) throw new ControlDenied('rpc abandoned');
         if (operation === 'tool.after') return this.toolAfter(sessionID, body);
@@ -266,12 +272,103 @@ export class ControlService {
         }
       });
       const result = prepared && typeof prepared === 'object' && 'execute' in prepared ? await (prepared as Outside).execute() : prepared;
+      this.recordProcess(binding, operation, body, 'completed', result);
       this.record(sessionID, operation, true, undefined, operation === 'model.call' ? result : { tool: body.tool, callID: body.callID, result: 'returned' });
       return result;
     } catch (error) {
+      try { this.recordProcess(this.bindings.get(sessionID), operation, body, 'error', {error:String(error)}); } catch { /* preserve original failure; no side effect has been newly admitted */ }
       const denied = error instanceof ControlDenied ? error : new ControlDenied(error instanceof HttpRefused || error instanceof JobRefused || error instanceof WorkspaceRefused ? error.code : 'control error', String(error));
       this.record(sessionID, operation, false, denied.message, { tool: body.tool, callID: body.callID, error: denied.detail }); throw denied;
     }
+  }
+
+  private processScope(binding:Binding,body:Record<string,unknown>):ProcessScope {
+    return {run:this.options.runId??'run',challenge:binding.challengeId!,session:binding.sessionID,
+      execution:[...this.executions.values()].find(e=>e.childID===binding.sessionID&&e.state==='running')?.ref,
+      message:typeof body.messageID==='string'?body.messageID:undefined,call:typeof body.callID==='string'?body.callID:undefined};
+  }
+  private readonly processFailures = new Map<string,{at:number;callID?:string}>();
+  private pauseProcess(binding:Binding,callID?:string) {
+    if(!binding.challengeId||this.processFailures.has(binding.challengeId))return;
+    const failure={at:Date.now(),callID};this.processFailures.set(binding.challengeId,failure);
+    this.record(binding.sessionID,'process.paused',false,'history persistence failed; new exploration paused for challenge',failure);
+  }
+  private recordProcess(binding:Binding|undefined,op:string,body:Record<string,unknown>,status:string,result?:unknown) {
+    const store=this.options.experienceStore;if(!store||binding?.role!=='recon'||!binding.challengeId)return;
+    const raw=String(body.tool??''),name=raw.startsWith('ctf_')?MANAGED_TOOLS.find(n=>`ctf_${n.replaceAll('.','_')}`===raw)??raw:raw;
+    if(!['tool.before','tool.execute'].includes(op)||name.startsWith('recon.')||name.startsWith('experience.'))return;
+    if(status==='running')this.checkReconTool(binding,name);
+    const scope=this.processScope(binding,body);
+    const closure=PROCESS_CLOSURE_TOOLS.includes(name);
+    try {
+      if(status==='running')store.start(scope,name,body.args??{});
+      else if(op==='tool.execute'||status==='error') {
+        const state=name==='job.run'&&result&&typeof result==='object'?(result as any).state:status;
+        store.finish(scope,state??status,result);
+      }
+    }catch(error){this.pauseProcess(binding,scope.call);if(!closure)throw new ControlDenied('history persistence failed; exploration paused for challenge');this.record(binding.sessionID,'process.storage',false,'storage failure',String(error));}
+  }
+  private processEvent(sessionID:string,body:Record<string,unknown>) {
+    const binding=this.bindings.get(sessionID),part=body.part as any;
+    if(!binding||binding.role!=='recon'||!binding.challengeId||part?.sessionID!==sessionID||part.type!=='tool'||!part.callID)return;
+    if(String(part.tool).startsWith('ctf_recon_')||String(part.tool).startsWith('ctf_experience_'))return;
+    const scope=this.processScope(binding,{callID:part.callID,messageID:part.messageID}),store=this.options.experienceStore;
+    if(!store)return;
+    try {
+      const name=MANAGED_TOOLS.find(n=>`ctf_${n.replaceAll('.','_')}`===part.tool)??part.tool;
+      store.start(scope,name,part.state?.input??{});
+      // Native error updates cover failures before execute/after, cancellation and denial.
+      if(part.state?.status==='error')store.finish(scope,'error',{error:part.state.error});
+      else if(part.state?.status==='completed'&&!String(part.tool).startsWith('ctf_'))store.finish(scope,'completed',{output:part.state.output});
+    }catch(error){this.pauseProcess(binding,scope.call);this.record(sessionID,'process.event',false,'storage failure',String(error));}
+  }
+  private checkExperience(binding:Binding,name:string) {
+    if(!this.options.experienceStore)throw new ControlDenied('experience storage unavailable');
+    if(name.startsWith('recon.')&&(binding.role!=='recon'||!binding.challengeId))throw new ControlDenied('tool not permitted');
+    if(name.startsWith('experience.')&&!['recon','domain-solver','engineer','reference'].includes(binding.role))throw new ControlDenied('tool not permitted');
+    this.checkReconTool(binding,name);
+  }
+  private readonly fixedEpisodes = new Map<string,import('./experience-store.js').Episode>();
+  async learningInputs(onlySettledSolved=false) {
+    const store=this.options.experienceStore;if(!store)return [];
+    const inputs=[];
+    for(const challenge of this.options.challenges??[]) {
+      const executions=this.executionSnapshot().filter(e=>e.challengeId===challenge.id);
+      if(!executions.length)continue;
+      const completions=this.completionSnapshot().filter(r=>r.challenge===challenge.id),last=completions.at(-1);
+      const outcome=completions.some(r=>r.solved)?'solved' as const:completions.some(r=>['intent','sent','unknown'].includes(r.state))?'unknown' as const:'unsolved' as const;
+      if(onlySettledSolved&&(outcome!=='solved'||executions.some(e=>e.state==='starting'||e.state==='running'||!e.delivered)||[...this.resources.values()].some(r=>r.challengeId===challenge.id&&r.state!=='settled')))continue;
+      const fixed=this.fixedEpisodes.get(challenge.id);
+      if(fixed&&JSON.stringify(fixed.outcome_ref)===JSON.stringify(completions.map(r=>({intent:r.intent,state:r.state,solved:r.solved,businessOutcome:r.businessOutcome})))){inputs.push(fixed);continue;}
+      // Exact host-known candidate values are removed from the historical view as well as common flag forms.
+      for(const publication of this.publicationSnapshot().filter(p=>p.source.challenge===challenge.id&&p.source.kind==='package')) {
+        try {const candidate=await this.packages.candidateBytes(this.options.runId??'run',challenge.id,publication.ref,()=>{});store.addRedactions([candidate.toString('utf8'),candidate.toString('base64')]);}catch{/* missing candidate is already visible in source gaps */}
+      }
+      const sources:any[]=[];
+      const rows=store.allRecords(this.options.runId??'run',challenge.id);
+      for(const row of rows)sources.push({ref:`recon:${(row as any).id}`,content:row});
+      for(const e of executions) {
+        if(!e.childID)continue;
+        try {
+          const messages=(await this.options.client.session.messages({sessionID:e.childID},{throwOnError:true})).data??[];
+          const texts=messages.flatMap(m=>m.info.role==='assistant'?m.parts.filter(p=>p.type==='text').map(p=>(p as {text:string}).text):[]);
+          sources.push({ref:`execution:${e.ref}`,role:e.role,content:texts,gaps:!texts.length?['missing native return']:[]});
+        }catch{sources.push({ref:`execution:${e.ref}`,gaps:['native return unavailable']});}
+      }
+      for(const p of this.publicationSnapshot().filter(p=>p.source.challenge===challenge.id&&p.source.kind!=='package')) {
+        try {const fixed=await this.publications.bytes(this.options.runId??'run',challenge.id,p.ref);sources.push({ref:`artifact:${p.ref}`,content:fixed.bytes.toString('utf8'),originalComplete:p.originalComplete});}
+        catch{sources.push({ref:`artifact:${p.ref}`,gaps:['publication unavailable']});}
+      }
+      const inputGaps:string[]=[];
+      let inputBytes=0;
+      const boundedSources=sources.filter(source=>{const bytes=Buffer.byteLength(JSON.stringify(store.clean(source)));if(inputBytes+bytes>1048576){inputGaps.push(`source ${source.ref} omitted: input size bound`);return false;}inputBytes+=bytes;return true;});
+      const verifications=this.verificationResultSnapshot().filter(r=>r.challenge===challenge.id).map(r=>({result:r.result,judgment:r.effectiveJudgment,original:r.original}));
+      const experienceRefs=this.audit.filter(r=>r.challengeId===challenge.id&&r.op==='experience.returned'&&r.allow).flatMap(r=>{
+        const d=r.detail as any;return d.results?d.results.map((v:any)=>`${v.kind}:${v.id}@${v.version}`):d.kind?[`${d.kind}:${d.id}@${d.version}`]:[];
+      });
+      const episode=store.saveDraft({run_id:this.options.runId??'run',challenge_id:challenge.id,outcome,outcome_ref:completions.map(r=>({intent:r.intent,state:r.state,solved:r.solved,businessOutcome:r.businessOutcome})),end_reason:outcome==='solved'?'trusted_completed':this.stopReason??'unknown',
+        input:{title:challenge.title,sources:boundedSources,verifications,experience_refs:[...new Set(experienceRefs)],completion:last?{intent:last.intent,state:last.state,solved:last.solved}:null,gaps:[...inputGaps,...(executions.some(e=>!e.resultFacts||e.resultFacts.completeness!=='complete')?['some task deliveries incomplete']:[])]}});this.fixedEpisodes.set(challenge.id,episode);inputs.push(episode);
+    }return inputs;
   }
 
   /** Mark first, then abort, so an in-flight tool call is refused at its next hook (C design section 6). */
@@ -556,17 +653,20 @@ export class ControlService {
   }
 
   private checkReconTool(binding: Binding, name: string): void {
+    // The failed attempt's scope survives session replacement; reads, cancellation and fixed handoff remain usable.
+    if(binding.challengeId&&this.processFailures.has(binding.challengeId)&&!PROCESS_CLOSURE_TOOLS.includes(name))
+      throw new ControlDenied('history persistence failed; exploration paused for challenge');
     const quota = this.reconQuota(binding);
     if (!quota) return;
     this.checkReconExhausted(binding, quota);
-    if (quota.state === 'closure' && !['workspace.list', 'workspace.read', 'workspace.write', 'job.read', 'job.cancel', 'artifact.publish', 'artifact.read'].includes(name)) {
+    if (quota.state === 'closure' && !['workspace.list', 'workspace.read', 'workspace.write', 'job.read', 'job.cancel', 'artifact.publish', 'artifact.read', 'recon.read', 'recon.note'].includes(name)) {
       throw new ControlDenied('recon closure: exploration disabled — publish needed materials and hand off');
     }
   }
 
   private toolBefore(binding: Binding, body: Record<string, unknown>): unknown {
     const tool = typeof body.tool === 'string' ? body.tool : '';
-    this.checkReconTool(binding, SOLVER_TOOLS.find(name => `ctf_${name.replaceAll('.', '_')}` === tool) ?? tool);
+    this.checkReconTool(binding, [...SOLVER_TOOLS,...EXPERIENCE_TOOLS].find(name => `ctf_${name.replaceAll('.', '_')}` === tool) ?? tool);
     if (tool === 'ctf_challenge_assign' || tool === 'ctf_challenge_unassign') {
       this.checkDeclaration(binding, body.args, tool === 'ctf_challenge_assign');
       return { allowed: true }; // Precheck only: execution is the declaration's linearization point.
@@ -574,6 +674,8 @@ export class ControlService {
     if (tool === 'ctf_completion_request') { if(binding.role!=='coordinator')throw new ControlDenied('tool not permitted');return {allowed:true,rpcTimeoutMs:25000}; }
     if (tool === 'ctf_verification_read') { if(binding.role!=='coordinator')throw new ControlDenied('tool not permitted');return {allowed:true,rpcTimeoutMs:20000}; }
     if (tool === 'ctf_task_stop') { this.checkTaskStop(binding, body.args); return { allowed: true, rpcTimeoutMs: 10000 }; }
+    const experience = EXPERIENCE_TOOLS.find(name => `ctf_${name.replaceAll('.', '_')}` === tool);
+    if(experience) { this.checkExperience(binding,experience); return {allowed:true}; }
     const progress = PROGRESS_TOOLS.find(name => `ctf_${name.replaceAll('.', '_')}` === tool);
     if (progress) { this.checkProgress(binding, progress); return { allowed: true }; }
     const managed = SOLVER_TOOLS.find(name => `ctf_${name.replaceAll('.', '_')}` === tool);
@@ -653,6 +755,24 @@ export class ControlService {
   private refusal(error: unknown): ControlDenied { return new ControlDenied(error instanceof IntakeRefused ? error.code : 'control error'); }
 
   private executeManaged(binding: Binding, body: Record<string, unknown>, signal?: AbortSignal): unknown {
+    const memoryName = typeof body.tool==='string' ? body.tool : '';
+    if((EXPERIENCE_TOOLS as readonly string[]).includes(memoryName)) {
+      this.checkExperience(binding,memoryName);
+      const store=this.options.experienceStore!,args=body.args??{};
+      if(memoryName==='experience.search') {const result=store.search(args);this.record(binding.sessionID,'experience.returned',true,undefined,result);return result;}
+      if(memoryName==='experience.read') {const result=store.read(args);this.record(binding.sessionID,'experience.returned',true,undefined,{kind:result.kind,id:result.id,version:result.version});return result;}
+      const scope=this.processScope(binding,body);
+      if(memoryName==='recon.note') {
+        try{return store.note(scope,args,ref=>this.publicationSnapshot().some(p=>p.ref===ref&&p.source.run===scope.run&&p.source.challenge===scope.challenge)||store.hasRef(ref));}
+        catch(error){if((error as {code?:string}).code?.startsWith('ERR_SQLITE'))this.pauseProcess(binding,scope.call);throw error;}
+      }
+      return {execute:async()=>{
+        const result={...store.records(scope.run,scope.challenge,args),process_storage:this.processFailures.has(scope.challenge)?{state:'paused',...this.processFailures.get(scope.challenge)}:{state:'available'}};
+        const bytes=Buffer.from('# Recon 调查记录快照\n\n本次导出仅覆盖返回的记录页；工具完成不代表方法有效。\n\n```json\n'+JSON.stringify(result,null,2)+'\n```\n');
+        const publication=await this.publications.publish(this.roots(binding).publishedDir,this.source(binding,'file','recon-export',scope.execution),bytes,true,{},()=>this.live(binding));
+        return {...result,export:publication};
+      }};
+    }
     const name = typeof body.tool === 'string' ? body.tool : '';
     this.checkReconTool(binding, name);
     if (name === 'progress.read') {
@@ -853,7 +973,11 @@ export class ControlService {
               return {...snapshot,excerpts};
             });
             keep = true;
-            void done.then(snapshot => this.settleResource(operation, snapshot.reapIncomplete ? 'cleanup_unknown' : snapshot.state, snapshot.exitCode));
+            void done.then(snapshot => {
+              try {if(this.options.experienceStore && binding.role==='recon')this.options.experienceStore.finish(this.processScope(binding,{callID:call}),snapshot.reapIncomplete?'unknown':snapshot.state,snapshot);}
+              catch(error){this.pauseProcess(binding,call);throw error;}
+              finally {this.settleResource(operation, snapshot.reapIncomplete ? 'cleanup_unknown' : snapshot.state, snapshot.exitCode);}
+            }).catch(error=>this.record(binding.sessionID,'process.terminal',false,'storage failure',String(error)));
             // Decision prototype: retain the same RPC/call until terminal cleanup, without a model polling loop.
             if (args.completion === 'terminal' || args.wait_ms === undefined) result = await done;
           } else if (name === 'artifact.publish') {

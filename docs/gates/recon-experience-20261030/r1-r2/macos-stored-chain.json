@@ -1,0 +1,821 @@
+{
+  "episodes": [
+    {
+      "run_id": "A",
+      "challenge_id": "X",
+      "outcome": "solved",
+      "outcome_ref": [
+        {
+          "intent": "47b3c839-f82b-474c-8369-1f15f98497ff",
+          "state": "confirmed",
+          "solved": true,
+          "businessOutcome": "accepted"
+        }
+      ],
+      "end_reason": "trusted_completed",
+      "input": {
+        "title": null,
+        "sources": [
+          {
+            "ref": "recon:1",
+            "content": {
+              "id": 1,
+              "run_id": "A",
+              "challenge_id": "X",
+              "session_id": "ses_e73036cc9ffeUeiENYgxknzVSu",
+              "execution_ref": "a202199d-23e6-405f-9bc3-1273dc31e7ab",
+              "message_id": "msg_18cfc9347001tdVW20KoMOJ0EA",
+              "turn_no": 1,
+              "call_id": "call_3_0",
+              "kind": "tool",
+              "tool": "workspace.write",
+              "args_json": {
+                "path": "work/baseline.txt",
+                "content": "SQL_FAILED: no SQL evidence"
+              },
+              "status": "completed",
+              "result_json": {
+                "path": "work/baseline.txt",
+                "size": 27,
+                "sha256": "2268556c18356db8175eed86f40069919692d6cf7c09d71a3fdb7daa8b6226dc"
+              },
+              "note_json": null,
+              "created_at": 1793366725470,
+              "updated_at": 1793366725478,
+              "finished_at": 1793366725478
+            }
+          },
+          {
+            "ref": "recon:2",
+            "content": {
+              "id": 2,
+              "run_id": "A",
+              "challenge_id": "X",
+              "session_id": "ses_e73036cc9ffeUeiENYgxknzVSu",
+              "execution_ref": "a202199d-23e6-405f-9bc3-1273dc31e7ab",
+              "message_id": "msg_18cfc9347001tdVW20KoMOJ0EA",
+              "turn_no": 1,
+              "call_id": "call_3_1",
+              "kind": "tool",
+              "tool": "workspace.write",
+              "args_json": {
+                "path": "work/template.txt",
+                "content": "arithmetic evaluated to 42"
+              },
+              "status": "completed",
+              "result_json": {
+                "path": "work/template.txt",
+                "size": 26,
+                "sha256": "5958a202eb61124467e04307d4a9c1315794655bff80ac3c93f917fdd18c9893"
+              },
+              "note_json": null,
+              "created_at": 1793366725473,
+              "updated_at": 1793366725479,
+              "finished_at": 1793366725479
+            }
+          },
+          {
+            "ref": "recon:3",
+            "content": {
+              "id": 3,
+              "run_id": "A",
+              "challenge_id": "X",
+              "session_id": "ses_e73036cc9ffeUeiENYgxknzVSu",
+              "execution_ref": "a202199d-23e6-405f-9bc3-1273dc31e7ab",
+              "message_id": "msg_18cfc936e001y0FAm1UIuZ6fCK",
+              "turn_no": 2,
+              "call_id": "call_4_0",
+              "kind": "tool",
+              "tool": "job.run",
+              "args_json": {
+                "argv": [
+                  "/opt/homebrew/Cellar/node/26.3.0/bin/node",
+                  "-e",
+                  "console.log('SQL_FAILED; template arithmetic 42')"
+                ],
+                "timeout_ms": 5000
+              },
+              "status": "exited",
+              "result_json": {
+                "job": "1a715e35-7eea-40ac-83bb-02c9c952708f",
+                "state": "exited",
+                "exitCode": 0,
+                "signal": null,
+                "reapIncomplete": false,
+                "excerpts": {
+                  "stdout": {
+                    "stream": "stdout",
+                    "offset": 0,
+                    "encoding": "utf8",
+                    "data": "SQL_FAILED; template arithmetic 42\n",
+                    "capturedLength": 35,
+                    "previewOmitted": false,
+                    "truncated": false,
+                    "nextCursor": null
+                  },
+                  "stderr": {
+                    "stream": "stderr",
+                    "offset": 0,
+                    "encoding": "utf8",
+                    "data": "",
+                    "capturedLength": 0,
+                    "previewOmitted": false,
+                    "truncated": false,
+                    "nextCursor": null
+                  }
+                }
+              },
+              "note_json": null,
+              "created_at": 1793366725504,
+              "updated_at": 1793366725587,
+              "finished_at": 1793366725587
+            }
+          },
+          {
+            "ref": "recon:4",
+            "content": {
+              "id": 4,
+              "run_id": "A",
+              "challenge_id": "X",
+              "session_id": "ses_e73036cc9ffeUeiENYgxknzVSu",
+              "execution_ref": "a202199d-23e6-405f-9bc3-1273dc31e7ab",
+              "message_id": "msg_18cfc93db001oSL0KFSIYhF5zg",
+              "turn_no": 3,
+              "call_id": "call_5_0",
+              "kind": "tool",
+              "tool": "http.request",
+              "args_json": {
+                "url": "http://127.0.0.1:1/not-authorized"
+              },
+              "status": "error",
+              "result_json": {
+                "error": "denied: http target"
+              },
+              "note_json": null,
+              "created_at": 1793366725656,
+              "updated_at": 1793366725664,
+              "finished_at": 1793366725664
+            }
+          },
+          {
+            "ref": "recon:5",
+            "content": {
+              "id": 5,
+              "run_id": "A",
+              "challenge_id": "X",
+              "session_id": "ses_e73036cc9ffeUeiENYgxknzVSu",
+              "execution_ref": "a202199d-23e6-405f-9bc3-1273dc31e7ab",
+              "message_id": "msg_18cfc9424001iuoFzfIaLzpXKR",
+              "turn_no": 4,
+              "call_id": "call_6_0",
+              "kind": "tool",
+              "tool": "job.run",
+              "args_json": {
+                "argv": [
+                  "/opt/homebrew/Cellar/node/26.3.0/bin/node",
+                  "-e",
+                  "setTimeout(()=>{},2000)"
+                ],
+                "timeout_ms": 20
+              },
+              "status": "timed_out",
+              "result_json": {
+                "job": "84c901e6-4bfe-4c49-9cba-8c9f12915f7a",
+                "state": "timed_out",
+                "exitCode": null,
+                "signal": "SIGTERM",
+                "reapIncomplete": false,
+                "excerpts": {
+                  "stdout": {
+                    "stream": "stdout",
+                    "offset": 0,
+                    "encoding": "utf8",
+                    "data": "",
+                    "capturedLength": 0,
+                    "previewOmitted": false,
+                    "truncated": false,
+                    "nextCursor": null
+                  },
+                  "stderr": {
+                    "stream": "stderr",
+                    "offset": 0,
+                    "encoding": "utf8",
+                    "data": "",
+                    "capturedLength": 0,
+                    "previewOmitted": false,
+                    "truncated": false,
+                    "nextCursor": null
+                  }
+                }
+              },
+              "note_json": null,
+              "created_at": 1793366725710,
+              "updated_at": 1793366725759,
+              "finished_at": 1793366725759
+            }
+          },
+          {
+            "ref": "recon:6",
+            "content": {
+              "id": 6,
+              "run_id": "A",
+              "challenge_id": "X",
+              "session_id": "ses_e73036cc9ffeUeiENYgxknzVSu",
+              "execution_ref": "a202199d-23e6-405f-9bc3-1273dc31e7ab",
+              "message_id": "msg_18cfc9492001ZSa9yMqDjuQ0xS",
+              "turn_no": 5,
+              "call_id": "call_7_0",
+              "kind": "decision",
+              "tool": null,
+              "args_json": null,
+              "status": "completed",
+              "result_json": null,
+              "note_json": {
+                "kind": "decision",
+                "related_ids": [],
+                "evidence_refs": [],
+                "observation": "SQL_FAILED; arithmetic 42",
+                "assessment": "template route needs solving",
+                "next_action": "handoff",
+                "next_reason": "baseline answered"
+              },
+              "created_at": 1793366725850,
+              "updated_at": 1793366725850,
+              "finished_at": 1793366725850
+            }
+          },
+          {
+            "ref": "execution:a202199d-23e6-405f-9bc3-1273dc31e7ab",
+            "role": "recon",
+            "content": [
+              "RECON_DONE EXPORT_REF=0942a360-352b-4520-858d-2e67e36e5542 SQL_FAILED; template route supported locally"
+            ],
+            "gaps": []
+          },
+          {
+            "ref": "execution:e7e6e5ca-397f-463c-b58e-c40cd7d0959b",
+            "role": "domain-solver",
+            "content": [
+              "SOLVER_DONE SQL_FAILED. arithmetic evaluated=42; parameters expression=6*7; literal reflection control did not evaluate. "
+            ],
+            "gaps": []
+          },
+          {
+            "ref": "execution:67381e4b-c777-43a6-9dc6-570b6719fb77",
+            "role": "engineer",
+            "content": [
+              "ENGINEER_VERSION=08ee192b-4447-43f5-94f4-f54f8ccd0e89 actual local extraction fixed; SQL_FAILED branch preserved"
+            ],
+            "gaps": []
+          },
+          {
+            "ref": "execution:83f87855-3dbd-4056-be0d-8c4368a42f6b",
+            "role": "verifier",
+            "content": [
+              "VERIFIER_RESULT=449ca667-5d96-40b4-bb10-3fe93b3c102e"
+            ],
+            "gaps": []
+          },
+          {
+            "ref": "artifact:0942a360-352b-4520-858d-2e67e36e5542",
+            "content": "# Recon 调查记录快照\n\n本次导出仅覆盖返回的记录页；工具完成不代表方法有效。\n\n```json\n{\n  \"records\": [\n    {\n      \"id\": 1,\n      \"run_id\": \"A\",\n      \"challenge_id\": \"X\",\n      \"session_id\": \"ses_e73036cc9ffeUeiENYgxknzVSu\",\n      \"execution_ref\": \"a202199d-23e6-405f-9bc3-1273dc31e7ab\",\n      \"message_id\": \"msg_18cfc9347001tdVW20KoMOJ0EA\",\n      \"turn_no\": 1,\n      \"call_id\": \"call_3_0\",\n      \"kind\": \"tool\",\n      \"tool\": \"workspace.write\",\n      \"args_json\": {\n        \"path\": \"work/baseline.txt\",\n        \"content\": \"SQL_FAILED: no SQL evidence\"\n      },\n      \"status\": \"completed\",\n      \"result_json\": {\n        \"path\": \"work/baseline.txt\",\n        \"size\": 27,\n        \"sha256\": \"2268556c18356db8175eed86f40069919692d6cf7c09d71a3fdb7daa8b6226dc\"\n      },\n      \"note_json\": null,\n      \"created_at\": 1793366725470,\n      \"updated_at\": 1793366725478,\n      \"finished_at\": 1793366725478,\n      \"association\": \"native_assistant\"\n    },\n    {\n      \"id\": 2,\n      \"run_id\": \"A\",\n      \"challenge_id\": \"X\",\n      \"session_id\": \"ses_e73036cc9ffeUeiENYgxknzVSu\",\n      \"execution_ref\": \"a202199d-23e6-405f-9bc3-1273dc31e7ab\",\n      \"message_id\": \"msg_18cfc9347001tdVW20KoMOJ0EA\",\n      \"turn_no\": 1,\n      \"call_id\": \"call_3_1\",\n      \"kind\": \"tool\",\n      \"tool\": \"workspace.write\",\n      \"args_json\": {\n        \"path\": \"work/template.txt\",\n        \"content\": \"arithmetic evaluated to 42\"\n      },\n      \"status\": \"completed\",\n      \"result_json\": {\n        \"path\": \"work/template.txt\",\n        \"size\": 26,\n        \"sha256\": \"5958a202eb61124467e04307d4a9c1315794655bff80ac3c93f917fdd18c9893\"\n      },\n      \"note_json\": null,\n      \"created_at\": 1793366725473,\n      \"updated_at\": 1793366725479,\n      \"finished_at\": 1793366725479,\n      \"association\": \"native_assistant\"\n    },\n    {\n      \"id\": 3,\n      \"run_id\": \"A\",\n      \"challenge_id\": \"X\",\n      \"session_id\": \"ses_e73036cc9ffeUeiENYgxknzVSu\",\n      \"execution_ref\": \"a202199d-23e6-405f-9bc3-1273dc31e7ab\",\n      \"message_id\": \"msg_18cfc936e001y0FAm1UIuZ6fCK\",\n      \"turn_no\": 2,\n      \"call_id\": \"call_4_0\",\n      \"kind\": \"tool\",\n      \"tool\": \"job.run\",\n      \"args_json\": {\n        \"argv\": [\n          \"/opt/homebrew/Cellar/node/26.3.0/bin/node\",\n          \"-e\",\n          \"console.log('SQL_FAILED; template arithmetic 42')\"\n        ],\n        \"timeout_ms\": 5000\n      },\n      \"status\": \"exited\",\n      \"result_json\": {\n        \"job\": \"1a715e35-7eea-40ac-83bb-02c9c952708f\",\n        \"state\": \"exited\",\n        \"exitCode\": 0,\n        \"signal\": null,\n        \"reapIncomplete\": false,\n        \"excerpts\": {\n          \"stdout\": {\n            \"stream\": \"stdout\",\n            \"offset\": 0,\n            \"encoding\": \"utf8\",\n            \"data\": \"SQL_FAILED; template arithmetic 42\\n\",\n            \"capturedLength\": 35,\n            \"previewOmitted\": false,\n            \"truncated\": false,\n            \"nextCursor\": null\n          },\n          \"stderr\": {\n            \"stream\": \"stderr\",\n            \"offset\": 0,\n            \"encoding\": \"utf8\",\n            \"data\": \"\",\n            \"capturedLength\": 0,\n            \"previewOmitted\": false,\n            \"truncated\": false,\n            \"nextCursor\": null\n          }\n        }\n      },\n      \"note_json\": null,\n      \"created_at\": 1793366725504,\n      \"updated_at\": 1793366725587,\n      \"finished_at\": 1793366725587,\n      \"association\": \"native_assistant\"\n    },\n    {\n      \"id\": 4,\n      \"run_id\": \"A\",\n      \"challenge_id\": \"X\",\n      \"session_id\": \"ses_e73036cc9ffeUeiENYgxknzVSu\",\n      \"execution_ref\": \"a202199d-23e6-405f-9bc3-1273dc31e7ab\",\n      \"message_id\": \"msg_18cfc93db001oSL0KFSIYhF5zg\",\n      \"turn_no\": 3,\n      \"call_id\": \"call_5_0\",\n      \"kind\": \"tool\",\n      \"tool\": \"http.request\",\n      \"args_json\": {\n        \"url\": \"http://127.0.0.1:1/not-authorized\"\n      },\n      \"status\": \"error\",\n      \"result_json\": {\n        \"error\": \"denied: http target\"\n      },\n      \"note_json\": null,\n      \"created_at\": 1793366725656,\n      \"updated_at\": 1793366725664,\n      \"finished_at\": 1793366725664,\n      \"association\": \"native_assistant\"\n    },\n    {\n      \"id\": 5,\n      \"run_id\": \"A\",\n      \"challenge_id\": \"X\",\n      \"session_id\": \"ses_e73036cc9ffeUeiENYgxknzVSu\",\n      \"execution_ref\": \"a202199d-23e6-405f-9bc3-1273dc31e7ab\",\n      \"message_id\": \"msg_18cfc9424001iuoFzfIaLzpXKR\",\n      \"turn_no\": 4,\n      \"call_id\": \"call_6_0\",\n      \"kind\": \"tool\",\n      \"tool\": \"job.run\",\n      \"args_json\": {\n        \"argv\": [\n          \"/opt/homebrew/Cellar/node/26.3.0/bin/node\",\n          \"-e\",\n          \"setTimeout(()=>{},2000)\"\n        ],\n        \"timeout_ms\": 20\n      },\n      \"status\": \"timed_out\",\n      \"result_json\": {\n        \"job\": \"84c901e6-4bfe-4c49-9cba-8c9f12915f7a\",\n        \"state\": \"timed_out\",\n        \"exitCode\": null,\n        \"signal\": \"SIGTERM\",\n        \"reapIncomplete\": false,\n        \"excerpts\": {\n          \"stdout\": {\n            \"stream\": \"stdout\",\n            \"offset\": 0,\n            \"encoding\": \"utf8\",\n            \"data\": \"\",\n            \"capturedLength\": 0,\n            \"previewOmitted\": false,\n            \"truncated\": false,\n            \"nextCursor\": null\n          },\n          \"stderr\": {\n            \"stream\": \"stderr\",\n            \"offset\": 0,\n            \"encoding\": \"utf8\",\n            \"data\": \"\",\n            \"capturedLength\": 0,\n            \"previewOmitted\": false,\n            \"truncated\": false,\n            \"nextCursor\": null\n          }\n        }\n      },\n      \"note_json\": null,\n      \"created_at\": 1793366725710,\n      \"updated_at\": 1793366725759,\n      \"finished_at\": 1793366725759,\n      \"association\": \"native_assistant\"\n    },\n    {\n      \"id\": 6,\n      \"run_id\": \"A\",\n      \"challenge_id\": \"X\",\n      \"session_id\": \"ses_e73036cc9ffeUeiENYgxknzVSu\",\n      \"execution_ref\": \"a202199d-23e6-405f-9bc3-1273dc31e7ab\",\n      \"message_id\": \"msg_18cfc9492001ZSa9yMqDjuQ0xS\",\n      \"turn_no\": 5,\n      \"call_id\": \"call_7_0\",\n      \"kind\": \"decision\",\n      \"tool\": null,\n      \"args_json\": null,\n      \"status\": \"completed\",\n      \"result_json\": null,\n      \"note_json\": {\n        \"kind\": \"decision\",\n        \"related_ids\": [],\n        \"evidence_refs\": [],\n        \"observation\": \"SQL_FAILED; arithmetic 42\",\n        \"assessment\": \"template route needs solving\",\n        \"next_action\": \"handoff\",\n        \"next_reason\": \"baseline answered\"\n      },\n      \"created_at\": 1793366725850,\n      \"updated_at\": 1793366725850,\n      \"finished_at\": 1793366725850,\n      \"association\": \"native_assistant\"\n    }\n  ],\n  \"next_cursor\": null,\n  \"in_flight_ids\": [],\n  \"process_storage\": {\n    \"state\": \"available\"\n  }\n}\n```\n",
+            "originalComplete": true
+          },
+          {
+            "ref": "artifact:fd144f9a-c4f4-4d3d-92c0-1584a6aacd43",
+            "content": "<redacted>",
+            "originalComplete": null
+          }
+        ],
+        "verifications": [
+          {
+            "result": "449ca667-5d96-40b4-bb10-3fe93b3c102e",
+            "judgment": "inconclusive",
+            "original": {
+              "judgment": "inconclusive",
+              "mode": "unable",
+              "rationale": "scripted local fixture; no independent semantic proof",
+              "sourceFlow": "local fixed candidate",
+              "evidence": []
+            }
+          }
+        ],
+        "experience_refs": [],
+        "completion": {
+          "intent": "47b3c839-f82b-474c-8369-1f15f98497ff",
+          "state": "confirmed",
+          "solved": true
+        },
+        "gaps": []
+      },
+      "episode_id": "2c54d20f-69cd-4c98-8c05-f4f7a48d7256",
+      "version": 1,
+      "input_hash": "4968d4d517d21e30aeb0fccd07fcdb4bf298c986ce27db019b9ad85c5b5c9403",
+      "content": {
+        "summary": "A template process",
+        "tech_tags": [
+          "template"
+        ],
+        "steps": [
+          {
+            "stage": "solve",
+            "action": "arithmetic then exploit",
+            "observation": "evaluation 42",
+            "reason": "direct comparison",
+            "source_refs": [
+              "execution:e7e6e5ca-397f-463c-b58e-c40cd7d0959b"
+            ]
+          }
+        ],
+        "failed_paths": [
+          "SQL_FAILED"
+        ],
+        "unresolved": [],
+        "experience_refs": []
+      },
+      "episode_status": "completed",
+      "lesson_status": "completed",
+      "lesson_ids": [
+        "506c314d-46a8-4b14-989c-a744fdf07160"
+      ],
+      "usage": {
+        "availability": "reported",
+        "input": 100,
+        "output": 40,
+        "reasoning": 0,
+        "reservedTokens": 0,
+        "lowerBound": false
+      },
+      "requests": [
+        {
+          "phase": "episode",
+          "sessionID": "ses_e73035dcfffecwwv0xxM3d0zBn",
+          "state": "received",
+          "at": 1793366729268,
+          "usage": {
+            "availability": "reported",
+            "total": 70,
+            "input": 50,
+            "output": 20,
+            "reasoning": 0,
+            "cache": {
+              "read": 0,
+              "write": 0
+            }
+          }
+        },
+        {
+          "phase": "lesson",
+          "sessionID": "ses_e73035a28ffeXbDitOmsDehow9",
+          "state": "received",
+          "at": 1793366730201,
+          "usage": {
+            "availability": "reported",
+            "total": 70,
+            "input": 50,
+            "output": 20,
+            "reasoning": 0,
+            "cache": {
+              "read": 0,
+              "write": 0
+            }
+          }
+        }
+      ],
+      "created_at": 1793366727377,
+      "model": "stub/scripted"
+    },
+    {
+      "run_id": "B",
+      "challenge_id": "X",
+      "outcome": "solved",
+      "outcome_ref": [
+        {
+          "intent": "f4578652-7f35-4a77-a657-6416bfd72090",
+          "state": "confirmed",
+          "solved": true,
+          "businessOutcome": "accepted"
+        }
+      ],
+      "end_reason": "trusted_completed",
+      "input": {
+        "title": null,
+        "sources": [
+          {
+            "ref": "recon:7",
+            "content": {
+              "id": 7,
+              "run_id": "B",
+              "challenge_id": "X",
+              "session_id": "ses_e73035054ffeOu235nTPSd9Qeq",
+              "execution_ref": "a6c6c55f-5a36-4a2f-9b79-0c775d4e88a4",
+              "message_id": "msg_18cfcb068001ygBkTJTYjL0053",
+              "turn_no": 1,
+              "call_id": "call_34_0",
+              "kind": "tool",
+              "tool": "job.run",
+              "args_json": {
+                "argv": [
+                  "/opt/homebrew/Cellar/node/26.3.0/bin/node",
+                  "-e",
+                  "console.log(JSON.stringify({evaluated:6*7,literal:'{{6*7}}'}))"
+                ],
+                "timeout_ms": 5000
+              },
+              "status": "exited",
+              "result_json": {
+                "job": "bd74c09d-fe40-49f5-8e2a-3712eba11ebc",
+                "state": "exited",
+                "exitCode": 0,
+                "signal": null,
+                "reapIncomplete": false,
+                "excerpts": {
+                  "stdout": {
+                    "stream": "stdout",
+                    "offset": 0,
+                    "encoding": "utf8",
+                    "data": "{\"evaluated\":42,\"literal\":\"{{6*7}}\"}\n",
+                    "capturedLength": 37,
+                    "previewOmitted": false,
+                    "truncated": false,
+                    "nextCursor": null
+                  },
+                  "stderr": {
+                    "stream": "stderr",
+                    "offset": 0,
+                    "encoding": "utf8",
+                    "data": "",
+                    "capturedLength": 0,
+                    "previewOmitted": false,
+                    "truncated": false,
+                    "nextCursor": null
+                  }
+                }
+              },
+              "note_json": null,
+              "created_at": 1793366732960,
+              "updated_at": 1793366733040,
+              "finished_at": 1793366733040
+            }
+          },
+          {
+            "ref": "recon:8",
+            "content": {
+              "id": 8,
+              "run_id": "B",
+              "challenge_id": "X",
+              "session_id": "ses_e73035054ffeOu235nTPSd9Qeq",
+              "execution_ref": "a6c6c55f-5a36-4a2f-9b79-0c775d4e88a4",
+              "message_id": "msg_18cfcb0fc001fsl1D8bWXNb5Si",
+              "turn_no": 2,
+              "call_id": "call_35_0",
+              "kind": "decision",
+              "tool": null,
+              "args_json": null,
+              "status": "completed",
+              "result_json": null,
+              "note_json": {
+                "kind": "decision",
+                "related_ids": [],
+                "evidence_refs": [
+                  "lesson:506c314d-46a8-4b14-989c-a744fdf07160@1"
+                ],
+                "observation": "SQL_FAILED prior route. Current arithmetic=42; literal reflection remains literal",
+                "assessment": "adopt arithmetic comparison; do not exploit literal reflection",
+                "next_reason": "checked conditions against current fixture"
+              },
+              "created_at": 1793366733081,
+              "updated_at": 1793366733081,
+              "finished_at": 1793366733081
+            }
+          },
+          {
+            "ref": "execution:a6c6c55f-5a36-4a2f-9b79-0c775d4e88a4",
+            "role": "recon",
+            "content": [
+              "RECON_DONE EXPORT_REF=c4112f19-7fa5-4c62-a7cd-c693bef03183 SQL_FAILED; used lesson:506c314d-46a8-4b14-989c-a744fdf07160@1; reflected string is inapplicable"
+            ],
+            "gaps": []
+          },
+          {
+            "ref": "execution:08066d6c-4d9e-4e2b-abd7-a1d2b26df896",
+            "role": "domain-solver",
+            "content": [
+              "SOLVER_DONE SQL_FAILED. arithmetic evaluated=42; parameters expression=6*7; literal reflection control did not evaluate. used lesson:506c314d-46a8-4b14-989c-a744fdf07160@1; literal route abandoned"
+            ],
+            "gaps": []
+          },
+          {
+            "ref": "execution:578c9362-654e-476e-b9ab-7a298e64a495",
+            "role": "engineer",
+            "content": [
+              "ENGINEER_VERSION=63befbb9-aeab-4996-ae6f-fe2c8d0d2cb9 actual local extraction fixed; SQL_FAILED branch preserved"
+            ],
+            "gaps": []
+          },
+          {
+            "ref": "execution:94c1591f-bc04-432d-ab9b-692060011018",
+            "role": "verifier",
+            "content": [
+              "VERIFIER_RESULT=a333dc4c-e8d2-421e-a508-4e227eb99b2d"
+            ],
+            "gaps": []
+          },
+          {
+            "ref": "artifact:c4112f19-7fa5-4c62-a7cd-c693bef03183",
+            "content": "# Recon 调查记录快照\n\n本次导出仅覆盖返回的记录页；工具完成不代表方法有效。\n\n```json\n{\n  \"records\": [\n    {\n      \"id\": 7,\n      \"run_id\": \"B\",\n      \"challenge_id\": \"X\",\n      \"session_id\": \"ses_e73035054ffeOu235nTPSd9Qeq\",\n      \"execution_ref\": \"a6c6c55f-5a36-4a2f-9b79-0c775d4e88a4\",\n      \"message_id\": \"msg_18cfcb068001ygBkTJTYjL0053\",\n      \"turn_no\": 1,\n      \"call_id\": \"call_34_0\",\n      \"kind\": \"tool\",\n      \"tool\": \"job.run\",\n      \"args_json\": {\n        \"argv\": [\n          \"/opt/homebrew/Cellar/node/26.3.0/bin/node\",\n          \"-e\",\n          \"console.log(JSON.stringify({evaluated:6*7,literal:'{{6*7}}'}))\"\n        ],\n        \"timeout_ms\": 5000\n      },\n      \"status\": \"exited\",\n      \"result_json\": {\n        \"job\": \"bd74c09d-fe40-49f5-8e2a-3712eba11ebc\",\n        \"state\": \"exited\",\n        \"exitCode\": 0,\n        \"signal\": null,\n        \"reapIncomplete\": false,\n        \"excerpts\": {\n          \"stdout\": {\n            \"stream\": \"stdout\",\n            \"offset\": 0,\n            \"encoding\": \"utf8\",\n            \"data\": \"{\\\"evaluated\\\":42,\\\"literal\\\":\\\"{{6*7}}\\\"}\\n\",\n            \"capturedLength\": 37,\n            \"previewOmitted\": false,\n            \"truncated\": false,\n            \"nextCursor\": null\n          },\n          \"stderr\": {\n            \"stream\": \"stderr\",\n            \"offset\": 0,\n            \"encoding\": \"utf8\",\n            \"data\": \"\",\n            \"capturedLength\": 0,\n            \"previewOmitted\": false,\n            \"truncated\": false,\n            \"nextCursor\": null\n          }\n        }\n      },\n      \"note_json\": null,\n      \"created_at\": 1793366732960,\n      \"updated_at\": 1793366733040,\n      \"finished_at\": 1793366733040,\n      \"association\": \"native_assistant\"\n    },\n    {\n      \"id\": 8,\n      \"run_id\": \"B\",\n      \"challenge_id\": \"X\",\n      \"session_id\": \"ses_e73035054ffeOu235nTPSd9Qeq\",\n      \"execution_ref\": \"a6c6c55f-5a36-4a2f-9b79-0c775d4e88a4\",\n      \"message_id\": \"msg_18cfcb0fc001fsl1D8bWXNb5Si\",\n      \"turn_no\": 2,\n      \"call_id\": \"call_35_0\",\n      \"kind\": \"decision\",\n      \"tool\": null,\n      \"args_json\": null,\n      \"status\": \"completed\",\n      \"result_json\": null,\n      \"note_json\": {\n        \"kind\": \"decision\",\n        \"related_ids\": [],\n        \"evidence_refs\": [\n          \"lesson:506c314d-46a8-4b14-989c-a744fdf07160@1\"\n        ],\n        \"observation\": \"SQL_FAILED prior route. Current arithmetic=42; literal reflection remains literal\",\n        \"assessment\": \"adopt arithmetic comparison; do not exploit literal reflection\",\n        \"next_reason\": \"checked conditions against current fixture\"\n      },\n      \"created_at\": 1793366733081,\n      \"updated_at\": 1793366733081,\n      \"finished_at\": 1793366733081,\n      \"association\": \"native_assistant\"\n    }\n  ],\n  \"next_cursor\": null,\n  \"in_flight_ids\": [],\n  \"process_storage\": {\n    \"state\": \"available\"\n  }\n}\n```\n",
+            "originalComplete": true
+          },
+          {
+            "ref": "artifact:fe3b95a1-1d98-45e0-a977-a36285faee63",
+            "content": "<redacted>",
+            "originalComplete": null
+          }
+        ],
+        "verifications": [
+          {
+            "result": "a333dc4c-e8d2-421e-a508-4e227eb99b2d",
+            "judgment": "inconclusive",
+            "original": {
+              "judgment": "inconclusive",
+              "mode": "unable",
+              "rationale": "scripted local fixture; no independent semantic proof",
+              "sourceFlow": "local fixed candidate",
+              "evidence": []
+            }
+          }
+        ],
+        "experience_refs": [
+          "lesson:506c314d-46a8-4b14-989c-a744fdf07160@1",
+          "episode:2c54d20f-69cd-4c98-8c05-f4f7a48d7256@1"
+        ],
+        "completion": {
+          "intent": "f4578652-7f35-4a77-a657-6416bfd72090",
+          "state": "confirmed",
+          "solved": true
+        },
+        "gaps": []
+      },
+      "episode_id": "d69101af-11a6-4cc6-b4ba-37803e8e6848",
+      "version": 1,
+      "input_hash": "681bc9c63d2de475fbf5d4c697ad71d3b35eca6aaeedad698d7974383b2f9b7d",
+      "content": {
+        "summary": "B template process",
+        "tech_tags": [
+          "template"
+        ],
+        "steps": [
+          {
+            "stage": "solve",
+            "action": "compare arithmetic with reflection",
+            "observation": "numeric route works; literal reflection is inapplicable",
+            "reason": "direct comparison",
+            "source_refs": [
+              "execution:08066d6c-4d9e-4e2b-abd7-a1d2b26df896"
+            ]
+          }
+        ],
+        "failed_paths": [
+          "SQL_FAILED"
+        ],
+        "unresolved": [],
+        "experience_refs": [
+          "lesson:506c314d-46a8-4b14-989c-a744fdf07160@1"
+        ]
+      },
+      "episode_status": "completed",
+      "lesson_status": "completed",
+      "lesson_ids": [],
+      "usage": {
+        "availability": "reported",
+        "input": 100,
+        "output": 40,
+        "reasoning": 0,
+        "reservedTokens": 0,
+        "lowerBound": false
+      },
+      "requests": [
+        {
+          "phase": "episode",
+          "sessionID": "ses_e73034422ffe1WtvY90yKaApfe",
+          "state": "received",
+          "at": 1793366735841,
+          "usage": {
+            "availability": "reported",
+            "total": 70,
+            "input": 50,
+            "output": 20,
+            "reasoning": 0,
+            "cache": {
+              "read": 0,
+              "write": 0
+            }
+          }
+        },
+        {
+          "phase": "lesson",
+          "sessionID": "ses_e73034144ffeE9gAbdHDLeF00F",
+          "state": "received",
+          "at": 1793366736572,
+          "usage": {
+            "availability": "reported",
+            "total": 70,
+            "input": 50,
+            "output": 20,
+            "reasoning": 0,
+            "cache": {
+              "read": 0,
+              "write": 0
+            }
+          }
+        }
+      ],
+      "created_at": 1793366734492,
+      "model": "stub/scripted"
+    }
+  ],
+  "lessons": [
+    {
+      "title": "template arithmetic procedure",
+      "tags": [
+        "template"
+      ],
+      "when": "arithmetic result evaluated",
+      "steps": [
+        "compare baseline and arithmetic"
+      ],
+      "checks": [
+        "42 from expression"
+      ],
+      "avoid": [
+        "SQL_FAILED"
+      ],
+      "limits": [
+        "literal reflection is inapplicable"
+      ],
+      "lesson_id": "506c314d-46a8-4b14-989c-a744fdf07160",
+      "version": 1,
+      "source_episode_refs": [
+        {
+          "id": "2c54d20f-69cd-4c98-8c05-f4f7a48d7256",
+          "version": 1
+        }
+      ],
+      "created_at": 1793366730324
+    }
+  ],
+  "recon_turns": [
+    {
+      "id": 1,
+      "run_id": "A",
+      "challenge_id": "X",
+      "session_id": "ses_e73036cc9ffeUeiENYgxknzVSu",
+      "execution_ref": "a202199d-23e6-405f-9bc3-1273dc31e7ab",
+      "message_id": "msg_18cfc9347001tdVW20KoMOJ0EA",
+      "turn_no": 1,
+      "call_id": "call_3_0",
+      "kind": "tool",
+      "tool": "workspace.write",
+      "args_json": "{\"path\":\"work/baseline.txt\",\"content\":\"SQL_FAILED: no SQL evidence\"}",
+      "status": "completed",
+      "result_json": "{\"path\":\"work/baseline.txt\",\"size\":27,\"sha256\":\"2268556c18356db8175eed86f40069919692d6cf7c09d71a3fdb7daa8b6226dc\"}",
+      "note_json": null,
+      "created_at": 1793366725470,
+      "updated_at": 1793366725478,
+      "finished_at": 1793366725478
+    },
+    {
+      "id": 2,
+      "run_id": "A",
+      "challenge_id": "X",
+      "session_id": "ses_e73036cc9ffeUeiENYgxknzVSu",
+      "execution_ref": "a202199d-23e6-405f-9bc3-1273dc31e7ab",
+      "message_id": "msg_18cfc9347001tdVW20KoMOJ0EA",
+      "turn_no": 1,
+      "call_id": "call_3_1",
+      "kind": "tool",
+      "tool": "workspace.write",
+      "args_json": "{\"path\":\"work/template.txt\",\"content\":\"arithmetic evaluated to 42\"}",
+      "status": "completed",
+      "result_json": "{\"path\":\"work/template.txt\",\"size\":26,\"sha256\":\"5958a202eb61124467e04307d4a9c1315794655bff80ac3c93f917fdd18c9893\"}",
+      "note_json": null,
+      "created_at": 1793366725473,
+      "updated_at": 1793366725479,
+      "finished_at": 1793366725479
+    },
+    {
+      "id": 3,
+      "run_id": "A",
+      "challenge_id": "X",
+      "session_id": "ses_e73036cc9ffeUeiENYgxknzVSu",
+      "execution_ref": "a202199d-23e6-405f-9bc3-1273dc31e7ab",
+      "message_id": "msg_18cfc936e001y0FAm1UIuZ6fCK",
+      "turn_no": 2,
+      "call_id": "call_4_0",
+      "kind": "tool",
+      "tool": "job.run",
+      "args_json": "{\"argv\":[\"/opt/homebrew/Cellar/node/26.3.0/bin/node\",\"-e\",\"console.log('SQL_FAILED; template arithmetic 42')\"],\"timeout_ms\":5000}",
+      "status": "exited",
+      "result_json": "{\"job\":\"1a715e35-7eea-40ac-83bb-02c9c952708f\",\"state\":\"exited\",\"exitCode\":0,\"signal\":null,\"reapIncomplete\":false,\"excerpts\":{\"stdout\":{\"stream\":\"stdout\",\"offset\":0,\"encoding\":\"utf8\",\"data\":\"SQL_FAILED; template arithmetic 42\\n\",\"capturedLength\":35,\"previewOmitted\":false,\"truncated\":false,\"nextCursor\":null},\"stderr\":{\"stream\":\"stderr\",\"offset\":0,\"encoding\":\"utf8\",\"data\":\"\",\"capturedLength\":0,\"previewOmitted\":false,\"truncated\":false,\"nextCursor\":null}}}",
+      "note_json": null,
+      "created_at": 1793366725504,
+      "updated_at": 1793366725587,
+      "finished_at": 1793366725587
+    },
+    {
+      "id": 4,
+      "run_id": "A",
+      "challenge_id": "X",
+      "session_id": "ses_e73036cc9ffeUeiENYgxknzVSu",
+      "execution_ref": "a202199d-23e6-405f-9bc3-1273dc31e7ab",
+      "message_id": "msg_18cfc93db001oSL0KFSIYhF5zg",
+      "turn_no": 3,
+      "call_id": "call_5_0",
+      "kind": "tool",
+      "tool": "http.request",
+      "args_json": "{\"url\":\"http://127.0.0.1:1/not-authorized\"}",
+      "status": "error",
+      "result_json": "{\"error\":\"denied: http target\"}",
+      "note_json": null,
+      "created_at": 1793366725656,
+      "updated_at": 1793366725664,
+      "finished_at": 1793366725664
+    },
+    {
+      "id": 5,
+      "run_id": "A",
+      "challenge_id": "X",
+      "session_id": "ses_e73036cc9ffeUeiENYgxknzVSu",
+      "execution_ref": "a202199d-23e6-405f-9bc3-1273dc31e7ab",
+      "message_id": "msg_18cfc9424001iuoFzfIaLzpXKR",
+      "turn_no": 4,
+      "call_id": "call_6_0",
+      "kind": "tool",
+      "tool": "job.run",
+      "args_json": "{\"argv\":[\"/opt/homebrew/Cellar/node/26.3.0/bin/node\",\"-e\",\"setTimeout(()=>{},2000)\"],\"timeout_ms\":20}",
+      "status": "timed_out",
+      "result_json": "{\"job\":\"84c901e6-4bfe-4c49-9cba-8c9f12915f7a\",\"state\":\"timed_out\",\"exitCode\":null,\"signal\":\"SIGTERM\",\"reapIncomplete\":false,\"excerpts\":{\"stdout\":{\"stream\":\"stdout\",\"offset\":0,\"encoding\":\"utf8\",\"data\":\"\",\"capturedLength\":0,\"previewOmitted\":false,\"truncated\":false,\"nextCursor\":null},\"stderr\":{\"stream\":\"stderr\",\"offset\":0,\"encoding\":\"utf8\",\"data\":\"\",\"capturedLength\":0,\"previewOmitted\":false,\"truncated\":false,\"nextCursor\":null}}}",
+      "note_json": null,
+      "created_at": 1793366725710,
+      "updated_at": 1793366725759,
+      "finished_at": 1793366725759
+    },
+    {
+      "id": 6,
+      "run_id": "A",
+      "challenge_id": "X",
+      "session_id": "ses_e73036cc9ffeUeiENYgxknzVSu",
+      "execution_ref": "a202199d-23e6-405f-9bc3-1273dc31e7ab",
+      "message_id": "msg_18cfc9492001ZSa9yMqDjuQ0xS",
+      "turn_no": 5,
+      "call_id": "call_7_0",
+      "kind": "decision",
+      "tool": null,
+      "args_json": null,
+      "status": "completed",
+      "result_json": null,
+      "note_json": "{\"kind\":\"decision\",\"related_ids\":[],\"evidence_refs\":[],\"observation\":\"SQL_FAILED; arithmetic 42\",\"assessment\":\"template route needs solving\",\"next_action\":\"handoff\",\"next_reason\":\"baseline answered\"}",
+      "created_at": 1793366725850,
+      "updated_at": 1793366725850,
+      "finished_at": 1793366725850
+    },
+    {
+      "id": 7,
+      "run_id": "B",
+      "challenge_id": "X",
+      "session_id": "ses_e73035054ffeOu235nTPSd9Qeq",
+      "execution_ref": "a6c6c55f-5a36-4a2f-9b79-0c775d4e88a4",
+      "message_id": "msg_18cfcb068001ygBkTJTYjL0053",
+      "turn_no": 1,
+      "call_id": "call_34_0",
+      "kind": "tool",
+      "tool": "job.run",
+      "args_json": "{\"argv\":[\"/opt/homebrew/Cellar/node/26.3.0/bin/node\",\"-e\",\"console.log(JSON.stringify({evaluated:6*7,literal:'{{6*7}}'}))\"],\"timeout_ms\":5000}",
+      "status": "exited",
+      "result_json": "{\"job\":\"bd74c09d-fe40-49f5-8e2a-3712eba11ebc\",\"state\":\"exited\",\"exitCode\":0,\"signal\":null,\"reapIncomplete\":false,\"excerpts\":{\"stdout\":{\"stream\":\"stdout\",\"offset\":0,\"encoding\":\"utf8\",\"data\":\"{\\\"evaluated\\\":42,\\\"literal\\\":\\\"{{6*7}}\\\"}\\n\",\"capturedLength\":37,\"previewOmitted\":false,\"truncated\":false,\"nextCursor\":null},\"stderr\":{\"stream\":\"stderr\",\"offset\":0,\"encoding\":\"utf8\",\"data\":\"\",\"capturedLength\":0,\"previewOmitted\":false,\"truncated\":false,\"nextCursor\":null}}}",
+      "note_json": null,
+      "created_at": 1793366732960,
+      "updated_at": 1793366733040,
+      "finished_at": 1793366733040
+    },
+    {
+      "id": 8,
+      "run_id": "B",
+      "challenge_id": "X",
+      "session_id": "ses_e73035054ffeOu235nTPSd9Qeq",
+      "execution_ref": "a6c6c55f-5a36-4a2f-9b79-0c775d4e88a4",
+      "message_id": "msg_18cfcb0fc001fsl1D8bWXNb5Si",
+      "turn_no": 2,
+      "call_id": "call_35_0",
+      "kind": "decision",
+      "tool": null,
+      "args_json": null,
+      "status": "completed",
+      "result_json": null,
+      "note_json": "{\"kind\":\"decision\",\"related_ids\":[],\"evidence_refs\":[\"lesson:506c314d-46a8-4b14-989c-a744fdf07160@1\"],\"observation\":\"SQL_FAILED prior route. Current arithmetic=42; literal reflection remains literal\",\"assessment\":\"adopt arithmetic comparison; do not exploit literal reflection\",\"next_reason\":\"checked conditions against current fixture\"}",
+      "created_at": 1793366733081,
+      "updated_at": 1793366733081,
+      "finished_at": 1793366733081
+    }
+  ]
+}
