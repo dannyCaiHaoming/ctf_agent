@@ -1,0 +1,63 @@
+{
+  "slice": "recon design §4 append-only context delivery (R4)",
+  "date": "2026-11-02",
+  "base_commit": "653c60027bbde87a692b30d8536dda09c9b2a432",
+  "realModelCalls": 0,
+  "red_observed": "12 new contract tests failed on the prior implementation (investigation-context 7, opencode 5); R3 recon.read regression guard passed before and after",
+  "commands": [
+    {
+      "cmd": "npm run typecheck",
+      "exit": 0
+    },
+    {
+      "cmd": "npm run build",
+      "exit": 0
+    },
+    {
+      "cmd": "npm test",
+      "exit": 0,
+      "result": "56 files / 742 tests (re-run independently by main session)"
+    },
+    {
+      "cmd": "npm run test:deterministic",
+      "exit": 0,
+      "result": "45 files / 700 tests (implementation session)"
+    },
+    {
+      "cmd": "npx tsx tests/manual/recon-context-interface.ts",
+      "exit": 0,
+      "result": "append_only_combo 13/13; other four candidates fail as expected; 58 localhost scripted requests",
+      "evidence": "placement-validation.json"
+    },
+    {
+      "cmd": "npx tsx tests/manual/recon-original-replay.ts",
+      "exit": 0,
+      "result": "original A 98 / B 58 rows all indexed; full projection 46,609 / 35,515 bytes",
+      "evidence": "product-original-replay.json"
+    }
+  ],
+  "covered": [
+    "transform hook read-only",
+    "chat.message / tool.execute.after append with sessionID+version dedup",
+    "session isolation",
+    "compaction (session.compacted) and cancel recovery",
+    "projection failure blocks outbound requests per session",
+    "context.presented binds appended text hash/bytes/placement/record ids on the admitted request",
+    "mechanical full index (page 200) reusing ExperienceStore.records; recent = last 6 terminal steps with full args/result"
+  ],
+  "not_proven": [
+    "product plugin hooks inside the real OpenCode 1.19.3 runtime (probe loads its own plugin)",
+    "whether compaction requests pass chat.params",
+    "pending delivery audit lost on plugin restart",
+    "automatic overflow compaction, provider prefix-cache, token cost, model use of the index"
+  ],
+  "source_sha256": {
+    "apps/launcher/src/control-service.ts": "3d670aec882ee8337a1801b4871367b2f95a1d5d8b1621f16735bbc6751b8c31",
+    "apps/launcher/src/investigation-context.ts": "68e8f92861ed6c243e915d8916c4b472b8849ae5f87e3d0096a72553ed70290f",
+    "apps/opencode-plugin/src/index.ts": "226b349acde97e86d556393f4a5879ee0e6f316464f8d87f0023fff3ec160673",
+    "tests/contract/investigation-context.test.ts": "564f67e3c6000a72a71a1e8e7c65f5438953723d10a3f5a36857deaaf47d82fe",
+    "tests/contract/opencode.test.ts": "9a7f8f1ff206ec58ed9e0c9eabb5a9928ea2ac2bee10376968283f8a24a84b34",
+    "tests/contract/experience-tools.test.ts": "4d9d8744ae1084b11e3b0c74eb1d8440bde703f7ded013bec19be00b612a6de9",
+    "tests/manual/recon-original-replay.ts": "83967250ea7ebe47c165ed257569a55b1f6362ace8691bec4bc0f1b57ca5a746"
+  }
+}

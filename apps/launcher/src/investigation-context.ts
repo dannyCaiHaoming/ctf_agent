@@ -2,34 +2,34 @@ import {createHash} from 'node:crypto';
 import type {ExperienceStore} from './experience-store.js';
 export const digest=(value:unknown)=>createHash('sha256').update(JSON.stringify(value)).digest('hex');
 const parse=(v:any)=>typeof v==='string'?JSON.parse(v):v;
-const stepKey=(row:any):[number,number]=>[Number(row.sequence??row.id??0),Number(row.id??0)];
-const compareSteps=(left:any,right:any)=> {
-  const [leftSequence,leftId]=stepKey(left),[rightSequence,rightId]=stepKey(right);
-  return leftSequence-rightSequence||leftId-rightId;
-};
-const cursorFor=(row:any)=>`${stepKey(row)[0]}:${stepKey(row)[1]}`;
-const afterCursor=(row:any,cursor:string|undefined)=> {
-  if(!cursor)return true;
-  const match=/^(\d+):(\d+)$/.exec(cursor);if(!match)throw new Error('invalid investigation cursor');
-  const sequence=Number(match[1]),id=Number(match[2]),[rowSequence,rowId]=stepKey(row);
-  return rowSequence>sequence||(rowSequence===sequence&&rowId>id);
-};
-/** Navigable projection of the append-only investigation record, never a second editable source. */
-export function investigationView(rows:any[], options:{cursor?:string;limit?:number}={}) {
-  const limit=options.limit??20;if(!Number.isInteger(limit)||limit<1||limit>40)throw new Error('invalid investigation limit');
-  const ordered=[...rows].sort(compareSteps),remainingRows=ordered.filter(row=>afterCursor(row,options.cursor)),index=remainingRows.slice(0,limit),remaining=remainingRows.length-index.length;
-  const selected:any[]=[],seen=new Set<number>();let bytes=0;
-  const decisions=rows.filter(r=>r.kind==='decision'||r.kind==='handoff');
-  for(const row of [...decisions.slice(-8).reverse(),...rows.filter(r=>r.status==='running').slice(-8),...rows.slice(-16).reverse()]) {
-    if(seen.has(row.id))continue;
-    const text=JSON.stringify(row),value=text.length>3000?{id:row.id,kind:row.kind,status:row.status,updated_at:row.updated_at,preview:text.slice(0,2500),truncated:true}:row;
-    const n=Buffer.byteLength(JSON.stringify(value));if(bytes+n>18000)continue;
-    bytes+=n;seen.add(row.id);selected.push(value);
-  }
-  return {version:digest(rows),records:selected,index:index.map(row=>({id:row.id,sequence:stepKey(row)[0],kind:row.kind,tool:row.tool??null,status:row.status??null})),
-    coverage:{total:ordered.length,returned:index.length,remaining,complete:remaining===0,next_cursor:remaining?cursorFor(index.at(-1)!):null,included_ids:index.map(row=>row.id)},
-    in_flight_ids:rows.filter(r=>r.status==='running').slice(0,32).map(r=>r.id),in_flight_total:rows.filter(r=>r.status==='running').length,gaps:[...(!rows.some(r=>r.kind==='decision')?['decision not recorded']:[]),...(!rows.some(r=>r.kind==='handoff')?['handoff not recorded']:[])],
-    interpretation:'Observations and model judgments are distinct; conflicting judgments remain unresolved. A successful tool does not establish a successful method.'};
+/** Fixed mechanical rule: the latest terminal steps of any kind, never chosen by content. */
+export const RECENT_STEPS=6;
+export const INDEX_PAGE=200;
+/** Compact navigation entry derived from the store's own index (same ids, cursors and fingerprints as recon.read). */
+export const indexEntry=(e:any)=>({id:e.id,step_id:e.step_id,sequence:e.sequence,cursor:e.cursor,session_id:e.session_id,kind:e.kind,tool:e.tool??null,status:e.status??null,
+  fingerprint:e.fingerprint,args_ref:e.args_ref,result_ref:e.result_ref,result_size:e.result_size,result_complete:e.result_complete,original_complete:e.original_complete});
+/**
+ * Navigable projection of the append-only investigation record, never a second editable source.
+ * Pages are mechanical (sequence order, fixed size); every step stays reachable through the same cursor recon.read accepts.
+ */
+export function investigationView(store:ExperienceStore,run:string,challenge:string,options:{cursor?:string;limit?:number;tail?:boolean}={}) {
+  const limit=options.limit??INDEX_PAGE;if(!Number.isInteger(limit)||limit<1||limit>INDEX_PAGE)throw new Error('invalid investigation limit');
+  if(options.cursor!==undefined&&options.tail)throw new Error('cursor and tail are exclusive');
+  const complete=store.records(run,challenge,options.cursor?{cursor:options.cursor,limit:1}:{limit:1}),all=complete.index.map(indexEntry);
+  let start=0;
+  if(options.cursor){const [sequence,id]=options.cursor.split(':').map(Number);start=all.findIndex(e=>e.sequence>sequence!||(e.sequence===sequence&&e.id>id!));if(start<0)start=all.length;}
+  else if(options.tail)start=Math.max(0,all.length-limit);
+  const entries=all.slice(start,start+limit),remaining=all.length-start-entries.length;
+  const terminal=all.filter(e=>e.status!=='running').slice(-RECENT_STEPS);
+  // One id per read: the store's page byte budget must not silently drop any selected complete step.
+  const recent=terminal.map(e=>store.records(run,challenge,{ids:[e.id]}).records[0]).filter(Boolean).map((r:any)=>({id:Number(r.id),step_id:r.step_id,sequence:Number(r.sequence),cursor:`${r.sequence}:${r.id}`,session_id:r.session_id,kind:r.kind,tool:r.tool??null,status:r.status,
+    fingerprint:all.find(e=>e.id===Number(r.id))!.fingerprint,args:r.args_json,args_meta:r.args_meta,result:r.result_json,result_meta:r.result_meta,note:r.note_json,original_complete:r.original_complete}));
+  return {fingerprint:complete.fingerprint,index:entries,all,
+    coverage:{total:all.length,returned:entries.length,earlier:start,remaining,complete:start===0&&remaining===0,next_cursor:remaining?entries.at(-1)?.cursor??null:null,
+      ...(start>0?{earlier_access:'recon.read without cursor (or start_sequence/end_sequence) pages from the first step'}:{})},
+    recent,in_flight_ids:all.filter(e=>e.status==='running').map(e=>e.id),
+    gaps:[...(!all.some(e=>e.kind==='decision')?['decision not recorded']:[]),...(!all.some(e=>e.kind==='handoff')?['handoff not recorded']:[])],
+    interpretation:'Observations and model judgments are distinct; conflicting judgments remain unresolved. A successful tool does not establish a successful method. Same fingerprint means a previously tried input; retrying needs a stated change of premise or evidence.'};
 }
 /** Only visible statement, material metadata and explicit observations/judgments produce keywords. */
 export function retrievalSignals(store:ExperienceStore,statement:string,materials:string[],rows:any[]) {
