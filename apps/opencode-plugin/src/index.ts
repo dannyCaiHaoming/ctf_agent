@@ -104,6 +104,10 @@ export function createCtfAgentHooks(options: CTFPluginOptions): Hooks {
   // The plugin decides nothing: it forwards and obeys. Any transport failure, bad reply or silence is a denial.
   const callMarker = Symbol('ctf trusted call');
   const preparedMessages=new Map<string,{currentUserID?:string;ids:string[]}>();
+  // Append-only investigation context: last version visible in each session's history, and appends not yet reported as sent.
+  type Delivery={version:string;placement:'chat.message'|'tool.execute.after';messageID?:string;callID?:string};
+  const visibleContext=new Map<string,string>(),pendingContext=new Map<string,Delivery[]>();
+  const contextEnabled=options.tools.includes('recon.note');
   type Marked = Record<symbol, { sessionID: string; callID: string; tool: string; timeoutMs: number } | undefined>;
   const control = async (sessionID: string, operation: string, input: unknown, signal?: AbortSignal, timeoutMs?: number): Promise<unknown> => {
     let response: Response;
@@ -119,6 +123,15 @@ export function createCtfAgentHooks(options: CTFPluginOptions): Hooks {
     try { payload = await response.json() as typeof payload; } catch { /* handled below */ }
     if (!response.ok || !('result' in payload)) throw new Error(typeof payload.error === 'string' && payload.error.length <= 200 ? payload.error : 'denied: control reply');
     return payload.result;
+  };
+  /** Projection failure propagates (fail closed); the same version is never appended twice to one session. */
+  const appendContext=async(sessionID:string,delivery:Omit<Delivery,'version'>):Promise<string|undefined>=>{
+    if(!contextEnabled)return;
+    const projection=await control(sessionID,'context.prepare',{...delivery,visibleVersion:visibleContext.get(sessionID)}) as {text?:string;version?:string;unchanged?:boolean};
+    if(!projection.text||!projection.version||projection.unchanged||visibleContext.get(sessionID)===projection.version)return;
+    visibleContext.set(sessionID,projection.version);
+    pendingContext.set(sessionID,[...pendingContext.get(sessionID)??[],{version:projection.version,...delivery}]);
+    return projection.text;
   };
   const tools: NonNullable<Hooks['tool']> = {};
   for (const name of options.tools) {
@@ -138,6 +151,8 @@ export function createCtfAgentHooks(options: CTFPluginOptions): Hooks {
   return {
     tool: tools,
     async event({event}) {
+      // Compaction replaced the visible history; the next append must carry the full projection again.
+      if (event.type === 'session.compacted') { visibleContext.delete(event.properties.sessionID); return; }
       if (event.type !== 'message.part.updated') return;
       const part = event.properties.part;
       if(part.type==='tool') {
@@ -152,26 +167,29 @@ export function createCtfAgentHooks(options: CTFPluginOptions): Hooks {
     async 'chat.message'(input, output) {
       const reply = await control(input.sessionID, 'chat.message', { agent: input.agent, messageID: input.messageID ?? output.message?.id, parts: output.parts }) as { completionDisplays?: Array<{ref:string;role:string;completeness:string;reason:string;finish:string|null;textChars:number|null;source:string}> };
       for (const fact of reply.completionDisplays ?? []) output.parts.push({ id: 'prt_' + crypto.randomUUID().replaceAll('-', ''), sessionID: input.sessionID, messageID: output.message.id, type: 'text', synthetic: true, text: '[CTF host result facts] ' + JSON.stringify(fact) + '\nExecution ended does not imply a complete report; complete does not imply correct or solved.' });
+      const messageID=output.message?.id??input.messageID;
+      const context=await appendContext(input.sessionID,{placement:'chat.message',...(messageID?{messageID}:{})});
+      if(context)output.parts.push({id:'prt_'+crypto.randomUUID().replaceAll('-',''),sessionID:input.sessionID,messageID:messageID!,type:'text',synthetic:true,text:context});
     },
     async 'experimental.chat.messages.transform'(_input,output) {
+      // Read-only: canonical IDs for background-completion delivery tracking. Never add, remove or rewrite messages.
       const sessions=new Set(output.messages.map(m=>m.info.sessionID));
       if(!sessions.size)preparedMessages.clear();
       for(const session of sessions)preparedMessages.delete(session);
       if(sessions.size===1)preparedMessages.set([...sessions][0]!,{currentUserID:output.messages.filter(m=>m.info.role==='user').at(-1)?.info.id,ids:output.messages.filter(m=>m.info.role==='user'&&m.parts.some(p=>p.type==='text'&&p.synthetic===true&&!p.ignored&&/Background task (?:completed|failed):/.test(p.text))).map(m=>m.info.id)});
-      if(options.tools.includes('recon.note')) {
-        if(sessions.size!==1)throw new Error('denied: context session ambiguous');
-        const session=[...sessions][0]!,user=output.messages.filter(m=>m.info.role==='user').at(-1);
-        if(!user)throw new Error('denied: context user missing');
-        const projection=await control(session,'context.prepare',{messageID:user.info.id}) as {text?:string;version?:string};
-        // Replace only our synthetic part, never arbitrary source text with a matching prefix.
-        for(const m of output.messages)m.parts=m.parts.filter(p=>!(p.type==='text'&&p.synthetic&&p.text.startsWith('[CTF investigation context]')));
-        if(projection.text)user.parts.push({id:'prt_'+crypto.randomUUID().replaceAll('-',''),sessionID:session,messageID:user.info.id,type:'text',synthetic:true,text:'[CTF investigation context]\n'+projection.text});
-      }
-
+    },
+    async 'experimental.session.compacting'(input,output) {
+      if(!contextEnabled)return;
+      const projection=await control(input.sessionID,'context.prepare',{placement:'compacting'}) as {text?:string};
+      if(projection.text)output.context.push(projection.text);
     },
     async 'chat.params'(input, output) {
       const prepared=preparedMessages.get(input.sessionID);preparedMessages.delete(input.sessionID);
-      const admitted = await control(input.sessionID, 'model.call', { agent: input.agent, provider: input.model.providerID, model: input.model.id, messageID: input.message?.id, requestMessageIDs:prepared && prepared.currentUserID===input.message?.id?prepared.ids:[] }) as { maxOutputTokens: number };
+      // Appended context stays in history, so a denied/cancelled request keeps it pending until a request is admitted.
+      const contextDeliveries=pendingContext.get(input.sessionID)??[];
+      const admitted = await control(input.sessionID, 'model.call', { agent: input.agent, provider: input.model.providerID, model: input.model.id, messageID: input.message?.id, requestMessageIDs:prepared && prepared.currentUserID===input.message?.id?prepared.ids:[], contextDeliveries }) as { maxOutputTokens: number };
+      const remaining=(pendingContext.get(input.sessionID)??[]).filter(d=>!contextDeliveries.includes(d));
+      if(remaining.length)pendingContext.set(input.sessionID,remaining);else pendingContext.delete(input.sessionID);
       if (!Number.isFinite(admitted?.maxOutputTokens) || admitted.maxOutputTokens < 1) throw new Error('denied: control reply');
       output.maxOutputTokens = Math.min(output.maxOutputTokens ?? admitted.maxOutputTokens, admitted.maxOutputTokens);
     },
@@ -190,6 +208,8 @@ export function createCtfAgentHooks(options: CTFPluginOptions): Hooks {
     async 'tool.execute.after'(input, output) {
       const reply=await control(input.sessionID,'tool.after',{tool:input.tool,callID:input.callID,metadata:output.metadata,output:output.output}) as {syncDisplay?:unknown};
       if(reply.syncDisplay)output.output += '\n[CTF host synchronous result facts] '+JSON.stringify(reply.syncDisplay)+'\nExecution ended does not imply a complete report; complete does not imply correct or solved.';
+      const context=await appendContext(input.sessionID,{placement:'tool.execute.after',callID:input.callID});
+      if(context)output.output+='\n'+context;
     }
   };
 }

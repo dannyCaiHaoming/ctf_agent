@@ -4,10 +4,9 @@
 
 **狀態：** [核心 design v1](2026-10-22-ctf-agent-design-v1.md) 的 Recon 現行子設計。本文已取代舊備份與舊正式稿中的累積式回補，是 Recon 記錄、上下文中呈現、交回、快照消費及 episode／lesson 的單一權威。它定義產品目標與契約，不代表目前工作樹已完整實現，也不代表真實模型已驗收。
 
-**目前停點：** r16 已暴露上下文重寫造成緩存前綴失效、Recon 未及時交回、固定快照正文未被同一消費者讀完，以及 episode 只看局部來源並把晚期失敗錯誤泛化為整題結論。§3 完整過程軌跡與 `ctf_recon_read` 完整索引導航已實施並通過無模型驗收（見 §3 實施狀態）。公開 OpenCode 接口的追加式放置已由無模型探針選定，但產品運輸尚未實施。下列內容仍需另立有界 plan 驗證或實施：
+**目前停點：** r16 已暴露上下文重寫造成緩存前綴失效、Recon 未及時交回、固定快照正文未被同一消費者讀完，以及 episode 只看局部來源並把晚期失敗錯誤泛化為整題結論。§3 完整過程軌跡與 §4 追加式上下文已在產品實施並通過無模型驗收（見 §3、§4 實施狀態）；產品插件尚未在真實 OpenCode runtime 中運行。下列內容仍需另立有界 plan 驗證或實施：
 
-- 把已選定的追加式狀態運輸接入產品，並保留請求身分／背景完成消息的消費追蹤。
-- 控制完整索引在單次請求與原生壓縮中的輸入成本。
+- 控制完整投影在單次請求與原生壓縮中的輸入成本（原 A full projection 約 46.6 KB）。
 - 可靠估算或預留 input token，並在硬停前留出交回窗口。
 - 用真實模型驗證模型是否會依據歷史軌跡避免重複探索、正確選路並及時交回。
 
@@ -156,6 +155,18 @@ Recon 每一步至少保留下列關係：
 5. 以 `sessionID + version` 去重；projection 失敗時直接阻止出站模型請求，不以舊狀態靜默降級。
 
 這份證據只證明傳輸與配對契約，不證明自動 overflow compaction、provider prefix-cache 命中、token 收益或模型會理解並使用狀態。上述能力仍按真實行為驗證，不能由 hook 被調用替代。
+
+**實施狀態（無模型）：** 上述放置已接入產品，證據見 [R4 記錄](../../gates/recon-context-interface-20261031/r4-append-context.json)。
+- **索引：** `investigationView` 複用 `ExperienceStore.records()` 的完整索引與 `sequence:id` cursor（與 `ctf_recon_read` 相同），按固定頁長 200 機械分頁；已移除「最近 N 條／18 KB／preview 截斷」選取。
+- **最近完整步驟：** 固定為最後 6 個終態步驟，逐 id 讀取完整 args／result；running 步驟只列入 `in_flight_ids`，tool-call／result 不拆對。
+- **增量追加：** host 按 session 保留最近 16 個版本的索引基線，插件回報可見版本。基線仍在時追加 delta；基線遺失（首次、compaction、重啟、未知版本）退回 full；同版不追加。版本含預算計數，因此每次 admitted 請求後會追加一小段 state delta。
+- **投遞審計：** `context.presented` 在下一次被 admit 的請求上記錄，綁定實際追加正文的 hash、bytes、placement 與 record ids；compaction 在準備時記為 `compaction_context`。
+- **失敗處理：** 任一 projection 失敗只封鎖該 session 的出站請求，直到下一次成功準備。
+
+仍未證明：
+- 產品插件在真實 runtime 中的 hook 行為，目前只有腳本化 hook 與真實 ControlService 證明；
+- compaction 請求是否經過 `chat.params`；
+- 插件重啟後未回報的投遞審計會遺失（正文仍留在歷史中）。
 
 ---
 
@@ -347,6 +358,7 @@ r16 B 曾搜尋經驗兩次但沒有調用 `ctf_experience_read`。這證明「s
 | [原生產品鏈路](../../gates/recon-context-interface-20261031/product-native.json) | 原生 task、交付、Verifier、可信完成、學習與資料讀取可接線 | 模型判斷品質、實際消費或統計效果 |
 | [最終無模型驗證](../../gates/recon-context-interface-20261031/product-validation.json) | 所記源碼版本的 typecheck、build、54 檔／718 測試與定向恢復檢查 | 本文新契約已實施、全面獨立驗收或真實模型能力 |
 | [R3 完整軌跡](../../gates/recon-context-interface-20261031/r3-complete-trace.json) | §3 契約的無模型實施：遷移、無截斷、artifact ref 字節往返、去敏標記、排序／冪等、完整導航與失敗不丟列；typecheck、build、56 檔／729 測試、原 A/B 回放通過 | §4–§7、重啟後 publication 核對、模型實際使用或 token 開銷 |
+| [R4 追加式上下文](../../gates/recon-context-interface-20261031/r4-append-context.json) | §4 放置接入產品：transform 唯讀、`chat.message`／`tool.execute.after` 追加、版本去重、session 隔離、compaction／cancel 恢復、fail-closed、投遞審計；56 檔／742 測試、放置探針 13／13、原 A/B 全部步驟進入索引 | 產品插件在真實 runtime 的行為、自動 overflow compaction、prefix-cache 或 token 收益、模型實際使用 |
 
 ### r16 的正反證據
 

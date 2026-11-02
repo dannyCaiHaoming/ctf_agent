@@ -267,3 +267,103 @@ it.each(['completed','promotion','running','missing'] as const)('native %s task 
   expect(facts[0]).toMatchObject({userMessageID:'source',assistantMessageID:mode==='completed'?'terminal':null,completeness:mode==='completed'?'complete':'unknown'});
  } finally {mocked.mockRestore();await c.stopAll('cleanup');await rm(dir,{recursive:true,force:true});}
 });
+
+describe('Recon append-only context wiring (design §4)',()=>{
+ type Call={sessionID:string;operation:string;input:any};
+ // Scripted control service: per-session projection versions, optional failure, delivery log.
+ function harness(){
+  const calls:Call[]=[],versions=new Map<string,number>([['A',1],['B',1]]),failing=new Set<string>();
+  const mocked=vi.spyOn(globalThis,'fetch').mockImplementation(async(_url,init)=>{
+   const b=JSON.parse(String(init?.body)) as Call;calls.push(b);
+   const reply=(result:unknown)=>new Response(JSON.stringify({result}),{status:200});
+   if(b.operation==='context.prepare'){
+    if(failing.has(b.sessionID))return new Response(JSON.stringify({error:'denied: context projection unavailable'}),{status:403});
+    const version=`${b.sessionID}-v${versions.get(b.sessionID)}`;
+    if(b.input.visibleVersion===version)return reply({version,unchanged:true});
+    return reply({version,text:`[CTF investigation context]\n${JSON.stringify({session:b.sessionID,version,mode:b.input.visibleVersion?'delta':'full'})}`});
+   }
+   if(b.operation==='model.call')return failing.has('model:'+b.sessionID)?new Response(JSON.stringify({error:'denied: context projection unavailable'}),{status:403}):reply({maxOutputTokens:100});
+   return reply({});
+  });
+  return {calls,versions,failing,mocked};
+ }
+ const hooks=async()=>{const {createCtfAgentHooks}=await import('../../apps/opencode-plugin/src/index.js');return createCtfAgentHooks({controlUrl:'http://127.0.0.1:12345',controlToken:'x'.repeat(40),tools:['recon.note','recon.read']});};
+ const message=async(h:any,sessionID:string,id:string)=>{const output:any={message:{id,sessionID},parts:[{id:'prt_user',type:'text',text:'dispatch'}]};await h['chat.message']({sessionID,agent:'recon',messageID:id},output);return output;};
+ const after=async(h:any,sessionID:string,callID:string)=>{const output={title:'t',output:'native result',metadata:{m:1}};await h['tool.execute.after']({sessionID,tool:'ctf_workspace_read',callID,args:{}},output);return output;};
+ const params=(h:any,sessionID:string,id:string)=>h['chat.params']({sessionID,agent:'recon',message:{id},model:{providerID:'stub',id:'scripted'}},{});
+ const contextParts=(output:any)=>output.parts.filter((p:any)=>p.type==='text'&&p.text.startsWith('[CTF investigation context]'));
+
+ it('messages.transform never adds, removes or rewrites messages and does not prepare context',async()=>{
+  const {calls,mocked}=harness();
+  try{
+   const h=await hooks();
+   const messages=[{info:{id:'u1',sessionID:'A',role:'user'},parts:[{id:'p1',type:'text',text:'task'},{id:'p2',type:'text',synthetic:true,text:'[CTF investigation context]\n{"version":"old"}'}]},
+    {info:{id:'a1',sessionID:'A',role:'assistant'},parts:[{id:'p3',type:'tool',callID:'c1',state:{status:'completed',output:'x'}}]},
+    {info:{id:'u2',sessionID:'A',role:'user'},parts:[{id:'p4',type:'text',text:'next'}]}];
+   const before=structuredClone(messages),output={messages};
+   await h['experimental.chat.messages.transform']!({},output as never);
+   expect(output.messages).toBe(messages);expect(messages).toEqual(before);
+   expect(calls.filter(c=>c.operation==='context.prepare')).toHaveLength(0);
+  }finally{mocked.mockRestore();}
+ });
+
+ it('appends on chat.message and tool.execute.after only, deduplicating by sessionID + version',async()=>{
+  const {calls,versions,mocked}=harness();
+  try{
+   const h=await hooks();
+   const first=await message(h,'A','u1');
+   expect(first.parts[0]).toEqual({id:'prt_user',type:'text',text:'dispatch'});
+   expect(contextParts(first)).toHaveLength(1);expect(contextParts(first)[0]).toMatchObject({synthetic:true,sessionID:'A',messageID:'u1'});
+   const same=await after(h,'A','c1');expect(same.output).toBe('native result');expect(same.metadata).toEqual({m:1});
+   versions.set('A',2);
+   const changed=await after(h,'A','c2');
+   expect(changed.output.startsWith('native result\n[CTF investigation context]\n')).toBe(true);expect(changed.output).toContain('A-v2');
+   expect(calls.filter(c=>c.operation==='context.prepare').map(c=>[c.input.placement,c.input.visibleVersion,c.input.callID])).toEqual([['chat.message',undefined,undefined],['tool.execute.after','A-v1','c1'],['tool.execute.after','A-v1','c2']]);
+   const resumed=await message(h,'A','u2');expect(contextParts(resumed)).toHaveLength(0);
+  }finally{mocked.mockRestore();}
+ });
+
+ it('isolates visible versions per session',async()=>{
+  const {calls,mocked}=harness();
+  try{
+   const h=await hooks();
+   const [a,b]=await Promise.all([message(h,'A','ua'),message(h,'B','ub')]);
+   expect(contextParts(a)[0].text).toContain('"session":"A"');expect(contextParts(b)[0].text).toContain('"session":"B"');
+   await after(h,'B','cb');
+   expect(calls.filter(c=>c.operation==='context.prepare'&&c.sessionID==='B').at(-1)!.input.visibleVersion).toBe('B-v1');
+   await Promise.all([params(h,'A','ua'),params(h,'B','ub')]);
+   const deliveries=Object.fromEntries(calls.filter(c=>c.operation==='model.call').map(c=>[c.sessionID,c.input.contextDeliveries]));
+   expect(deliveries).toEqual({A:[{version:'A-v1',placement:'chat.message',messageID:'ua'}],B:[{version:'B-v1',placement:'chat.message',messageID:'ub'}]});
+  }finally{mocked.mockRestore();}
+ });
+
+ it('re-presents full state after compaction and resumes after a cancelled request',async()=>{
+  const {calls,versions,failing,mocked}=harness();
+  try{
+   const h=await hooks();
+   await message(h,'A','u1');await params(h,'A','u1');
+   const compacting={context:[] as string[]};
+   await h['experimental.session.compacting']!({sessionID:'A'},compacting);
+   expect(compacting.context).toHaveLength(1);expect(compacting.context[0]).toContain('"mode":"full"');
+   expect(calls.at(-1)).toMatchObject({operation:'context.prepare',input:{placement:'compacting'}});expect(calls.at(-1)!.input.visibleVersion).toBeUndefined();
+   await h.event!({event:{type:'session.compacted',properties:{sessionID:'A'}}} as never);
+   const post=await message(h,'A','u2');expect(contextParts(post)).toHaveLength(1);expect(contextParts(post)[0].text).toContain('"mode":"full"');
+   // A cancelled/denied request keeps the appended delivery pending until a request actually goes out.
+   failing.add('model:A');await expect(params(h,'A','u2')).rejects.toThrow('denied');failing.delete('model:A');
+   versions.set('A',2);const resumed=await message(h,'A','u3');expect(contextParts(resumed)).toHaveLength(1);
+   await params(h,'A','u3');
+   expect(calls.filter(c=>c.operation==='model.call').at(-1)!.input.contextDeliveries).toEqual([{version:'A-v1',placement:'chat.message',messageID:'u2'},{version:'A-v2',placement:'chat.message',messageID:'u3'}]);
+   await params(h,'A','u3');expect(calls.filter(c=>c.operation==='model.call').at(-1)!.input.contextDeliveries).toEqual([]);
+  }finally{mocked.mockRestore();}
+ });
+
+ it('fails closed: projection failure throws from the hook and is never silently skipped',async()=>{
+  const {failing,mocked}=harness();
+  try{
+   const h=await hooks();failing.add('A');
+   await expect(message(h,'A','u1')).rejects.toThrow('context projection');
+   await expect(after(h,'A','c1')).rejects.toThrow('context projection');
+   await expect(h['experimental.session.compacting']!({sessionID:'A'},{context:[]})).rejects.toThrow('context projection');
+  }finally{mocked.mockRestore();}
+ });
+});
