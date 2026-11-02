@@ -9,18 +9,52 @@ import { createHash, randomUUID } from 'node:crypto';
 import { z } from 'zod';
 
 const text = z.string().max(4000), list = z.array(text).max(32);
+const claim = z.union([text, z.object({ text, source_refs: list }).strict()]);
 export const episodeContent = z.object({ summary: text, tech_tags: list,
   steps: z.array(z.object({ stage: z.enum(['recon','solve','engineering']), action: text, observation: text, reason: text, source_refs: list }).strict()).max(80),
-  failed_paths: list, unresolved: list, experience_refs: list }).strict();
+  // Old rows stored plain strings; new output binds each claim to provided sources.
+  failed_paths: z.array(claim).max(32), unresolved: z.array(claim).max(32), experience_refs: list }).strict();
 export const lessonContent = z.object({ title: text, tags: list, when: text, steps: list, checks: list, avoid: list, limits: list }).strict();
 export type EpisodeContent = z.infer<typeof episodeContent>;
 export type LessonContent = z.infer<typeof lessonContent>;
+const sortedNames=(names:Iterable<string>)=>[...new Set(names)].sort();
+const bodyNames=(body:unknown):string[]=> {
+  if(body&&typeof body==='object')return Object.keys(body);
+  if(typeof body!=='string'||!body)return [];
+  try{const parsed=JSON.parse(body);if(parsed&&typeof parsed==='object'&&!Array.isArray(parsed))return Object.keys(parsed);}catch{/* not JSON: form body */}
+  return [...new URLSearchParams(body).keys()];
+};
+/** Family key from saved, sanitized arguments only: tool plus target shape, never parameter values or task semantics. */
+export function familyKey(row:any):string {
+  const tool=typeof row?.tool==='string'&&row.tool?row.tool:String(row?.kind??'other'),args=row?.args_json&&typeof row.args_json==='object'?row.args_json:{};
+  if(tool==='http.request'&&typeof args.url==='string') {
+    let path=args.url,query:string[]=[];
+    try{const u=new URL(args.url);path=u.pathname;query=[...u.searchParams.keys()];}catch{path=args.url.split(/[?#]/)[0]!;}
+    const body=args.body_base64!==undefined?['<base64>']:bodyNames(args.body);
+    return `${tool}:${String(args.method??'GET').toUpperCase()} ${path}?q=${sortedNames(query).join(',')}&b=${sortedNames(body).join(',')}`;
+  }
+  if(tool==='job.run'&&Array.isArray(args.argv)&&typeof args.argv[0]==='string')return `${tool}:${args.argv[0].split('/').at(-1)}`;
+  if((tool.startsWith('workspace.')||tool.startsWith('artifact.'))&&typeof args.path==='string')return `${tool}:${args.path}`;
+  return tool;
+}
+
+/** Mechanical source descriptor: family from saved sanitized arguments, outcome class from status/HTTP code, incompleteness from gaps and meta. */
+export function describeSource(s:any,index:number) {
+  const c=s.content&&typeof s.content==='object'&&!Array.isArray(s.content)?s.content:null,recon=!!c&&['tool','decision','handoff'].includes(c.kind);
+  const ref=String(s.ref),http=c?.result_json&&typeof c.result_json==='object'&&typeof c.result_json.status==='number'?c.result_json.status:'-';
+  return {
+    family:s.role?`execution:${s.role}`:ref.startsWith('artifact:')?'artifact':ref.startsWith('execution:')?'execution':recon?(c.kind==='tool'?familyKey(c):c.kind):'other',
+    sequence:s.role||/^(?:artifact|execution):/.test(ref)?null:typeof c?.sequence==='number'?c.sequence:index+1,
+    cls:recon&&c.kind==='tool'?`${c.status??'unknown'}/${http}`:(s.gaps??[]).length?'gap':'ok',
+    incomplete:(s.gaps??[]).length>0||s.content===undefined||c?.result_meta?.complete===false||c?.args_meta?.complete===false||c?.status==='running',
+  };
+}
 export interface ProcessScope { run: string; challenge: string; session: string; execution?: string; message?: string; call?: string }
 export interface PreparedPayload { raw: string; meta: { sha256: string; size: number; complete: boolean; transformation: 'redacted'|'none'; redactions?: string[]; original_size?: number; storage?: 'inline'|'artifact' } }
 export interface StartOptions { complete?: boolean; prepared?: PreparedPayload }
 export interface FinishOptions { priority?: number; complete?: boolean; prepared?: PreparedPayload }
 export interface Episode { episode_id: string; version: number; run_id: string; challenge_id: string; outcome: 'solved'|'unsolved'|'unknown'; outcome_ref: unknown; end_reason: string;
-  input: any; input_hash: string; model_input?: unknown; model_input_hash?: string; content: EpisodeContent|null; episode_status: string; lesson_status: string; lesson_ids: string[]; model?: string; usage: any; error?: string; requests: any[]; created_at: number }
+  input: any; input_hash: string; model_input?: unknown; model_input_hash?: string; omitted_ranges?: any[]; content: EpisodeContent|null; episode_status: string; lesson_status: string; lesson_ids: string[]; model?: string; usage: any; error?: string; requests: any[]; created_at: number }
 export class ExperienceStore {
   readonly db: SQLiteDatabase;
   constructor(readonly path: string, private secrets: readonly string[] = []) {
@@ -199,6 +233,11 @@ export class ExperienceStore {
     const cleaned=this.clean(input.input);
     if(input.input.sources)cleaned.sources=input.input.sources.map((s:any)=>({...this.clean(s),ref:s.ref}));
     if(input.input.experience_refs)cleaned.experience_refs=[...input.input.experience_refs];
+    // Host-owned range over the complete persisted trajectory; the model can neither write nor narrow it.
+    const trajectory=this.records(input.run_id,input.challenge_id),index=trajectory.index;
+    cleaned.source_range={first_sequence:index[0]?.sequence??null,last_sequence:index.at(-1)?.sequence??null,total:index.length,fingerprint:trajectory.fingerprint,
+      artifact_refs:[...new Set(((cleaned.source_manifest??cleaned.sources??[]) as any[]).map(s=>String(s.ref)).filter(r=>r.startsWith('artifact:')))],
+      running:index.filter(r=>r.status==='running').length,unknown:index.filter(r=>r.status==null||r.status==='unknown').length};
     cleaned.result={outcome:input.outcome,end_reason:input.end_reason,completion:cleaned.completion??null,judge:input.outcome_ref,verifications:cleaned.verifications??[]};
     cleaned.skeleton=(cleaned.source_manifest??cleaned.sources??[]).map((s:any)=>({ref:s.ref,role:s.role??(s.ref?.startsWith('recon:')?'recon':null),kind:s.content?.kind??null,status:s.content?.status??null,
       related_ids:s.content?.note_json?.related_ids??[],gaps:s.gaps??[],provided:!!cleaned.sources?.some((x:any)=>x.ref===s.ref)}));

@@ -1,0 +1,74 @@
+{
+  "slice": "recon design §7 episode source contract (R5, two rounds)",
+  "date": "2026-11-02",
+  "base_commit": "75b2c041fcd5ef656aa1a3c48fa6d4bd52fea31f",
+  "realModelCalls": 0,
+  "red_observed": [
+    "round 1: 8 contract tests failed on prior implementation",
+    "round 2: step-list tests failed before step list existed"
+  ],
+  "commands": [
+    {
+      "cmd": "npm run typecheck",
+      "exit": 0
+    },
+    {
+      "cmd": "npm run build",
+      "exit": 0
+    },
+    {
+      "cmd": "npm test",
+      "exit": 0,
+      "result": "56 files / 753 tests (re-run by main session)"
+    },
+    {
+      "cmd": "npx tsx tests/manual/recon-original-replay.ts",
+      "exit": 0,
+      "result": "passed; asserts A steps 55/56/73/74 in step list"
+    }
+  ],
+  "replay_summary": [
+    {
+      "run": "experience-r15-a-throwback-1",
+      "families": 74,
+      "change_points": 10,
+      "provided": 25,
+      "excerpt_steps": 19,
+      "excerpt_bytes": 18639,
+      "omitted_ranges_total": 67,
+      "step_list": {
+        "lines": 98,
+        "bytes": 5759,
+        "omitted_sequences": 0
+      }
+    },
+    {
+      "run": "experience-r15-b-mfw-1",
+      "families": 36,
+      "change_points": 4,
+      "provided": 26,
+      "excerpt_steps": 20,
+      "excerpt_bytes": 19673,
+      "omitted_ranges_total": 23,
+      "step_list": {
+        "lines": 58,
+        "bytes": 2921,
+        "omitted_sequences": 0
+      }
+    }
+  ],
+  "design_finding": "excerpt-only selection under a 20 KB limit omitted 59 of 74 families in original A, including the early success at sequence 55; resolved by an always-present step list with a separate 48 KiB limit",
+  "not_proven": [
+    "episode faithfulness from a real model",
+    "model citing step-list lines",
+    "cross-challenge lesson benefit"
+  ],
+  "source_sha256": {
+    "apps/launcher/src/episode-learning.ts": "b77e7b85885c9ff3801d14c0b237ec824bc09591a4a4e0a0bd772252e1764f03",
+    "apps/launcher/src/experience-store.ts": "5bac66ea6d1da94cfb6639ce307816cc54d144d7b28b6280d3ae8ed8bbb1cff1",
+    "apps/launcher/src/control-service.ts": "3b208257c1804c4a8fb4f9d8eb84be7c91686f90a9be6c28a9c4ccb00fde7b91",
+    "tests/contract/episode-learning.test.ts": "06067d575ac14148dc80981d05b28f5e197b4ef0b92cb390e55fd21fb8109585",
+    "tests/manual/recon-original-replay.ts": "330137209bbc611023a1ab39865ea3bc8249e8418233e77d09216cdf1af8b171",
+    "tests/manual/experience-loop.ts": "e2088b769b4950e8c16356b431ff542c6542e005de4b8801751e172ada7d5b93"
+  }
+}
