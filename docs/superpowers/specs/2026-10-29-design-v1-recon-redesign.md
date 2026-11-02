@@ -4,7 +4,7 @@
 
 **狀態：** [核心 design v1](2026-10-22-ctf-agent-design-v1.md) 的 Recon 現行子設計。本文已取代舊備份與舊正式稿中的累積式回補，是 Recon 記錄、上下文中呈現、交回、快照消費及 episode／lesson 的單一權威。它定義產品目標與契約，不代表目前工作樹已完整實現，也不代表真實模型已驗收。
 
-**目前停點：** r16 已暴露上下文重寫造成緩存前綴失效、Recon 未及時交回、固定快照正文未被同一消費者讀完，以及 episode 只看局部來源並把晚期失敗錯誤泛化為整題結論。§3 完整過程軌跡與 §4 追加式上下文已在產品實施並通過無模型驗收（見 §3、§4 實施狀態）；產品插件尚未在真實 OpenCode runtime 中運行。下列內容仍需另立有界 plan 驗證或實施：
+**目前停點：** r16 已暴露上下文重寫造成緩存前綴失效、Recon 未及時交回、固定快照正文未被同一消費者讀完，以及 episode 只看局部來源並把晚期失敗錯誤泛化為整題結論。§3 完整過程軌跡、§4 追加式上下文與 §7 episode 來源契約已在產品實施並通過無模型驗收（見各節實施狀態）；產品插件尚未在真實 OpenCode runtime 中運行。下列內容仍需另立有界 plan 驗證或實施：
 
 - 控制完整投影在單次請求與原生壓縮中的輸入成本（原 A full projection 約 46.6 KB）。
 - 可靠估算或預留 input token，並在硬停前留出交回窗口。
@@ -308,11 +308,23 @@ r16 A 固定反例：#55 註冊請求為 302，#56 接著跳轉 `/team/2`；後�
   - 全部 decision／handoff；
   - 每個角色的原生交回；
   - host 綁定的 outcome、Verifier judgment 與 end reason。
-- **超出輸入上限時：** 先按族均衡刪去中段變化點，族的首尾不刪。若仍超限，不再靜默截斷，而是整族標為 `omitted`，並列出族鍵與步驟範圍。
+- **步驟清單：** 每個步驟固定一行，含 sequence、ref、工具、族鍵、結果類別，以及可得時的 HTTP status code；不含參數值或結果正文。清單總是交給模型，有自己的上限（48 KiB），與摘錄的上限分開計算。超出時，列到上限為止，其餘寫成連續的 sequence 範圍。清單中的每一行都可作為 `source_refs` 被引用。
+- **摘錄：** 上述族規則只決定哪些步驟另附完整摘錄。
+- **超出摘錄上限時：** 先按族均衡刪去中段變化點，族的首尾不刪。若仍超限，不再靜默截斷，而是把整族的摘錄標為 `omitted`，並列出族鍵與步驟範圍；這些步驟仍在步驟清單中可見。整族省略的次序固定為：已選步數最少的族先省略；同數時，位元組較大的先省略；再按族鍵排序。
+
+  原 A 回放（98 步、74 族、62 族單步、20 KB 摘錄上限）證明只靠摘錄不足：59 族整族省略，第 55 步的早期成功不在模型輸入中。步驟清單就是為了這種情況：讓每一步至少以結果類別的形式可見。
 - **host 填寫、模型不能改的欄位：**
   - `source_range`：首尾 sequence、總數、完整索引 fingerprint、artifact refs、running／unknown 計數；
   - `omitted_ranges`：連續的 sequence 範圍、族鍵與原因。原因分兩種：`not_in_summary` 表示來源存在但沒放進這次輸入；`source_missing` 表示來源本身缺失或不完整。
 - **模型輸出的綁定：** `failed_paths` 與 `unresolved` 每項都帶 `source_refs`，且只能引用實際提供的來源。存儲欄位仍名 `steps`，即上表所說的 `key_steps`。
+
+**實施狀態（無模型）：** 本節規則已在產品實施並通過無模型驗收，證據見 [R5 記錄](../../gates/recon-context-interface-20261031/r5-episode-source.json)。
+- **原 A 回放：** 98 步全部進入步驟清單（5.7 KB，無省略），第 55、56、73、74 步都在清單中；摘錄 19 步、18.6 KB；74 族，其中 62 族為單步；變化點 10 個；整族摘錄省略 59 族，原因全為 `not_in_summary`。
+- **原 B 回放：** 58 步全部在清單中（2.9 KB），共 36 族。
+- **episode 欄位：** `source_range` 放在 `input`，隨 `input_hash` 冪等；`omitted_ranges` 在準備學習輸入時寫入 episode，模型只看前 64 條加總數。`source_missing` 只用於未提供且本身不完整的來源。
+- **舊資料：** 字串形式的 `failed_paths` 仍可讀。
+
+仍未證明：真實模型寫出的 episode 是否忠實、是否會引用清單行，以及 lesson 的跨題收益。
 
 host 綁定可信 outcome、Verifier judgment 與 end reason；模型只解釋線索、嘗試、回饋、調整與最終路線，不能重新裁決 `solved`。終態寫入失敗時停止新的同題探索，但保留讀取、取消、發布與交回；學習失敗不得污染原求解終態。
 
@@ -376,6 +388,7 @@ r16 B 曾搜尋經驗兩次但沒有調用 `ctf_experience_read`。這證明「s
 | [最終無模型驗證](../../gates/recon-context-interface-20261031/product-validation.json) | 所記源碼版本的 typecheck、build、54 檔／718 測試與定向恢復檢查 | 本文新契約已實施、全面獨立驗收或真實模型能力 |
 | [R3 完整軌跡](../../gates/recon-context-interface-20261031/r3-complete-trace.json) | §3 契約的無模型實施：遷移、無截斷、artifact ref 字節往返、去敏標記、排序／冪等、完整導航與失敗不丟列；typecheck、build、56 檔／729 測試、原 A/B 回放通過 | §4–§7、重啟後 publication 核對、模型實際使用或 token 開銷 |
 | [R4 追加式上下文](../../gates/recon-context-interface-20261031/r4-append-context.json) | §4 放置接入產品：transform 唯讀、`chat.message`／`tool.execute.after` 追加、版本去重、session 隔離、compaction／cancel 恢復、fail-closed、投遞審計；56 檔／742 測試、放置探針 13／13、原 A/B 全部步驟進入索引 | 產品插件在真實 runtime 的行為、自動 overflow compaction、prefix-cache 或 token 收益、模型實際使用 |
+| [R5 episode 來源](../../gates/recon-context-interface-20261031/r5-episode-source.json) | §7 機械選取、步驟清單、`source_range`／`omitted_ranges`、失敗與未解的來源綁定；原 A 98 步全在清單中（含 55／56／73／74）；56 檔／753 測試 | 真實模型的 episode 忠實度、清單引用率或 lesson 收益 |
 
 ### r16 的正反證據
 

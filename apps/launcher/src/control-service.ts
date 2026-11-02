@@ -1,5 +1,5 @@
 import {investigationView,retrievalSignals,digest} from './investigation-context.js';
-import { ExperienceStore, type PreparedPayload, type ProcessScope } from './experience-store.js';
+import { ExperienceStore, describeSource, type PreparedPayload, type ProcessScope } from './experience-store.js';
 import { classifyChildResult, unknownChildResult, type ChildSource, type ChildResult } from './child-result.js';
 import {CompletionRequests,type CompletionJudge} from './completion-tools.js';
 // Control service (design v1 C): lives in the launcher process, owns the session binding table, the run budget
@@ -531,7 +531,7 @@ export class ControlService {
         const d=r.detail as any;return d.experience_refs??(d.results?d.results.map((v:any)=>`${v.kind}:${v.id}@${v.version}`):d.kind?[`${d.kind}:${d.id}@${d.version}`]:[]);
       });
       const episode=store.saveDraft({run_id:this.options.runId??'run',challenge_id:challenge.id,outcome,outcome_ref:completions.map(r=>({intent:r.intent,state:r.state,solved:r.solved,businessOutcome:r.businessOutcome})),end_reason:outcome==='solved'?'trusted_completed':this.stopReason??'unknown',
-        input:{title:challenge.title,sources:boundedSources,source_manifest:sources.map(s=>({ref:s.ref,role:s.role,content:s.content&&typeof s.content==='object'&&!Array.isArray(s.content)?{kind:s.content.kind,status:s.content.status,note_json:s.content.note_json?{related_ids:s.content.note_json.related_ids}:undefined}:undefined,gaps:s.gaps??[]})),verifications,experience_refs:[...new Set(experienceRefs)],completion:last?{intent:last.intent,state:last.state,solved:last.solved,businessOutcome:last.businessOutcome}:null,gaps:[...inputGaps,...(executions.some(e=>!e.resultFacts||e.resultFacts.completeness!=='complete')?['some task deliveries incomplete']:[])]}});this.fixedEpisodes.set(challenge.id,episode);inputs.push(episode);
+        input:{title:challenge.title,sources:boundedSources,source_manifest:sources.map((s,i)=>({ref:s.ref,role:s.role,...describeSource(s,i),content:s.content&&typeof s.content==='object'&&!Array.isArray(s.content)?{kind:s.content.kind,status:s.content.status,note_json:s.content.note_json?{related_ids:s.content.note_json.related_ids}:undefined}:undefined,gaps:s.gaps??[]})),verifications,experience_refs:[...new Set(experienceRefs)],completion:last?{intent:last.intent,state:last.state,solved:last.solved,businessOutcome:last.businessOutcome}:null,gaps:[...inputGaps,...(executions.some(e=>!e.resultFacts||e.resultFacts.completeness!=='complete')?['some task deliveries incomplete']:[])]}});this.fixedEpisodes.set(challenge.id,episode);inputs.push(episode);
     }return inputs;
   }
 

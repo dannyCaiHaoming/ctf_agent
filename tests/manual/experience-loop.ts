@@ -29,7 +29,7 @@ const stub=createServer((q,r)=>{void(async()=>{
   if(stage==='episode') {
     const data=JSON.parse(last.slice(last.lastIndexOf('\n')+1));assert(data.sources.some((s:any)=>s.ref.startsWith('execution:')));assert(data.sources.some((s:any)=>str(s.content).includes('SQL_FAILED')));
     const source=data.sources.find((s:any)=>s.role==='domain-solver');assert(source);
-    content=JSON.stringify({summary:`${run} template process`,tech_tags:['template'],steps:[{stage:'solve',action:run==='A'?'arithmetic then exploit':'compare arithmetic with reflection',observation:run==='A'?'evaluation 42':'numeric route works; literal reflection is inapplicable',reason:'direct comparison',source_refs:[source.ref]}],failed_paths:['SQL_FAILED'],unresolved:[],experience_refs:run==='B'?[`lesson:${lessonID}@1`]:[]});
+    content=JSON.stringify({summary:`${run} template process`,tech_tags:['template'],steps:[{stage:'solve',action:run==='A'?'arithmetic then exploit':'compare arithmetic with reflection',observation:run==='A'?'evaluation 42':'numeric route works; literal reflection is inapplicable',reason:'direct comparison',source_refs:[source.ref]}],failed_paths:[{text:'SQL_FAILED',source_refs:[source.ref]}],unresolved:[],experience_refs:run==='B'?[`lesson:${lessonID}@1`]:[]});
   }else if(stage==='lesson')content=JSON.stringify({lessons:run==='A'?[{title:'template arithmetic procedure',tags:['template'],when:'arithmetic result evaluated',steps:['compare baseline and arithmetic'],checks:['42 from expression'],avoid:['SQL_FAILED'],limits:['literal reflection is inapplicable']}]:[]});
   else if(who==='coordinator') {
     const version=/ENGINEER_VERSION=([\w-]+)/.exec(all)?.[1],verification=/VERIFIER_RESULT=([\w-]+)/.exec(all)?.[1];
