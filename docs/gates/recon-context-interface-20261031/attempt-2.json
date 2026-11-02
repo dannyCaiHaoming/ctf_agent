@@ -1,0 +1,306 @@
+{
+  "status": "failed",
+  "error": "AssertionError [ERR_ASSERTION]: post compaction current projection\n+ actual - expected\n\n+ []\n- [\n-   [\n-     {\n-       label: 'A',\n-       version: 4\n-     }\n-   ]\n- ]\n",
+  "root": "/var/folders/tn/x1hbkfy17sx0w1lb8kjzzr340000gn/T/recon-context-TpPbet",
+  "version": "1.19.3",
+  "realModelCalls": 0,
+  "checks": [
+    {
+      "name": "child start and native tool continuation",
+      "status": "passed",
+      "requestIndexes": [
+        0,
+        1
+      ]
+    },
+    {
+      "name": "same version resume no accumulation",
+      "status": "passed",
+      "requestIndexes": [
+        2
+      ]
+    },
+    {
+      "name": "concurrent child isolation and changed version",
+      "status": "passed"
+    },
+    {
+      "name": "explicit compaction",
+      "status": "observed",
+      "requestIndexes": [
+        5
+      ]
+    }
+  ],
+  "requests": [
+    {
+      "index": 0,
+      "markers": [
+        {
+          "label": "A",
+          "version": 1
+        }
+      ],
+      "compact": false,
+      "messages": [
+        {
+          "role": "system",
+          "content": "PROBE_AGENT local interface only\nYou are powered by the model named scripted. The exact model ID is stub/scripted\nHere is some useful information about the environment you are running in:\n<env>\n  Working directory: /private/var/folders/tn/x1hbkfy17sx0w1lb8kjzzr340000gn/T/recon-context-TpPbet/runtime\n  Workspace root folder: /\n  Is directory a git repo: no\n  Platform: darwin\n  Today's date: Fri Oct 30 2026\n</env>"
+        },
+        {
+          "role": "user",
+          "content": [
+            {
+              "type": "text",
+              "text": "USE_TOOL"
+            },
+            {
+              "type": "text",
+              "text": "[PROJECTION A v1] facts=local; lesson=local@1"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "index": 1,
+      "markers": [
+        {
+          "label": "A",
+          "version": 2
+        }
+      ],
+      "compact": false,
+      "messages": [
+        {
+          "role": "system",
+          "content": "PROBE_AGENT local interface only\nYou are powered by the model named scripted. The exact model ID is stub/scripted\nHere is some useful information about the environment you are running in:\n<env>\n  Working directory: /private/var/folders/tn/x1hbkfy17sx0w1lb8kjzzr340000gn/T/recon-context-TpPbet/runtime\n  Workspace root folder: /\n  Is directory a git repo: no\n  Platform: darwin\n  Today's date: Fri Oct 30 2026\n</env>"
+        },
+        {
+          "role": "user",
+          "content": [
+            {
+              "type": "text",
+              "text": "USE_TOOL"
+            },
+            {
+              "type": "text",
+              "text": "[PROJECTION A v2] facts=local; lesson=local@1"
+            }
+          ]
+        },
+        {
+          "role": "assistant",
+          "content": "",
+          "tool_calls": [
+            {
+              "id": "call_1",
+              "type": "function",
+              "function": {
+                "name": "probe_update",
+                "arguments": "{}"
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "call_1",
+          "content": "local state updated"
+        }
+      ]
+    },
+    {
+      "index": 2,
+      "markers": [
+        {
+          "label": "A",
+          "version": 2
+        }
+      ],
+      "compact": false,
+      "messages": [
+        {
+          "role": "system",
+          "content": "PROBE_AGENT local interface only\nYou are powered by the model named scripted. The exact model ID is stub/scripted\nHere is some useful information about the environment you are running in:\n<env>\n  Working directory: /private/var/folders/tn/x1hbkfy17sx0w1lb8kjzzr340000gn/T/recon-context-TpPbet/runtime\n  Workspace root folder: /\n  Is directory a git repo: no\n  Platform: darwin\n  Today's date: Fri Oct 30 2026\n</env>"
+        },
+        {
+          "role": "user",
+          "content": "USE_TOOL"
+        },
+        {
+          "role": "assistant",
+          "content": "",
+          "tool_calls": [
+            {
+              "id": "call_1",
+              "type": "function",
+              "function": {
+                "name": "probe_update",
+                "arguments": "{}"
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "call_1",
+          "content": "local state updated"
+        },
+        {
+          "role": "assistant",
+          "content": "LOCAL_DONE"
+        },
+        {
+          "role": "user",
+          "content": [
+            {
+              "type": "text",
+              "text": "resume same state"
+            },
+            {
+              "type": "text",
+              "text": "[PROJECTION A v2] facts=local; lesson=local@1"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "index": 3,
+      "markers": [
+        {
+          "label": "A",
+          "version": 3
+        }
+      ],
+      "compact": false,
+      "messages": [
+        {
+          "role": "system",
+          "content": "PROBE_AGENT local interface only\nYou are powered by the model named scripted. The exact model ID is stub/scripted\nHere is some useful information about the environment you are running in:\n<env>\n  Working directory: /private/var/folders/tn/x1hbkfy17sx0w1lb8kjzzr340000gn/T/recon-context-TpPbet/runtime\n  Workspace root folder: /\n  Is directory a git repo: no\n  Platform: darwin\n  Today's date: Fri Oct 30 2026\n</env>"
+        },
+        {
+          "role": "user",
+          "content": "USE_TOOL"
+        },
+        {
+          "role": "assistant",
+          "content": "",
+          "tool_calls": [
+            {
+              "id": "call_1",
+              "type": "function",
+              "function": {
+                "name": "probe_update",
+                "arguments": "{}"
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "call_1",
+          "content": "local state updated"
+        },
+        {
+          "role": "assistant",
+          "content": "LOCAL_DONE"
+        },
+        {
+          "role": "user",
+          "content": "resume same state"
+        },
+        {
+          "role": "assistant",
+          "content": "LOCAL_DONE"
+        },
+        {
+          "role": "user",
+          "content": [
+            {
+              "type": "text",
+              "text": "parallel A"
+            },
+            {
+              "type": "text",
+              "text": "[PROJECTION A v3] facts=local; lesson=local@1"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "index": 4,
+      "markers": [
+        {
+          "label": "B",
+          "version": 1
+        }
+      ],
+      "compact": false,
+      "messages": [
+        {
+          "role": "system",
+          "content": "PROBE_AGENT local interface only\nYou are powered by the model named scripted. The exact model ID is stub/scripted\nHere is some useful information about the environment you are running in:\n<env>\n  Working directory: /private/var/folders/tn/x1hbkfy17sx0w1lb8kjzzr340000gn/T/recon-context-TpPbet/runtime\n  Workspace root folder: /\n  Is directory a git repo: no\n  Platform: darwin\n  Today's date: Fri Oct 30 2026\n</env>"
+        },
+        {
+          "role": "user",
+          "content": [
+            {
+              "type": "text",
+              "text": "parallel B"
+            },
+            {
+              "type": "text",
+              "text": "[PROJECTION B v1] facts=local; lesson=local@1"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "index": 5,
+      "markers": [
+        {
+          "label": "A",
+          "version": 3
+        }
+      ],
+      "compact": true,
+      "messages": [
+        {
+          "role": "system",
+          "content": "You are a context summarization agent. You are given a conversation between a user and an agent. Your goal is to produce a structured summary matching the format specified so another coding agent can continue the work.\n\nAlways follow the exact output structure requested by the user prompt. Keep every section, preserve exact file paths and identifiers when known, and prefer terse bullets over paragraphs.\n\nDo not continue the conversation. Do not respond to any questions in the conversation. Only output the structured summary in the exact format requested by the user prompt. Respond in the same language as the conversation.\n"
+        },
+        {
+          "role": "user",
+          "content": "Here is the conversation so far:\n\n<conversation>\n[User]: USE_TOOL\n\n[Assistant tool call]: probe_update({})\n[Tool result]: local state updated\n\n[Assistant]: LOCAL_DONE\n\n[User]: resume same state\n\n[Assistant]: LOCAL_DONE\n\n[User]: parallel A\n[PROJECTION A v3] facts=local; lesson=local@1\n\n[Assistant]: LOCAL_DONE\n</conversation>\n\nCreate a new anchored summary from the conversation history in the <conversation> tags above so another coding agent can continue the work.\n\nOutput exactly the Markdown structure shown inside <template> and keep the section order unchanged. Do not include the <template> tags in your response.\n<template>\n## Objective\n- [one or two brief sentences describing what the user is trying to accomplish]\n\n## Important Details\n- [constraints/preferences, decisions and why, important facts/assumptions, exact context needed to continue, or \"(none)\"]\n\n## Work State\n### Completed\n- [finished work, verified facts, or changes made; otherwise \"(none)\"]\n\n### Active\n- [current work, partial changes, or investigation state; otherwise \"(none)\"]\n\n### Blocked\n- [blockers, failing commands, or unknowns; otherwise \"(none)\"]\n\n## Next Move\n1. [immediate concrete action, or \"(none)\"]\n2. [next action if known, or \"(none)\"]\n\n## Relevant Files\n- [file or directory path: why it matters, or \"(none)\"]\n</template>\n\nRules:\n- Keep every section, even when empty.\n- Use terse bullets, not prose paragraphs.\n- Preserve exact file paths, symbols, commands, error strings, URLs, and identifiers when known.\n- Do not mention the summary process or that context was compacted."
+        }
+      ]
+    },
+    {
+      "index": 6,
+      "markers": [
+        {
+          "label": "A",
+          "version": 4
+        }
+      ],
+      "compact": true,
+      "messages": [
+        {
+          "role": "system",
+          "content": "You are a context summarization agent. You are given a conversation between a user and an agent. Your goal is to produce a structured summary matching the format specified so another coding agent can continue the work.\n\nAlways follow the exact output structure requested by the user prompt. Keep every section, preserve exact file paths and identifiers when known, and prefer terse bullets over paragraphs.\n\nDo not continue the conversation. Do not respond to any questions in the conversation. Only output the structured summary in the exact format requested by the user prompt. Respond in the same language as the conversation.\n"
+        },
+        {
+          "role": "user",
+          "content": "Here is the conversation so far:\n\n<conversation>\n[User]: USE_TOOL\n\n[Assistant tool call]: probe_update({})\n[Tool result]: local state updated\n\n[Assistant]: LOCAL_DONE\n\n[User]: resume same state\n\n[Assistant]: LOCAL_DONE\n\n[User]: parallel A\n\n[Assistant]: LOCAL_DONE\n\n[User]: resume after compaction\n[PROJECTION A v4] facts=local; lesson=local@1\n</conversation>\n\nCreate a new anchored summary from the conversation history in the <conversation> tags above so another coding agent can continue the work.\n\nOutput exactly the Markdown structure shown inside <template> and keep the section order unchanged. Do not include the <template> tags in your response.\n<template>\n## Objective\n- [one or two brief sentences describing what the user is trying to accomplish]\n\n## Important Details\n- [constraints/preferences, decisions and why, important facts/assumptions, exact context needed to continue, or \"(none)\"]\n\n## Work State\n### Completed\n- [finished work, verified facts, or changes made; otherwise \"(none)\"]\n\n### Active\n- [current work, partial changes, or investigation state; otherwise \"(none)\"]\n\n### Blocked\n- [blockers, failing commands, or unknowns; otherwise \"(none)\"]\n\n## Next Move\n1. [immediate concrete action, or \"(none)\"]\n2. [next action if known, or \"(none)\"]\n\n## Relevant Files\n- [file or directory path: why it matters, or \"(none)\"]\n</template>\n\nRules:\n- Keep every section, even when empty.\n- Use terse bullets, not prose paragraphs.\n- Preserve exact file paths, symbols, commands, error strings, URLs, and identifiers when known.\n- Do not mention the summary process or that context was compacted."
+        }
+      ]
+    }
+  ],
+  "hookEvents": "{\"hook\":\"transform\",\"ids\":[\"ses_e728b3ecbffeSRHmUgt9aZAo9u\"],\"messages\":1}\n{\"hook\":\"transform\",\"ids\":[\"ses_e728b3ecbffeSRHmUgt9aZAo9u\"],\"messages\":2}\n{\"hook\":\"transform\",\"ids\":[\"ses_e728b3ecbffeSRHmUgt9aZAo9u\"],\"messages\":4}\n{\"hook\":\"transform\",\"ids\":[\"ses_e728b3ecbffeSRHmUgt9aZAo9u\"],\"messages\":6}\n{\"hook\":\"transform\",\"ids\":[\"ses_e728b3ec8ffeaWsnKV2jdHHFFy\"],\"messages\":1}\n{\"hook\":\"compacting\",\"sessionID\":\"ses_e728b3ecbffeSRHmUgt9aZAo9u\"}\n{\"hook\":\"transform\",\"ids\":[\"ses_e728b3ecbffeSRHmUgt9aZAo9u\"],\"messages\":7}\n{\"hook\":\"compacting\",\"sessionID\":\"ses_e728b3ecbffeSRHmUgt9aZAo9u\"}\n{\"hook\":\"transform\",\"ids\":[\"ses_e728b3ecbffeSRHmUgt9aZAo9u\"],\"messages\":10}\n",
+  "probeSha256": "b3f8114c0bd327a72892e657310e9c85e17de26456863d2b1df5dc25b7791362",
+  "proof": "scripted localhost responses; public native transport only; no model behavior proof"
+}

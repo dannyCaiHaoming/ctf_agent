@@ -1,0 +1,59 @@
+{
+  "slice": "recon design §3 complete process trace (R3)",
+  "date": "2026-11-02",
+  "base_commit": "a97251a6c281c47b857c7b6387244e0b4289b41c",
+  "worktree": "uncommitted main working tree",
+  "realModelCalls": 0,
+  "commands": [
+    {
+      "cmd": "npm run typecheck",
+      "exit": 0
+    },
+    {
+      "cmd": "npm run build",
+      "exit": 0
+    },
+    {
+      "cmd": "npm test",
+      "exit": 0,
+      "result": "56 files / 729 tests passed"
+    },
+    {
+      "cmd": "npm run test:deterministic",
+      "exit": 0,
+      "result": "45 files / 687 tests passed"
+    },
+    {
+      "cmd": "npx tsx tests/manual/recon-original-replay.ts",
+      "exit": 0,
+      "result": "passed; original rows 98/58; realModelCalls 0"
+    }
+  ],
+  "red_observed": [
+    "opencode.test: recon.read schema lacked cursor/step_id/start_sequence/end_sequence",
+    "experience-tools R3: closure-tool publication failure left no trace row"
+  ],
+  "covered": [
+    "schema v1->v2 migration, legacy rows original_complete=false",
+    "oversized args/result stored without truncation; >16KiB via fixed artifact ref, byte/sha256 round-trip through artifact.read",
+    "redaction scope marked; sanitized payload not presented as original",
+    "cross-session sequence, one row per call, duplicate events idempotent, terminal state monotonic",
+    "recon.read full index + cursor/step_id/ids/sequence range navigation exposed to the model",
+    "publication failure: error row with complete=false and challenge exploration paused (closure and non-closure paths)"
+  ],
+  "not_proven": [
+    "publication registry is in-process only; restart reconciliation of unknown publications",
+    "real model reading or using the trace",
+    "token/overhead of full index on long challenges",
+    "§4 append-only projection, §5 handoff budget, §6 snapshot consumption, §7 episode fidelity"
+  ],
+  "source_sha256": {
+    "apps/launcher/src/experience-store.ts": "b4465ba67df0682c74a55ae0e037d6395d5b3440c4735803720f4f1083d1ecac",
+    "apps/launcher/src/control-service.ts": "3412c0a3f3d1efbf306e0194849ad66aa8d0d258d1cacd0f0978264541110011",
+    "apps/launcher/src/artifact-tools.ts": "7323d3f960cdac13b42c5c81540743ed4c18afe80d94d835fd8fe51ff7fd37d9",
+    "apps/opencode-plugin/src/index.ts": "df159f33fad6df8a9baae8bad1407fcb961f01ee8c7b441b5beb8e3b62049bc2",
+    "tests/contract/recon-complete-trace.test.ts": "edc91c13b639eec86c1b15fdac8aa3c7a2b61c7451f212797b47f2dc8f539402",
+    "tests/contract/experience-tools.test.ts": "b5ec43651b4d552f5eb978bcfe64bfb3591b3c0d727d42ef75568368a34b0b5f",
+    "tests/contract/opencode.test.ts": "b093d8fa5c3d8039377e0814777a5ab933c6ff4534d536aecf2e411be1c4512e"
+  }
+}

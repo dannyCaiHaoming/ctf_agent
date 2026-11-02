@@ -1,0 +1,123 @@
+{
+  "date": "2026-10-31",
+  "base": "a97251a6c281c47b857c7b6387244e0b4289b41c",
+  "review": "main integration verification plus independent read-only review of three fixes and upstream dependency",
+  "checks": {
+    "typecheck": {
+      "exit": 0
+    },
+    "build": {
+      "exit": 0
+    },
+    "npm test": {
+      "exit": 0,
+      "files": 54,
+      "tests": 718
+    },
+    "native same-batch A→B": {
+      "exit": 0,
+      "requests": 60,
+      "realModelCalls": 0,
+      "source_hashes_match": true
+    },
+    "original r15 replay": {
+      "exit": 0,
+      "rows": [
+        98,
+        58
+      ],
+      "originalBResponseChars": 10498,
+      "originalDB": "readOnly"
+    }
+  },
+  "limits": [
+    "no real model behavior or semantic quality acceptance",
+    "no new Ubuntu or production-image acceptance",
+    "no commit/push"
+  ],
+  "source_hashes": [
+    {
+      "path": "apps/launcher/src/control-service.ts",
+      "sha256": "d2921efcb3bb0df6a914f9fa68712a821f7d66510849a9c3463fd7d65c87aaf0"
+    },
+    {
+      "path": "apps/launcher/src/episode-learning.ts",
+      "sha256": "f697aca8120af68bb22080701d3b959931c9218acb1f75bbe4cf168b1b940713"
+    },
+    {
+      "path": "apps/launcher/src/experience-store.ts",
+      "sha256": "aae4eee81ce8e05e75bc370c85489d7849957279b056d770341363b2e2ff27c7"
+    },
+    {
+      "path": "apps/opencode-plugin/src/index.ts",
+      "sha256": "409e6b30627c83c287dd6a08e954a8c33edc9cd3d87db4bd4908421f197f5c60"
+    },
+    {
+      "path": "product/opencode/agents/coordinator.md",
+      "sha256": "8baffc399b24e324494d759d0566ab61d27f693c0efbcd3f513424571a5b8eab"
+    },
+    {
+      "path": "product/opencode/agents/domain-solver.md",
+      "sha256": "9a226b8ebf695d19cb81f9305be570ea839d3039b26250bdfe7cd3366426a9a8"
+    },
+    {
+      "path": "product/opencode/agents/engineer.md",
+      "sha256": "cb8002efc6effa381edcd1a85c85d6d2dd639c7ea2a06929138f36f2b221504c"
+    },
+    {
+      "path": "product/opencode/agents/recon.md",
+      "sha256": "18e14ddc346ebab689faa29d7676e9e70f8e0f75e549c95a96c2ecbc7f884fa0"
+    },
+    {
+      "path": "product/skills/recon-investigation/SKILL.md",
+      "sha256": "991f5a5e44941e5a1d7b9fec0979d08ba12df171f7c9f3a62610328895ade578"
+    },
+    {
+      "path": "tests/contract/episode-learning.test.ts",
+      "sha256": "76535babfd222dc09b0bc3200b4715f90a0a07a3b129e84d1744e7cb79a198b2"
+    },
+    {
+      "path": "tests/contract/experience-tools.test.ts",
+      "sha256": "fbf97b75881d5d693cce2ab49a40f80b1496954348e4417fc73babcf6eec7f1e"
+    },
+    {
+      "path": "tests/manual/experience-loop.ts",
+      "sha256": "7e6c87d470aadfedf221f71b3d8944309804e0a3d44bf52c3faa0b8ccd124456"
+    },
+    {
+      "path": "apps/launcher/src/investigation-context.ts",
+      "sha256": "8bd215a71ac4a40ff6669d792cbe32815defab787202840e7a4a025382714729"
+    },
+    {
+      "path": "tests/manual/recon-original-replay.ts",
+      "sha256": "99f7f737a071a730da8d19f185f2ec3a2a84b0835adfe51245f54c42b06a5df9"
+    }
+  ],
+  "review_fixes": {
+    "red": {
+      "initial_failed": 4,
+      "initial_passed": 18,
+      "upstream_failed": 1,
+      "cases": [
+        "saturated fixed materials hide new query terms",
+        "ASCII/Unicode decision history evicts role delivery",
+        "snapshot read failure loses saved-note feedback",
+        "1 MiB persistent input evicts solver before prompt assembly"
+      ]
+    },
+    "green": {
+      "independent_targeted_tests": 23,
+      "full_tests": 718
+    },
+    "independent": {
+      "agent": "Hubble",
+      "id": "01a18dad-0fbd-7963-9503-934b14b90177",
+      "blocking_findings": 0,
+      "scope": "three fixes and earlier persistent-input bound",
+      "mode": "read-only",
+      "tests_exit": 0,
+      "closed": true
+    }
+  },
+  "native_root": "/var/folders/tn/x1hbkfy17sx0w1lb8kjzzr340000gn/T/experience-loop-RnHLkG"
+}

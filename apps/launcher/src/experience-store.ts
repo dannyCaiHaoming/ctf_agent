@@ -16,8 +16,11 @@ export const lessonContent = z.object({ title: text, tags: list, when: text, ste
 export type EpisodeContent = z.infer<typeof episodeContent>;
 export type LessonContent = z.infer<typeof lessonContent>;
 export interface ProcessScope { run: string; challenge: string; session: string; execution?: string; message?: string; call?: string }
+export interface PreparedPayload { raw: string; meta: { sha256: string; size: number; complete: boolean; transformation: 'redacted'|'none'; redactions?: string[]; original_size?: number; storage?: 'inline'|'artifact' } }
+export interface StartOptions { complete?: boolean; prepared?: PreparedPayload }
+export interface FinishOptions { priority?: number; complete?: boolean; prepared?: PreparedPayload }
 export interface Episode { episode_id: string; version: number; run_id: string; challenge_id: string; outcome: 'solved'|'unsolved'|'unknown'; outcome_ref: unknown; end_reason: string;
-  input: any; input_hash: string; content: EpisodeContent|null; episode_status: string; lesson_status: string; lesson_ids: string[]; model?: string; usage: any; error?: string; requests: any[]; created_at: number }
+  input: any; input_hash: string; model_input?: unknown; model_input_hash?: string; content: EpisodeContent|null; episode_status: string; lesson_status: string; lesson_ids: string[]; model?: string; usage: any; error?: string; requests: any[]; created_at: number }
 export class ExperienceStore {
   readonly db: SQLiteDatabase;
   constructor(readonly path: string, private secrets: readonly string[] = []) {
@@ -25,36 +28,67 @@ export class ExperienceStore {
     this.db = new DatabaseSync(path);
     this.db.exec('PRAGMA busy_timeout=3000; PRAGMA journal_mode=WAL; PRAGMA foreign_keys=ON;');
     const version = Number(this.db.prepare('PRAGMA user_version').get()!.user_version);
-    if(version > 1) { this.db.close(); throw new Error('experience schema newer than supported'); }
+    if(version > 2) { this.db.close(); throw new Error('experience schema newer than supported'); }
     this.db.exec(`BEGIN IMMEDIATE;
       CREATE TABLE IF NOT EXISTS recon_turns (
-        id INTEGER PRIMARY KEY, run_id TEXT NOT NULL, challenge_id TEXT NOT NULL, session_id TEXT NOT NULL,
-        execution_ref TEXT, message_id TEXT, turn_no INTEGER, call_id TEXT, kind TEXT NOT NULL,
-        tool TEXT, args_json TEXT, status TEXT, result_json TEXT, note_json TEXT,
+        id INTEGER PRIMARY KEY, step_id TEXT, run_id TEXT NOT NULL, challenge_id TEXT NOT NULL, session_id TEXT NOT NULL,
+        execution_ref TEXT, message_id TEXT, turn_no INTEGER, call_id TEXT, sequence INTEGER, kind TEXT NOT NULL,
+        tool TEXT, visible_intent TEXT, args_json TEXT, args_meta_json TEXT, args_shape_json TEXT,
+        status TEXT, result_json TEXT, result_meta_json TEXT, result_sha256 TEXT, result_size INTEGER,
+        original_complete INTEGER, visible_observation TEXT, terminal_priority INTEGER NOT NULL DEFAULT 0, note_json TEXT,
         created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL, finished_at INTEGER,
         UNIQUE(run_id,session_id,call_id,kind));
-      CREATE INDEX IF NOT EXISTS recon_scope ON recon_turns(run_id,challenge_id,id);
+      CREATE INDEX IF NOT EXISTS recon_scope ON recon_turns(run_id,challenge_id,sequence,id);
       CREATE TABLE IF NOT EXISTS episodes (episode_id TEXT NOT NULL, version INTEGER NOT NULL, run_id TEXT NOT NULL, challenge_id TEXT NOT NULL,
         input_hash TEXT NOT NULL, body TEXT NOT NULL, PRIMARY KEY(episode_id,version), UNIQUE(run_id,challenge_id,input_hash));
       CREATE TABLE IF NOT EXISTS lessons (lesson_id TEXT NOT NULL, version INTEGER NOT NULL, episode_id TEXT NOT NULL, episode_version INTEGER NOT NULL,
         body TEXT NOT NULL, PRIMARY KEY(lesson_id,version), FOREIGN KEY(episode_id,episode_version) REFERENCES episodes(episode_id,version));
-      PRAGMA user_version=1; COMMIT;`);
+      COMMIT;`);
+    if(version < 2) this.migrateReconV2();
   }
   close() { this.db.close(); }
+  private migrateReconV2() {
+    this.db.exec('BEGIN IMMEDIATE');
+    try {
+      const columns=new Set((this.db.prepare('PRAGMA table_info(recon_turns)').all() as Array<{name:string}>).map(r=>r.name));
+      const additions:Array<[string,string]>=[['step_id','TEXT'],['sequence','INTEGER'],['visible_intent','TEXT'],['args_meta_json','TEXT'],['args_shape_json','TEXT'],['result_meta_json','TEXT'],['result_sha256','TEXT'],['result_size','INTEGER'],['original_complete','INTEGER'],['visible_observation','TEXT'],['terminal_priority','INTEGER NOT NULL DEFAULT 0']];
+      for(const [name,type] of additions)if(!columns.has(name))this.db.exec(`ALTER TABLE recon_turns ADD COLUMN ${name} ${type}`);
+      this.db.exec('DROP INDEX IF EXISTS recon_scope; CREATE INDEX recon_scope ON recon_turns(run_id,challenge_id,sequence,id);');
+      const rows=this.db.prepare('SELECT id,run_id,challenge_id FROM recon_turns ORDER BY run_id,challenge_id,id').all() as Array<{id:number;run_id:string;challenge_id:string}>;
+      const sequences=new Map<string,number>();
+      for(const row of rows) {
+        const key=row.run_id+'\0'+row.challenge_id;
+        const sequence=(sequences.get(key)??0)+1;sequences.set(key,sequence);
+        this.db.prepare('UPDATE recon_turns SET step_id=COALESCE(step_id,?),sequence=COALESCE(sequence,?),original_complete=COALESCE(original_complete,0) WHERE id=?').run(randomUUID(),sequence,row.id);
+      }
+      this.db.exec('PRAGMA user_version=2; COMMIT;');
+    } catch(error) {
+      this.db.exec('ROLLBACK');
+      this.db.close();
+      throw error;
+    }
+  }
   addRedactions(values:string[]) {this.secrets=[...this.secrets,...values.filter(Boolean)];}
-  clean(value: unknown): any {
-    const walk=(v:any,key=''):any=> {
-      if(/^(?:authorization|cookie|set-cookie|password|secret|api[-_]?key|.*token|candidate|rawReply|reasoning|thinking)$/i.test(key)) return '<redacted>';
+  clean(value: unknown): any {return this.cleanTracked(value).value;}
+  private cleanTracked(value: unknown): {value:any;redactions:string[]} {
+    const redactions:string[]=[],seen=new Set<string>();
+    const mark=(path:string)=>{if(!seen.has(path)){seen.add(path);redactions.push(path);}};
+    const child=(path:string,key:string)=>path?`${path}.${key}`:key;
+    const walk=(v:any,path=''):any=> {
+      if(/^(?:authorization|cookie|set-cookie|password|secret|api[-_]?key|.*token|candidate|rawReply|reasoning|thinking)$/i.test(path.split('.').at(-1)??'')) {mark(path);return '<redacted>';}
       if(typeof v==='string') {
         let s=v; for(const secret of this.secrets) if(secret)s=s.split(secret).join('<redacted>');
         s=s.replace(/(?:flag|ctf)\{[^}\r\n]*\}/gi,'<redacted-flag>')
           .replace(/\b(?:Bearer|Basic)\s+[A-Za-z0-9+/=._-]+/gi,'<redacted-auth>')
           .replace(/((?:cookie|password|secret|api[_-]?key|access[_-]?token)\s*[=:]\s*)[^\s,;"']+/gi,'$1<redacted>');
-        // Never persist encoded response bodies blindly. Tool callers decode explicitly below.
-        return s.length>12000?s.slice(0,12000)+' [truncated]':s;
+        if(s!==v)mark(path||'$');
+        return s;
       }
-      if(Array.isArray(v))return v.map(x=>walk(x));
-      if(v&&typeof v==='object')return Object.fromEntries(Object.entries(v).filter(([k])=>!['reasoning_content'].includes(k)).map(([k,x])=>[k,walk(x,k)]));
+      if(Array.isArray(v))return v.map((x,i)=>walk(x,`${path}[${i}]`));
+      if(v&&typeof v==='object')return Object.fromEntries(Object.entries(v).flatMap(([k,x])=>{
+        if(k==='reasoning_content'){mark(child(path,k));return [];}
+        return [[k,walk(x,child(path,k))]];
+      }));
       return v;
     };
     const decoded=(v:any):any=> {
@@ -65,46 +99,109 @@ export class ExperienceStore {
         return Object.fromEntries(Object.entries(o).map(([k,x])=>[k,decoded(x)]));
       }return v;
     };
-    return walk(decoded(value));
+    return {value:walk(decoded(value)),redactions};
   }
   private json(v:unknown) { return JSON.stringify(this.clean(v)); }
-  private recordJson(v:unknown) {const raw=this.json(v);return Buffer.byteLength(raw)>8000?JSON.stringify({preview:raw.slice(0,1800),truncated:true,original_bytes:Buffer.byteLength(raw)}):raw;}
+  preparePayload(v:unknown):PreparedPayload {
+    const original=JSON.stringify(v)??'null',cleaned=this.cleanTracked(v),raw=JSON.stringify(cleaned.value)??'null';
+    return {raw,meta:{sha256:createHash('sha256').update(raw).digest('hex'),size:Buffer.byteLength(raw),complete:true,transformation:cleaned.redactions.length?'redacted' as const:'none' as const,storage:'inline',...(cleaned.redactions.length?{redactions:cleaned.redactions,original_size:Buffer.byteLength(original)}:{})}};
+  }
   transaction<T>(fn:()=>T):T { this.db.exec('BEGIN IMMEDIATE');try {const r=fn();this.db.exec('COMMIT');return r;}catch(e){this.db.exec('ROLLBACK');throw e;} }
   private turn(s:ProcessScope) {
     if(!s.message)return null;
     const previous=this.db.prepare('SELECT turn_no FROM recon_turns WHERE run_id=? AND session_id=? AND message_id=? AND turn_no IS NOT NULL LIMIT 1').get(s.run,s.session,s.message);
     return previous?Number(previous.turn_no):Number(this.db.prepare('SELECT COALESCE(MAX(turn_no),0)+1 AS n FROM recon_turns WHERE run_id=? AND session_id=?').get(s.run,s.session)!.n);
   }
-  start(s:ProcessScope,tool:string,args:unknown) {
+  private sequence(s:ProcessScope) {return Number(this.db.prepare('SELECT COALESCE(MAX(sequence),0)+1 AS n FROM recon_turns WHERE run_id=? AND challenge_id=?').get(s.run,s.challenge)!.n);}
+  start(s:ProcessScope,tool:string,args:unknown,options:StartOptions={}) {
     return this.transaction(()=> {
-      const now=Date.now();this.db.prepare(`INSERT OR IGNORE INTO recon_turns(run_id,challenge_id,session_id,execution_ref,message_id,turn_no,call_id,kind,tool,args_json,status,created_at,updated_at)
-        VALUES(?,?,?,?,?,?,?,'tool',?,?,'running',?,?)`).run(s.run,s.challenge,s.session,s.execution??null,s.message??null,this.turn(s),s.call??null,tool,this.recordJson(args),now,now);
-      if(args&&typeof args==='object'&&Object.keys(args).length)this.db.prepare('UPDATE recon_turns SET args_json=? WHERE run_id=? AND session_id=? AND call_id=? AND kind=\'tool\'').run(this.recordJson(args),s.run,s.session,s.call??null);
+      const now=Date.now(),payload=options.prepared??this.preparePayload(args),complete=options.complete??true;
+      this.db.prepare(`INSERT OR IGNORE INTO recon_turns(step_id,run_id,challenge_id,session_id,execution_ref,message_id,turn_no,call_id,sequence,kind,tool,args_json,args_meta_json,status,original_complete,created_at,updated_at)
+        VALUES(?,?,?,?,?,?,?,?,?,'tool',?,?,?,'running',?,?,?)`).run(randomUUID(),s.run,s.challenge,s.session,s.execution??null,s.message??null,this.turn(s),s.call??null,this.sequence(s),tool,payload.raw,JSON.stringify({...payload.meta,complete}),complete?1:0,now,now);
       if(s.message)this.db.prepare('UPDATE recon_turns SET message_id=?,turn_no=? WHERE run_id=? AND session_id=? AND call_id=? AND message_id IS NULL').run(s.message,this.turn(s),s.run,s.session,s.call??null);
     });
   }
-  finish(s:ProcessScope,status:string,result:unknown) {
-    this.db.prepare('UPDATE recon_turns SET status=?,result_json=?,updated_at=?,finished_at=? WHERE run_id=? AND session_id=? AND call_id=? AND kind=\'tool\'').run(status,this.recordJson(result),Date.now(),status==='running'?null:Date.now(),s.run,s.session,s.call??null);
+  finish(s:ProcessScope,status:string,result:unknown,options:FinishOptions={}) {
+    this.transaction(()=>{
+      const existing=this.db.prepare("SELECT terminal_priority FROM recon_turns WHERE run_id=? AND session_id=? AND call_id=? AND kind='tool'").get(s.run,s.session,s.call??null) as {terminal_priority?:number}|undefined;
+      if(!existing)return;
+      const priority=options.priority??20;
+      if(priority<=(existing.terminal_priority??0))return;
+      const payload=options.prepared??this.preparePayload(result),complete=options.complete??true;
+      this.db.prepare(`UPDATE recon_turns SET status=?,result_json=?,result_meta_json=?,result_sha256=?,result_size=?,original_complete=?,terminal_priority=?,updated_at=?,finished_at=?
+        WHERE run_id=? AND session_id=? AND call_id=? AND kind='tool'`).run(status,payload.raw,JSON.stringify({...payload.meta,complete}),payload.meta.sha256,payload.meta.size,complete?1:0,priority,Date.now(),status==='running'?null:Date.now(),s.run,s.session,s.call??null);
+    });
   }
   note(s:ProcessScope,input:unknown,validEvidence:(r:string)=>boolean) {
     const args=z.object({kind:z.enum(['decision','handoff']).default('decision'),related_ids:z.array(z.number().int().positive()).max(40).default([]),evidence_refs:z.array(z.string().min(1).max(160)).max(32).default([]),observation:text.optional(),assessment:text.optional(),next_action:text.optional(),next_reason:text.optional()}).strict().parse(input);
     for(const id of args.related_ids)if(!this.db.prepare('SELECT id FROM recon_turns WHERE id=? AND run_id=? AND challenge_id=?').get(id,s.run,s.challenge))throw new Error('unbound related record');
     if(args.evidence_refs.some(r=>!validEvidence(r)))throw new Error('unbound evidence');
     const now=Date.now(),turn=this.turn(s);
-    this.db.prepare(`INSERT OR IGNORE INTO recon_turns(run_id,challenge_id,session_id,execution_ref,message_id,turn_no,call_id,kind,note_json,status,created_at,updated_at,finished_at) VALUES(?,?,?,?,?,?,?,?,?,'completed',?,?,?)`).run(s.run,s.challenge,s.session,s.execution??null,s.message??null,turn,s.call??null,args.kind,this.json(args),now,now,now);
-    return this.db.prepare('SELECT id,turn_no FROM recon_turns WHERE run_id=? AND session_id=? AND call_id=? AND kind=?').get(s.run,s.session,s.call??null,args.kind);
+    this.db.prepare(`INSERT OR IGNORE INTO recon_turns(step_id,run_id,challenge_id,session_id,execution_ref,message_id,turn_no,call_id,sequence,kind,note_json,status,original_complete,created_at,updated_at,finished_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,'completed',1,?,?,?)`).run(randomUUID(),s.run,s.challenge,s.session,s.execution??null,s.message??null,turn,s.call??null,this.sequence(s),args.kind,this.json(args),now,now,now);
+    return this.db.prepare('SELECT id,step_id,sequence,turn_no FROM recon_turns WHERE run_id=? AND session_id=? AND call_id=? AND kind=?').get(s.run,s.session,s.call??null,args.kind);
   }
   records(run:string,challenge:string,args:unknown={}) {
-    const a=z.object({after_id:z.number().int().nonnegative().optional(),ids:z.array(z.number().int().positive()).max(40).optional(),limit:z.number().int().min(1).max(40).default(20)}).strict().refine(a=>a.after_id===undefined||a.ids===undefined,'ids and after_id are exclusive').parse(args);
-    const all=this.db.prepare('SELECT * FROM recon_turns WHERE run_id=? AND challenge_id=? AND id>? ORDER BY id').all(run,challenge,a.after_id??0).filter(r=>!a.ids||a.ids.includes(Number(r.id)));
-    const rows:any[]=[];let size=0;for(const r of all) {const n=JSON.stringify(r).length;if(rows.length&&(size+n>24000||rows.length>=a.limit))break;rows.push(r);size+=n;}
-    return {records:rows.map(r=>({...r,args_json:r.args_json?JSON.parse(r.args_json):null,result_json:r.result_json?JSON.parse(r.result_json):null,note_json:r.note_json?JSON.parse(r.note_json):null,association:r.message_id?'native_assistant':'unknown'})),next_cursor:rows.length<all.length?Number(rows.at(-1)?.id??a.after_id??0):null,in_flight_ids:all.filter(r=>r.status==='running').map(r=>r.id)};
+    const cursor=z.string().regex(/^[1-9]\d{0,9}:[1-9]\d{0,9}$/).optional();
+    const a=z.object({
+      after_id:z.number().int().nonnegative().optional(),step_id:z.string().min(1).max(128).optional(),
+      ids:z.array(z.number().int().positive()).max(40).optional(),kind:z.enum(['tool','decision','handoff']).optional(),
+      cursor,start_sequence:z.number().int().nonnegative().optional(),end_sequence:z.number().int().positive().optional(),
+      limit:z.number().int().min(1).max(40).default(20),
+    }).strict()
+      .refine(a=>!a.ids||[a.after_id,a.cursor,a.start_sequence,a.end_sequence,a.step_id].every(v=>v===undefined),'ids and other selectors are exclusive')
+      .refine(a=>a.after_id===undefined||a.cursor===undefined,'ids and after_id are exclusive')
+      .refine(a=>a.start_sequence===undefined||a.end_sequence===undefined||a.end_sequence>a.start_sequence,'end_sequence must follow start_sequence')
+      .parse(args);
+    const cursorParts=a.cursor?.split(':').map(Number),cursorSequence=cursorParts?.[0],cursorId=cursorParts?.[1];
+    const selectedIds=a.ids?new Set(a.ids):undefined;
+    const basis=(this.db.prepare('SELECT * FROM recon_turns WHERE run_id=? AND challenge_id=? ORDER BY sequence,id').all(run,challenge) as any[])
+      .filter(r=>(!selectedIds||selectedIds.has(Number(r.id)))
+        &&(!a.step_id||r.step_id===a.step_id)
+        &&(!a.kind||r.kind===a.kind)
+        &&(a.after_id===undefined||Number(r.id)>a.after_id)
+        &&(a.start_sequence===undefined||Number(r.sequence)>=a.start_sequence)
+        &&(a.end_sequence===undefined||Number(r.sequence)<a.end_sequence));
+    const all=cursorSequence===undefined?basis:basis.filter(r=>Number(r.sequence)>cursorSequence||(Number(r.sequence)===cursorSequence&&Number(r.id)>cursorId!));
+    const index=basis.map(r=>this.indexRow(r));
+    const fingerprint=createHash('sha256').update(JSON.stringify(index)).digest('hex');
+    const rows:any[]=[];let size=0;
+    for(const r of all) {
+      const n=Buffer.byteLength(JSON.stringify(r));
+      if(rows.length&&(size+n>24000||rows.length>=a.limit))break;
+      rows.push(r);size+=n;
+    }
+    const lastRow=rows.at(-1),lastPosition=lastRow?basis.indexOf(lastRow):-1,hasMore=lastPosition>=0&&lastPosition<basis.length-1;
+    const next_cursor=hasMore?`${lastRow.sequence}:${lastRow.id}`:null;
+    const consumed=lastPosition+1;
+    return {
+      records:rows.map(r=>this.row(r)),index,next_cursor,done:!hasMore,fingerprint,
+      coverage:{total:basis.length,returned:rows.length,remaining:Math.max(0,basis.length-consumed),complete:!hasMore,next_cursor,included_ids:rows.map(r=>Number(r.id))},
+      in_flight_ids:basis.filter(r=>r.status==='running').map(r=>r.id),
+    };
   }
-  allRecords(run:string,challenge:string) {return this.db.prepare('SELECT * FROM recon_turns WHERE run_id=? AND challenge_id=? ORDER BY id').all(run,challenge).map(r=>({...r,args_json:r.args_json?JSON.parse(String(r.args_json)):null,result_json:r.result_json?JSON.parse(String(r.result_json)):null,note_json:r.note_json?JSON.parse(String(r.note_json)):null}));}
+  private parsedJson(value:unknown) {if(typeof value!=='string'||!value)return null;try{return JSON.parse(value);}catch{return null;}}
+  private publicationRef(value:unknown) {const parsed=this.parsedJson(value);return parsed&&typeof parsed==='object'&&typeof (parsed as {ref?:unknown}).ref==='string'?(parsed as {ref:string}).ref:null;}
+  private indexRow(r:any) {
+    const argsMeta=this.parsedJson(r.args_meta_json),resultMeta=this.parsedJson(r.result_meta_json);
+    const fingerprint=typeof argsMeta?.sha256==='string'?argsMeta.sha256:createHash('sha256').update(String(r.args_json??r.note_json??r.tool??'')).digest('hex');
+    return {
+      id:Number(r.id),step_id:r.step_id,sequence:Number(r.sequence),cursor:`${r.sequence}:${r.id}`,
+      turn_no:r.turn_no,message_id:r.message_id,session_id:r.session_id,execution_ref:r.execution_ref,
+      kind:r.kind,tool:r.tool,status:r.status,fingerprint,
+      args_ref:this.publicationRef(r.args_json),args_shape:this.parsedJson(r.args_shape_json),
+      result_ref:this.publicationRef(r.result_json),result_sha256:r.result_sha256??null,result_size:r.result_size??null,
+      result_complete:!!resultMeta&&resultMeta.complete===true,original_complete:r.original_complete===1,
+    };
+  }
+  private row(r:any) {return {...r,args_json:r.args_json?JSON.parse(String(r.args_json)):null,args_meta:r.args_meta_json?JSON.parse(String(r.args_meta_json)):null,args_shape:r.args_shape_json?JSON.parse(String(r.args_shape_json)):null,result_json:r.result_json?JSON.parse(String(r.result_json)):null,result_meta:r.result_meta_json?JSON.parse(String(r.result_meta_json)):null,note_json:r.note_json?JSON.parse(String(r.note_json)):null,original_complete:r.original_complete===1,association:r.message_id?'native_assistant':'unknown'};}
+  allRecords(run:string,challenge:string):any[] {return this.db.prepare('SELECT * FROM recon_turns WHERE run_id=? AND challenge_id=? ORDER BY sequence,id').all(run,challenge).map(r=>this.row(r));}
   saveDraft(input:Omit<Episode,'episode_id'|'version'|'input_hash'|'content'|'episode_status'|'lesson_status'|'lesson_ids'|'usage'|'requests'|'created_at'>):Episode {
     const cleaned=this.clean(input.input);
     if(input.input.sources)cleaned.sources=input.input.sources.map((s:any)=>({...this.clean(s),ref:s.ref}));
     if(input.input.experience_refs)cleaned.experience_refs=[...input.input.experience_refs];
+    cleaned.result={outcome:input.outcome,end_reason:input.end_reason,completion:cleaned.completion??null,judge:input.outcome_ref,verifications:cleaned.verifications??[]};
+    cleaned.skeleton=(cleaned.source_manifest??cleaned.sources??[]).map((s:any)=>({ref:s.ref,role:s.role??(s.ref?.startsWith('recon:')?'recon':null),kind:s.content?.kind??null,status:s.content?.status??null,
+      related_ids:s.content?.note_json?.related_ids??[],gaps:s.gaps??[],provided:!!cleaned.sources?.some((x:any)=>x.ref===s.ref)}));
     const fixed={...input,input:cleaned},hash=createHash('sha256').update(JSON.stringify(fixed)).digest('hex');
     return this.transaction(()=>{
       const old=this.db.prepare('SELECT body FROM episodes WHERE run_id=? AND challenge_id=? AND input_hash=?').get(input.run_id,input.challenge_id,hash);if(old)return JSON.parse(String(old.body));
@@ -133,6 +230,15 @@ export class ExperienceStore {
     const words=[...a.query.toLowerCase().split(/\s+/),...(a.tags??[]).map(s=>s.toLowerCase())];
     const results=rows.map(b=>({b,score:words.reduce((n,w)=>n+(w&&JSON.stringify(b).toLowerCase().includes(w)?1:0),0)})).filter(x=>x.score>0).sort((x,y)=>y.score-x.score).slice(0,a.limit).map(({b})=>a.kind==='lesson'?{kind:'lesson',id:b.lesson_id,version:b.version,title:b.title,when:b.when,tags:b.tags,source_episode_refs:b.source_episode_refs,source_revisions:this.revisions(b.source_episode_refs)}:{kind:'episode',id:b.episode_id,version:b.version,summary:b.content.summary,outcome:b.outcome,source_revisions:this.revisions([{id:b.episode_id,version:b.version}])});
     return {results,reference_only:true};
+  }
+  lessonSummary(id:string,version:number) {
+    const row=this.db.prepare('SELECT body FROM lessons WHERE lesson_id=? AND version=?').get(id,version);
+    if(!row)throw new Error('experience version not found');
+    const b=JSON.parse(String(row.body));
+    const fields=['title','when','steps','checks','avoid','limits'] as const;
+    const summary:any={id,version,kind:'lesson',source_episode_refs:b.source_episode_refs,source_revisions:this.revisions(b.source_episode_refs),reference_only:true,truncated_fields:[]};
+    for(const key of fields){const raw=typeof b[key]==='string'?b[key]:JSON.stringify(b[key]);summary[key]=raw.slice(0,600);if(raw.length>600)summary.truncated_fields.push(key);}
+    return summary;
   }
   read(input:unknown) {
     const a=z.object({kind:z.enum(['lesson','episode']),id:z.string().min(1).max(128),version:z.number().int().positive().optional(),cursor:z.string().regex(/^\d{1,10}$/).optional()}).strict().parse(input);
