@@ -297,6 +297,23 @@ r16 A 固定反例：#55 註冊請求為 302，#56 接著跳轉 `/team/2`；後�
 - 不要求模型先寫 decision 才保留反例；沒有 decision 的工具事實同樣必須存在。
 - 無法一次放入模型時，明確提供範圍與遺漏；區分「未納入這次摘要」和「來源不存在」。
 
+### 來源選取是機械規則
+
+**決定：host 用固定規則從完整來源挑出交給模型的子集。規則只看工具、目標形狀與結果類別，不判斷哪條「有用」；被省略的內容一律寫成範圍。**
+
+- **實驗族：** 按 `tool` 加正規化目標分族。HTTP 取 method 與 URL path，加排序後的 query／body 參數名，不含參數值。job 取 argv[0] 的 basename。workspace 類取路徑。其他工具只按工具名分族。正規化只用 host 已保存的去敏參數，不解析題目語意。
+- **結果類別：** 由 `status`、可得時的 HTTP status code，以及 error／ok 組成。同族中結果類別與前一步不同的那一步，記為變化點。
+- **必選：**
+  - 每族的首個、全部變化點與最後一步；
+  - 全部 decision／handoff；
+  - 每個角色的原生交回；
+  - host 綁定的 outcome、Verifier judgment 與 end reason。
+- **超出輸入上限時：** 先按族均衡刪去中段變化點，族的首尾不刪。若仍超限，不再靜默截斷，而是整族標為 `omitted`，並列出族鍵與步驟範圍。
+- **host 填寫、模型不能改的欄位：**
+  - `source_range`：首尾 sequence、總數、完整索引 fingerprint、artifact refs、running／unknown 計數；
+  - `omitted_ranges`：連續的 sequence 範圍、族鍵與原因。原因分兩種：`not_in_summary` 表示來源存在但沒放進這次輸入；`source_missing` 表示來源本身缺失或不完整。
+- **模型輸出的綁定：** `failed_paths` 與 `unresolved` 每項都帶 `source_refs`，且只能引用實際提供的來源。存儲欄位仍名 `steps`，即上表所說的 `key_steps`。
+
 host 綁定可信 outcome、Verifier judgment 與 end reason；模型只解釋線索、嘗試、回饋、調整與最終路線，不能重新裁決 `solved`。終態寫入失敗時停止新的同題探索，但保留讀取、取消、發布與交回；學習失敗不得污染原求解終態。
 
 ### 有界輸出不破壞來源
