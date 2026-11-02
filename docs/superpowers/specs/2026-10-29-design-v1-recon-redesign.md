@@ -1,521 +1,396 @@
-# Recon 协同重设计：SQLite 调查记录、及时交回与跨题经验
+# Recon 重設計：完整過程軌跡、可導航上下文與及時交回
 
-日期：2026-10-29；最新设计调整：2026-10-30（Asia/Tokyo）。**当前目标以 §12 为准：用户明确要求以 SQLite `recon_turns` 替代 Markdown 调查主本，并在题后自动积累经验、下题按需使用。四步最小闭环已实现并通过无模型接线及 R1／R2 修复复验，实际范围和证据见 §12.10。** 历史切片的实现／验证边界保留在对应章节；真实模型行为、跨题收益与正式发布镜像尚未验证。
+日期：2026-10-29；目前決策：2026-11-02（Asia/Tokyo）。
 
-归属：[核心 design v1](2026-10-22-ctf-agent-design-v1.md) §1.2、§1.4、§2.B／C 的 recon 细节子文件，不另立架构依据。历史 A1＋B3 的选择与验证证据保留；2026-10-30 用户明确修改持久化与学习范围，旧“仅 Markdown／不做跨题数据库记忆”的限制由 §12 取代。核心 design v1 已链接本子设计。设计不构成实施、模型调用或 git 授权（`2026-10-22-ctf-agent-design-v1.md:7–9`，下文简称 **V1**）。
+**狀態：** [核心 design v1](2026-10-22-ctf-agent-design-v1.md) 的 Recon 現行子設計。本文已取代舊備份與舊正式稿中的累積式回補，是 Recon 記錄、上下文中呈現、交回、快照消費及 episode／lesson 的單一權威。它定義產品目標與契約，不代表目前工作樹已完整實現，也不代表真實模型已驗收。
 
-## 1. 现状定锚：已有能力与真正缺口
+**目前停點：** r16 已暴露上下文重寫造成緩存前綴失效、Recon 未及時交回、固定快照正文未被同一消費者讀完，以及 episode 只看局部來源並把晚期失敗錯誤泛化為整題結論。§3 完整過程軌跡與 `ctf_recon_read` 完整索引導航已實施並通過無模型驗收（見 §3 實施狀態）。公開 OpenCode 接口的追加式放置已由無模型探針選定，但產品運輸尚未實施。下列內容仍需另立有界 plan 驗證或實施：
 
-### 1.1 证据口径
+- 把已選定的追加式狀態運輸接入產品，並保留請求身分／背景完成消息的消費追蹤。
+- 控制完整索引在單次請求與原生壓縮中的輸入成本。
+- 可靠估算或預留 input token，並在硬停前留出交回窗口。
+- 用真實模型驗證模型是否會依據歷史軌跡避免重複探索、正確選路並及時交回。
 
-仓库路径均相对仓库根；`V1:行号` 指上述核心设计。两份外部本地材料以完整路径首次定义，后文缩写仍表示同一文件：
+本文件不授權安裝、真實模型運行、commit 或 push。
 
-- **研究**：`/tmp/recon-research.md:1–203`，全文已读。它是先前只读研究，原有选项梯度与问题列表尚非批准项（`:3,128–159,186–195`）；本次人类决定已收敛其中的 A1、B3、单维护者、题内范围及 Solver 边界。
-- **R11**：`/Users/caihaoming/Documents/pentest-agent-run-data/seizurecipher-debug-20261029-r11-deepseek/runs/seizurecipher-debug-20261029-r11-deepseek-1/recon-diagnosis.md:1–119`，全文已读。本草案引用其校正统计，未重新计算 transcript，未查看 oracle／答案。
-- 下表实现证据已只读核对；未执行网络、题目、真实模型或外部项目。StrikeAgent 的描述仅转引研究的固定版本静态阅读，不表示本次联网复核。
+**依據：**
 
-### 1.2 已有，不重复建设
+- r12 能載入 Skill，卻出現 `skill/read=0`、`workspace.write=0`、`artifact.publish=0`；Recon 反覆 render、view、adjust。
+- R11 的 35 次 view 對應不同路徑與 hash，37 個 job 的 argv 也不同，但仍反覆處理同一瓶頸。
+- r16 A 已完成 88 次工具，資料庫卻只有 0 條 decision、0 條 handoff，最後因全局預算耗盡停止；B 已導出 30 行、51,044 bytes 的快照，下游卻只讀索引與第一個 32,768-byte 正文頁且 `done=false`。
 
-| 已有内容 | 文件依据 | 本设计采用的真实能力边界 |
+因此，「模型看過」「資料庫有行」「artifact 已發布」都不能代表下一步已使用資訊，或交接已真正完成。
+
+---
+
+## 1. 設計目標與主次關係
+
+**目標：** Recon 每一步都留下可恢復的完整過程；下一次模型請求、續接 session 或新任務能在需要時讀到先前每一步、它的結果與當下可見觀察。模型據此判斷是否重複、換路、交回；host 不替模型猜哪些舊資訊「有用」。
+
+Recon 的 OpenCode 原生模型／工具循環、原生 task、角色分工與預算邊界保持不變。本設計只改善這個循環的輸入、持久化與輸出：
+
+| 能力 | Host 保證 | 模型決定 |
 | --- | --- | --- |
-| recon 保存观察、消费未测线索、原生 task 交回与固定产物发布 | `product/opencode/agents/recon.md:18–34` | **已有“有界回合与交回”**，`:25–28` 明确要求回答完或无进展即返回；不是现在才补一个 handoff 口号。 |
-| 题内会话私有 work，已有 workspace.read/write | `apps/launcher/src/control-service.ts:899–915`；`apps/launcher/src/workspace-tools.ts:99–108,160–178` | work 按 session 映射；写入经临时文件 rename，读返回文件内容。支持同会话重读，不是自动恢复注入或跨会话共享。 |
-| 固定 artifact 与来源绑定 | `apps/launcher/src/artifact-tools.ts:51–85`；`product/opencode/agents/recon.md:30–34` | host 生成真实 ref、hash，固定 bytes 并核对读取；固定快照不是可变 latest 状态，也不证明接收者已消费。 |
-| 原生 task 同题续接 | `product/opencode/agents/coordinator.md:19–28`；`apps/launcher/src/control-service.ts:965–980` | Coordinator 保留实际 task_id 并续接；recon 可继续读自己的 work。不能外推为 host 崩溃恢复或新 session 自动读旧 work。 |
-| 进度事件与重复调用可观测性 | `apps/launcher/src/progress-ledger.ts:257–327`；`apps/launcher/src/control-service.ts:583–597,662–664,706–711` | JSONL 增量落盘；progress.read 从当前 audit 生成有界摘要。精确参数指纹仅分组，不阻止执行。progress 仅 Coordinator／Critic 可用，不是 recon 日志。 |
-| 已发布离线方法、原生 skill/read | `product/opencode/opencode.json:69–93`；`apps/launcher/src/control-service.ts:25–31,952–962`；`apps/launcher/src/launch.ts:94–103,169–202` | recon 已有 skill/read；读取限定发布 skillRoot，资产目录递归复制并记录 hash。无需知识检索服务或新 task 权限。 |
+| 完整過程記錄 | 每次工具呼叫、結果、順序與固定 refs 可重建 | 寫出必要的可見意圖、觀察與判斷 |
+| 可導航上下文 | 完整索引、最近完整步驟、當前狀態均可達 | 查閱哪些舊步驟、是否重測、下一步做什麼 |
+| 及時交回 | 正確隸屬、預算、終態與交回出口 | 問題是否已答、剩餘實驗是否仍有決策價值 |
+| 固定交接 | 快照版本、索引、正文、hash、cursor、`done` | 讀哪些頁，以及材料是否足以支持下一步 |
+| 題後學習 | 可信結果、完整來源範圍與派生版本 | episode 如何解釋、哪些部分值得形成 lesson |
 
-真正缺口是：现有观察与最终报告没有形成由 recon 持续维护、按调查问题组织、恢复后消费的工作主本；“还有哪些值得做的侦察路线”与停止判断没有被这份记录连起来。已有未测线索交接保留，但它是 task 摘要，不再另造 progress lead 或 work queue。研究依据：`研究:34–58,74–81,136–150`。
+**主次關係：**
 
-### 1.3 R11 的诚实归因
+```text
+完整且有序的 Recon 步驟軌跡與 artifacts
+  -> 完整、可分頁的步驟索引＋最近完整步驟＋當前狀態
+  -> 模型查閱舊步驟並決定繼續、重測、交回或換角色
+  -> 固定版本交回快照
+  -> episode／lesson 作為可回溯的派生索引
+```
 
-R11 的主因链是**职责越界 → 交回迟 → 下游时间饥饿**。recon 实际交回用时 21 分 36.364 秒，Solver 在 21 分 48.065 秒后才绑定，仅余 7 分 43.203 秒；29.5 分钟是 recon 会话生命周期，不能全算活跃工作（`R11:3,11–24`）。第 64 轮完成 HTTP 基线后仍继续 13 分 44.099 秒；此前已找到坐标绘制源码和可视化路线，但这不表示首分钟已完成全部基线（`R11:68–95`）。
+`recon_turns` 與其 artifact 是事實主本；模型可見上下文是導航視圖；handoff snapshot 是一次交回的固定投影；episode 是一次嘗試的派生索引；lesson 是從 episode 再派生的候選方法。後面各層都不能取代前面的完整來源。
 
-35 次 view 是 **35 个不同路径、35 个不同 SHA-256**，37 个 job 的 argv 也不同；这是围绕同一坐标／字形瓶颈的 render → view → adjust 变体循环，不是原样重复或压缩遗忘的证据（`R11:78–89`）。当前产品配置 `compaction.auto=false`、`prune=false`，summary／compaction agent 禁用；研究未取得 r11 生效配置，不能断言那轮发生了自动压缩（`product/opencode/opencode.json:10–13,39–44`；`研究:58`）。
+**證明邊界：** `solved`、Verifier judgment、artifact 已發布、正文已讀取、經驗已評估、經驗已採用、全流程產生收益，是不同事實。前一層成功不能替代後一層。
 
-**持久记录是合理产品需求，但不是 r11 已证实根因的修复结论。** 方法与记录可以帮助识别低信息增益、保留实验成果；是否改善交回行为须真实 run 证明。工具看图成功也不证明精确转写能力，提前启动 Solver 不保证解出（`R11:87–91,110`）。
+---
 
-## 2. 耦合目标：三部分一起改变
+## 2. 職責與信任邊界
 
-人类确认的理由是：这三部分互相依赖，必须作为一个最小能力切片设计。
+**決定：host 負責可驗證事實與可恢復性，模型負責路線判斷。** 兩者不能互相代填。
 
-1. **持久探索记录**保留问题、区别性实验、证据和剩余路线，让 recon 能判断“还有什么值得调查”，不只记得调用过哪些工具。
-2. **及时交回**由上述判断驱动：基线完成后，剩余侦察路线已耗尽或价值低，或下一步已属 Solver 深解，就交回有证据的基线与路线；不把低价值变体累积成“仍有进展”。
-3. **Skill／Reference 方法**告诉 recon 怎样调查：从材料提出可区分的问题，选择有信息增益的最小实验，将结果写回记录，并在下一次选择和恢复时消费它。这样才有结构化执行，而不是更长的随机试探清单。
+| 範圍 | Host 負責 | 模型負責 |
+| --- | --- | --- |
+| 身份與事實 | session、execution、challenge、預算、准入、計數、步驟順序、ref／hash、原始終態、快照版本、可信結果 | 選擇調查方向、解釋觀察、形成 judgment、判斷交回與材料用途 |
+| 記錄 | 自動落盤工具呼叫、結果、狀態、來源與關聯；保存模型已輸出的可見文字 | 提供清楚的意圖、觀察與必要 decision；不保存隱藏推理全文 |
+| 不可改寫項 | 預算、host 事實、artifact 終態、`solved` | 不憑對話猜身份，不覆寫已綁定事實 |
+| 異常處理 | 未知身份與未知終態保留為 unknown，不以最近一次呼叫猜測 | 保留衝突與各自證據，不把最後一條自動當答案 |
 
-循环为：**分派问题 → 查已有记录／按需方法 → 区别性调查 → 更新同一记录 → 判断剩余侦察价值 → 必要时继续，否则发布并交回**。这个循环由 OpenCode 承载的角色完成，不新增程序求解循环或调度器（`V1:13,19–24,43–47,133–135`）。
+**角色邊界：**
 
-只加“快交回”的 prose 已有失败先例；只写文件而不据此选下一步，或只读 Skill 而不产生证据，都不达到本次目标（`product/opencode/agents/recon.md:25–28`；`R11:99–110`；`研究:78,195`）。
+- Recon 可直接讀取已發布的 Skill 與當前題目的過程記錄。
+- 必要時由 Coordinator 分派既有 Reference；Recon 沒有 task 分派權，也不是第二個 planner。
+- Reference 沒有目標網路、腳本、材料修改與再委派權限。
+- Domain Solver 負責精確 glyph／字串轉寫等下游工作；精確轉寫不是 Recon 交回的前置條件。
 
-## 3. 薄设计
+### 硬邊界
 
-### 3.1 A1：一份按问题组织的普通工作记录（历史方案，由 §12 替代存储方式）
-
-**已定：** recon 是唯一维护者，主本位于本题、本 recon 会话的 work，采用普通 Markdown。为使后续计划可执行，本草案取默认虚拟路径 `work/recon-investigation.md`；这是文件命名的实施选择，不是新增 host 契约。它是工作记录，不是可执行队列、JSON schema、任务数据库或第二份进度账本。
-
-文件按当前调查价值排列问题，保留同一问题的连续实验与结论；新图、新参数不会自动生成一个“新问题”。可用稳定小标题识别问题，不让模型编造可信 run/session 身份或手抄 hash。每个问题用自然语言记录以下内容，无需强制字段拼写或程序解析：
-
-| 内容 | 必须表达的意思 |
+| 允許的擴展 | 仍然禁止 |
 | --- | --- |
-| 问题 | 本轮要区分什么，已知前提与本轮基线交付是什么。问题身份与证据版本分开。 |
-| 已试区别性实验 | 做了什么对照、改变了什么相关变量，原本期望区分什么；不是完整 argv 或逐工具流水账。 |
-| 观察＋证据 | 实际看到什么、哪份材料／输出支持它、哪里截断或未知；区分事实与推断。本会话可先记实际 work／job／HTTP 来源，交回前将必要来源固定为真实 artifact ref。 |
-| 已排除（refuted） | 仅写有反证支持的结论和适用范围。tested 只表示试过；失败、未完成、前提不足、无命中或看不清不能自动记成 refuted。 |
-| 剩余路线（routes-remaining） | 还有哪些证据支持的侦察区别可做、能增加什么信息；说明是值得在 recon 做，还是应交 Solver。低价值、受阻和未知分开。 |
-| 未测＋重试条件 | 未做什么、为何未做、需要哪些输入／状态／证据变化才能值得再试；执行状态未知必须保留 unknown。 |
+| 在 OpenCode 公開 plugin／SDK／server 邊界內，補薄控制層、SQLite 記錄、既有 artifact 與原生 task。 | Fork OpenCode；新增第二個 provider solver loop 或第二套 Agent 架構。 |
+| 以原生同步 task 完成 Recon → Solver 交回。 | 新增 scheduler、monitor、watchdog、wakeup framework、通用 DAG／planner、持久 frontier、worker queue、attack graph 或自動意圖生成。 |
+| 用既有 `artifact.publish/read` 固定 ref、版本、範圍與 hash。 | 新傳輸層、共享可寫 work、自動複製整個目錄。 |
+| 讓 Recon 回答明確偵察問題，再把下一步交回 Coordinator。 | 把 Recon 擴成第二個 planner。 |
+| 對重複 URL／argv 顯示歷史指紋與結果，由模型判斷是否重測。 | 由 host 依語意硬封鎖重測，或把指紋不同當成探索方向必然不同。 |
 
-以上是人类选定的 A1 内容语义，沿用既有 tested／untested／refuted（`product/opencode/agents/recon.md:20–23`；`研究:137,142–150`）。记录外显事实、简短判断与证据，不保存 chain-of-thought、秘密或答案正文；大型原始输出留在已有证据载体，以引用关联。
+---
 
-维护节拍按信息变化：回合开始建立／读取；有意义实验结束、反证成立或剩余路线改变时更新；决定交回时收束。不要求每次工具调用后写文件，也不在深解结束才补一篇报告。写失败或实验与写入之间中断时，未记录部分仍是缺口，不能声称 exactly-once 或“恢复必不重做”（`apps/launcher/src/workspace-tools.ts:160–178`；`研究:144–150`）。
+## 3. 完整過程軌跡是恢復主本
 
-### 3.2 恢复与交接：单一主本，摘要和快照只是交付（历史实现；新读取契约见 §12）
+**決定：`recon_turns` 按原生執行順序保存每一次可觀察步驟；decision 是可選的跨回合解釋，不是流程存在的前提。**
 
-同 run、同 task 续接时，recon 先读主本并对照本轮分派／未测线索，再选择下一项；已有结果仍适用时直接采用。若要复验，要能指出相关状态、前提或证据变化及预期信息。缺文件、缺来源或未知执行不能当作“此前什么也没做”。本切片不启用自动压缩，不增加恢复 hook；恢复先读仍是角色约定，须观察实际消费行为（`product/opencode/agents/coordinator.md:22,25–28`；`研究:51–58,137–148`）。
+Recon 每一步至少保留下列關係：
 
-交回前用现有 workspace.write 完成主本及必要交付材料；用 artifact.publish 固定所需证据和必要的去敏记录快照。主本可直接保持去敏以便发布；若需摘录，摘录只作不可变交付物，**不成为第二个可编辑状态源**。保持 snapshotFixed／rangeComplete／originalComplete 的区别；后续更新主本不改变旧快照（`apps/launcher/src/artifact-tools.ts:51–85`；`product/opencode/agents/recon.md:31–34`）。
-
-原生 task 返回携带：基线事实与路线、重要实验和反证、剩余／未测项及重试条件、交回原因，以及工具实际返回的 ref 和必要提取说明。摘要去敏，不含 flag、候选 bytes、cookie、完整 prompt、chain-of-thought 或 job argv。Coordinator 继续使用已有 task 文字交接保留这些摘要及实际 ref；它不是 recon 主本的另一位编辑者，也不增加 progress lead。下一角色按权限消费实际 artifact，不能访问 sibling work；同 task 恢复仍以 recon 私有主本为准（`product/opencode/agents/recon.md:22–23,30–34`；`product/opencode/agents/coordinator.md:25–28,40–43`；`product/AGENTS.md:28–30`）。
-
-发布回执或执行结果未知时暂停受影响交接，不因缺 ref 重跑实验或盲重发。新 recon session 只能从已确认交付物得到明确快照，不保证自动找到最新主本；本次不做 host 重启恢复、跨 run 记忆或双维护者合并（`product/opencode/agents/recon.md:33`；`apps/launcher/src/artifact-tools.ts:54,73–85`；`研究:37–39,148`）。
-
-### 3.3 B3：常驻极短骨架＋按需方法
-
-**已定：** `recon.md` 常驻内容只保留职责、停止／交回规则与记录约定，兼容现有工具、去敏和固定交付要求。方法细节放按需 Reference 或原生 Skill；不强制每题加载，不全文常驻，不新增角色或 knowledge-agent 层（`V1:43,113–123`；`研究:156–169`）。
-
-为切片 1 提供明确落点，本草案选择**一个聚焦原生 Skill** `product/skills/recon-investigation/SKILL.md` 承载方法。这是基于现有发布链的资产包装选择，不改变人类已定的 B3；不同时再建一套独立 Reference。选择理由：方法覆盖授权服务、附件、协议／数学结构的基线，不能假装现有 Web Skill 的适用面覆盖全部；skill/read 已授权且目录会被递归发布（`product/opencode/opencode.json:69–85`；`apps/launcher/src/launch.ts:94–103`；`研究:79–81,156–158`）。`recon.md` 仅给简短的按需入口，写作时可按既有产品资产语言风格处理。
-
-方法内容限定为：识别材料能证明什么；承接已有具体线索；提出一个可区分解释的问题；依据前提选择最小对照；解释观察与否定范围；更新剩余路线；判断继续还是交回。方法资产附来源、版本、适用／不适用条件，避免全领域分类树、固定扫描流程、payload 目录或题目答案触发词。若借用其他方法，其中“继续直到候选”的 Solver 目标不能覆盖 recon 的基线边界；研究只发现该文字张力，**没有证明 r11 读过该 Skill**（`product/skills/web-session-diagnosis/SKILL.md:38–44,56–60,72–78`；`研究:81,161–169`）。
-
-Reference **角色**与方法 Reference **资产**不同：简单知识读取由 recon 直接使用已授权 skill/read；确有需要时由 Coordinator 按需分派已有 Reference。recon 不获得 task 分派权，Reference 不获得目标网络／脚本／材料修改权（`product/opencode/agents/reference.md:7–14`；`product/opencode/agents/coordinator.md:23`；`apps/launcher/src/control-service.ts:25–31,952–962`）。
-
-### 3.4 职责边界及记录如何驱动交回
-
-recon 的交付是**有证据的基线＋可交接路线**：已知材料、入口／结构、必要低成本观察、支持路线的证据、反证和明确未解项。它可以做确立路线所必需的最小实验，但不把精确转写或深度解题循环当成基线完成条件。逐字形辨识、精确串转写、高解析分字／字型比对等核心深解归 Domain Solver；必要渲染或看图并非一律禁止（`V1:21–24`；`product/opencode/agents/domain-solver.md:7–18`；`R11:85–95`）。
-
-每次记录发生有意义更新时，recon 用其中的事实判断：本轮基线是否完成；剩余侦察区别能否改变路线判断；继续是否已进入 Solver 的求解责任。**基线已完成且剩余侦察路线耗尽／价值低，或者后续是 Solver 深解时，停止实验、固定已有材料并经原生 task 交回。** 不要求证明整题所有解法都穷尽。基线因能力／材料不足受阻且无证据支持的可行侦察时，同样交回“部分基线＋缺口”，不填造完成。
-
-还有高价值、范围内的基线问题时可继续，先消费已有具体线索；排序仅限本轮问题的调查顺序。整队路线、资源、换题和分派仍由 Strategy／Coordinator 决定，recon 不成为第二 planner（`V1:19–24,47`；`product/opencode/agents/recon.md:20–28`）。
-
-针对 r11 的行为对照：发现坐标编码与可视化路线后，补完必要基线，将已做对照、仍辨不清的位置类型与原始证据交 Solver；不继续以新文件名、裁切和方向变体追逐精确文字。也不把“已有第一张图”硬编码为所有题的退出条件，或规定所有题最多一张图（`R11:76–95`）。
-
-## 4. Host 兜底：延期且有条件（历史决策，后续以 §10、§12 为准）
-
-人类明确采用先结构、后按证据决定兜底。项目 L1 教训是 **prompt 单独不可靠**；这里已有交回提示仍被 r11 忽略，迁移记录也只确认先前 A+D 装配，不证明及时交回（`product/opencode/agents/recon.md:25–28`；`R11:99–110`；`2026-10-22-ctf-agent-current-state-and-migration.md:22`）。切片 1 的待验证价值在问题结构、持续记录、实际消费与职责边界，不能包装为“多写几句就保证执行”。
-
-**本切片不改 host。** 仅当切片 1 真实 run 显示结构＋记录不足，才进入有条件的下一切片：若基线／低价值判断已可得仍延迟交回并挤压下游，研究一个 per-recon 时间／步数 cap；若失败证据指向记录不可见或恢复消费入口不足，再考虑一个窄 A2 状态面。只补已证缺口，不自动并做两者。
-
-诊断中的 3–5 分钟建议是未实施的反事实估计，**不是本设计批准的 cap 值**（`R11:112–117`；`研究:72`）。未来兜底应先核实公开 OpenCode 接口、在途工具收束和可交回性；host 到点取消也不能冒称已完成交接。A2 如获证据支持，身份、引用、存储／可见性由 host 负责，语义判断仍归角色；仅一个状态面，不建 progress 与队列双主本、不选路、不重造会话循环（`V1:45,133–135,230`；`研究:138–150`）。本草案不预定其接口或实施授权。
-
-## 5. 排除红线
-
-| 人类用词／相关延伸 | 已定最小薄形式 | 明确排除的越界形式与依据 |
+| 欄位群 | 寫入者 | 保留內容 |
 | --- | --- | --- |
-| “排隊” | 主本内按调查价值排列本轮问题；可据新证据调整。 | A4 攻击图、DAG、自动意图生成、scheduler、worker 认领／重试系统。`V1:13,45,133–135`；`CLAUDE.md:58`；`研究:140,175`。 |
-| “記住已探索” | SQLite `recon_turns` 为调查主本；host 写机械事实，Recon 写简短解释；题后经验允许跨题持久与检索，见 §12。 | 不再禁止数据库或跨 run 经验。仍不把旧题事实当成新题事实，不把数据库恢复等同于恢复执行授权，不维护 Markdown／SQLite 双主本。 |
-| “去重” | 同问题、相同前提／状态下参考已试结论；复验有变化理由，区分 tested 与 refuted。 | 相同 URL／工具硬禁、语义匹配即拒绝。POST 改状态后再次 GET 是合法必要观察；不同参数也可能绕同一瓶颈。现有指纹仅观测。`apps/launcher/src/progress-ledger.ts:90–137,298–327`；`研究:46–49,146–150,178`。 |
-| “跨题积累／寫成skill” | 题后自动提炼带来源和适用条件的经验，SQLite 版本化保存，下题按需检索；不逐条人工批准。静态 Skill 仍按发布流程维护。 | 不把经验晋升为产品指令、可信验证或题目答案；不自动改写 Skill／权限。首版不需要向量库或独立知识服务；这属于选型范围，不是永久禁止。 |
-| “Reference 帮 recon” | 直接读已发布方法；必要时 Coordinator 问现有 Reference。 | 新 knowledge-agent 层、每题必经知识代理、给 recon 新委派权或给 Reference 原始实验权。`product/opencode/agents/reference.md:7–14`；`apps/launcher/src/control-service.ts:25–31`。 |
-| “recon 更自主／兜底” | 按问题调查基线，交回路线；host 仅后续按证据补资源／状态缺口。 | recon 第二 planner、深解转写循环、新监控／唤醒调度框架、自建 provider loop 或 OpenCode fork。`V1:19–24,45,133–135`；`AGENTS.md:16–19`；`product/opencode/agents/coordinator.md:30–38`。 |
+| `step_id, run_id, challenge_id, session_id, execution_ref` | host | 唯一身份與嘗試歸屬 |
+| `turn_no, message_id, call_id, sequence` | host | 模型回合、原生訊息、工具呼叫及穩定排序 |
+| `kind, visible_intent, tool, args_ref, args_shape, status` | host 綁定；可見意圖取自模型輸出 | 工具、decision、handoff 或 lifecycle 步驟；去敏參數形狀與執行狀態 |
+| `result_ref, result_sha256, result_size, original_complete` | host | 結果的位置、hash、大小與是否完整保存 |
+| `visible_observation` | 模型有輸出時保存；否則為 unknown | 模型在工具後明確寫出的觀察，不推導隱藏推理 |
+| `related_ids, evidence_refs, created_at, finished_at` | host 驗證並填寫 | 前後步驟、衝突證據與 artifact 關係 |
 
-真题驱动要求方法／机制服务已观察缺口，真实模型行为单独验收；不靠新增 fixture／gate、硬编题解或更大通用底座替代验证（`V1:29,39,93–95,176`；`CLAUDE.md:58–63`）。本设计不新增 OCR、视觉或精确转写能力，也不作此类能力声明。
+**完整步驟的含義：**
 
-## 6. StrikeAgent：历史借鉴与新增研究入口
+- 每個工具呼叫都有一列，按 `sequence` 穩定排序；不以最近 N 條代表整段調查。
+- 模型的工具呼叫與結果保持成對，續接、壓縮與新 session 都不得拆散。
+- 小型結果可直接保存；大型結果進出去敏 artifact，資料庫保存 `result_ref`、hash、大小與完整度。
+- 不得把目前 12,000 字元或 8 KB preview 當成永久完整結果，也不得靜默丟掉被 preview 省略的正文。
+- artifact 保存失敗時，記錄 `partial`、`error` 或 `unknown` 及失敗範圍，不能宣稱 `original_complete=true`。
+- 去敏造成的刪除要標記範圍；不能把刪減後的檔案冒充工具原始完整輸出。
 
-研究对象为 **Yean-Sec/StrikeAgent_AtkBrain-Flash**，研究固定版本 `7526baa7ea88de04b1900f04a06b13b77ab5682e`。**人类已确认这就是所指仓库（2026-10-29）**；仍只借下列原则、不把同名项目混为一谈，也不引用 stars 或宣传作为能力证明（`研究:84–112,126`）。
+模型不需要每次工具呼叫後寫 decision。decision 用於在跨回合時說明「看見什麼、判斷如何改變、下一步為何如此」；沒有 decision 時，完整工具結果與可見文字仍足以恢復過程。新 decision 以 `related_ids` 指向相關步驟，host 不把最後一條自動視為正確答案。
 
-2026-10-29 曾只采用以下三项原则；2026-10-30 已扩大到 SQLite 记录与经验提炼，新增研究和取舍见 §12.2：
+`ctf_recon_note` 是寫 decision／handoff 的窄入口；`ctf_recon_read` 與對應 artifact 讀取接口按 ID、範圍或 cursor 展開完整軌跡。工具成功不會自動生成語意結論，最終 handoff 也不能取代缺失的中間事實。
 
-- **稳定问题身份与证据版本分开**：同一问题连续记实验；输入／状态改变时保留变化依据，不因新图 hash 就宣称新问题，当时未新增 strategy_key 数据库；新设计允许数据库，但问题关联仍不能冒充语义等价证明。
-- **否定结论反馈**：将有范围的反证写回主本，在恢复和交接中实际使用；tested、无命中与 refuted 不混同。
-- **方法适用资产**：方法说明何时适用、不适用、如何区别解释及来源；不携题目答案；当时不做跨局检索的范围现由 §12 更新。
+**實施狀態（無模型）：** 本節契約已在產品實作並通過無模型驗收，證據見 [R3 記錄](../../gates/recon-context-interface-20261031/r3-complete-trace.json)。schema v2 可遷移 v1，舊列標 `original_complete=false`；參數與結果不再永久截斷，去敏後超過 16 KiB 的內容發布為固定 artifact，資料庫只存 ref、hash 和大小，經 `artifact.read` 可逐字節重建；去敏範圍有標記。每次呼叫一列，跨 session 的 `sequence` 穩定，重複事件冪等，終態單調。`ctf_recon_read` 對模型開放 cursor、`step_id`、`ids` 與 sequence 半開區間。發布或寫入失敗時，該步仍留一列 `error`、`complete=false` 的記錄，並暫停該題的新探索；closure 工具照常放行，但不會因此丟列。仍未證明：publication 登記只存在進程內，重啟後無法核對 unknown；模型是否實際讀取與使用軌跡；長題完整索引的開銷。
 
-仍不移植 Pi 运行时、攻击图、依赖调度、持久 frontier、red-team spiral 或 worker 平台；跨题经验积累已成为明确需求，不再作为排除项。外部静态机制存在不证明其效果优于本项目；本设计无需等待仓库消歧即可按已定 A1＋B3 编写，但任何进一步外部归因须先确认。
+---
 
-## 7. 切片计划：当前一片与条件去向
+## 4. 下一次模型請求如何消費歷史
 
-**2026-10-29 更新：slice 1 verified FAILED（r12）。** 下表及 §4、§8、§9 保留 slice-1 设计时的历史措辞，不再表示 slice 1 未部署或 host 仍须延期。r12 已部署短骨架和可选 Skill，但 skill/read 均为 0、workspace.write 为 0、未尝试创建主本、artifact.publish 为 0；Recon 仍有 95 model.call、66 jobs、51 次 view 尝试（49 成功），继续 render → view → adjust 字形循环。可选 Skill 未加载本身不违规，失败在必要记录、职责边界和可消费交接没有落地。约 29.5 分钟是会话生命周期；有效交回为 950.293 秒（15:50.293），其后约 818.720 秒为空闲，不能都算作探索。依据：下文 **R12:19–50,73–93,156–185**。这与 r11 再次印证 L1“约定／prompt 单独不可靠”；人类已选择 slice 2 的 **host-enforced recon bound＋修复发布交接＋可信预算可见性**，细节以新增 §10 为准。只批准本次设计草案，不构成实施或重跑授权。
+**決定：每次請求提供「完整可導航性」，不要求把所有歷史塞進單次 prompt，也不讓 host 以語意規則只挑它認為有用的舊紀錄。**
 
-| 切片 | 能力边界 | 何时停止／进入其他去向 |
+每個 Recon 請求至少包含：
+
+| 區域 | 內容 | 目的 |
 | --- | --- | --- |
-| **切片 1：当前唯一实施目标** | 约定层结构：`recon.md` 极短骨架＋一份按需方法 Skill＋A1 主本与交回／恢复约定。复用 workspace、artifact、task；无 host 改动，行为可由 run 核验。当前仅设计草案，角色和 Skill 尚未改。 | 完成资产／内容核对后，真实行为待独立授权 run；若结构有效就到此停止。不能因没有模型授权把静态通过写成行为通过。 |
-| **切片 2：有条件 host 兜底** | 仅在切片 1 run 证明及时交回仍失败时，研究 per-recon 时间／步数 cap 的最小职责。 | 先记录失败版本、条件、交回点及在途行为，再定范围；不预定数值、不自动执行。 |
-| **更后：确需才考虑 A2** | 只有证据说明私有 work＋已有交付不足以满足题内状态可见／恢复需要，才考虑一个窄 host 状态面。 | 先解释 A1 具体失败在哪里；不以未来“可能忘记”建底座，不引入跨 run memory。 |
+| 當前問題 | 本次要消除的不確定性、下游需求、本回合結束條件 | 保持方向 |
+| 完整步驟索引 | 所有步驟的 ID、序號、工具、狀態、指紋、結果 ref、完整度與分頁 cursor | 讓任何舊步驟可定位；索引過大時分頁 |
+| 最近完整步驟 | 固定規則選出的最近工具呼叫與完整結果，維持 tool-call／result 配對 | 避免模型為接續最近工作再次讀取 |
+| 當前狀態 | 在途 job、已發布 refs、預算、closure、未解項與 handoff 狀態 | 提供可信的下一步邊界 |
+| 可選 decision／handoff | 模型先前輸出的可見解釋 | 幫助跨回合理解，但不取代工具事實 |
+| 相關經驗入口 | 少量 lesson 摘要、版本、適用條件與來源 ref | 讓模型可評估、按需展開或忽略 |
 
-这是条件分流，不是预排长期 roadmap；本文件不展开后续实施步骤（`AGENTS.md:30–35`；`CLAUDE.md:21–25`）。
+**索引是機械導航，不是語意摘要。** host 可以排序、分頁、標記 tool／status／fingerprint，但不應以「關鍵 decision」「最近 8 條判斷」「18 KB 相關材料」等規則宣稱已代表完整歷史。每一步都要可達；不要求全部同時進入一次請求。
 
-## 8. 待答
+重複探索可見且可避免：
 
-仅余以下小问题，不重开 A1、B3、单一主本、职责边界或 host 延期决定：
+- Host 保存 URL、argv、頁面、檔案或請求的穩定指紋，並在索引與最近步驟中顯示先前同指紋結果。
+- 模型能看到「已試、結果、狀態、artifact ref」，再決定是否用新前提重測。
+- 不因重複指紋自動封鎖；若重測，模型應在可見意圖中說明前提、證據或不確定性有何變化。
 
-- ~~人类所指 StrikeAgent 是否正是 `Yean-Sec/StrikeAgent_AtkBrain-Flash`？~~ **已确认（2026-10-29）**：即该仓库，仅借 §6 原则，不移植平台。
-- 后续首个行为验证批次的具体授权参数：目标／初始状态、模型／provider、批次边界、token 上限及允许的续接／重试范围。恢复判据需要同批内同 task 续接观察；不默认多开 run 或启用压缩。本问题不阻止当前两份草案交付，未授权就不运行（`AGENTS.md:49–53`）。
+### 歷史保持追加式穩定
 
-## 9. 验收：看 run 行为，不看措辞命中
+目前插件會刪除舊 synthetic investigation context，並把新內容改寫進最近 user message。這使已完成歷史與公共前綴變動，且與「完整可恢復」不一致。目標契約是：
 
-| 判据 | 可核对的行为证据 | 不算通过的替代指标 |
-| --- | --- | --- |
-| 及时交回 | 按分派完成必要基线后，记录显示剩余侦察路线耗尽／价值低，或下一步属 Solver；recon 随即收束、返回基线与路线，Solver 实际得到可用材料与执行时间。用事件／transcript 对齐基线、发布、交回和下游开始，不预设所有题相同分钟阈值。 | 调用更少、宣称“已交回”、只发布未返回；或把首图等单工具结果硬定为基线完成。 |
-| 主本被维护并消费 | 有意义实验后实际更新同一问题记录；同 task 恢复先读记录，并在下一项选择、合理复验或交回中采用已有观察／反证。无恢复场景时此项记未验证。 | 文件非空、清单非空、读过文件但仍忽略结果；宣称已验证跨 run／崩溃恢复。 |
-| 调查有结构 | 能从问题追到区别性实验、实际观察及证据，再追到剩余路线判断；新视图／参数只有能区别解释才继续，tested 与 refuted 的边界正确。 | Skill 已加载、固定字段齐全或模板措辞命中；新图片数量等于新信息。 |
-| 下游可用与角色守界 | 原生返回有去敏摘要与真实 ref；授权接收者实际读到必要证据，保留歧义、未知和重试条件；精确转写／深解由 Solver 承担。 | 私有 work 路径冒充跨角色引用、快照固定冒充已消费；view 成功冒充 OCR／识字通过。 |
+1. 原生對話、工具呼叫與結果保持追加式歷史，不改寫最初 user 任務或已完成訊息。
+2. 每次只追加當前狀態增量；歷史狀態不重寫成另一份 user 訊息。
+3. 原生 OpenCode 循環與 compaction 仍管理上下文，host 不自建摘要模型或旁路循環。
+4. 若公開 hook 無法把狀態放在穩定位置，應報告接口缺口；回退不能是每輪替換首部任務或擴大預算。
 
-真实验证须沿用产品入口、保留版本、初始条件、知识／工具配置、失败及实际用量；usage 缺失记 `unavailable`。同批要求不能用不同 run 的局部成功拼接；r11 是失败对照，不是新版行为结果（`V1:93–95`；`AGENTS.md:39–43`）。
+**放置方案已定：append-only combo。** [放置驗證](../../gates/recon-context-interface-20261031/placement-validation.json)以 OpenCode `1.19.3`、58 次腳本化 localhost 請求及 0 次真實模型調用比較五種候選；只有 append-only combo 通過全部 13 項檢查，其餘候選均失敗。產品接線採用：
 
-静态审阅只证明约定一致、资产可发现／可读取；真实 run 才能证明本次角色行为，且不能自动外推效率、通用解题率、精确视觉能力或 solved。solved 仍按 V1 §1.3 的独立审阅与可信裁判整题完成判定。**当前交付只有两份审阅草案；无实现、无行为验收、无 challenge run。**
+1. `chat.message` 追加當前狀態，使首輪及顯式新回合可見。
+2. `tool.execute.after` 追加工具完成後的新狀態，不改寫已完成消息。
+3. `experimental.session.compacting` 把當前狀態加入壓縮輸出上下文；`session.compacted` 只用來清除該 session 的記憶體可見版本，使下一次需要時可重新追加。
+4. `experimental.chat.messages.transform` 不再增刪或替換消息內容，只可讀取 canonical message IDs，保留當前 user message 與背景完成消息的消費追蹤。
+5. 以 `sessionID + version` 去重；projection 失敗時直接阻止出站模型請求，不以舊狀態靜默降級。
 
-## 10. Slice 2：宿主约束、可消费交接与预算可见性（评审草案）
+這份證據只證明傳輸與配對契約，不證明自動 overflow compaction、provider prefix-cache 命中、token 收益或模型會理解並使用狀態。上述能力仍按真實行為驗證，不能由 hook 被調用替代。
 
-### 10.1 已定目标、证据口径与红线
+---
 
-人类已选定三个部分作为同一主题：限制 Recon 对全队时间的占用，限额内留出发布／交回窗口，使 Solver 真正取得固定证据，并让各角色看到宿主已知的预算。不是再次征询是否需要 host 兜底。§4 的延期条件已由 r12 满足；§8 的“host 延期决定”仅作历史记录。当前代码仍无本节新增能力。
+## 5. 及時交回、預算與停止邊界
 
-新增证据缩写（行号是本次只读工作区快照；未用 Git 核验版本或 dirty 状态，不能将当前代码冒充 r12 完整部署快照）：
+**核心規則：只有下一次實驗仍可能改變具體決策時，才值得繼續。** 決策可以是選路、排除假設、更換工具、請求換角色或交回。
 
-- **R12**：`/Users/caihaoming/Documents/pentest-agent-run-data/seizurecipher-debug-20261029-r12-recon-slice1/runs/seizurecipher-debug-20261029-r12-recon-slice1-1/recon-r12-diagnosis.md`。失败行为取自该诊断，未重算 transcript、未读 oracle 或输出答案。
-- **R12-state**：同 run 的 `state/run.json:35–39`，本次直接读取 budget：wallClockMs=1800000、maxSteps=3000、maxToolJobs=100、maxObservableTokens=5000000。这些是历史配置，不是本设计的新默认值。
-- **C**：`apps/launcher/src/control-service.ts`；**J**：`apps/launcher/src/job-tools.ts`；**P**：`apps/launcher/src/progress-ledger.ts`；**A**：`apps/launcher/src/artifact-tools.ts`；**L**：`apps/launcher/src/launch.ts`；**Plugin**：`apps/opencode-plugin/src/index.ts`。下文均为这些文件的 file:line 引用。
+### 派單必須消除一個具體不確定性
 
-红线：只在薄控制层已有预算／task 机制上做小增量；**NO scheduler / monitor / watchdog / wakeup / framework / DAG / planner**，不重造求解循环、不 fork OpenCode。保留 recon→solver 的同步 dispatch，不把 background 当作解决方案；现有 Verifier 的 background 规则不在修改范围。交接只用 artifact.publish/read，无新 transport、共享可写 work 或整目录自动复制。recon 不成为 planner；无 auto-evolving、memory、RAG。依据：`AGENTS.md:16–19,26–35`、`CLAUDE.md:21–25,58–64`、`V1:13,43–47,133–135`。宿主 cap 只改善**时间／资源分配**，不会提高精确字形转写能力；后者是独立轨道，不纳入 slice 2（`R12:143–150,204–210`）。
+Coordinator 不應只派「先偵察」，而應同時提供：
 
-### 10.2 当前链路：已确认的强制点与缺口
+- 當前要回答的問題。
+- 已有可信線索與相關步驟 refs。
+- 尚未驗證的路線。
+- 下游真正需要的材料。
+- 本回合結束條件與可用預算。
 
-| 链路 | 当前实现及证据 | 对设计的约束 |
-| --- | --- | --- |
-| 全局墙钟 | `L:204,227–229` 用 deadlineMs 覆盖值或 profile.wallClockMs，在 OpenCode 启动后计算 deadlineAt；`L:261–292` 既有循环检查 deadline 并 stopAll。`C:198–199,471–472` 根／子 binding 共享 expiresAt，`C:432–435` 每次 live 检查过期。 | wallClockMs 不是每个子任务的独立额度，也不是从 launch 最初一刻起计时；已有循环和准入点足以承载小扩展，不加计时服务。循环含 SDK await，不能承诺精确毫秒硬实时停止。 |
-| 模型步数／token | `C:40–45` RunBudget 只有 maxModelCalls/maxObservableTokens；`L:228` 将 maxSteps 映射到 maxModelCalls。`C:224–250,483–497` 在刷新 usage 后串行再检查，按全 run admitted 计 model.call；达到上限 stopAll。`C:344–350` 检查已观察 token。 | maxSteps 是 admitted model calls，不是工具数或 per-task turns；需另在已有 Execution 上归属当前任务轮次，不能从 assistant 消息数猜。usage 不完整不冒充实测全量。 |
-| 工具准入／执行 | `C:500–515` tool.before 检查权限和超时；`C:692–715` execute 再检查、按 session/callID 去重并登记 Resource；`C:717–754` 异步准备后检查 live，再启动真实 job。 | 新预算检查必须覆盖 before 和 execute，串行执行处只扣一次；异步等待后重查关闭／停止，不能只靠 prompt 或 before。 |
-| 绑定与同步任务 | `C:438–479` SDK 父子身份和原生 task call 关联后绑定；`C:519–566` 两种模式都建 Execution，sync 另有结果视图；`C:965–990` 续接校验所有权及 active execution。`C:995–1004,1096–1134` 可信终态结算及 syncDisplay。 | 用现有 Execution/Binding，不能另建任务平台；续接有新 Execution，不能借此重置同一 Recon 配额。 |
-| 发布／私有路径 | `C:911–914` work 映射到调用 session；`C:836–841` 普通 read 落到 readWorkspace；`apps/launcher/src/workspace-tools.ts:51–59,99–108` 路径缺失拒绝。`C:770–792,825` 发布／读取走 registry；`A:57–85` 固定 bytes、生成 ref、按 run/challenge 及 hash 核对并分页。 | r12 Solver 读 `work/points_from_lol.txt` 实际是在读自己的空 work，拒绝是隔离正确，不应放开 sibling work。 |
-| 预算可见性 | `C:585–589` 已在 progress.read 的 `completion.budget` 返回 admittedModelCalls、maxModelCalls、observedTokens、maxObservableTokens、deadline、stopped；`C:662–664` 仅 Coordinator/Critic 可读。`P:314–327` 本体是事件摘要、usage 与重复调用分组。 | 不是“host 没有预算接口”；缺少剩余量、任务归属和默认可见路径，Recon/Solver 不应为此获得全量进度日志权限。 |
+### 找到 flag 不是唯一完成條件
 
-### 10.3 最小 per-recon bound 与收束窗口
+Recon 在下列任一結果出現時即可交回：
 
-**已定行为**：探索额度耗尽先进入受限收束，不立即撤销 binding；收束仍允许整理必要记录、发布已有证据、原生交回。收束到期才停止该 Recon，保留已发布引用与未完成原因；不因某 Recon 耗尽局部额度就 stopAll 整队。全局 deadline、token/step 上限及显式停止始终优先，窗口不得延长总预算。`C:315–331` 的 stopChild 会 revoke、取消资源并 abort，`C:432–435,790` 随后无法 publish，因此**不能拿现成硬 stop 当软收束入口**（`R12:181–192,204–208`）。
+- 本輪問題已回答。
+- 確認入口與材料對應。
+- 排除一條具體路線。
+- 取得足以讓 Solver 開始工作的結構資訊。
+- 下一步主要屬於 Solver 或其他角色。
+- 路線受阻，或剩餘實驗價值低。
+- host closure、全局預算或截止時間要求停止新探索。
 
-**推荐的最小机制（待实施核验）**：优先以宿主计数的 model.call **步数上限＋预留收束轮次**落地；墙钟边界复用现有 deadline 检查，不要求模型计时。步数可确定性拦住无休止 render/view 变体，避免一开始就引入异步唤醒。若同时配置 Recon 墙钟上限，则在既有 `checkBudget` 调用及 admission 边界检查软／硬截止；不新增 timer loop。数值由单独预算配置决定，不在本文指定 cap 数字，r11/r12 的 3–5 分钟只是未经批准的估计。
+前三種由模型依證據判斷；host 要求收束時以 host 事實為準。兩種原因可以同時成立。「還有更多 URL、參數或 payload」本身不是繼續理由。
 
-1. **归属与防重置。** `Execution` 保存当前调用的 admitted turns 和收束事实；同一 run/challenge 的 Recon 额度由现有 host 预算持有并累计，复用或新建 Recon session 不重置。前者回答“当前任务几轮”，后者避免 Coordinator 通过续接／重开绕过上限。这是本文推荐的窄配额作用域，不给其他角色新增配额系统。首次 Recon 可信绑定时启用墙钟（若配置），后续保持原截止；不从 prompt 中采信 elapsed/remaining（`C:107,137,455–477,550–563,970–980`）。
-2. **窗口在总额度之内。** 设 Recon 总调用额度为 B、收束预留为 R，要求 0<R<B；探索最多 B−R 次，收束仍最多使用原 B 内的剩余调用。若采用墙钟，同样从局部总时间内扣除 closure 时间，并裁剪到全局 expiresAt；总／局部预算不足以容纳收束时明确拒绝继续探索或直接报告不足，不虚构“保证交付”。不硬写 B、R 或分钟值。配置只允许宿主装载，不由 Coordinator 自增。
-3. **强制内容是工具能力，不是语义判卷。** 收束期间禁止新的 job.run、http.request、workspace.view、搜索／diff、skill/read 等继续探索入口；仅保留本会话 workspace.list/read/write、已有 job.read/cancel、artifact.publish/read 和最终文字交回所需模型调用。写权限仍限私有 work，发布仍按原权限、大小与完整性规则。不给 job.run “最后一次处理”的例外，否则可继续同一循环。准入在 `C:483–512,692–715` 重查；收束事实通过 §10.6 的现有返回路径展示。不判断字形、路线价值或文本是否真的总结。
-4. **在途工作。** 已准入 job／HTTP 不在切换软边界时假装完成；复用 Resource deadline/controller，执行前在异步等待后重查，最多运行到局部硬截止与全局 deadline 的较早者。已进入收束但资源未 settled 时，不能发布它的 job 流（`J:146–152`）；返回已有材料及该缺口。文件快照不会把未知 producer 升级为可信 producer（`C:773–779`）。
-5. **已有同步结束路径。** 收束正常返回沿用 `toolAfter`／`settleSync`；空正文、length、未知来源仍按既有 completeness 分类，不能因为 cap 命中改成 complete。硬边界复用局部 stopChild 及取消路径并保留 unknown；父 Coordinator 应得到局部 stop 原因和可确认 refs，不得只见无信息 abort。全局仍可运行时由原生同步 task 解除等待后继续（`C:995–1004,1096–1134`）。
-6. **提前固定，避免空手。** 不把所有发布延后到最后一轮：有首份可用基线就发布必要快照，收束时只补已改变材料及简短记录。host 能保证不再准入探索、保留窗口和已确认 ref；**不能保证模型在窗口内一定写完或自然语言总结正确**。若窗口内仍无可消费产物，记 slice-2 交接行为失败，不把止损当验收成功（`R12:93,158–162,189–192`）。
+交回至少說明已建立什麼、排除了什麼、仍未知什麼、下游需要哪些 refs、建議下一步是什麼。重派或續接可以接受，但要帶新證據或具體缺口；同題預算跨 execution、session 累計，重派、續接與 compaction 都不退款。
 
-**窄技术待验证点**：一次已经发出的 model.call 可能跨过软截止；当前 chat.params 只限制 maxOutputTokens（`Plugin:148–152`），没有证据证明可中断推理后继续同一同步 task 收束。故推荐首落步数预留：在下一轮调用前进入收束，并保留全局硬 deadline；它是步数约束，不宣称严格局部墙钟 SLA。若人类要求严格局部墙钟且在途模型也必须获得完整 closure，需先核实原生公开接口能否安全完成；不默认切 async、不暗加唤醒／自动续接。既有循环检查包含 `refreshObserved`、SDK status 等 await（`C:345–347,413–423`；`L:261–292`），其时延也不能忽略。
+### 預算分層
 
-### 10.3b DESIGN UPDATE：自然交回优先，显式高上限仅作异常兜底（待人类评审）
-
-**状态与替代范围（2026-10-30）**：本节是设计草稿，不是实施或真实运行授权。保留 §10.3 原文作为历史依据；本节建议取代其“统一的固定调用阈值适合作为常规 Recon 收束时点”的使用方式，以及其中把步数 cap 等同于及时交回的预期。保留 B/R 配置、局部 closure、可信计数、同题累计、全局预算优先及独立局部停止的边界。**不是否定所有固定数值上限：否定的是跨题一律用紧阈值来决定何时结束正常侦察。** 以下只涉及预算、准入与生命周期，不解读任务内容。
-
-#### 证据与统计口径
-
-本节源码引用使用本次读取的仓库行号，简称 **CS**=`apps/launcher/src/control-service.ts`、**RP**=`apps/cli/src/composition/releaseProfile.ts`、**Schema**=`config/release-profile.schema.json`。历史 §10.2–10.3 的 C/L 行号不作为当前实现行号。
-
-审计根目录为 `/Users/caihaoming/Documents/pentest-agent-run-data/`；三个 run 的相对目录如下，每个目录下 **A** 指 `evidence/control-audit.json`，**S** 指 `state/run.json`：
-
-- **r13**：`seizurecipher-debug-20261029-r13-recon-cap/runs/seizurecipher-debug-20261029-r13-recon-cap-1/`。
-- **r14**：`mfw-debug-20261029-r14-recon-exploit/runs/mfw-debug-20261029-r14-recon-exploit-1/`。
-- **r15**：`throwback-debug-20261029-r15-recon-exploit/runs/throwback-debug-20261029-r15-recon-exploit-1/`。
-
-计数为对各 A 的完整 JSON 数组筛选 `role == "recon"`，分别统计 `op` 和 `allow`；HTTP 为 `op == "tool.before" && detail.tool == "ctf_http_request"`，发布为 `op == "artifact.published"`。不把 tool.before 等同于执行成功、HTTP 成功或网络请求实际完成；不读取参数、响应、产物正文或候选内容。时间为审计 `at` 差值，不是模型推理耗时。下表每行来源即相应 A 全量计数，定位锚点另列。
-
-| run | 生效 cap | model.call 准入／拒绝 | tool.before 准入／拒绝 | HTTP tool.before 准入 | artifact.published | 首末模型准入跨度 | 首模型准入至交回记录 |
-| --- | --- | --- | --- | --- | --- | --- | --- |
-| r13 | B=35，R=10；S:40–47 | 28／0 | 40／1 | 3 | 5 | 120,310 ms | 132,367 ms |
-| r14 | 两字段缺省，OFF；S:37–42 | 14／0 | 23／0 | 11 | 3 | 86,320 ms | 97,723 ms |
-| r15 | 两字段缺省，OFF；S:37–42 | 142／0 | 189／0 | 127 | 1 | 751,492 ms | 768,708 ms |
-
-三个 S 的全局配置相同：wallClockMs=1,800,000、maxSteps=3,000、maxToolJobs=100、maxObservableTokens=5,000,000（r13 S:41–44；r14/r15 S:38–41）。这些是历史预算，不是本次授权或新默认值。
-
-- r13 A seq **41–298** 为首末 Recon model.call；seq **248** 为第 24 次 exploration，**255** 为第 25 次 closure，**257** 拒绝一次探索 tool.before，**297** 为第 28 次 closure；seq **300** 的 `task.result` 为 `finish=stop, completeness=complete`。这证明局部 closure 后仍能交回；28<35，**没有覆盖 B 耗尽硬停**。最终 S:3 为 deadline_exceeded，不把局部交回说成整场成功。
-- r14 A seq **46–177** 为首末 model.call；seq **179–180** 为同步结束／结果，`state=completed`、`finish=stop, completeness=complete`。无 cap、无 Recon 拒绝记录，自然交回发生在 14 次准入后。
-- r15 A seq **45–1132** 为首末 model.call；seq **1134–1135** 为同步结束／结果，`state=completed`、`finish=stop, completeness=complete`。无 cap、无 Recon 拒绝记录，自然交回发生在 142 次准入后。seq **1595** `completion.saved` 的机械结果为 `state=confirmed, sent=true, solved=true`；只引用结果状态，不解读提交内容，不把 S:3 的 completed 单独当 solved 证据。
-
-**结论及限度**：r13 的窄阈值成功触发收束；r14/r15 在无 cap 时均能自行交回，调用量却相差约十倍。若把 B=35/R=10 套到 r15，按现有逻辑第 25 次准入后就会禁止继续探索，无法保留所观察到的 142 次自然轨迹；“可能因此失去 solve”是反事实风险，未经重跑证明。三例支持放弃统一紧阈值，不能证明所有题都会自然交回，也不能从计数判断哪一轮语义上已无收益。把 r13 视为已知过跑场景是本次人类提供的任务背景；这里不通过内容分析重新判定病态。
-
-#### 当前机械契约与薄层约束
-
-当前 `admit` 先检查全局预算，再按 Recon 累计准入加一：`n>=B` 标 exhausted，否则 `n>=B-R` 标 closure（CS:498–522）。因此第 B−R 次已是 closure，第 B 次可完成文本交回，但下一次受检查的模型／工具入口才走 `checkReconExhausted`；不能写成“B−R 次探索全部执行完后才收束”或“第 B 次立即中断模型”（CS:540–550）。
-
-`reconQuota` 只对已配置两字段的 Recon 生效，并以 challengeId 在当前 service/run 内累计；execution 单独记数，同题重派不退款（CS:509–537）。`checkReconTool` 的 closure 白名单为 workspace.list/read/write、job.read/cancel、artifact.publish/read；探索被拒绝但保留发布出口（CS:553–564）。硬停保存已发布 refs 和 unknown result facts，走 stopChild；局部 cap 不调用 stopAll（CS:540–550）。全局 token/step 耗尽仍有自己的 stopAll，不能因“never stopAll on closure”删除它（CS:359–366,498–506）。
-
-**约束／设计决定**：host 只使用可核验的 model.call 数、经过时间、tool.before 数、规范化工具调用指纹、发布计数、拒绝计数；这些都不等于覆盖度。是否已映射足够范围、是否继续调查、材料是否有价值由 Recon／Strategy 判断。不得把路径、页面、产物数量或模型自述包装成 host 的覆盖评分；不得让 host 阅读正文判定“有无新知识”。这沿用 host 负责身份／预算、模型负责选择／解释的职责（`AGENTS.md:16–20`），也是本次明确约束。
-
-#### 选项与取舍（均为设计候选评价，不声称已验证）
-
-| 选项 | 对三例的机械影响 | 代价与风险 | 决定 |
-| --- | --- | --- | --- |
-| (a) 宽松／弹性预算，按类型或 run 配置 | 事前给已知过跑 run 紧 B；给未知／大调用量 run 高 B，可同时容纳 r13 的紧约束与 r15 的 142 次轨迹。现有 RP:11–13,53–58 已支持每份 profile 提供 B/R。 | 谁分类、谁加预算必须明确；host 自动按“web 大小”分类会越界。随指纹／发布自动扩额可能被变体无限续费，还需新状态。 | 只采用**运行负责人事前显式选 profile**；首切不加类型分发表、运行中扩额或新配置层。 |
-| (b) 连续 N 次准入无新发布且无新指纹则 closure | 能捕捉完全重复调用，但只有 1 次发布的 r15 说明“发布稀疏”本身不能代表停滞；本次未计算连续无新指纹窗口，不能宣称此规则能区分 r13/r15。 | 合法长分析／重试可能误触；改参数、nonce、路径或重复发布可逃避；规范化过强又误合并。工具成功／新指纹也不表示语义收益。 | 不纳入首切。若以后有明确误跑证据再研究，至少需要显式 N、宽松最小启动额度、在途 settled 的窗口定义和独立最高 B；不得以语义评估修补误判。即使加这些边界也不能消除误伤。 |
-| (c) 自然交回为主，固定数只留作高异常上限 | r14 的 14、r15 的 142 都不应接近 closure；r13 仍可显式用历史紧配置。现有状态机足以执行。 | 对未事先识别的过跑，止损更晚；高 B 不能保证先于全局墙钟/token 触发，也不能保证任何规模的正常任务都不被截断。 | **推荐最小形式：(c)＋(a) 的事前人工配置。** 不建立自动弹性或收益代理。 |
-
-时间触发也只是机械兜底：三例首调用至交回分别约 132／98／769 秒，统一短时限同样可能截断 r15；调用跨度不能推导可泛化时间限额。首切不增加局部计时器、监控、唤醒或严格墙钟 SLA，沿用已有全局 deadline（本节审计计时；§10.3 最后段）。
-
-#### 推荐最小契约与首切可实施边界
-
-1. **未配置仍 OFF/unavailable**，既不填隐式高默认，也不保留隐式 35。两字段要么都缺省，要么是满足 `0<R<B` 的安全整数；沿用 RP:53–58 与 Schema:23–35。OFF 只关闭局部 Recon cap，不关闭全局预算。
-2. **配置负责人是运行负责人／人类，不是 Recon、Coordinator 或 host 分类器。** 在 run 前按允许成本、历史机械计数与目标范围选择既有 release profile；未知规模可保持 OFF，若需要兜底则明确给高 B/R。不得因高 B 自动提高全局预算，不得运行中重置／扩额；同 run 多题当前共享同一配置数值、各题独立累计，不新增每题 override map（CS:525–537；RP:11–13）。
-3. **供评审的显式宽松配置示例为 B=512、R=10，closure 点 502**：502 约为已观察最大值 142 的 3.54 倍，给出显著余量；保留历史 R=10 避免同时改两种策略。512 是候选工程余量，不是三例估计出的最优值、生产默认或本次真实调用授权；R=10 也未证明普适。历史 B=35/R=10 仅作已知过跑场景的显式选择，不作为通用模板。这些值只进入显式配置／测试输入，runtime 不硬编码。以后不同预算可换值而不改程序。
-4. **closure 公式不另造**：仅当已配置且累计 n 达到 B−R 时收束，B 为最终局部上限；自然交回可发生在任意更早时点，不等待凑满配额。阈值表达的是预算压力，不是“已经侦察充分”。本推荐实质是改变 cap 的使用政策和配置量级；当前 CS:509–558 已能执行，不为制造代码差异另加 mode、阈值函数、计分器或 scheduler。首个实施切片是澄清配置语义并用现有入口验证高配额、紧配额、OFF 三种行为；若原谓词完全满足，不要求修改它。
-5. **保留 closure 与硬停出口**：准入／工具入口及异步重查不得绕过；同题换 session／重新派单不重置。局部 closure 或耗尽绝不 stopAll；父任务得到真实状态、可确认 refs 与局部原因，abort 不确定保持 unknown。并发限制及 maxToolJobs 不变。全局 deadline/token/step 仍优先，不能保证剩余预算一定足够 R 次交付。
-6. **硬停证据严格分层**：本次只读发现既有无模型用例覆盖 B 后拒绝、只 abort 本 child、stopAll 未调用及 unknown 传播（`tests/contract/slow-tools.test.ts:94–144`）；本次未执行。r13 止于 28<35，r14/r15 未配置 cap，三例均未验证真实模型达到 B 的硬停分支。首切可做无模型边界回归，仍须把真实硬停标为未验证；不得以测试通过或正常交回代替它。
-
-本节不改变已有章节的其他交付项，也不恢复历史待办；所有实施／模型运行均待另行授权。本次仅写设计与单步计划供人类评审，无产品修改、git、网络或挑战运行。
-
-### 10.4 修复 Coordinator→Recon→Solver 的发布与消费链
-
-**诊断事实与文本来源分开。** `R12:156–162` 记录实际分派分别要求 Recon“不自行发布产物”、Solver“不发布产物”，随后传私有 work 路径，seq 816–819 拒绝且 publications.json 为空。当前 `product/opencode/agents/coordinator.md:20` 反而明确同步／背景均可发布；`:40–43` 的 ref 交接主要写成“给 Engineer”；`:25–31` 的 recon/solver 分派要求未明确落实上游产物消费。因此不能声称仓库 prompt 存在一条可直接删除的“不发布”原句，也不能证明仅改 wording 就会改变模型行为。
-
-**已定交接契约**：
-
-- Coordinator 的派单不能覆盖来源角色的发布职责；“不提交裁判／不做 package”不得写成“不发布 artifact”。Recon→Solver 同样执行真实 ref 交接，不只 Engineer 路径执行。`product/opencode/agents/recon.md:20–24`、`domain-solver.md:30–34` 已有发布契约，修订时保持一致。
-- Recon 在本 session 完成写入／job 后选**下一角色确实需要**的材料发布：已提取的结构数据、来源／基线说明、去敏主本快照，以及确实有用的结构图。不是每题固定文件清单、不是把 94 个文件全部打包，也不强制一张图代表基线完成。使用 `artifact.publish({source:"file",path:"work/..."})` 或现有 settled job／HTTP 来源；host 产生 ref 和 hash（`C:770–792`；`A:57–69`）。
-- 原生 task 交回只带真实 ref、用途、必要提取说明、覆盖范围及未知；Coordinator 原样转交 Solver，不猜 hash、不自造 ref。缺 ref 时明确“材料未交付”，可在剩余额度内请求原 Recon 仅发布已有文件，不能把私有路径冒充输入或默认重跑实验；传输状态未知遵守既有暂停／不盲重发规则。
-- Solver 用 `artifact.read({ref,cursor})` 分页读到需要的 bytes，完整读取要求到 done/nextCursor=null；图像可用发布返回的 path 经既有 workspace.view 查看，不能把 base64 文本当视觉输入。读取可信 ref 与实际消费分开记录；需要本地加工时只在 Solver 自己的 work 写必要派生文件，不另建传输机制（`A:73–85`；`C:825,843–858`；`Plugin:124–126`）。
-- 原始来源缺失、被篡改、异题 ref 必须继续拒绝；文件 producer 未知仍保留 execution:null／originalComplete:null，不借本次交接补造来源（`A:73–78`；`C:773–779`）。Solver 后续交 Engineer 的候选／最小复现证据仍沿用原发布契约，不在此新增候选整理／验证流程。
-
-这是首个推荐实施切片：**修正派单契约并以现有真实 artifact 通道验证跨角色消费**。只加 cap 会把“晚交回但无 ref”变成“早中止但无 ref”；先让局部结束有交付出口，收益直接对应 seq 816–819。这个切片的无模型测试证明接线，不证明模型会遵守；它不替代 §10.3 的 host bound，也不单独宣称 slice 2 完成。
-
-2026-10-29 first cut 结果：三份角色约定已对齐，`d-artifact-handoff.test.ts` 经真实同步 task 准入／SDK 可信子绑定建立 Recon Execution，以真实 ArtifactPublisher 发布非秘密 32773 bytes，经 Coordinator 的原生 task 结果／输入转交原 ref，Solver 在空私有 work 下两页 artifact.read 重组相同 bytes；原文件修改后的快照固定、私有路径、伪造／异题／损坏 ref 拒绝均通过。只替换 SDK 身份／消息事实，无预置 publications／bindings，不运行解包／渲染 job。此结果验证控制链和 bytes，不验证真实模型会遵守约定，也未新增图像能力或验证视觉判读。
-
-### 10.5 maxToolJobs：当前为未接入，最小补齐全 run 累计准入
-
-`R12:172–183` 已排除重复事件计数：134 个不同 callID 的真实 job.run，第 101 个在 seq 1147 仍准入。当前源码进一步定位：
-
-- `apps/cli/src/composition/releaseProfile.ts:11,47–49` 读取并校验 maxToolJobs；`R12-state:35–39` 保存了 100。
-- **`L:228–229` 创建 ControlService 时只传 maxSteps 与 maxObservableTokens；`C:40–45` 根本没有 maxToolJobs 字段。** `C:692–715,754` 也没有全局累计 job gate。
-- `J:15–16,177–180` 仅对尚未 settled 或清理未知的 job 限制每 session 2、每 challenge 8；与配置中的 100 无关。settled job 释放的是并发容量，不是一个错误重置的 maxToolJobs 计数器。
-
-因此，**当前代码证实配置未绑定到累计执行准入**；不是 per-session=100，也不是 maxToolJobs 的并发语义或已存在计数器的生命周期 bug。该静态根因与 r12 现象一致；未逐字对照 r12 全量部署源码，保留这层版本归因限制。
-
-推荐修复语义：maxToolJobs 是同 run 所有角色／题目累计的 **job.run 准入上限**，独立于并发限额。由 launcher 传入既有 RunBudget；在 `prepareSolver` 的串行状态变更段、验证身份与唯一 callID 后、任何异步启动前原子检查并消耗一次。tool.before 只预检，不扣第二次；execute 不能绕过；job.read/cancel、发布和读取不扣 job 数。已准入但启动失败／取消仍计消耗，明确叫 admitted jobs，不冒充成功进程数，不回退计数、不靠新 session 重置。这样不需要另一套 reservation 生命周期（依据 `C:189–190,229–252,692–709`）。
-
-到达 N 后第 N+1 次应拒绝、无 spawn／无新 job handle；同时到达的两个调用不能都越界。耗尽 job 配额只禁新 job.run，**不自动 stopAll**，否则再次封死 artifact.publish 的收束出口；现有全局时间／模型／token 上限照常约束其他调用。返回明确的 job-limit 原因和 remainingJobs=0。此处是拟议契约，不是现状描述；不提高 100 来掩盖问题，也不顺带修所有 budget 校验器。
-
-2026-10-29 first cut 结果（上述“当前／拟议”为接线前诊断）：launcher 已将既有 profile.budget.maxToolJobs 传入 RunBudget；ControlService.prepareSolver 在 handle 的 serial 状态段、身份／唯一 callID 与既有参数检查后、任何异步准备／spawn 前检查并累计 admittedJobs，tool.before 只预检不计数；所有角色／题目共用一次 run 计数，不回退。拒绝经现有 RPC 的消息返回 `denied: job limit; remainingJobs=0`，没有新句柄，不 stopAll；read/cancel／发布／读取和同步交回不扣 jobs。RunBudget 未配置时为 unavailable（job.run 预检同名字段），不补默认、不实现 §10.6 快照。真实 JobManager 并发 2/session、8/challenge 不变。
-
-验证条件与版本：`codex/recon-slice2`；ControlService SHA-256 `ecdca0116c8372d33deffea0e54d451d0364dde8d97e2d80c10b4ac910b36160`，launch `c3dc40f7078e30fea546c38517eb5ec1463041aae55d70c4f090d1f6f601e064`。既有 `slow-tools.test.ts` 新增六例覆盖跨角色／题目累计、末名额并发和异步准备竞态、身份／callID、无退款、耗尽后出口、0／未配置；原并发测试在已配置累计额度下保留。`npx tsc --noEmit`、build、deterministic（40 文件／615 测试）、全套 npm test（51 文件／657 测试）均 exit 0；首次沙箱回环监听 EPERM／HTTP 超时后，在允许本地回环的环境验证，无外网／provider／challenge run。无独立 review；只证明机制可用，不证明真实 Coordinator／Recon／Solver 行为或完整 slice-2，§10.3、§10.6 不在本次范围。未发现须越界修复的产品缺陷。
-
-### 10.6 窄可信预算信号：复用 progress 与工具返回
-
-由 ControlService 用同一准入计数／deadline 生成小快照，不另建 state framework，也不从模型文字或 progress 事件回算预算。建议字段含义如下（名字可在实施时与现有类型对齐，语义不可省略）：
-
-| 字段 | 来源／边界 |
+| 層級 | 作用 |
 | --- | --- |
-| sampledAt、remainingMs | host 当前时间及 max(0, expiresAt−now)，明确这是采样时全 run 剩余时间，不是模型收到时仍精确有效。 |
-| admittedJobs、maxToolJobs、remainingJobs | §10.5 唯一累计准入计数；未接线前不能伪造 remainingJobs=100。没有配置／实现时标 unavailable，不写 0 表示耗尽。 |
-| currentTaskTurns、taskRemainingTurns、phase | 从已绑定当前 Execution 的 model.call 准入取数；Recon 的探索／收束阶段由 host 判定。Coordinator 无子 execution 时用 null，不把全 run admitted 当当前任务轮次。 |
-| taskRemainingMs | 只有配置局部墙钟时才可计算，未配置用 null；与全局 remainingMs 分开。 |
-| stopReason／restrictionReason | 全 run stop、当前 task 收束／上限、job-limit 分开；限制新 jobs 不等于整个 run stopped。没有停止为 null，保留 unknown，不推断 solved。 |
+| 全局牆鐘、token、步數與 `maxToolJobs` | 整個 run 的硬上限；`maxToolJobs` 跨題累計，達到後只拒絕新的 `job.run` |
+| 原生工作回合 | 限定當前問題這一回合還能做多少工作 |
+| 按題 Recon cap | 對異常過跑的額外止損；未配置時關閉，不偷偷補預設值 |
 
-暴露路径必须真能进入模型可见内容：
+若配置總額度 `B` 與收束預留 `R`，必須滿足 `0 < R < B`。累計准入達到 `B−R` 時進入 closure，達到 `B` 時 exhausted。具體數值屬運行配置，不是普遍常數。
 
-1. 保留 `progress.read` 原有 `completion.budget` 兼容语义，增加以上小快照；`P:314–327` 只投影，权威数值仍由 C 提供。Coordinator 分派／续接前应读真实预算，不再写“deadline unknown”代替可得事实。但不能只靠它主动读 progress，r12 已证明它可能不读（`R12:185`）。
-2. 在现有受管工具成功返回及受控预算拒绝中附小快照，使 Recon/Solver 每次工具边界都收到；保持工具原字段、分页、图像 attachments 完整。`Plugin:124–126` 把一般返回 JSON 化，workspace.view 则直接返回 ToolResult，故图像路径要把预算加进可见 output，不能只藏在未渲染 metadata。
-3. 原生 task 起始／同步交回也展示同一快照，复用 `chat.message` 的 synthetic text 与 `tool.execute.after` 已有事实展示点（`Plugin:138–140,166–168`）。预算是 host 附加事实，不采信 Coordinator 自报值；不新建通知／唤醒机制。仅在 model.call 的 RPC 结果多一个字段不够：`Plugin:148–152` 目前只使用 maxOutputTokens，模型不会自动看到那个字段。
-4. 不给 Recon/Solver 开完整 progress.read 权限；不暴露其他 session 私有 work、凭据、候选正文、完整 argv 或推理。旧 progress ledger 仅按需要记录预算阶段／拒绝事实，不成为第二计数源（`C:662–664`；`P:194–215,257–283`）。所有 await 后停止检查仍保留。
+預算不能只夠探索，至少還要容納整理證據、發布 snapshot、寫 handoff 與父級解除等待。並發角色共用同一筆原子預留。硬停若早於有效 handoff，建立 partial／failed 記錄並保留已保存步驟與 refs；預算耗盡本身不是「調查充分」的證據。
 
-### 10.7 行为判据、真正待决项与授权
+### Closure 是停止入口
 
-整体 slice-2 验收必须同时看到：host 在参数化探索边界拒绝新探索、窗口内仍能发布／读取／交回；局部耗尽不误停 Coordinator/Solver；同题续接不重置 Recon 配额；同 run 跨 session 第 N+1 个 job 被拒且没有 spawn；真实 refs 经同步任务交到 Solver 并被读取；不主动读 progress 时仍能在既有返回看到可信预算。需要覆盖 in-flight／异步准备竞态、收束空正文、hard-stop 未确认和全局 deadline 优先。只取消成功、工具返回 200、测试全绿或本地文件存在都不等于完整交接，更不等于 solved。
+Closure 禁止新的 `job.run`、HTTP、workspace view／search／diff 與 Skill read；仍允許 `workspace.list/read/write`、讀取或取消既有 job、artifact publish／read、decision／handoff 與最終文字交回。這樣可以收尾而不封死交付出口。
 
-真正待决仅为：
+在途工作不因軟邊界自動寫成完成。每次 closure 都要核對呼叫數、已觀測 token、在途預留與剩餘時間；硬停要保留原因、可確認 refs 與 unknown。預算只存在於 progress JSON、RPC metadata 或控制台不算有效；模型至少要能從工具回傳、上下文或原生 task 看到。
 
-- **数值授权**：Recon 总额度／closure 预留及任何局部墙钟值未批准，不能把 3–5 分钟当默认。配置参数化可先做无模型验证；真实批次前必须确定。
-- **局部墙钟严格程度**：推荐先采用步数上限＋收束轮次；严格墙钟且要求中断中模型仍能收束的接口可行性尚未证实，按 §10.3 的窄验证处理。若必须改 async 才可行，返回人类评审，不自行切换或新增调度。
-- **真实行为批次**：目标、模型/provider、token 总上限、批次及续接／重试范围尚无新授权。确定性测试不能替代 r12 原失败链的真实行为验收，也不新开题目来逃避它。
+r16 A 是反例：Recon 准入 31 次、88 次工具，仍沒有 decision 或 handoff，最後由全局預算停止。完整軌跡若已存在，至少應讓下一回合看見已試步驟與剩餘預算；但它不能代替模型作出交回判斷。
 
-草案形成阶段只编辑本设计并新建指定单步计划，当时没有产品实现、测试运行、联网、Git 或挑战运行；该阶段只做代码／证据自检，不冒称独立 review。随后获准的 first cut 结果限 §10.4／§10.5 上述记录，不表示批准或实现其余机制；父 design 入口及涉及后续 host 限制的措辞留对应范围处理。
+---
 
-## 11. 交回判断：四种原因与“消除具体不确定性”（人类提出，2026-10-30）
+## 6. 固定交接、快照消費與恢復
 
-### 11.1 问题
+**交付鏈固定為：完整過程軌跡 → host 固定 snapshot／manifest → Coordinator 轉交 ref → 同一消費者讀取所需版本 → 可恢復。** 私有 work 路徑、聊天片段與猜測 hash 都不在交付鏈上。
 
-现行 `recon.md` 与 recon-investigation Skill 已有“基线完成、偵察低价值或下一步属 Solver 即交回；受阻交部分结果”，但判断落在“高价值／低价值”上，没有参照物。r11／r12 Recon 都把逐字形试探当成“仍有进展”；r13 Recon 把有限 GET 与源码阅读概括成“无其他攻击面”。本节把停止判断改写成可对照的四种交回原因，并给“价值”一个参照：**是否帮助回答本轮问题**。
+### 材料與快照
 
-本节的停止判据仍是模型语义判断，不引入 host 语义判卷；原“不新增 schema／字段”仅适用于本节的判断机制，§12 已明确允许持久化所需的数据结构和身份／来源校验。host 仍只负责 §10.3／§10.3b 的预算收束。
+Recon 應在調查過程中盡早發布之後真正需要的結構化結果、基線、去敏資料、圖或表。handoff note 保存後，host 依聲明範圍凍結完整終態，不能只取截止 row ID 而漏掉稍後完成的在途記錄。
 
-### 11.2 四种交回原因
+快照索引列出：
 
-| 交回原因 | 判断依据 | 交回什么 |
+- 來源 run／challenge、範圍、首尾 step、版本、在途 ID 與終態。
+- 分片、大小、hash、完整度、缺頁與 unknown。
+- 每個分片的 cursor 與讀取方式。
+
+超過單 artifact 上限時分頁，不靜默丟棄超大單筆記錄；索引自身超限要如實失敗。running 仍寫 running，無法判斷寫 unknown。「完整」只表示聲明範圍內當下可確定的狀態已收錄，不表示工具已結束或問題已解決。
+
+### 什麼才算消費
+
+下游使用 `artifact.read({ref, cursor})` 讀取同一版本的正文。若聲稱完整消費：
+
+- 必須是同一消費者讀完它需要或聲明要讀的全部正文頁。
+- 必須看到 `done=true` 或確認沒有下一頁。
+- 只讀索引、只讀一頁、不同角色各讀一部分，都不等於該消費者完成。
+- 可接受明確子集，但必須列出未讀範圍。
+- 圖片經 `workspace.view` 形成模型可用視覺輸入才算看見；把 bytes 包成 base64 文字不算。
+
+讀取結果要區分 `index_received`、正文已返回範圍、`remaining` 與 `done`。跨分片 cursor 由 host 計算，頁界盡量保持記錄完整；缺頁、損壞、異題與舊版本 cursor 都拒絕對應讀取。host 即使確認檔案 hash 正確，也不能推出模型已消費正文。
+
+r16 B 正好證明「固定發布不等於消費」：30 行、51,044 bytes 的快照雖然成功發布，Solver 只收到索引，Verifier 只讀第一個 32,768-byte 正文頁且得到 `done=false`。本設計要求同一消費者續讀同一版本，或在交回中明確宣稱只消費了哪一頁。
+
+### 失敗與恢復
+
+- note 已保存但導出失敗時，回傳 note ID、partial 與失敗範圍，允許 Recon 停止，不重開調查。
+- publication intent 已持久化但結果未知時，保持 unknown；核對前不能自動重發兩個不可解釋版本。
+- 輸入 ref 竄改、來自異題或 hash 不符時拒絕。
+- producer 或 `original_complete` 不確定時繼續保留 unknown。
+- 同一原生 task 可繼續自己的 work；新 session 按 run／challenge 讀取完整步驟、固定 snapshot 與 artifact refs。
+- 資料庫短暫恢復，不自動恢復舊探索授權；全局預算耗盡時只能保存結果與缺口，不能承諾其他角色隨後仍能啟動。
+- 未知工具終態不盲目重跑；同題預算、在途工作、終態與停止原因跨 session 保留。
+
+---
+
+## 7. Episode 與 lesson：完整軌跡上的派生索引
+
+**資料鏈固定為：完整 Recon／求解過程 → 一次嘗試的 episode 索引 → lesson 候選 → 下一次模型自行判斷是否適用。**
+
+| 資料 | 角色 | 不得承擔 |
 | --- | --- | --- |
-| 本轮问题已回答 | 已有证据足以支持本轮基线结论 | 结论、证据 ref、适用范围 |
-| 下一步主要属于求解 | 入口、材料和关键前提已明确；剩余是利用、推导、精确恢复 | 可执行路线、必要材料、尚未证明的部分 |
-| 调查受阻或继续价值低 | 缺少必要前提，或剩余实验不能有效区分当前解释 | 部分基线、未解问题、恢复调查所需条件 |
-| 额度要求收束 | host 给出的预算事实（closure 拒绝消息） | 当前已有成果、未完成项、停止原因；**不宣称基线完成** |
+| steps／artifacts | 可重建的事實主本 | 不保存隱藏推理；不以 decision 作為唯一來源 |
+| `episodes` | 指定來源範圍、可信結果、關鍵轉折與缺口的版本化索引 | 不取代完整步驟；不只覆蓋最近 N 條 |
+| `lessons` | 從 episode 形成、帶條件與來源的方法候選 | 不改寫來源，也不成為唯一可恢復紀錄 |
 
-交回时写明属于哪一种。前三种是模型结合证据的判断；第四种以 host 事实为准，与前三种可同时出现（例如收束时已回答本轮问题）。
+### Episode 的來源契約
 
-### 11.3 落地原则
+episode 只在一次嘗試真正結束後形成。成功、未解、超時、取消或因能力受阻結束都可形成經歷；Recon 單純交回或題目準備續做，不觸發題後收口。
 
-1. **派单 = 消除具体的不确定性。** Coordinator 派 Recon 时，本轮问题写成要消除的不确定性，而非“做一遍 Recon”。例：
-   - Web：确认题面入口、附件源码和实际服务之间的对应关系，找出能支撑下一步验证的入口；部署差异无法确认时明确保留未知。
-   - 坐标／图像材料：确认材料如何生成、坐标如何解释，以及能否得到可供后续识别的结构图。**精确读出全部字符不是 Recon 的交回前提。**
-2. **继续的理由 = 下一次实验会改变什么决定。** 准备继续时能简短回答：当前还不确定什么？这个实验的不同结果会怎样改变路线或交付？答不出（例如源码已定坐标方向，只是换配色再看）则不足以继续；前提改变后的同 URL 复验（例如登录状态改变后重读）可以成立。由模型结合证据判断；host 不以新文件、新指纹、发布次数替代。只在实验或路线变化时记入主本，不要求每次工具调用写说明。
-3. **交付标准 = 下游能开始工作。** 可用交付让 Solver 知道：已确定什么及依据；哪些解释被排除、排除到什么范围；下一项实验是什么、前提是什么；哪些材料可直接使用、哪些仍有缺口。“可能是某种编码”通常不够；“已从源码确认转换关系，提取输入和参数，剩余问题是求逆，相关材料已发布”接近可执行。沿用现有 artifact 通路与工作主本，不另写平行报告；重点是核实下游实际消费。
-4. **允许带明确新问题重新调查，不自动续跑。** Recon 交回不是永久禁止再侦察。Solver 发现新的前提缺口时，Coordinator 可在原授权与剩余预算内分派一次明确调查（例如“核实这份源码是否对应当前接口”）。续接须带新证据或具体缺口，不能只写“继续找”；换会话不重置额度（host 已按题累计，§10.3）。这降低 Recon“现在不查完以后就没机会”的压力。
+每份 episode 必須保存：
 
-### 11.4 文件落点与边界
-
-- `product/opencode/agents/recon.md`：四种原因取代“高／低价值”句；继续判准；交付标准；第四种对应 closure 拒绝消息。同时删去已过时的“不新增时间／步数限制”表述（host cap 已存在，未配置时为 OFF）。
-- `product/skills/recon-investigation/SKILL.md`：“Ask one distinguishing question”补“会改变什么决定”；交回段改为四种原因与下游可开工标准；保留现有反证范围、主本与发布规则。
-- `product/opencode/agents/coordinator.md`：有界回合分派改为“本轮要消除的不确定性”并附两类例子；按需再调查规则（带新证据／具体缺口，不写“继续找”）。
-- `product/opencode/agents/domain-solver.md`：一句说明如何接收“尚未证明的部分”，以及发现前提缺口时经 Coordinator 请求一次明确调查，而非自行重做 Recon 的全部工作。
-
-本节不新增语义判卷、调度或续跑机制，不让 Recon 成为 planner；§12 的存储结构与自动题后学习属于用户新增范围，不受本节旧“无新增 schema”范围限制。不写题目专属答案触发器。
-
-### 11.5 风险与验收
-
-这些仍是 prose；slice 1（§7）已证明仅靠角色文字可能被忽略。本次两点不同：第四种原因有 host 收束兜底；“消除具体不确定性”写进 Coordinator 派单文字，即 Recon 每轮实际看到的任务本身。验收按 §9 看真实 run 行为：Coordinator 是否按不确定性派单；Recon 交回是否标明原因、交付是否让下游直接开工；继续理由是否出现在主本的实验／路线变化处；是否出现带具体缺口的再调查而非自动续跑。静态文字一致不等于行为通过。
-
-
-## 12. SQLite 调查主本与题后跨题学习（2026-10-30）
-
-### 12.1 已确认方向与职责
-
-用户已确认采用 **过程记录 → episode 绑定解题结果 → lesson 提炼 → 下题查阅**。Recon 过程以 SQLite `recon_turns` 替代 Markdown 主本；episode 记录整道题本次尝试的做法与结果，lesson 保存其中可迁移的方法。题后默认自动整理与提炼，不逐次询问、不逐条人工批准。求解与提炼的预算、消耗和状态分开，复用同一 OpenCode 模型接口。
-
-本节取代 §3.1–3.2 的 Markdown 唯一主本及 §5–6 的跨题持久化禁令，也取代本节旧草案中的独立学习任务表、强制经验使用反馈和每题默认冻结经验清单。§10 的求解预算约束、§11 的自然交回原则继续适用。轮次用于理解 Recon 调查经过，不绑定模型准入计数。
-
-| 步骤 | 谁负责 | 读什么 | 存什么 |
-| --- | --- | --- | --- |
-| ① 过程记录 | host 自动记录工具事实；Recon、Solver／Engineer 记录必要判断与做法 | 原生工具调用及返回、当前题证据 | Recon 写 `recon_turns`；Solver／利用阶段沿用现有进度记录、脚本、结果和 artifact，并补足实际步骤与证据 |
-| ② episode 绑定解题结果 | host 汇集同一次尝试的材料并绑定结果；题后模型整理经历 | Recon 记录、Solver／利用做法、验证记录、可信完成结果及结束原因 | SQLite `episodes`：完整做法流程、失败分支、最终结果与来源 |
-| ③ lesson 提炼 | 题后模型抽取可迁移方法；host 校验归属并保存 | 已保存 episode，必要时查已有相关 lesson | SQLite `lessons`：适用条件、方法步骤、判断依据、失败教训及来源 episode |
-| ④ 下题查阅 | Recon、Domain Solver、Engineer 等解题角色按需调用；host 提供查询 | 当前线索、技术栈、问题；查到的 lesson 及来源 episode | 正常工具审计记录查询；实际借鉴与效果写进本题既有过程记录及后续 episode |
-
-本节描述目标契约；SQLite、episode、lesson 与共享读取接口已完成最小实现，无模型验证状态见 §12.10。旧 Markdown 不自动迁移；没有执行真实模型测试。
-
-### 12.2 StrikeAgent 依据与借鉴范围
-
-静态核对版本：`7526baa7ea88de04b1900f04a06b13b77ab5682e`；未执行其代码。
-
-- [loop.py:2850–2881](https://github.com/Yean-Sec/StrikeAgent_AtkBrain-Flash/blob/7526baa7ea88de04b1900f04a06b13b77ab5682e/backend/atkbrain/engine/loop.py#L2850-L2881)：先保存运行结果，再调用 `_record_memory`；[loop.py:1007–1039](https://github.com/Yean-Sec/StrikeAgent_AtkBrain-Flash/blob/7526baa7ea88de04b1900f04a06b13b77ab5682e/backend/atkbrain/engine/loop.py#L1007-L1039) 将最终图与本次 goal／turn／summary 交给经历整理，然后进入提炼。
-- [store.py:359–430](https://github.com/Yean-Sec/StrikeAgent_AtkBrain-Flash/blob/7526baa7ea88de04b1900f04a06b13b77ab5682e/backend/atkbrain/memory/store.py#L359-L430)：episode 汇集发现、已验证策略、技术栈、方法链、失败方法和 outcome；[store.py:188–207](https://github.com/Yean-Sec/StrikeAgent_AtkBrain-Flash/blob/7526baa7ea88de04b1900f04a06b13b77ab5682e/backend/atkbrain/memory/store.py#L188-L207) 保存经历并返回 ID。
-- [evolve.py:219–298](https://github.com/Yean-Sec/StrikeAgent_AtkBrain-Flash/blob/7526baa7ea88de04b1900f04a06b13b77ab5682e/backend/atkbrain/memory/evolve.py#L219-L298)：按 episode ID 读取经历，形成方法草稿并可进一步模型提炼；lesson 用 `source_episode_ids` 关联来源。
-- [evolve.py:371–427](https://github.com/Yean-Sec/StrikeAgent_AtkBrain-Flash/blob/7526baa7ea88de04b1900f04a06b13b77ab5682e/backend/atkbrain/memory/evolve.py#L371-L427)：按技术栈与线索返回少量相关经验；[evolve.py:97–116](https://github.com/Yean-Sec/StrikeAgent_AtkBrain-Flash/blob/7526baa7ea88de04b1900f04a06b13b77ab5682e/backend/atkbrain/memory/evolve.py#L97-L116) 限制可提炼经历，不能称其所有失败局均会产生 lesson。
-
-借鉴的是“先保存带结果的经历，再提炼方法，并保留来源”的数据流。我们用现有过程与证据代替攻击图，增加明确的 run／challenge 关联；不照搬置信分、图调度或整题成功就强化所有已用经验的规则。`recon_turns` 是用户指定的本项目表名，并非 StrikeAgent 的现成表。
-
-### 12.3 第一步：记录调查与解题过程
-
-**Recon 轮次是调查工作回合。** 一次观察、判断和安排下一步可以包含多个工具；同一回合的记录共享 `turn_no`。host 按原生助手消息及工具调用关系关联轮次，模型不手填轮号；跨 session 用 session_id 区分。模型准入计数继续归预算模块，不作为调查轮次。无法确认关联的记录保留 NULL 与原因，不按最近一次调用猜测。
-
-`recon_turns` 一行保存一条工具事实、判断或交回记录，`kind=tool/decision/handoff`；一个判断可关联多个工具。首版不再加入模型准入行、专用 lesson_use 行或问题管理系统。
-
-| 字段组 | 谁填写 | 用途 |
-| --- | --- | --- |
-| `id, run_id, challenge_id, session_id, execution_ref` | host | 唯一记录及本次尝试归属 |
-| `turn_no, message_id, call_id, kind` | host | 调查轮次与原生调用关联；调用 ID 用于防重复 |
-| `tool, args_json, status, result_json` | host | 工具、去敏参数、执行状态及有界结果摘要；截断／缺失明确标记 |
-| `observation, assessment, next_action, next_reason` | 模型 | 观察、判断、下一步及简短理由；未记录保留空值，不收隐藏推理全文 |
-| `related_ids, evidence_refs` | 模型选择，host 校验 | 对应过程记录和证据；交回原因存于该 handoff 的判断／理由中 |
-| `created_at, updated_at, finished_at` | host | 创建、更新和结束时间 |
-
-参数必须足以看懂做法，不能只记参数个数。逐工具保存去敏的路径、选项、参数模式及必要结果；完整大输出继续放证据文件。工具完成与方法成立分别记录。工具状态可更新，判断修正追加新记录并关联旧记录。
-
-现有 `progress.note` 只供 Coordinator／Recovery Critic 使用，不假设 Solver／Engineer 已能调用。Solver／Engineer 通过原生 task 交回内容和已发布 artifact 留下过程，host 按绑定身份汇集这些输出；必要时仅调整角色交付指令，不为此扩大 progress.note 权限。两者不必把所有原生消息复制进新流水表，但交付记录必须留下：实际执行的步骤、关键参数或脚本、输出证据、失败和转向原因。只有一句“已完成”的交付不足以生成完整 episode；host 汇集时将缺失部分明确标出，模型不能补造未记录的过程。
-
-题内接口沿用窄工具方式：`ctf_recon_note` 追加判断；`ctf_recon_read` 查询本题历史，支持历史分页及按记录 ID 刷新未结束工具，不能仅靠 after_id 漏掉旧行的终态。同题新 Recon 会话可读取已有记录。收尾阶段仍允许读取、追加交回判断和发布材料。
-
-SQLite 位于产品持久数据目录，由 host 访问。工具事实自动记录，记录工具不递归记录自身。数据库写入失败时报告缺口，停止受影响的新探索；仍允许取消、发布已有材料与交回。未知执行结果不自动重跑。Markdown 只由 host 导出为实际保存的固定报告／artifact，不维护双主本；仅保存截止 ID 不算固定快照。
-
-### 12.4 第二步：整理 episode 并绑定解题结果
-
-**episode 是一份可阅读的完整解题经历，不是学习任务状态。** 它回答“这题怎样做、有哪些分支、哪些步骤有效、最终做到哪里”。同一 `run_id + challenge_id` 标识本次尝试；另开 run 重试生成另一份经历。
-
-流程与职责：
-
-1. **host 确认尝试结束并保存结果。** 使用现有可信完成记录、验证结果和 run 的结束原因。成功完成，或本次尝试以未解、超时、取消／能力受阻结束，均可进入经历整理。Recon 交回或某个子 Agent 返回不自动表示整题结束；准备继续的暂停也不触发完整题后流程。多题 run 按 challenge 分别处理：可信完成结果到达后，待该题相关执行收束并保存交回材料，再固定该题输入；run 结束时为其余已开始的题保存本次尝试结果，未开始的题不生成虚构经历。显式整体停止时只保存已有过程和结果，不启动新的模型调用。
-2. **host 汇集本次输入。** 按 run／challenge 读取 Recon 过程、Solver／Engineer 的步骤与产物、Verifier 记录及完成结果，在来源仍可读时保存有界、去敏的过程与结果内容。必要文件保存到持久证据区。不能仅留重启后失效的旧 artifact ID。调用题后模型前先持久保存 episode 草稿及输入内容（文本或内容文件＋hash），并以本次尝试和输入／结果版本防重复；固定后不继续读取会变化的流水。模型只收到去敏输入，原始私密证据仍保留在原受控位置。
-3. **题后模型整理经历。** 复用 OpenCode 接口，以“线索 → 尝试 → 反馈 → 调整 → 最终路线”组织内容，保留失败与未验证分支。可由一次有界的题后会话先整理 episode，再提炼 lesson；不要求常驻新 Agent 或强制经 Reference 转交。
-4. **host 保存 episode。** run／challenge、最终结果及结果引用由 host 绑定，模型只整理做法与解释，不重新裁决 solved。模型整理失败时保留已汇集输入、结果及错误，episode 标为未完成，不作为已整理经历进入 lesson 提炼。
-
-`episodes` 建议保存：
-
-| 内容 | 最小字段／结构 |
+| 群組 | 內容 |
 | --- | --- |
-| 身份与结果 | `episode_id, run_id, challenge_id, version, outcome, outcome_ref, end_reason`；outcome 保留 solved／unsolved／unknown，验证判断单独保存 |
-| 解题经历 | `summary, tech_tags, steps, failed_paths, unresolved`；steps 记录线索、做法、参数模式、观察结果、调整原因及来源，可区分 Recon／Solver／利用阶段 |
-| 来源材料 | `source_refs, input_summary`；保存实际去敏内容和必要持久文件引用、hash、缺口，不依赖一串失效旧引用 |
-| 整理与提炼状态 | `episode_status, lesson_status, lesson_ids, model, usage, error, created_at`；区分整理和提炼是否完成，usage 不可得记 unavailable |
+| 身份與結果 | `episode_id, run_id, challenge_id, version, outcome, outcome_ref, end_reason` |
+| 完整來源範圍 | 首尾 step、總數、trace／artifact refs、hash、產生時的可確認狀態 |
+| 可讀索引 | `summary, tech_tags, key_steps, failed_paths, unresolved, omitted_ranges` |
+| 整理狀態 | `episode_status, lesson_status, lesson_ids, model, usage, error` |
 
-最终结果与过程通过同一 episode 绑定，不给每个步骤套用整题结果。例如整题已解，但 SQL 注入尝试失败、模板注入路线成功，两者应分别保留。结果以后被可信对账修正时，保存新 episode 版本，旧 lesson 仍能追溯原版本。查询旧 lesson 时必须同时提示来源结果已有修订，返回最新结果概要与新版 episode 引用，不继续把旧 outcome 当当前已知结果；新版经历可进入正常提炼，不引入自动语义裁判。
+episode 的 summary 可以有界，但其 `source_range` 必須指向整次嘗試的完整軌跡。它可以用固定規則標出首個、變化點與最後觀察，再用模型解釋；不能從來源清單中刪掉早期成功或晚期失敗，然後宣稱已覆蓋全題。
 
-### 12.5 第三步：从 episode 自动提炼 lesson
+r16 A 固定反例：#55 註冊請求為 302，#56 接著跳轉 `/team/2`；後期 #73／#74 的空表單提交得到 403。當時 episode 只覆蓋 16／89 條來源，省略早期成功，並把晚期失敗錯誤泛化為「自註冊不可用」。新契約要求：
 
-host 在 episode 完成后默认触发提炼；题后模型读取该 episode，抽出以后可参考的方法。必要时查询已有相关 lesson，避免机械重复。**先持久保存 episode，再提交 lesson**；lesson 必须指回已保存的来源经历，不从脱离结果的 Recon 流水直接生成“成功经验”。host 通过同一 OpenCode SDK 发出有界的经历整理与方法提炼请求，读取返回内容并保存；模型不直接写库。两阶段沿用同一模型接入，episode 落库成功才进入 lesson 请求。将 lesson 集合与 episode 的提炼完成状态放在同一事务提交；无条目也是明确完成结果，避免断电后重复新增。
+- 完整來源仍可由 episode 指向的 trace 重讀。
+- 失敗與未解斷言要連到自己實際提供的 steps／refs，不能只憑整體 `solved=false`。
+- 保留不同參數／狀態族，以及每個實驗族的首個、變化點與最後觀察。
+- 不要求模型先寫 decision 才保留反例；沒有 decision 的工具事實同樣必須存在。
+- 無法一次放入模型時，明確提供範圍與遺漏；區分「未納入這次摘要」和「來源不存在」。
 
-`lessons` 最小内容为 `lesson_id, version, title, tags, when, steps, checks, avoid, limits, source_episode_refs, created_at`：
+host 綁定可信 outcome、Verifier judgment 與 end reason；模型只解釋線索、嘗試、回饋、調整與最終路線，不能重新裁決 `solved`。終態寫入失敗時停止新的同題探索，但保留讀取、取消、發布與交回；學習失敗不得污染原求解終態。
 
-- `when`：什么线索、技术栈和前提下值得参考。
-- `steps / checks`：具体做法流程、通用参数模式，以及每一步观察什么来决定下一步。
-- `avoid / limits`：失败教训、反例及尚未验证的部分。
-- `source_episode_refs`：来源 episode ID＋版本，可展开原题流程和当时结果；修订时保留既有来源。
+### 有界輸出不破壞來源
 
-成功经历可产生有效路线与失败分支教训；未解经历也可产生已验证的局部方法或明确教训。未完成路线不能包装成成功方法；没有可迁移内容时保存“无 lesson”结果即可，不强制生成条目。host 校验字段与来源，不能据此宣称方法语义正确。
+- 最多 8 個關鍵步驟。
+- 主正文最多 400 字元。
+- 最多產生 3 條 lesson。
+- 每條 lesson 的陣列欄位各最多 5 項，單條文字最多 400 字元。
 
-提炼使用与求解相同的 OpenCode 模型接入，默认沿用本次模型／provider；题后会话具有独立的预算、消耗和状态，不复活已停止的求解会话。产品默认开启自动题后处理，预算配置包含明确的提炼 token 上限，覆盖 episode 整理及 lesson 提炼，不逐次请求授权；本次设计修改不启动真实调用。额度不足／调用失败记录状态，不影响原解题结果、不自动重做题或增加额度。以来源 episode 版本及已有状态防止重复结束事件重复提炼；崩溃后调用结果未知先核对，不盲重试。
+呼叫前保存原始 response、hash、`finish` reason 與實際 usage。`finish=length`、異常終止、invalid JSON 與欄位越界都要 fail-closed，不自動補 JSON、續寫或重試。r16 B 的 711 字元 response 雖被正確拒絕，仍說明摘要輸出受限；拒絕只阻止不完整摘要成為 episode，不能刪除或截斷它所依據的完整步驟與 artifacts。
 
-首版不建独立 `recon_learning_jobs` 表或后台任务编排平台，所需状态留在 episode。经验更新采用简单追加版本并保留来源；自动语义合并、退休和可信度评分后置。后题的新证据可以形成新 lesson，或明确修订旧 lesson，不必先实现知识库自动整理系统。
+### Lesson 與經驗可用性
 
-### 12.6 第四步：解题时查 lesson，按需展开 episode
+lesson 保存 `lesson_id, version, title, tags, when, steps, checks, avoid, limits, source_episode_refs, created_at`。它是可忽略的方法候選，不是任務指令；失敗題只能形成局部教訓，沒有遷移價值時明確保存「無 lesson」。
 
-在相关 Skill／Agent 指令中明确：开始调查、选择利用路线或遇到阻塞时，根据当前技术栈、现象和问题查询历史经验，核对适用条件；需要具体做法时展开来源经历。Recon、Domain Solver、Engineer 均直接使用共享入口，Reference 可按需使用，不要求经过专门的知识 Agent。
+經驗可用性分三層：
 
-共享读取接口的设计语义（名称可在实施时对齐现有风格）：
+1. **可達**：host 在當前決策邊界呈現少量候選卡，或提供 search 工具；卡片至少含 version、適用條件、核心步驟、限制與來源。
+2. **可展開**：`ctf_experience_read` 能按明確版本讀 lesson 或來源 episode，分頁並綁定同一版本。
+3. **可判斷**：模型可依當前題目自行採用、調整、拒絕或忽略。未使用工具不是自動錯誤；search 命中也不等於採用。
 
-- `ctf_experience_search({query, tags?, kind?, limit?})`：默认查 lesson，也可查 episode 摘要；基于 SQLite 字段／关键词返回少量匹配内容、结果概要和来源 ID。无匹配返回空结果，存储错误明确报错。
-- `ctf_experience_read({kind, id, version?, cursor?})`：读取 lesson 详情或展开 episode 的具体过程，必要时分页。host 提供已保存的去敏历史视图，独立于旧题会话是否仍存活；不开放任意磁盘路径或数据库 SQL。
+審計事實依次為 `presented`、`searched`、`read`、`evaluated`、`adopted`。Host 能證明前四者中的機械事實；只有後續 decision 或行動才可能成為採用證據。題目 `solved` 不能推出 solved 是因該 lesson。
 
-调用身份只用于正常工具权限，查询共享经验不要求 Reference 绑定某道旧题。历史内容作为参考资料提供，不成为当前题事实或产品指令。经验正文和可跨题阅读的 episode 不暴露 flag、cookie、控制凭据、私有 oracle 答案或隐藏推理；保留看懂做法所需的去敏流程与参数模式。
+r16 B 曾搜尋經驗兩次但沒有調用 `ctf_experience_read`。這證明「search 命中不等於讀取或採用」，也提醒 search 回傳本身應帶足夠條件讓模型判斷是否值得展開。新設計不強迫模型每題讀 lesson；它要求 host 不把有用經驗藏在必須先知道關鍵詞才能找到的地方，也不把忽略無關經驗計為失敗。
 
-模型将实际借鉴的方法及其效果写进正常过程／交付记录，附所采用的 lesson ID／版本或 episode 引用，题后自然进入本题 episode；host 核对这些引用实际存在。搜索返回结果均带 ID／版本，详情读取版本省略时返回最新版本及其版本号，显式旧版本则按原版本读取并提示来源修订。不强制每次查询填写 retrieved／applied／not_applicable 表，不新增独立反馈工具。检索命中或整题成功均不自动等于方法有效。
+首版使用有界 SQLite 關鍵詞檢索，不引入向量庫或額外語意 judge。工具不開放任意路徑或 SQL，也不帶出 flag、cookie、控制憑證、oracle 或隱藏推理。
 
-日常使用按需读取已保存经验，不默认建立每题冻结清单，不主动把新经验推送到全部活跃会话；host 审计实际返回的 ID／版本。正式对比评估按总设计冻结知识版本，使用同题历史的运行标记为历史辅助，不能称首次独立解题。相关性排序不是正确率；首版不引入向量库。
+---
 
-### 12.7 一条完整示例与最小边界
+## 8. 驗收、證據與仍未證明的事項
 
-题 A 中，Recon 发现输入被模板渲染；Solver 先尝试 SQL 注入但无支持，随后验证模板求值，Engineer 完成利用，最终可信完成记录为 solved。
+**驗收看資料是否能恢復完整決策路徑，不看模型寫了幾條 decision 或命中幾個 lesson。**
 
-- 过程记录保存调查、两条路线、具体操作和各自结果。
-- episode 将这些步骤与 A 的完成结果绑定，明确 SQL 注入分支失败、模板路线成功。
-- lesson 提炼“出现模板求值线索时，如何验证、如何选择后续步骤及何时不适用”，指回 A 的 episode。
-- 题 B 的 Recon 或 Solver 查到 lesson，需要细节则展开 A 的 episode，再以 B 的反馈决定采用或放弃。B 结束后形成自己的 episode，新的适用条件或反例继续积累。
+| 閉環 | 必須看到的行為 |
+| --- | --- |
+| 完整過程軌跡 | 每次工具呼叫均有穩定 step、完整結果或明示 partial，早期與晚期步驟都可重建 |
+| 可導航上下文 | 下一次請求可從索引與 cursor 找到全部先前步驟；最近完整步驟、指紋與結果可見 |
+| 避免無根據重複 | 模型的下一步能引用先前指紋／結果；若重測，可見前提或證據發生變化 |
+| 穩定歷史 | 原生已完成訊息與首尾 tool pair 不被每輪重寫；新增狀態以追加方式可見 |
+| 及時交回 | 問題已回答、屬下游、受阻或 host 收束時停止新探索，並在預算內留下可用交接 |
+| 快照消費 | 同一消費者按同一版本讀到所需正文並得到 `done=true`，或明示未讀範圍 |
+| 忠實經歷 | episode 指向整次嘗試的完整來源；早期成功、晚期失敗、unknown 與 omitted ranges 不丟失 |
+| 經驗可選使用 | 候選經驗可呈現、搜尋與按需展開；採用、拒絕與忽略分別可解釋，命中不算採用 |
 
-保留过程、经历、方法这三层数据与必要来源，不新增攻击图、通用事件系统、独立学习 Agent、全角色原生消息数据库或自动 Skill 改写。历史 Markdown 保留，不默认导入或遍历所有旧 run；有明确选定的旧题材料时可走相同整理流程，缺失信息如实标记。
+### 驗收分層與停點
 
-### 12.8 验收：按四步验证真实使用
+源碼裝配、無模型接口、真實行為、真實解題結果與成本要分開報告。A 解出不能掩蓋 missing trace 或快照未消費；A 未解也不自動表示所有工程修復失敗；兩題成功不能替代同批有來源的語義閉環。
 
-1. **过程可查**：Recon 多工具同轮、并发、拒绝、超时及终态更新不丢失或错配；参数能解释做法。新 Recon 会话能读取同题历史，交回报告可固定导出。Solver／利用产物足以还原实际步骤。
-2. **episode 可读且结果绑定正确**：成功、未解、unknown 分别关联本次可信结果；失败分支不会被整题成功覆盖。持久保存后仍能读到过程、结果及必要材料，缺失材料明确显示。
-3. **lesson 可追溯**：自动从完成的 episode 整理方法，来源可展开；无可迁移内容不强行生成。重复结束不重复提交，提炼失败／预算不足不改变解题结果。
-4. **后题可借鉴**：题 A 生成 episode／lesson，题 B 的 Recon 或 Solver 实际查询、展开并选择方法；观察适用和不适用情形，B 的经历保留采用结果或反例。不用“数据库有数据”代替可用性。
+下一輪從本設計生成聚焦 plan。先驗證最小接口與資料契約，再實施；涉及真實模型時，還要重新明確模型、provider、求解／學習預算、預留與嘗試上限。舊 r16 資料及 r15 對照只讀，新增結果沿用既有 evidence／gate 位置。
 
-确定性检查证明持久化、关联和工具接线；真实模型验证证明过程整理、查阅和方法使用。多题收益需另做相同模型与可解释预算的对比，并计入题后消耗；单题成功不能证明通用能力提高。
+### 現有證據能支持到哪裡
 
-### 12.9 已核实接口与实施时检查
+| 證據 | 已支持 | 不能推出 |
+| --- | --- | --- |
+| [R1／R2 記錄](../../gates/recon-experience-20261030/r1-r2/README.md) | 歷史正常接線、故障隔離、macOS／Ubuntu ARM64 腳本鏈路 | 正式映像、完整步驟軌跡或跨題收益 |
+| [公開接口探針](../../gates/recon-context-interface-20261031/result.json) | 子會話、工具後請求、同版續接、並發、顯式摘要與取消恢復可達 | 追加式穩定歷史、自動 compaction 安全、真實 cache 收益或可靠 token 預留 |
+| [追加式放置驗證](../../gates/recon-context-interface-20261031/placement-validation.json) | `append_only_combo` 在首輪、工具續接、原生續接、同版去重、顯式 compaction、cancel、session 隔離、tool pair 與 projection fail-closed 上 13／13 通過；其他四種候選均失敗 | 自動 overflow compaction、真實 provider cache 收益、token 收益、產品接線或模型語義使用 |
+| [原 A/B 回放](../../gates/recon-context-interface-20261031/product-original-replay.json) | 原 98／58 條記錄、跨頁快照、結果綁定與截斷拒絕可離線重現 | 舊 episode 已修好，或完整軌跡已被模型使用 |
+| [原生產品鏈路](../../gates/recon-context-interface-20261031/product-native.json) | 原生 task、交付、Verifier、可信完成、學習與資料讀取可接線 | 模型判斷品質、實際消費或統計效果 |
+| [最終無模型驗證](../../gates/recon-context-interface-20261031/product-validation.json) | 所記源碼版本的 typecheck、build、54 檔／718 測試與定向恢復檢查 | 本文新契約已實施、全面獨立驗收或真實模型能力 |
+| [R3 完整軌跡](../../gates/recon-context-interface-20261031/r3-complete-trace.json) | §3 契約的無模型實施：遷移、無截斷、artifact ref 字節往返、去敏標記、排序／冪等、完整導航與失敗不丟列；typecheck、build、56 檔／729 測試、原 A/B 回放通過 | §4–§7、重啟後 publication 核對、模型實際使用或 token 開銷 |
 
-公开 OpenCode 接口提供工具所属助手消息 ID／callID；本次实现已由插件转交 host 并验证同轮多工具关联。`chat.params` 提供的是用户消息，不能充当唯一调查轮次。已有消息注入方式可承载历史读取提示，无需新增摘要循环。
+### r16 的正反證據
 
-本次实现已将题后处理接入结束流程，使用独立 OpenCode 调用上下文和学习预算；共享经验读取不要求绑定旧题。SQLite 磁盘事务、终态更新、关闭重开及 Ubuntu ARM64 原生接线已完成无模型验证，正式发布镜像仍未验收，详见 §12.10。
+已接通：
 
-2026-10-30 再复核：已补齐 Solver 过程来源、按题收束、提炼前持久输入、lesson 原子提交及来源结果修订提示；四步的生产者、消费者与失败去向在设计层闭合。仍保留三张业务表，无新增审批／反馈平台。随后用户授权子会话实施和无模型验证，并修复主会话发现的 R1／R2；当前结果见 §12.10。真实模型测试仍须等待预算确认。
+- 主動經驗呈現入口存在。
+- B 能導出固定快照。
+- 超長學習 response 在解析前被拒絕。
 
+仍未閉環：
 
-### 12.10 最小实现与 R1／R2 复验（2026-10-30）
+- A 有 88 次工具、0 decision、0 handoff，31 次 Recon 准入後因全局預算停止。
+- A 的 episode 只覆蓋 16／89 條來源，遺失早期註冊與登入證據，並錯把晚期空表單 403 泛化為整題結論。
+- B 的完整快照為 30 行、51,044 bytes；Solver 未讀正文，Verifier 只讀首頁且 `done=false`。
+- B 搜尋經驗兩次卻未讀取或形成可觀察的採用鏈。
+- B 的 711 字元 learning response 被正確拒絕，但輸出品質尚未解決。
 
-代码基线 `b79d46bc` 加当前未提交改动。实现采用 `experience-store.ts` 三张业务表、`episode-learning.ts` 的原生有界整理／提炼请求、ControlService 过程记录和查询、launcher 题后入口，以及角色／Skill 查阅指令。缺少学习额度的旧配置只保存 pending 输入，不发真实请求。按题固定材料，题后模型整理／提炼在求解服务收尾后执行。
+R1／R2 能證明失敗局部隔離，不能把兩題寫成整體能力通過。
 
-主会话初次复核发现 R1（终态写入失败后仍探索）及 R2（学习输入失败污染求解状态）；修复后：
+### 仍未證明的事項
 
-- R1 在 run 内按 challenge 记录暂停状态；同题新 Recon 或 Solver 不能继续新探索，已有材料读取、取消与固定交回仍可用。异步 job 的终态保存失败也触发暂停，资源继续收束。暂停不因数据库短暂恢复自动解除，不宣称跨进程恢复旧执行授权。
-- R2 将循环内及收尾输入／学习文件保存错误写入学习 pending／error 状态；不会触发求解 stopAll(error)，不改变原 run 状态或可信完成记录。原有求解错误处理保持不变。
+- 已選定的追加式運輸接入產品後，能否帶來真實 provider cache 與 token 收益。
+- 自動 compaction 是否能保留完整 tool-call／result 與可導航索引。
+- input-token reservation 是否可靠，能否在硬停前留出完整交回。
+- 完整索引在長題中是否可保持低 overhead 與可理解性。
+- 真實模型是否會查閱舊步驟、引用指紋並避免無根據重複。
+- 有效 decision 的自然生成率及它相對於自動工具軌跡的增益。
+- episode 的自然語言解釋是否忠實於完整來源範圍。
+- 真實下游是否讀完同一快照版本的必要正文。
+- 重啟後未知 publication 能否安全核對。
+- 經驗呈現是否能被模型實際評估，以及同模型、同預算下的跨題收益。
+- 正式映像、統計收益與歷史資料遷移。
 
-[修复版证据](../../gates/recon-experience-20261030/r1-r2/README.md)：子会话 typecheck、build、54 文件／705 项测试通过；macOS ARM64 与 Ubuntu 24.04 ARM64 各重新执行一批 A→episode→lesson→关闭服务并重开数据库→B 查阅／对照→B episode，均为 59 次 localhost 脚本化请求，真实模型调用为 0。Ubuntu 使用临时挂载的既有运行时，不代表正式发布镜像。
+這些 unknown 只改變相應局部結論，不否定已定的資料職責與失敗邊界。證據承擔過程；本設計只保留當前決策、限制與可信來源。
 
-主会话核对 26 个实现文件及两平台各 6 个关键源码 hash，均匹配；独立重跑 typecheck、build 及 4 文件／54 项定向测试通过。再次运行原 R1 localhost HTTP＋SQLite BEFORE UPDATE OF result_json 失败复现：首个动作已执行，第二个动作被拒绝，目标实际请求数为 1（修复前为 2），原记录仍为 running，不伪造成功终态。R2 回归保留运行中抛错、最终输入失败及两种学习文件保存失败，并核对求解完成、可信 solved、停止原因和学习错误。
+---
 
-已将实施 plan 中的结果与未验证项回补本节，完成的临时 plan 在提交前移除。后续真实模型验证单独按授权批次安排：明确模型／provider、求解与题后 token 额度、请求上限和重试规则；保持同批 A→B 产品入口、适用／不适用观察及实际消费证据，不恢复本次已完成的实施步骤。
+## 9. 文檔維護
 
-结论：本最小闭环及 R1／R2 无模型验收通过；没有发现本轮修复绕过原失败点。故障注入在本机执行，目标 Ubuntu 本轮只证明正常原生接线。真实模型整理质量、实际跨题收益、正式镜像验收仍待验证；不以脚本化模型或模拟裁判接受替代这些结论。本次收口经用户授权本地提交；不 push。
+**design 是當前決策快照，不是按時間累積的 run log。**
+
+- 新結論先替換或整合最接近的既有決策段落；不為每輪實作新增日期小節，也不建立第二份權威。
+- 改寫前核對仍影響判斷的契約、已否決方案、反例、適用條件、unknown 與驗證邊界；找到新位置後再刪舊內容。
+- 標題保持決策維度，不用 plan 編號、執行批次或日期描述進度；只有出現新的決策維度時才新增章節。
+- 詳細命令、hash、執行日誌與原始輸出留在既有 evidence／gate 位置；正文只保留影響設計的證據與 refs。
+- 回補後檢查語義遺失、重複、矛盾與章節銜接；必要時回查 evidence。
+- plan 的結論轉入本設計且檢查完成後刪除該 plan，避免設計與 plan 各說一套。

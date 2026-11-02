@@ -115,6 +115,14 @@ describe('OpenCode public adapter', () => {
     }));
   });
 
+  it('exposes every recon trace selector the host store accepts', async () => {
+    const { createCtfAgentHooks } = await import('../../apps/opencode-plugin/src/index.js');
+    const hooks = createCtfAgentHooks({ controlUrl: 'http://127.0.0.1:43210/control',
+      controlToken: 'bridge-test-token-that-is-long-enough-123', tools: ['recon.read'] });
+    const args = Object.keys((hooks.tool?.['ctf_recon_read'] as { args: Record<string, unknown> }).args).sort();
+    expect(args).toEqual(['after_id', 'cursor', 'end_sequence', 'ids', 'kind', 'limit', 'start_sequence', 'step_id']);
+  });
+
   it('writes only the host-approved task background and description into native args', async () => {
     const { createCtfAgentHooks } = await import('../../apps/opencode-plugin/src/index.js');
     const hooks = createCtfAgentHooks({ controlUrl: 'http://127.0.0.1:43210/control', controlToken: 'x'.repeat(40), tools: [] });
@@ -201,6 +209,27 @@ it('appends complete native TextParts and preserves synchronous output and metad
   await h['tool.execute.after']!({sessionID:'root',tool:'task',callID:'call',args:{}},after);
   expect(after.metadata).toBe(metadata);expect(after.output.startsWith('native envelope\n<task_result>PARTIAL</task_result>\n')).toBe(true);
   expect(after.output).toContain('[CTF host synchronous result facts]');
+ }finally{mocked.mockRestore();}
+});
+it('forwards complete native tool errors and outputs while excluding managed result bodies',async()=>{
+ const {createCtfAgentHooks}=await import('../../apps/opencode-plugin/src/index.js');
+ const requests:Array<{sessionID:string;operation:string;input:any}>=[];const mocked=vi.spyOn(globalThis,'fetch').mockImplementation(async(_url,init)=>{
+  requests.push(JSON.parse(String(init?.body)));return new Response(JSON.stringify({result:{}}),{status:200});
+ });
+ const part=(tool:string,state:any)=>({type:'tool',sessionID:'root',messageID:'message',callID:'call-'+requests.length,tool,state});
+ try {
+  const h=createCtfAgentHooks({controlUrl:'http://127.0.0.1:12345',controlToken:'x'.repeat(40),tools:[]});
+  const output='completed-'+'o'.repeat(13_000),error='failed-'+'e'.repeat(13_000);
+  await h.event!({event:{type:'message.part.updated',properties:{part:part('workspace.read',{status:'completed',output})}}} as never);
+  expect((requests.at(-1)!.input.part.state as any).output).toBe(output);
+  await h.event!({event:{type:'message.part.updated',properties:{part:part('workspace.read',{status:'error',error})}}} as never);
+  expect((requests.at(-1)!.input.part.state as any).error).toBe(error);
+  await h.event!({event:{type:'message.part.updated',properties:{part:part('ctf_workspace_read',{status:'completed',output})}}} as never);
+  expect((requests.at(-1)!.input.part.state as any)).not.toHaveProperty('output');
+  await h.event!({event:{type:'message.part.updated',properties:{part:part('task',{status:'error',error})}}} as never);
+  expect(requests.slice(-2).map(request=>request.operation)).toEqual(['process.event','task.event']);
+  expect((requests.at(-2)!.input.part.state as any).error).toBe(error);
+  expect(requests.at(-1)!.input).toEqual({callID:'call-3',state:'error',error});
  }finally{mocked.mockRestore();}
 });
 it('admission without a user or prepared snapshot still reaches authenticated control',async()=>{

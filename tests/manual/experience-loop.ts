@@ -9,7 +9,7 @@ import {launch} from '../../apps/launcher/src/launch.js';
 import {ExperienceStore} from '../../apps/launcher/src/experience-store.js';
 const root=await mkdtemp(join(tmpdir(),'experience-loop-')),trace:any[]=[];
 let run='A',phase=0,seq=0,failure:string|undefined,lessonID='',episodeID='',evidenceRef='';
-const steps=new Map<string,number>();
+const steps=new Map<string,number>();const episodePages:Buffer[]=[];
 const str=(v:any)=>typeof v==='string'?v:JSON.stringify(v);
 const stub=createServer((q,r)=>{void(async()=>{
   assert(q.url?.endsWith('/chat/completions'));
@@ -20,6 +20,9 @@ const stub=createServer((q,r)=>{void(async()=>{
   const step=steps.get(run+who)??0;steps.set(run+who,step+1);
   const raw=body.messages.filter((m:any)=>m.role==='tool').map((m:any)=>str(m.content));
   const results=raw.flatMap((s:string)=>{try{return [JSON.parse(s)];}catch{return [];}}),all=body.messages.map((m:any)=>str(m.content)).join('\n');
+  const projectionTexts=body.messages.flatMap((m:any)=>typeof m.content==='string'?[m.content]:Array.isArray(m.content)?m.content.map((p:any)=>p.text??''):[]).filter((s:string)=>s.startsWith('[CTF investigation context]'));
+  if(['recon','domain-solver','engineer'].includes(who))assert.equal(projectionTexts.length,1,'one current product projection');
+  const projection=projectionTexts.length?JSON.parse(projectionTexts[0].slice(projectionTexts[0].indexOf('\n')+1)):null;
   const calls:{name:string;args:any}[]=[];let content='';
   const call=(name:string,args:any={})=>calls.push({name,args});
   const task=(role:string,prompt='')=>call('task',{subagent_type:role,description:`experience ${role}`,prompt:`EXP_ROLE_${role} ${prompt}`,background:role==='verifier'});
@@ -49,21 +52,21 @@ const stub=createServer((q,r)=>{void(async()=>{
       else if(step===2)call('ctf_http_request',{url:'http://127.0.0.1:1/not-authorized'});
       else if(step===3)call('ctf_job_run',{argv:[process.execPath,'-e','setTimeout(()=>{},2000)'],timeout_ms:20});
       else if(step===4)call('ctf_recon_note',{observation:'SQL_FAILED; arithmetic 42',assessment:'template route needs solving',next_action:'handoff',next_reason:'baseline answered'});
-      else if(step===5)call('ctf_recon_read',{});
-      else {const v=results.findLast((v:any)=>v.export);assert(v?.export.ref);content=`RECON_DONE EXPORT_REF=${v.export.ref} SQL_FAILED; template route supported locally`;} 
+      else if(step===5){assert(projection.view.records.some((r:any)=>r.kind==='decision'));call('ctf_recon_note',{kind:'handoff',next_reason:'baseline answered; solver can proceed'});}
+      else {const v=results.findLast((v:any)=>v.snapshot);assert(v?.snapshot.export.ref);content=`RECON_DONE EXPORT_REF=${v.snapshot.export.ref} SQL_FAILED; template route supported locally`;}
     }else {
-      if(step===0)call('ctf_experience_search',{query:'template'});
-      else if(step===1){const found=results.findLast((v:any)=>v.results)?.results[0];assert(found?.id===lessonID);call('ctf_experience_read',{kind:'lesson',id:lessonID,version:1});}
-      else if(step===2){const v=results.findLast((v:any)=>v.kind==='lesson'&&v.data);assert(v);const l=JSON.parse(Buffer.from(v.data,'base64').toString());assert(l.limits.includes('literal reflection is inapplicable'));episodeID=l.source_episode_refs[0].id;call('ctf_experience_read',{kind:'episode',id:episodeID,version:1});}
-      else if(step===3){const v=results.findLast((v:any)=>v.kind==='episode'&&v.data);assert(v);const e=JSON.parse(Buffer.from(v.data,'base64').toString());assert(e.outcome==='solved');assert(e.content.failed_paths.includes('SQL_FAILED'));call('ctf_job_run',{argv:[process.execPath,'-e',"console.log(JSON.stringify({evaluated:6*7,literal:'{{6*7}}'}))"],timeout_ms:5000});}
-      else if(step===4){assert(results.some((v:any)=>v.job&&v.exitCode===0));call('ctf_recon_note',{observation:'SQL_FAILED prior route. Current arithmetic=42; literal reflection remains literal',assessment:'adopt arithmetic comparison; do not exploit literal reflection',evidence_refs:[`lesson:${lessonID}@1`],next_reason:'checked conditions against current fixture'});}
-      else if(step===5)call('ctf_recon_read',{});
-      else {const v=results.findLast((v:any)=>v.export);assert(v);content=`RECON_DONE EXPORT_REF=${v.export.ref} SQL_FAILED; used lesson:${lessonID}@1; reflected string is inapplicable`;}
+      if(step===0){assert(projection.experience.lessons.some((l:any)=>l.id===lessonID),'B receives A lesson before any search');call('ctf_experience_read',{kind:'lesson',id:lessonID,version:1});}
+      else if(step===1){const v=results.findLast((v:any)=>v.kind==='lesson'&&v.data);assert(v);const l=JSON.parse(Buffer.from(v.data,'base64').toString());assert(l.limits.includes('literal reflection is inapplicable'));episodeID=l.source_episode_refs[0].id;call('ctf_experience_read',{kind:'episode',id:episodeID,version:1});}
+      else if(step===2){const v=results.findLast((v:any)=>v.kind==='episode'&&v.data);assert(v);episodePages.push(Buffer.from(v.data,'base64'));if(v.next_cursor){steps.set(run+who,2);call('ctf_experience_read',{kind:'episode',id:episodeID,version:v.version,cursor:v.next_cursor});}else{const bytes=Buffer.concat(episodePages);assert.equal(bytes.length,v.size);assert.equal(createHash('sha256').update(bytes).digest('hex'),v.sha256);const e=JSON.parse(bytes.toString());assert(e.outcome==='solved');assert(e.content.failed_paths.includes('SQL_FAILED'));call('ctf_job_run',{argv:[process.execPath,'-e',"console.log(JSON.stringify({evaluated:6*7,literal:'{{6*7}}'}))"],timeout_ms:5000});}}
+      else if(step===3){assert(results.some((v:any)=>v.job&&v.exitCode===0));call('ctf_recon_note',{kind:'decision',related_ids:projection.view.coverage.included_ids.slice(0,8),observation:'SQL_FAILED prior route. Current arithmetic=42; literal reflection remains literal',assessment:'adopt arithmetic comparison; do not exploit literal reflection',evidence_refs:[`lesson:${lessonID}@1`],next_reason:'checked conditions against current fixture'});}
+      else if(step===4){assert(projection.view.records.some((r:any)=>r.kind==='decision'));call('ctf_recon_note',{kind:'handoff',next_reason:'solver can proceed'});}
+      else {const v=results.findLast((v:any)=>v.snapshot);assert(v?.snapshot.export);content=`RECON_DONE EXPORT_REF=${v.snapshot.export.ref} SQL_FAILED; used lesson:${lessonID}@1; reflected string is inapplicable`;}
+
     }
   }else if(who==='domain-solver') {
     if(step===0)call('ctf_artifact_read',{ref:/REF=([\w-]+)/.exec(first)![1]});
-    else if(run==='B'&&step===1)call('ctf_experience_search',{query:'template'});
-    else if(run==='B'&&step===2)call('ctf_experience_read',{kind:'lesson',id:lessonID});
+    else if(step===1){const v=results.findLast((v:any)=>v.ref===evidenceRef&&v.data);assert(v);const index=JSON.parse(Buffer.from(v.data,'base64').toString());assert.equal(index.schema,'recon-handoff-index-v1');call('ctf_artifact_read',{ref:index.parts[0].ref});}
+    else if(run==='B'&&step===2){assert(projection.experience.lessons.some((l:any)=>l.id===lessonID));call('ctf_experience_read',{kind:'lesson',id:lessonID});}
     else if(run==='B'&&step===3)call('ctf_job_run',{argv:[process.execPath,'-e',"console.log(JSON.stringify({evaluated:6*7,literal:'{{6*7}}'}))"],timeout_ms:5000});
     else {assert(results.some((v:any)=>v.ref===evidenceRef&&v.data));if(run==='B'){assert(results.some((v:any)=>v.kind==='lesson'));assert(results.some((v:any)=>v.job&&v.exitCode===0));}content=`SOLVER_DONE SQL_FAILED. arithmetic evaluated=42; parameters expression=6*7; literal reflection control did not evaluate. ${run==='B'?`used lesson:${lessonID}@1; literal route abandoned`:''}`;}
   }else if(who==='engineer') {
@@ -94,7 +97,7 @@ try {
     results.push(result);assert.equal(failure,undefined);assert.equal(result.status,'completed');
     const learning=JSON.parse(await readFile(join(result.runDir!,'evidence/learning.json'),'utf8'));assert.equal(learning.status,'completed',JSON.stringify(learning));assert.equal(learning.requests,2);
     const db=new ExperienceStore(join(root,'runs/experience.sqlite'));
-    const rows=db.allRecords(run,'X');assert(rows.length>0);assert(rows.filter((r:any)=>r.kind==='tool').every((r:any)=>r.message_id&&r.turn_no));
+    const rows=db.allRecords(run,'X');assert(rows.length>0);assert(rows.some((r:any)=>r.kind==='decision'));assert(rows.at(-1).kind==='handoff');assert(rows.filter((r:any)=>r.kind==='tool').every((r:any)=>r.message_id&&r.turn_no));
     if(run==='A') {
       const writes=rows.filter((r:any)=>r.tool==='workspace.write');assert(writes.length>=2);assert.equal((writes[0] as any).turn_no,(writes[1] as any).turn_no);
       assert(rows.some((r:any)=>r.tool==='job.run'&&r.status==='exited'));assert(rows.some((r:any)=>r.tool==='job.run'&&r.status==='timed_out'));assert(rows.some((r:any)=>r.tool==='http.request'&&r.status==='error'));
@@ -102,8 +105,12 @@ try {
     }else {const episodes=db.search({query:'template',kind:'episode'}).results;const b=episodes.find(e=>(db.getEpisode(e.id!)!).run_id==='B');assert(b);const record=db.getEpisode(b.id!)!;assert(record.content!.experience_refs.includes(`lesson:${lessonID}@1`));assert(record.content!.steps[0]!.observation.includes('inapplicable'));}
     db.close();
   }
+  assert(!trace.some(t=>t.run==='B'&&t.calls.some((c:any)=>c.name==='ctf_experience_search')));
   assert(trace.some(t=>t.run==='B'&&t.who==='recon'&&t.calls.some((c:any)=>c.name==='ctf_experience_read')));
   assert(trace.some(t=>t.run==='B'&&t.who==='domain-solver'&&t.calls.some((c:any)=>c.name==='ctf_experience_read')));
-  console.log(JSON.stringify({status:'passed',root,results,lessonID,episodeID,requests:trace.length,realModelCalls:0,runtime:{platform:process.platform,arch:process.arch,node:process.version},proof:'native OpenCode wiring with deterministic localhost generation; no semantic model or production image certification'},null,2));
+  const summary={status:'passed',root,results,lessonID,episodeID,requests:trace.length,realModelCalls:0,runtime:{platform:process.platform,arch:process.arch,node:process.version},proof:'native OpenCode wiring with deterministic localhost generation; no semantic model or production image certification'};
+  const evidence=[];for(const result of results){const audit=JSON.parse(await readFile(join(result.runDir,'evidence/control-audit.json'),'utf8'));evidence.push({runDir:result.runDir,events:audit.filter((r:any)=>['context.presented','recon.snapshot','experience.returned'].includes(r.op)),calls:trace.filter(t=>result.runDir.endsWith('/'+t.run)).map(t=>({role:t.who,step:t.step,tools:t.calls.map((c:any)=>c.name)}))});}
+  await writeFile('docs/gates/recon-context-interface-20261031/product-native.json',JSON.stringify({...summary,evidence},null,2));
+  console.log(JSON.stringify(summary,null,2));
 }catch(error){process.exitCode=1;console.error(error,{root,failure,trace:trace.map(t=>`${t.run}:${t.who}:${t.step}:${t.calls.map((c:any)=>c.name)}`)});}
-finally{await writeFile(join(root,'trace.json'),JSON.stringify(trace,null,2));await writeFile(join(root,'source-hashes.json'),JSON.stringify(await Promise.all(['apps/launcher/src/control-service.ts','apps/launcher/src/experience-store.ts','apps/launcher/src/episode-learning.ts','apps/launcher/src/launch.ts','apps/opencode-plugin/src/index.ts','tests/manual/experience-loop.ts'].map(async path=>({path,sha256:createHash('sha256').update(await readFile(path)).digest('hex')}))),null,2));await new Promise<void>(done=>{stub.close(()=>done());stub.closeAllConnections();});}
+finally{await writeFile(join(root,'trace.json'),JSON.stringify(trace,null,2));await writeFile(join(root,'source-hashes.json'),JSON.stringify(await Promise.all(['apps/launcher/src/investigation-context.ts','apps/launcher/src/control-service.ts','apps/launcher/src/experience-store.ts','apps/launcher/src/episode-learning.ts','apps/launcher/src/launch.ts','apps/opencode-plugin/src/index.ts','tests/manual/experience-loop.ts'].map(async path=>({path,sha256:createHash('sha256').update(await readFile(path)).digest('hex')}))),null,2));await new Promise<void>(done=>{stub.close(()=>done());stub.closeAllConnections();});}

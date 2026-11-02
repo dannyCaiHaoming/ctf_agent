@@ -48,7 +48,7 @@ export interface HttpResponseFacts {
   };
   contentType: { value: string | null; status: 'present' | 'missing' | 'redacted' | 'omitted_over_limit' };
 }
-export interface ArtifactSource {kind:'file'|'job'|'http'|'package'; run:string; challenge:string; sessionID:string; execution:string|null; selectedExecution?:string; resource?:string; path?:string; stream?:string; callID?:string;http?:HttpResponseFacts}
+export interface ArtifactSource {kind:'file'|'job'|'http'|'package'|'recon'; run:string; challenge:string; sessionID:string; execution:string|null; selectedExecution?:string; resource?:string; path?:string; stream?:string; callID?:string;http?:HttpResponseFacts}
 export interface Publication {ref:string;path:string;sha256:string;size:number;source:ArtifactSource;start:number;end:number;originalBytes:number;originalComplete:boolean|null;rangeComplete:true;snapshotFixed:true}
 export class ArtifactPublisher {
   private readonly records=new Map<string,{record:Publication;dir:string}>();

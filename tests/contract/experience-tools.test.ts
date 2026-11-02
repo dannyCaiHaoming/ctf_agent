@@ -2,6 +2,7 @@ import {describe,it,expect} from 'vitest';
 import {mkdtempSync,mkdirSync} from 'node:fs';
 import {join} from 'node:path';
 import {tmpdir} from 'node:os';
+import {createHash} from 'node:crypto';
 import {ControlService} from '../../apps/launcher/src/control-service.js';
 import {ExperienceStore} from '../../apps/launcher/src/experience-store.js';
 function fixture() {
@@ -79,6 +80,34 @@ it('R1: terminal UPDATE failure after real HTTP pauses the challenge across Reco
  }finally{store.close();await new Promise<void>(done=>{target.close(()=>done());target.closeAllConnections();});}
 });
 
+it('publishes complete large process payloads and pauses on publication failure',async()=>{
+ const {store,service}=fixture();
+ const large={stdout:'a'.repeat(40000),stderr:'b'.repeat(40000),password:'private-secret'};
+ store.addRedactions(['private-secret']);
+ const event=(callID:string)=>({part:{type:'tool',sessionID:'recon',messageID:'msg-'+callID,callID,tool:'bash',state:{status:'completed',input:large,output:large}}});
+ await expect(service.handle('recon','process.event',event('large'))).resolves.toEqual({recorded:true});
+ const row=store.allRecords('A','X').find(r=>r.call_id==='large')!;
+ for(const payload of [row.args_json,row.result_json]){
+  expect(payload).toMatchObject({ref:expect.stringMatching(/^[0-9a-f-]{36}$/),sha256:expect.stringMatching(/^[0-9a-f]{64}$/),size:expect.any(Number),originalComplete:true,rangeComplete:true});
+  const pages:Buffer[]=[];let cursor:string|undefined;
+  do {const page=await (service as any).publications.read('A','X',{ref:payload.ref,...(cursor?{cursor}:{})});pages.push(Buffer.from(page.data,'base64'));cursor=page.nextCursor??undefined;} while(cursor);
+  const bytes=Buffer.concat(pages),decoded=JSON.parse(bytes.toString()) as typeof large;
+  expect(createHash('sha256').update(bytes).digest('hex')).toBe(payload.sha256);
+  expect(bytes.length).toBe(payload.size);expect(decoded).toEqual({...large,password:'<redacted>'});expect(bytes.toString()).not.toContain('private-secret');
+ }
+ expect(row.args_meta).toMatchObject({storage:'artifact',complete:true,transformation:'redacted'});
+ expect(row.result_meta).toMatchObject({storage:'artifact',complete:true,transformation:'redacted'});
+
+ (service as any).publications.publish=async()=>{throw new Error('disk unavailable');};
+ await expect(service.handle('recon','process.event',event('failed'))).rejects.toThrow('exploration paused');
+ const failed=store.allRecords('A','X').find(r=>r.call_id==='failed')!;
+ expect(failed.args_json).toMatchObject({publication:{status:'error',reason:'disk unavailable'}});
+ expect(failed.args_meta).toMatchObject({storage:'artifact',complete:false});
+ expect(failed.original_complete).toBe(false);
+ expect(service.audit.some(a=>a.op==='process.paused'&&!a.allow)).toBe(true);
+ store.close();
+});
+
 it('R1: asynchronous job terminal persistence failure pauses new jobs even after running reply was delivered',async()=>{
  const {readFile}=await import('node:fs/promises');const {setTimeout:delay}=await import('node:timers/promises');
  const {root,store,service}=fixture(),marker=join(root,'job-actually-ran.txt');
@@ -92,4 +121,102 @@ it('R1: asynchronous job terminal persistence failure pauses new jobs even after
  expect(await readFile(marker,'utf8')).toBe('first');expect(service.resourceSnapshot()).toHaveLength(1);expect(service.resourceSnapshot()[0]!.state).toBe('settled');
  await expect(service.handle('recon','tool.execute',{tool:'job.read',callID:'read-job',args:{job:first.job,stream:'stdout'}})).resolves.toHaveProperty('data');
  await expect(service.handle('recon','tool.execute',{tool:'job.cancel',callID:'cancel-job',args:{job:first.job}})).resolves.toHaveProperty('job');store.close();
+});
+
+it('projects judgments before actions, refreshes old rows and automatically presents versioned lessons without search',async()=>{
+ const {store,service}=fixture();
+ const e=store.saveDraft({run_id:'old',challenge_id:'old',outcome:'solved',outcome_ref:[],end_reason:'done',input:{sources:[]}});e.content={summary:'template method',tech_tags:['template'],steps:[],failed_paths:[],unresolved:[],experience_refs:[]};e.episode_status='completed';store.saveEpisode(e);
+ const done=store.completeLessons(e,[{title:'template arithmetic',tags:['template'],when:'template evaluation',steps:['compare arithmetic'],checks:['numeric result'],avoid:['literal reflection'],limits:['verify current behavior']}]);
+ const scope={run:'A',challenge:'X',session:'recon',call:'tool',message:'a1'};store.start(scope,'workspace.read',{path:'materials/source.php'});
+ store.note({...scope,call:'note'},{kind:'decision',assessment:'template route',next_action:'compare arithmetic'},()=>true);
+ const first=await service.handle('recon','context.prepare',{messageID:'u1'}) as any;const payload=JSON.parse(first.text);
+ expect(payload.experience.lessons[0].id).toBe(done.lesson_ids[0]);expect(payload.view.gaps).not.toContain('decision not recorded');
+ store.finish(scope,'completed',{content:'changed result'});
+ const next=await service.handle('recon','context.prepare',{messageID:'u1'}) as any;expect(next.version).not.toBe(first.version);
+ expect(await service.handle('recon','context.prepare',{messageID:'u1'})).toEqual(next);
+ expect(await service.handle('reference','context.prepare',{messageID:'u2'})).toEqual({});
+ expect(store.records('A','X',{kind:'decision'}).records.every(r=>r.kind==='decision')).toBe(true);
+ (service as any).options.challenges.push({...((service as any).options.challenges[0]),id:'Y'});
+ service.bindings.set('other',{...service.bindings.get('recon')!,sessionID:'other',role:'domain-solver',challengeId:'Y'});
+ const other=JSON.parse((await service.handle('other','context.prepare',{messageID:'other-user'}) as any).text);
+ expect(other.view.records).toEqual([]);expect(other.experience.lessons).toEqual([]);
+ const revision=store.saveDraft({run_id:'old',challenge_id:'old',outcome:'unsolved',outcome_ref:[],end_reason:'corrected',input:{sources:[]}});
+ expect(revision.version).toBe(2);
+ const refreshed=JSON.parse((await service.handle('recon','context.prepare',{messageID:'u1'}) as any).text);
+ expect(refreshed.experience.lessons[0].source_revisions[0].latest.outcome).toBe('unsolved');
+ store.db.exec('DROP TABLE lessons');await expect(service.handle('recon','context.prepare',{messageID:'u1'})).rejects.toThrow();
+ expect(service.audit.at(-1)).toMatchObject({op:'context.prepare',allow:false});store.close();
+});
+
+it('handoff freezes all pages including final note and running rows, downstream reads immutable chunk index',async()=>{
+ const {store,service}=fixture();
+ for(let i=0;i<160;i++){const scope={run:'A',challenge:'X',session:'recon',call:'c'+i,message:'a'+i};store.start(scope,'workspace.read',{path:'materials/a'});if(i<159)store.finish(scope,'completed',{data:'x'.repeat(7000)});}
+ (service as any).executions.set('ex',{ref:'ex',childID:'recon',role:'recon',state:'running'});
+ const result=await service.handle('recon','tool.execute',{tool:'recon.note',callID:'handoff',messageID:'last',args:{kind:'handoff',assessment:'baseline available',next_action:'solve'}}) as any;
+ expect(result.snapshot.status,JSON.stringify(service.audit.slice(-3))).toBe('complete');expect(result.snapshot.coverage.total).toBe(161);expect(result.snapshot.coverage.in_flight_ids).toHaveLength(1);
+ const pub=(service as any).publications,index=JSON.parse((await pub.bytes('A','X',result.snapshot.export.ref)).bytes.toString());expect(index.parts.length).toBeGreaterThan(1);
+ const fixed=JSON.parse(Buffer.concat(await Promise.all(index.parts.map(async(p:any)=>(await pub.bytes('A','X',p.ref)).bytes))).toString());
+ expect(fixed.records.at(-1).kind).toBe('handoff');expect(fixed.records.at(-2).status).toBe('running');
+ store.finish({run:'A',challenge:'X',session:'recon',call:'c159'},'completed',{later:true});
+ expect(JSON.parse((await pub.bytes('A','X',result.snapshot.export.ref)).bytes.toString())).toEqual(index);
+ const repeat=await service.handle('recon','tool.execute',{tool:'recon.note',callID:'handoff',messageID:'last',args:{kind:'handoff'}});expect(repeat).toEqual(result);store.close();
+});
+
+it('saved handoff survives export failure without blocking closure or retrying publication',async()=>{
+ const {store,service}=fixture();let calls=0;(service as any).publications.publish=async()=>{calls++;throw new Error('disk unavailable');};
+ (service as any).executions.set('ex',{ref:'ex',childID:'recon',role:'recon',state:'running'});
+ const body={tool:'recon.note',callID:'handoff',messageID:'last',args:{kind:'handoff',next_reason:'blocked'}};
+ const first=await service.handle('recon','tool.execute',body) as any;expect(first.snapshot.status).toBe('partial');expect(store.allRecords('A','X').at(-1).kind).toBe('handoff');
+ expect(await service.handle('recon','tool.execute',body)).toEqual(first);expect(calls).toBe(1);store.close();
+});
+
+it('new decision and observation survive a saturated statement/material keyword budget',async()=>{
+ const {retrievalSignals}=await import('../../apps/launcher/src/investigation-context.js');const {store}=fixture();
+ const statement=Array.from({length:24},(_,i)=>'statementword'+i).join(' '),materials=Array.from({length:16},(_,i)=>'materialword'+i+'_file'+i+'.txt');
+ const baseline=retrievalSignals(store,statement,materials,[]);
+ const changed=retrievalSignals(store,statement,materials,[{id:1,kind:'decision',note_json:{assessment:'jinja2 template injection'}},{id:2,kind:'tool',tool:'workspace.read',result_json:{text:'twig observed'}}]);
+ expect(changed.query).not.toBe(baseline.query);expect(changed.query.split(' ')).toContain('jinja2');expect(changed.query.split(' ')).toContain('twig');
+ expect(changed.query.length).toBeLessThanOrEqual(500);expect(changed.query.split(' ').length).toBeLessThanOrEqual(50);
+ expect(changed.query.split(' ').every(w=>changed.signals.some(s=>s.words.includes(w)))).toBe(true);store.close();
+});
+
+it('snapshot read failure returns saved note and cached partial with audit instead of a generic rejection',async()=>{
+ const {store,service}=fixture();(service as any).executions.set('ex',{ref:'ex',childID:'recon',role:'recon',state:'running'});
+ let reads=0;const original=store.allRecords.bind(store);store.allRecords=()=>{reads++;throw new Error('snapshot read unavailable');};
+ const body={tool:'recon.note',callID:'handoff-read-failure',messageID:'last',args:{kind:'handoff',next_reason:'ready'}};
+ const first=await service.handle('recon','tool.execute',body) as any;
+ expect(first).toMatchObject({id:expect.any(Number),snapshot:{status:'partial'}});expect(original('A','X').at(-1).id).toBe(first.id);
+ expect(service.audit.some(r=>r.op==='recon.snapshot'&&!r.allow&&(r.detail as any).handoff_id===first.id)).toBe(true);
+ expect(await service.handle('recon','tool.execute',body)).toEqual(first);expect(reads).toBe(1);expect(service.publicationSnapshot()).toEqual([]);store.close();
+});
+
+it('decision history cannot evict Solver delivery at the earlier persistent-input size bound',async()=>{
+ const {store,service}=fixture();
+ for(let i=0;i<100;i++)store.note({run:'A',challenge:'X',session:'recon',call:'n'+i,message:'m'+i},{kind:'decision',observation:'a'.repeat(4000),assessment:'b'.repeat(4000),next_action:'c'.repeat(4000),next_reason:'d'.repeat(4000)},()=>true);
+ (service as any).options.client.session.messages=async()=>({data:[{info:{role:'assistant'},parts:[{type:'text',text:'solver evidence '.repeat(1000)},{type:'text',text:'final route '.repeat(1000)},{type:'text',text:'verification '.repeat(1000)}]}]});
+ service.executionSnapshot=()=>[{ref:'solver-delivery',childID:'solver',role:'domain-solver',challengeId:'X',state:'completed',delivered:true,resultFacts:{completeness:'complete'}}] as any;
+ const e=(await service.learningInputs())[0]!;expect(e.input.sources.some((s:any)=>s.ref==='execution:solver-delivery')).toBe(true);expect(e.input.gaps.some((g:string)=>g.includes('input size bound'))).toBe(true);store.close();
+});
+
+it('R3: oversized process payloads persist as fixed artifact refs and publication failure is never complete',async()=>{
+ const {store,service}=fixture();
+ try {
+  const content='x'.repeat(40_000);
+  await service.handle('recon','tool.execute',{tool:'workspace.write',callID:'big',messageID:'a1',args:{path:'work/big.txt',content}});
+  const row=store.allRecords('A','X').find((r:any)=>r.call_id==='big')!;
+  expect(row.args_meta).toMatchObject({storage:'artifact',complete:true});
+  const index=store.records('A','X',{ids:[row.id]}).index[0]!;
+  expect(index.args_ref).toEqual(expect.any(String));
+  let cursor:string|undefined,bytes=Buffer.alloc(0);
+  for(;;){const page:any=await service.handle('recon','tool.execute',{tool:'artifact.read',callID:'r'+bytes.length,args:{ref:index.args_ref,...(cursor?{cursor}:{})}});
+   bytes=Buffer.concat([bytes,Buffer.from(page.data,'base64')]);if(!page.nextCursor)break;cursor=page.nextCursor;}
+  expect(createHash('sha256').update(bytes).digest('hex')).toBe(row.args_meta.sha256);
+  expect(JSON.parse(bytes.toString('utf8'))).toEqual({path:'work/big.txt',content});
+  (service as any).publications.publish=async()=>{throw new Error('publish disk failure');};
+  await expect(service.handle('recon','tool.execute',{tool:'workspace.write',callID:'lost',messageID:'a2',args:{path:'work/lost.txt',content}})).resolves.toBeDefined();
+  const lost=store.allRecords('A','X').find((r:any)=>r.call_id==='lost')!;
+  expect(lost).toMatchObject({status:'error',original_complete:false});
+  expect(lost.result_meta.complete).toBe(false);
+  await expect(service.handle('recon','tool.execute',{tool:'http.request',callID:'after',messageID:'a3',args:{url:'http://127.0.0.1:1/'}})).rejects.toThrow('exploration paused');
+ }finally{store.close();}
 });

@@ -62,3 +62,6 @@ Verifier 交回固定 result 後，用 `ctf_verification_read({challenge,version
 對合格記錄提出 `ctf_completion_request({challenge,version,result})`，不傳 candidate/endpoint/authority。host 讀取精確固定 bytes，預留機會、保存 intent 並在發送前再核對身份、bytes、規則、預算與停止。無裁判保存 candidate_only。只有 confirmed、accepted 且整題完成並有效保存才是 solved；即使第三層接受，原 inconclusive 也不改 verified。部分接受不能重送同一候選湊完成。
 
 只有 host 裁判回執明確分類 wrong_answer 才判該精確候選錯誤；同任務同題同 judge 作用域不得再送，換包／version／result 不繞過。invalid_state／closed／非答案 rejected 不列錯誤候選。unknown／超時／回執不匹配／保存失敗暫停同題提交，不能當錯誤、退回機會或換候選盲重發；其他觀察可繼續。已保存與呼叫方收到分開，角色假設不是 host 證明。
+
+## 調查與經驗上下文
+以具體問題與下游可開工條件派 Recon；不要用「只用 workspace/HTTP/job」遮蔽記錄與經驗能力，也不要求找全 flag 才交回。要求關鍵路線 decision 與 handoff 返回的 snapshot.export.ref；最終快照索引和普通 read 的頁級匯出分清。將真實快照引用與覆蓋／缺口交給同題 Solver，缺判斷不補造。
