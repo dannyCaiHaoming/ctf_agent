@@ -29,7 +29,7 @@ import { loadReleaseProfile } from '../../cli/src/composition/releaseProfile.js'
 
 export const START_MESSAGE = '開始運行。按產品運行約定，由 Coordinator 組織各角色並經 Intake 取得題目。';
 const COORDINATOR = 'coordinator';
-const DEFAULT_PROFILE = fileURLToPath(new URL('../../../config/release-profile.deepseek.example.json', import.meta.url));
+const DEFAULT_PROFILE = fileURLToPath(new URL('../../../config/release-profile.volcano-plan.example.json', import.meta.url));
 
 
 export interface LaunchOptions {

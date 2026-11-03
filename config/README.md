@@ -1,22 +1,30 @@
 # 配置
 
-產品 launcher 預設使用 `release-profile.deepseek.example.json`（DeepSeek 官方 API 的 `deepseek-flash`），可透過 `--profile` 覆寫，模型設置由其 `opencode.configPath` 引用的配置提供。Provider 憑證僅通過 OpenCode 配置的環境變量引用注入。加載配置不證明餘額或網絡可用。
+產品 launcher 預設使用 `release-profile.volcano-plan.example.json`（自訂火山 plan 網關的 `deepseek-v4.1-flash`），可透過 `--profile` 覆寫，模型設置由其 `opencode.configPath` 引用的配置提供。Provider 憑證僅通過 OpenCode 配置的環境變量引用注入。加載配置不證明餘額或網絡可用。
 
 - `release-profile.schema.json`：release profile 的 schema。
+- `release-profile.volcano-plan.example.json`：自訂火山 plan，引用 `opencode.volcano-plan.example.json`（launcher 預設）。
+- `release-profile.volcano-coding.example.json`：火山 Ark Coding Plan，引用 `opencode.volcano-coding.example.json`。
 - `release-profile.m1-opencode.example.json`：引用 `opencode.m1.example.json`。
 - `release-profile.deepseek.example.json`：DeepSeek 官方 API，引用 `opencode.deepseek.example.json`。
+
+## 自訂火山 plan（AI Gateway）
+
+在倉庫根目錄的 `.env` 設置 `VOLCANO_PLAN_BASE_URL` 與 `VOLCANO_PLAN_API_KEY`。配置使用預裝的 `@ai-sdk/openai-compatible`，`baseURL` 與 `apiKey` 都只寫 `{env:...}` 引用，因此網關地址和憑證都不入庫；`{env:...}` 對 `options.baseURL` 同樣生效，已用 `opencode serve` 的 `/config` 核對替換結果。模型為 `volcano-plan/deepseek-v4.1-flash`。`baseURL` 不寫結尾斜線：適配器會先 `withoutTrailingSlash` 再拼 `/chat/completions`，寫法不影響實際請求路徑，只是避免出現兩份不同字面值。
+
+目前只完成配置改動，未對該網關發起真實請求，因此不證明端點可達、`deepseek-v4.1-flash` 這個模型名被接受或計費可用。`limit` 沿用同族的保守值（context 128000、output 8000），如網關另有上限需按實測調整。
 
 ## DeepSeek 官方 API
 
 在倉庫根目錄的 `.env` 設置 `DEEPSEEK_API_KEY`（欄位範例見 `.env.example`）。launcher 從當前目錄讀取 `.env`，已有進程環境變量優先；密鑰只注入受管 OpenCode 進程，不寫入產品資產或 JSON 配置。`.env` 已被 Git 忽略。
 
-配置使用預裝的 `@ai-sdk/openai-compatible`，連接 `https://api.deepseek.com`。預設為 `deepseek/deepseek-flash`；切換 Pro 時將配置頂層 `model` 改為 `deepseek/deepseek-v4-pro`。思考內容透過 `reasoning_content` 在工具循環中傳遞。範例將單次輸出上限設為 8000 tokens，這是本地保守設定，不是服務商最大輸出能力；不填固定價格以免將時段價格誤記為實測成本。
+配置使用預裝的 `@ai-sdk/openai-compatible`，連接 `https://api.deepseek.com`。該配置檔預設為 `deepseek/deepseek-flash`；切換 Pro 時將配置頂層 `model` 改為 `deepseek/deepseek-v4-pro`。思考內容透過 `reasoning_content` 在工具循環中傳遞。範例將單次輸出上限設為 8000 tokens，這是本地保守設定，不是服務商最大輸出能力；不填固定價格以免將時段價格誤記為實測成本。
 
-取得題目、provider/model、批次與 token 預算的明確授權後，從倉庫根目錄執行：
+launcher 預設已切到自訂火山 plan，使用 DeepSeek 要顯式傳 profile。取得題目、provider/model、批次與 token 預算的明確授權後，從倉庫根目錄執行：
 
 ```bash
-npx tsx apps/launcher/src/launch.ts
-# 需要其他 provider 時，顯式傳入 --profile <release-profile.json>
+npx tsx apps/launcher/src/launch.ts --profile config/release-profile.deepseek.example.json
+npx tsx apps/launcher/src/launch.ts --profile config/release-profile.volcano-coding.example.json  # 火山 Ark Coding Plan
 ```
 
 執行前按本批授權調整 profile 的題目與預算。範例數值不構成模型運行授權。
