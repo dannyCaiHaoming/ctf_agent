@@ -43,13 +43,14 @@ export function describeSource(s:any,index:number) {
   const c=s.content&&typeof s.content==='object'&&!Array.isArray(s.content)?s.content:null,recon=!!c&&['tool','decision','handoff'].includes(c.kind);
   const ref=String(s.ref),http=c?.result_json&&typeof c.result_json==='object'&&typeof c.result_json.status==='number'?c.result_json.status:'-';
   return {
+    actor:s.role?null:recon?String(c.role??'recon'):null,
     family:s.role?`execution:${s.role}`:ref.startsWith('artifact:')?'artifact':ref.startsWith('execution:')?'execution':recon?(c.kind==='tool'?familyKey(c):c.kind):'other',
     sequence:s.role||/^(?:artifact|execution):/.test(ref)?null:typeof c?.sequence==='number'?c.sequence:index+1,
     cls:recon&&c.kind==='tool'?`${c.status??'unknown'}/${http}`:(s.gaps??[]).length?'gap':'ok',
     incomplete:(s.gaps??[]).length>0||s.content===undefined||c?.result_meta?.complete===false||c?.args_meta?.complete===false||c?.status==='running',
   };
 }
-export interface ProcessScope { run: string; challenge: string; session: string; execution?: string; message?: string; call?: string }
+export interface ProcessScope { run: string; challenge: string; session: string; role?: string; execution?: string; message?: string; call?: string }
 export interface PreparedPayload { raw: string; meta: { sha256: string; size: number; complete: boolean; transformation: 'redacted'|'none'; redactions?: string[]; original_size?: number; storage?: 'inline'|'artifact' } }
 export interface StartOptions { complete?: boolean; prepared?: PreparedPayload }
 export interface FinishOptions { priority?: number; complete?: boolean; prepared?: PreparedPayload }
@@ -62,10 +63,10 @@ export class ExperienceStore {
     this.db = new DatabaseSync(path);
     this.db.exec('PRAGMA busy_timeout=3000; PRAGMA journal_mode=WAL; PRAGMA foreign_keys=ON;');
     const version = Number(this.db.prepare('PRAGMA user_version').get()!.user_version);
-    if(version > 2) { this.db.close(); throw new Error('experience schema newer than supported'); }
+    if(version > 3) { this.db.close(); throw new Error('experience schema newer than supported'); }
     this.db.exec(`BEGIN IMMEDIATE;
       CREATE TABLE IF NOT EXISTS recon_turns (
-        id INTEGER PRIMARY KEY, step_id TEXT, run_id TEXT NOT NULL, challenge_id TEXT NOT NULL, session_id TEXT NOT NULL,
+        id INTEGER PRIMARY KEY, step_id TEXT, run_id TEXT NOT NULL, challenge_id TEXT NOT NULL, session_id TEXT NOT NULL, role TEXT NOT NULL DEFAULT 'recon',
         execution_ref TEXT, message_id TEXT, turn_no INTEGER, call_id TEXT, sequence INTEGER, kind TEXT NOT NULL,
         tool TEXT, visible_intent TEXT, args_json TEXT, args_meta_json TEXT, args_shape_json TEXT,
         status TEXT, result_json TEXT, result_meta_json TEXT, result_sha256 TEXT, result_size INTEGER,
@@ -79,6 +80,7 @@ export class ExperienceStore {
         body TEXT NOT NULL, PRIMARY KEY(lesson_id,version), FOREIGN KEY(episode_id,episode_version) REFERENCES episodes(episode_id,version));
       COMMIT;`);
     if(version < 2) this.migrateReconV2();
+    if(version < 3) this.migrateRoleV3();
   }
   close() { this.db.close(); }
   private migrateReconV2() {
@@ -96,6 +98,19 @@ export class ExperienceStore {
         this.db.prepare('UPDATE recon_turns SET step_id=COALESCE(step_id,?),sequence=COALESCE(sequence,?),original_complete=COALESCE(original_complete,0) WHERE id=?').run(randomUUID(),sequence,row.id);
       }
       this.db.exec('PRAGMA user_version=2; COMMIT;');
+    } catch(error) {
+      this.db.exec('ROLLBACK');
+      this.db.close();
+      throw error;
+    }
+  }
+  /** v3: rows written before role existed were all Recon's. */
+  private migrateRoleV3() {
+    this.db.exec('BEGIN IMMEDIATE');
+    try {
+      const columns=new Set((this.db.prepare('PRAGMA table_info(recon_turns)').all() as Array<{name:string}>).map(r=>r.name));
+      if(!columns.has('role'))this.db.exec("ALTER TABLE recon_turns ADD COLUMN role TEXT NOT NULL DEFAULT 'recon'");
+      this.db.exec('PRAGMA user_version=3; COMMIT;');
     } catch(error) {
       this.db.exec('ROLLBACK');
       this.db.close();
@@ -150,8 +165,8 @@ export class ExperienceStore {
   start(s:ProcessScope,tool:string,args:unknown,options:StartOptions={}) {
     return this.transaction(()=> {
       const now=Date.now(),payload=options.prepared??this.preparePayload(args),complete=options.complete??true;
-      this.db.prepare(`INSERT OR IGNORE INTO recon_turns(step_id,run_id,challenge_id,session_id,execution_ref,message_id,turn_no,call_id,sequence,kind,tool,args_json,args_meta_json,status,original_complete,created_at,updated_at)
-        VALUES(?,?,?,?,?,?,?,?,?,'tool',?,?,?,'running',?,?,?)`).run(randomUUID(),s.run,s.challenge,s.session,s.execution??null,s.message??null,this.turn(s),s.call??null,this.sequence(s),tool,payload.raw,JSON.stringify({...payload.meta,complete}),complete?1:0,now,now);
+      this.db.prepare(`INSERT OR IGNORE INTO recon_turns(step_id,run_id,challenge_id,session_id,role,execution_ref,message_id,turn_no,call_id,sequence,kind,tool,args_json,args_meta_json,status,original_complete,created_at,updated_at)
+        VALUES(?,?,?,?,?,?,?,?,?,?,'tool',?,?,?,'running',?,?,?)`).run(randomUUID(),s.run,s.challenge,s.session,s.role??'recon',s.execution??null,s.message??null,this.turn(s),s.call??null,this.sequence(s),tool,payload.raw,JSON.stringify({...payload.meta,complete}),complete?1:0,now,now);
       if(s.message)this.db.prepare('UPDATE recon_turns SET message_id=?,turn_no=? WHERE run_id=? AND session_id=? AND call_id=? AND message_id IS NULL').run(s.message,this.turn(s),s.run,s.session,s.call??null);
     });
   }
@@ -171,7 +186,7 @@ export class ExperienceStore {
     for(const id of args.related_ids)if(!this.db.prepare('SELECT id FROM recon_turns WHERE id=? AND run_id=? AND challenge_id=?').get(id,s.run,s.challenge))throw new Error('unbound related record');
     if(args.evidence_refs.some(r=>!validEvidence(r)))throw new Error('unbound evidence');
     const now=Date.now(),turn=this.turn(s);
-    this.db.prepare(`INSERT OR IGNORE INTO recon_turns(step_id,run_id,challenge_id,session_id,execution_ref,message_id,turn_no,call_id,sequence,kind,note_json,status,original_complete,created_at,updated_at,finished_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,'completed',1,?,?,?)`).run(randomUUID(),s.run,s.challenge,s.session,s.execution??null,s.message??null,turn,s.call??null,this.sequence(s),args.kind,this.json(args),now,now,now);
+    this.db.prepare(`INSERT OR IGNORE INTO recon_turns(step_id,run_id,challenge_id,session_id,role,execution_ref,message_id,turn_no,call_id,sequence,kind,note_json,status,original_complete,created_at,updated_at,finished_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,'completed',1,?,?,?)`).run(randomUUID(),s.run,s.challenge,s.session,s.role??'recon',s.execution??null,s.message??null,turn,s.call??null,this.sequence(s),args.kind,this.json(args),now,now,now);
     return this.db.prepare('SELECT id,step_id,sequence,turn_no FROM recon_turns WHERE run_id=? AND session_id=? AND call_id=? AND kind=?').get(s.run,s.session,s.call??null,args.kind);
   }
   records(run:string,challenge:string,args:unknown={}) {
@@ -219,7 +234,7 @@ export class ExperienceStore {
     const argsMeta=this.parsedJson(r.args_meta_json),resultMeta=this.parsedJson(r.result_meta_json);
     const fingerprint=typeof argsMeta?.sha256==='string'?argsMeta.sha256:createHash('sha256').update(String(r.args_json??r.note_json??r.tool??'')).digest('hex');
     return {
-      id:Number(r.id),step_id:r.step_id,sequence:Number(r.sequence),cursor:`${r.sequence}:${r.id}`,
+      id:Number(r.id),step_id:r.step_id,sequence:Number(r.sequence),cursor:`${r.sequence}:${r.id}`,role:r.role??'recon',
       turn_no:r.turn_no,message_id:r.message_id,session_id:r.session_id,execution_ref:r.execution_ref,
       kind:r.kind,tool:r.tool,status:r.status,fingerprint,
       args_ref:this.publicationRef(r.args_json),args_shape:this.parsedJson(r.args_shape_json),
@@ -239,7 +254,7 @@ export class ExperienceStore {
       artifact_refs:[...new Set(((cleaned.source_manifest??cleaned.sources??[]) as any[]).map(s=>String(s.ref)).filter(r=>r.startsWith('artifact:')))],
       running:index.filter(r=>r.status==='running').length,unknown:index.filter(r=>r.status==null||r.status==='unknown').length};
     cleaned.result={outcome:input.outcome,end_reason:input.end_reason,completion:cleaned.completion??null,judge:input.outcome_ref,verifications:cleaned.verifications??[]};
-    cleaned.skeleton=(cleaned.source_manifest??cleaned.sources??[]).map((s:any)=>({ref:s.ref,role:s.role??(s.ref?.startsWith('recon:')?'recon':null),kind:s.content?.kind??null,status:s.content?.status??null,
+    cleaned.skeleton=(cleaned.source_manifest??cleaned.sources??[]).map((s:any)=>({ref:s.ref,role:s.role??s.content?.role??(s.ref?.startsWith('recon:')?'recon':null),kind:s.content?.kind??null,status:s.content?.status??null,
       related_ids:s.content?.note_json?.related_ids??[],gaps:s.gaps??[],provided:!!cleaned.sources?.some((x:any)=>x.ref===s.ref)}));
     const fixed={...input,input:cleaned},hash=createHash('sha256').update(JSON.stringify(fixed)).digest('hex');
     return this.transaction(()=>{

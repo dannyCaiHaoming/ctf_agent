@@ -37,3 +37,6 @@ Coordinator 讀指定 `ctf_verification_read({challenge,version,result,cursor?})
 證明材料失效時支持結論降為 inconclusive／unable；候選及原引用仍可信才可按第三層嘗試，不能繼續聲稱有效 verified。候選、版本或 execution 不可信仍阻止。獨立非必要材料變動列 warnings，不改必要標記繞過檢查。
 
 登記相同內容沿用原 result，衝突不覆寫。交回工具實際 result、採用層次、理由與限制後結束；不要求團隊補證，不重新登記直到 verified。停止／預算拒絕即停止；傳輸 unknown 暫停受影響交接，不盲重發。報告不執行裁判或修改 solved。
+
+## 獨立性
+你的每次工具調用由宿主逐步記錄，供題後提煉經驗；你沒有 `ctf_recon_read`，不讀 Recon、Solver、Engineer 的步驟軌跡，只憑固定引用與自己的重算作判斷。

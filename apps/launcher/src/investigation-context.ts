@@ -2,17 +2,17 @@ import {createHash} from 'node:crypto';
 import type {ExperienceStore} from './experience-store.js';
 export const digest=(value:unknown)=>createHash('sha256').update(JSON.stringify(value)).digest('hex');
 const parse=(v:any)=>typeof v==='string'?JSON.parse(v):v;
-/** Fixed mechanical rule: the latest terminal steps of any kind, never chosen by content. */
+/** Fixed mechanical rule: the latest terminal steps of any kind of the requesting session, never chosen by content. */
 export const RECENT_STEPS=6;
 export const INDEX_PAGE=200;
 /** Compact navigation entry derived from the store's own index (same ids, cursors and fingerprints as recon.read). */
-export const indexEntry=(e:any)=>({id:e.id,step_id:e.step_id,sequence:e.sequence,cursor:e.cursor,session_id:e.session_id,kind:e.kind,tool:e.tool??null,status:e.status??null,
+export const indexEntry=(e:any)=>({id:e.id,step_id:e.step_id,sequence:e.sequence,cursor:e.cursor,session_id:e.session_id,role:e.role,kind:e.kind,tool:e.tool??null,status:e.status??null,
   fingerprint:e.fingerprint,args_ref:e.args_ref,result_ref:e.result_ref,result_size:e.result_size,result_complete:e.result_complete,original_complete:e.original_complete});
 /**
  * Navigable projection of the append-only investigation record, never a second editable source.
  * Pages are mechanical (sequence order, fixed size); every step stays reachable through the same cursor recon.read accepts.
  */
-export function investigationView(store:ExperienceStore,run:string,challenge:string,options:{cursor?:string;limit?:number;tail?:boolean}={}) {
+export function investigationView(store:ExperienceStore,run:string,challenge:string,options:{cursor?:string;limit?:number;tail?:boolean;session?:string}={}) {
   const limit=options.limit??INDEX_PAGE;if(!Number.isInteger(limit)||limit<1||limit>INDEX_PAGE)throw new Error('invalid investigation limit');
   if(options.cursor!==undefined&&options.tail)throw new Error('cursor and tail are exclusive');
   const complete=store.records(run,challenge,options.cursor?{cursor:options.cursor,limit:1}:{limit:1}),all=complete.index.map(indexEntry);
@@ -20,7 +20,8 @@ export function investigationView(store:ExperienceStore,run:string,challenge:str
   if(options.cursor){const [sequence,id]=options.cursor.split(':').map(Number);start=all.findIndex(e=>e.sequence>sequence!||(e.sequence===sequence&&e.id>id!));if(start<0)start=all.length;}
   else if(options.tail)start=Math.max(0,all.length-limit);
   const entries=all.slice(start,start+limit),remaining=all.length-start-entries.length;
-  const terminal=all.filter(e=>e.status!=='running').slice(-RECENT_STEPS);
+  // The index spans every role; recent complete steps are only the requesting session's own, so parallel roles do not crowd each other out.
+  const terminal=all.filter(e=>e.status!=='running'&&(options.session===undefined||e.session_id===options.session)).slice(-RECENT_STEPS);
   // One id per read: the store's page byte budget must not silently drop any selected complete step.
   const recent=terminal.map(e=>store.records(run,challenge,{ids:[e.id]}).records[0]).filter(Boolean).map((r:any)=>({id:Number(r.id),step_id:r.step_id,sequence:Number(r.sequence),cursor:`${r.sequence}:${r.id}`,session_id:r.session_id,kind:r.kind,tool:r.tool??null,status:r.status,
     fingerprint:all.find(e=>e.id===Number(r.id))!.fingerprint,args:r.args_json,args_meta:r.args_meta,result:r.result_json,result_meta:r.result_meta,note:r.note_json,original_complete:r.original_complete}));
