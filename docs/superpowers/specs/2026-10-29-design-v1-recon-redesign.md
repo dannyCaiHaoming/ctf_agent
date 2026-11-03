@@ -114,6 +114,22 @@ Recon 每一步至少保留下列關係：
 
 `ctf_recon_note` 是寫 decision／handoff 的窄入口；`ctf_recon_read` 與對應 artifact 讀取接口按 ID、範圍或 cursor 展開完整軌跡。工具成功不會自動生成語意結論，最終 handoff 也不能取代缺失的中間事實。
 
+### 記錄範圍：所有解題角色
+
+**決定（2026-11-03）：步驟記錄擴大到同題所有綁定題目的角色：Recon、Domain Solver、Engineer、Verifier。** 2026-10-30 曾決定 Solver／Engineer 不建步驟表，只靠交回文字寫明做法；結果 episode 的求解段只剩最後一段文字，真正決定成敗的實驗過程沒有逐步來源，與「整體做題過程幫到後續類似題」的目標不符，因此改為同一套記錄。
+
+- **同一張表：** 沿用 `recon_turns`，表名不改，避免遷移成本；新增 `role` 欄，由 host 依綁定填寫。舊行的角色為 `recon`。
+- **同一套規則：** 本節的無截斷、artifact ref、去敏標記、排序、冪等、終態單調與「寫入失敗留 error 列並暫停該題新探索」，對所有角色一致；Coordinator 不綁題目，不在範圍內。
+- **讀取：** `ctf_recon_read` 對同題的 Domain Solver 與 Engineer 開放唯讀，可按 ID、範圍或 cursor 展開全題步驟；Verifier 不開放，保持獨立。`ctf_recon_note`（decision／handoff）仍只給 Recon。
+- **不變的：** Recon cap／closure 只作用於 Recon；預算、角色權限與原生 task 分派不變。
+
+**實施狀態（無模型）：** 已實施，證據見 [R6 記錄](../../gates/recon-context-interface-20261031/r6-solve-roles-recording.json)。
+- **儲存：** schema v3 新增 `role` 欄，遷移冪等，舊行為 `recon`；角色只取自 host 綁定。
+- **寫入：** 四個角色的工具步驟與 job 終態都寫入；Coordinator 不寫。並行寫入時全題 `sequence` 仍唯一。
+- **讀取與上下文：** `recon.read` 開放給 Recon、Domain Solver、Engineer，Verifier 與 Coordinator 被拒；上下文的最近步驟只取本 session，索引帶 `role`。
+- **episode：** 步驟清單行為 `sequence|ref|role|族鍵|結果類別`。已落庫的舊 episode 不重算，仍是舊的四欄格式。
+- **限制：** Verifier 的大型參數或結果 artifact 沿用 `recon` 來源類別，Solver 可經索引中的 ref 讀到 Verifier 的步驟；Verifier 不讀他人軌跡的方向仍成立。Solver 在真實 runtime 中是否會調用 `ctf_recon_read` 未驗證。
+
 **實施狀態（無模型）：** 本節的步驟記錄與導航已在產品實作並通過無模型驗收，證據見 [R3 記錄](../../gates/recon-context-interface-20261031/r3-complete-trace.json)。schema v2 可遷移 v1，舊列標 `original_complete=false`；參數與結果不再永久截斷，去敏後超過 16 KiB 的內容發布為固定 artifact，資料庫只存 ref、hash 和大小，經 `artifact.read` 可逐字節重建；去敏範圍有標記。每次呼叫一列，跨 session 的 `sequence` 穩定，重複事件冪等，終態單調。`ctf_recon_read` 對模型開放 cursor、`step_id`、`ids` 與 sequence 半開區間。發布或寫入失敗時，該步仍留一列 `error`、`complete=false` 的記錄，並暫停該題的新探索；closure 工具照常放行，但不會因此丟列。**尚未實施：** 上表的 `visible_intent`、`visible_observation` 與 `args_shape` 三欄在資料庫中有欄位，但目前沒有任何代碼寫入，讀出時為空；`related_ids`／`evidence_refs` 只隨 `recon.note` 存在 `note_json` 中。仍未證明：publication 登記只存在進程內，重啟後無法核對 unknown；模型是否實際讀取與使用軌跡；長題完整索引的開銷。
 
 ---
@@ -162,7 +178,7 @@ R4 之前，插件每輪會刪除舊 synthetic investigation context，並把新
 
 **實施狀態（無模型）：** 上述放置已接入產品，證據見 [R4 記錄](../../gates/recon-context-interface-20261031/r4-append-context.json)。
 - **索引：** `investigationView` 複用 `ExperienceStore.records()` 的完整索引與 `sequence:id` cursor（與 `ctf_recon_read` 相同），按固定頁長 200 機械分頁；已移除「最近 N 條／18 KB／preview 截斷」選取。
-- **最近完整步驟：** 固定為最後 6 個終態步驟，逐 id 讀取完整 args／result；running 步驟只列入 `in_flight_ids`，tool-call／result 不拆對。
+- **最近完整步驟：** 固定為最後 6 個終態步驟（記錄範圍擴大後改為本 session 自己的最後 6 個終態步驟，避免並行角色互相擠佔；全題步驟仍在索引中），逐 id 讀取完整 args／result；running 步驟只列入 `in_flight_ids`，tool-call／result 不拆對。
 - **增量追加：** host 按 session 保留最近 16 個版本的索引基線，插件回報可見版本。基線仍在時追加 delta；基線遺失（首次、compaction、重啟、未知版本）退回 full；同版不追加。版本含預算計數，因此每次 admitted 請求後會追加一小段 state delta。
 - **投遞審計：** `context.presented` 在下一次被 admit 的請求上記錄，綁定實際追加正文的 hash、bytes、placement 與 record ids；compaction 在準備時記為 `compaction_context`。
 - **失敗處理：** 任一 projection 失敗只封鎖該 session 的出站請求，直到下一次成功準備。
@@ -322,7 +338,7 @@ r16 A 固定反例：#55 註冊請求為 302，#56 接著跳轉 `/team/2`；後�
   - 全部 decision／handoff；
   - 每個角色的原生交回；
   - host 綁定的 outcome、Verifier judgment 與 end reason。
-- **步驟清單：** 每個步驟固定一行，含 sequence、ref、工具、族鍵、結果類別，以及可得時的 HTTP status code；不含參數值或結果正文。清單總是交給模型，有自己的上限（48 KiB），與摘錄的上限分開計算。超出時，列到上限為止，其餘寫成連續的 sequence 範圍。清單中的每一行都可作為 `source_refs` 被引用。
+- **步驟清單：** 每個步驟固定一行，含 sequence、ref、角色、工具、族鍵、結果類別，以及可得時的 HTTP status code；不含參數值或結果正文。清單總是交給模型，有自己的上限（48 KiB），與摘錄的上限分開計算。超出時，列到上限為止，其餘寫成連續的 sequence 範圍。清單中的每一行都可作為 `source_refs` 被引用。
 - **摘錄：** 上述族規則只決定哪些步驟另附完整摘錄。
 - **超出摘錄上限時：** 先按族均衡刪去中段變化點，族的首尾不刪。若仍超限，不再靜默截斷，而是把整族的摘錄標為 `omitted`，並列出族鍵與步驟範圍；這些步驟仍在步驟清單中可見。整族省略的次序固定為：已選步數最少的族先省略；同數時，位元組較大的先省略；再按族鍵排序。
 
@@ -409,6 +425,7 @@ r16 B 曾搜尋經驗兩次但沒有調用 `ctf_experience_read`。這證明「s
 | [R4 追加式上下文](../../gates/recon-context-interface-20261031/r4-append-context.json) | §4 放置接入產品：transform 唯讀、`chat.message`／`tool.execute.after` 追加、版本去重、session 隔離、compaction／cancel 恢復、fail-closed、投遞審計；56 檔／742 測試、放置探針 13／13、r15 A/B 全部步驟進入索引 | 產品插件在真實 runtime 的行為、自動 overflow compaction、prefix-cache 或 token 收益、模型實際使用 |
 | [R5 episode 來源](../../gates/recon-context-interface-20261031/r5-episode-source.json) | §7 機械選取、步驟清單、`source_range`／`omitted_ranges`、失敗與未解的來源綁定；r15 A 98 步全在清單中；56 檔／753 測試 | 真實模型的 episode 忠實度、清單引用率或 lesson 收益 |
 | [r16 回放](../../gates/recon-context-interface-20261031/product-original-replay-r16.json) | r16 A 88 步全在步驟清單中；反例 #55／#56（302）與 #73／#74（403）在模型輸入中且結果類別正確；r15 回放不回退 | 這四步有完整摘錄、模型會據此避免錯誤泛化 |
+| [R6 解題角色記錄](../../gates/recon-context-interface-20261031/r6-solve-roles-recording.json) | 四個綁題角色逐步寫入、`role` 欄與遷移、`recon.read` 權限、本 session 最近步驟、清單帶角色；57 檔／760 測試；r15／r16 回放不回退 | Solver／Engineer 在真實 runtime 會讀軌跡、求解步驟記錄對 lesson 質量的改善 |
 
 ### r16 的正反證據
 

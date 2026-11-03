@@ -32,6 +32,7 @@ it('grants package publish only to Engineer and bound read/prepare to Verifier; 
   };
   for (const role of ['recon','domain-solver','engineer','reference']) allowed[role]!.push('ctf_experience_search','ctf_experience_read');
   allowed.recon!.push('ctf_recon_note','ctf_recon_read');
+  allowed['domain-solver']!.push('ctf_recon_read');allowed.engineer!.push('ctf_recon_read');
   for (const [role, tools] of Object.entries(allowed)) {
     const permission = config.agent[role].permission;
     expect(permission['*']).toBe('deny');

@@ -294,7 +294,7 @@ export class ControlService {
   }
 
   private processScope(binding:Binding,body:Record<string,unknown>):ProcessScope {
-    return {run:this.options.runId??'run',challenge:binding.challengeId!,session:binding.sessionID,
+    return {run:this.options.runId??'run',challenge:binding.challengeId!,session:binding.sessionID,role:binding.role,
       execution:[...this.executions.values()].find(e=>e.childID===binding.sessionID&&e.state==='running')?.ref,
       message:typeof body.messageID==='string'?body.messageID:undefined,call:typeof body.callID==='string'?body.callID:undefined};
   }
@@ -330,7 +330,7 @@ export class ControlService {
     throw new ControlDenied('history persistence failed; exploration paused for challenge');
   }
   private async recordProcess(binding:Binding|undefined,op:string,body:Record<string,unknown>,status:string,result?:unknown) {
-    const store=this.options.experienceStore;if(!store||binding?.role!=='recon'||!binding.challengeId)return;
+    const store=this.options.experienceStore;if(!store||!binding||!CHALLENGE_ROLES.includes(binding.role)||!binding.challengeId)return;
     const raw=String(body.tool??''),name=raw.startsWith('ctf_')?MANAGED_TOOLS.find(n=>`ctf_${n.replaceAll('.','_')}`===raw)??raw:raw;
     if(!['tool.before','tool.execute'].includes(op)||name.startsWith('recon.')||name.startsWith('experience.'))return;
     if(status==='running')this.checkReconTool(binding,name);
@@ -350,7 +350,7 @@ export class ControlService {
   }
   private async processEvent(sessionID:string,body:Record<string,unknown>) {
     const binding=this.bindings.get(sessionID),part=body.part as any;
-    if(!binding||binding.role!=='recon'||!binding.challengeId||part?.sessionID!==sessionID||part.type!=='tool'||!part.callID)return;
+    if(!binding||!CHALLENGE_ROLES.includes(binding.role)||!binding.challengeId||part?.sessionID!==sessionID||part.type!=='tool'||!part.callID)return;
     if(String(part.tool).startsWith('ctf_recon_')||String(part.tool).startsWith('ctf_experience_'))return;
     const scope=this.processScope(binding,{callID:part.callID,messageID:part.messageID}),store=this.options.experienceStore;
     if(!store)return;
@@ -370,7 +370,8 @@ export class ControlService {
   }
   private checkExperience(binding:Binding,name:string) {
     if(!this.options.experienceStore)throw new ControlDenied('experience storage unavailable');
-    if(name.startsWith('recon.')&&(binding.role!=='recon'||!binding.challengeId))throw new ControlDenied('tool not permitted');
+    // recon.note (decision/handoff) is Recon's; the trace is read-only for the solving roles that share the challenge. Verifier stays independent.
+    if(name.startsWith('recon.')&&(!binding.challengeId||!(name==='recon.read'?['recon','domain-solver','engineer']:['recon']).includes(binding.role)))throw new ControlDenied('tool not permitted');
     if(name.startsWith('experience.')&&!['recon','domain-solver','engineer','reference'].includes(binding.role))throw new ControlDenied('tool not permitted');
     this.checkReconTool(binding,name);
   }
@@ -419,7 +420,7 @@ export class ControlService {
     const rows=store.allRecords(run,binding.challengeId);
     let statement='';
     if(challenge.materials.some(m=>m.name==='statement.md'))statement=(await readFile(join(challenge.materialsDir,'statement.md'),'utf8')).slice(0,8000);
-    const view=investigationView(store,run,binding.challengeId,{tail:true}),signals=retrievalSignals(store,statement,challenge.materials.map(m=>m.name),rows);
+    const view=investigationView(store,run,binding.challengeId,{tail:true,session:binding.sessionID}),signals=retrievalSignals(store,statement,challenge.materials.map(m=>m.name),rows);
     const revision=store.db.prepare('SELECT lesson_id,version FROM lessons ORDER BY lesson_id,version').all();
     const sourceRevisions=store.db.prepare('SELECT episode_id,version FROM episodes ORDER BY episode_id,version').all();
     const key=digest({signals,revision,sourceRevisions});
@@ -1138,7 +1139,7 @@ export class ControlService {
             });
             keep = true;
             void done.then(snapshot => {
-              try {if(this.options.experienceStore && binding.role==='recon')this.options.experienceStore.finish(this.processScope(binding,{callID:call}),snapshot.reapIncomplete?'unknown':snapshot.state,snapshot);}
+              try {if(this.options.experienceStore && CHALLENGE_ROLES.includes(binding.role))this.options.experienceStore.finish(this.processScope(binding,{callID:call}),snapshot.reapIncomplete?'unknown':snapshot.state,snapshot);}
               catch(error){this.pauseProcess(binding,call);throw error;}
               finally {this.settleResource(operation, snapshot.reapIncomplete ? 'cleanup_unknown' : snapshot.state, snapshot.exitCode);}
             }).catch(error=>this.record(binding.sessionID,'process.terminal',false,'storage failure',String(error)));

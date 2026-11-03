@@ -13,13 +13,13 @@ import {z} from 'zod';
 
 const STEP_LIST_LIMIT=48*1024,INPUT_LIMIT=20000,SHOWN_RANGES=64,FLOOR_CAP=500;
 type Tier='core'|'change'|'note';
-interface Item {s:any;index:number;family:string;sequence:number|null;cls:string;incomplete:boolean;available:boolean;changePoint:boolean;tier:Tier}
+interface Item {s:any;index:number;actor?:string|null;family:string;sequence:number|null;cls:string;incomplete:boolean;available:boolean;changePoint:boolean;tier:Tier}
 const isProtectedFamily=(f:string)=>f==='decision'||f==='handoff'||f.startsWith('execution');
 function classify(sources:any[],manifest:any[]|undefined):Item[] {
   const byRef=new Map(sources.map((x,i)=>[x.ref,{x,i}]));
   const universe:Array<{s:any;d:any;available:boolean}>=(manifest?.length?manifest:sources).map((m:any,i:number)=>{
     const known=byRef.get(m.ref);
-    const d=known?describeSource(known.x,known.i):{family:m.family??'unclassified',sequence:m.sequence??null,cls:m.cls??'ok',incomplete:m.incomplete??false};
+    const d=known?describeSource(known.x,known.i):{actor:m.actor??null,family:m.family??'unclassified',sequence:m.sequence??null,cls:m.cls??'ok',incomplete:m.incomplete??false};
     return {s:known?.x??m,d,available:!!known};
   });
   const items:Item[]=universe.map((u,index)=>({...u.d,s:u.s,index,available:u.available,changePoint:false,tier:'core' as Tier}));
@@ -47,7 +47,7 @@ function omittedRanges(items:Item[],shown:Set<number>) {
   }
   return out;
 }
-const ROW_FIELDS=['id','sequence','kind','tool','status','args_json','result_json','note_json','result_meta'] as const;
+const ROW_FIELDS=['id','sequence','role','kind','tool','status','args_json','result_json','note_json','result_meta'] as const;
 /** Persisted source selection is also the authority for model source validation (recon design §7: mechanical selection). */
 export function prepareEpisodeInput(e:Episode) {
   const items=classify(e.input.sources,e.input.source_manifest);
@@ -95,7 +95,7 @@ export function prepareEpisodeInput(e:Episode) {
   // One fixed line per step (no parameter values, no bodies); independent of the excerpt limit, bounded by its own limit.
   const lines:string[]=[],cut:Item[]=[];let listBytes=0;
   for(const it of items.filter(it=>it.sequence!==null)) {
-    const line=`${it.sequence}|${it.s.ref}|${it.family}|${it.cls}`,n=Buffer.byteLength(line)+1;
+    const line=`${it.sequence}|${it.s.ref}|${it.actor??'-'}|${it.family}|${it.cls}`,n=Buffer.byteLength(line)+1;
     if(!cut.length&&listBytes+n<=STEP_LIST_LIMIT){lines.push(line);listBytes+=n;}else cut.push(it);
   }
   const unlisted:any[]=[];for(const it of cut){const last=unlisted.at(-1);if(last&&it.sequence===last.end_sequence+1){last.end_sequence=it.sequence;last.count++;}else unlisted.push({start_sequence:it.sequence,end_sequence:it.sequence,count:1});}
@@ -185,7 +185,7 @@ export async function learnEpisodes(options:LearningOptions) {
           e.omitted_ranges=full.omitted_ranges;e.model_input=prepared;e.model_input_hash=createHash('sha256').update(JSON.stringify(prepared)).digest('hex');
           e.episode_status='running';store.saveEpisode(e);
           const result=episodeContent.parse(await request(e,'episode',`CTF_MEMORY_EPISODE
-Return JSON {summary,tech_tags:string[],steps:[{stage:recon|solve|engineering,action,observation,reason,source_refs:string[]}],failed_paths:[{text,source_refs:string[]}],unresolved:[{text,source_refs:string[]}],experience_refs:string[]}. Maximum 8 key steps; strings at most 400 characters; arrays at most 8. Explain choices, failures and changes; do not transcribe logs. Full history remains in the host source skeleton. step_list has one line per step as sequence|ref|family|outcome_class; sources holds excerpts for a subset. Cite only refs that appear in step_list or sources; do not cite omitted_refs. Every failed_paths and unresolved item must cite the listed source_refs it rests on; omitted_ranges names what was not provided, so do not generalize beyond provided sources. experience_refs must be exact already presented/read references. Host result is authoritative: completion/judge and Verifier are distinct. A role-local absence of submission is not a whole-attempt claim. Do not restate or adjudicate final outcome in prose; host renders that result separately.
+Return JSON {summary,tech_tags:string[],steps:[{stage:recon|solve|engineering,action,observation,reason,source_refs:string[]}],failed_paths:[{text,source_refs:string[]}],unresolved:[{text,source_refs:string[]}],experience_refs:string[]}. Maximum 8 key steps; strings at most 400 characters; arrays at most 8. Explain choices, failures and changes; do not transcribe logs. Full history remains in the host source skeleton. step_list has one line per step as sequence|ref|role|family|outcome_class (role is the host-bound recording role); sources holds excerpts for a subset. Cite only refs that appear in step_list or sources; do not cite omitted_refs. Every failed_paths and unresolved item must cite the listed source_refs it rests on; omitted_ranges names what was not provided, so do not generalize beyond provided sources. experience_refs must be exact already presented/read references. Host result is authoritative: completion/judge and Verifier are distinct. A role-local absence of submission is not a whole-attempt claim. Do not restate or adjudicate final outcome in prose; host renders that result separately.
 ${JSON.stringify(prepared)}`));
           if(result.summary.length>400||[result.tech_tags,result.experience_refs].some(a=>a.length>8||a.some(t=>t.length>400))||[result.failed_paths,result.unresolved].some(a=>a.length>8||a.some(t=>(typeof t==='string'?t:t.text).length>400))||result.steps.length>8||result.steps.some(s=>[s.action,s.observation,s.reason].some(v=>v.length>400)))throw new Error('learning output bounds');
           if(result.steps.some(s=>s.source_refs.length===0||s.source_refs.some(r=>!sourceRefs.includes(r))))throw new Error('unbound episode step source');

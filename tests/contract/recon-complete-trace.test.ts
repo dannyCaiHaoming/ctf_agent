@@ -39,7 +39,7 @@ describe('complete Recon trace', () => {
     const path = v1Fixture();
     const store = new ExperienceStore(path);
 
-    expect(store.db.prepare('PRAGMA user_version').get()).toMatchObject({ user_version: 2 });
+    expect(store.db.prepare('PRAGMA user_version').get()).toMatchObject({ user_version: 3 });
     expect(store.db.prepare("PRAGMA index_info('recon_scope')").all().map(row => row.name))
       .toEqual(['run_id', 'challenge_id', 'sequence', 'id']);
 
@@ -49,6 +49,7 @@ describe('complete Recon trace', () => {
       result_json: { output: 'legacy result' },
       status: 'completed',
       original_complete: false,
+      role: 'recon',
     });
     expect(row.step_id).toMatch(/^[0-9a-f-]{36}$/);
     expect(row.sequence).toBe(1);

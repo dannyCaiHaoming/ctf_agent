@@ -1,0 +1,50 @@
+{
+  "slice": "recording scope extended to all challenge-bound solving roles (R6)",
+  "date": "2026-11-04",
+  "base_commit": "df44fb05d592058aebd47cf4aab83e7464a1fbc0",
+  "realModelCalls": 0,
+  "red_observed": "7 new contract tests failed on prior implementation",
+  "commands": [
+    {
+      "cmd": "npm run typecheck",
+      "exit": 0
+    },
+    {
+      "cmd": "npm run build",
+      "exit": 0
+    },
+    {
+      "cmd": "npm test",
+      "exit": 0,
+      "result": "57 files / 760 tests (re-run by main session)"
+    },
+    {
+      "cmd": "npm run test:deterministic",
+      "exit": 0,
+      "result": "46 files / 718 tests (implementation session)"
+    },
+    {
+      "cmd": "r15 replay",
+      "exit": 0
+    },
+    {
+      "cmd": "r16 replay",
+      "exit": 0,
+      "result": "counterexample #55/#56 (302), #73/#74 (403) still listed"
+    }
+  ],
+  "gate_regeneration": "product-original-replay(.json|-r16.json) regenerated: step-list lines gain a role column, index fingerprint includes role, recent steps are per-session",
+  "not_proven": [
+    "solver/engineer reading the trace in the real runtime",
+    "effect of solve-step records on lesson quality"
+  ],
+  "source_sha256": {
+    "apps/launcher/src/control-service.ts": "1280bbda983320ad6d7d34e500b89b34d0f903eb872998d8b492312cb7c69c4c",
+    "apps/launcher/src/experience-store.ts": "4ce15f97a457a008968743037b1797939c09e8bb70021020f014986343547fc1",
+    "apps/launcher/src/investigation-context.ts": "852c5b9973d2ad92b675efc7c47af63e1822fbdd58e0a081ca58b38dfd996400",
+    "apps/launcher/src/episode-learning.ts": "6609a3039e41cfecfb40981ee501aa02a31b5441017cf716f42c3a5356de46b2",
+    "apps/opencode-plugin/src/index.ts": "e74205dd57cce7114340c5ce53917b9e6c7f0ec0832f0380f940c9c4cd4f66d4",
+    "product/opencode/opencode.json": "d6013d5375a883c10814a96cd71297fc4133a0053600a0d376d135ead3e75e59",
+    "tests/contract/solve-roles-recording.test.ts": "1e0f6f4036da35fb0428537396ed86510a237a376661c7c1e042f43dd7aed6eb"
+  }
+}
