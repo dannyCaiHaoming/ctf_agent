@@ -2,7 +2,7 @@
 
 **狀態：** [核心 design v1](2026-10-22-ctf-agent-design-v1.md) §1.4 的子設計，管「一次 run 的牆鐘時間和 token 花在哪、怎麼減」。解題方法本身（Skill／Reference 內容）屬於 [B／G 方法與耗時](2026-10-26-design-v1-b-method-generalization-and-efficiency.md)；Recon 記錄與追加式上下文的契約屬於 [Recon 重設計](2026-10-29-design-v1-recon-redesign.md) §4，本文只改它的**投影內容與發送頻率**，不改追加式放置。
 
-**目前停點：** §3.1 離線已實施並驗證，待下一次授權 run 觀察真實輸入。§3.2：網關只認 `thinking: disabled`；批次對比已設計，launcher 已支持合併運行設定中的各角色 `options`，待批次授權。§3.3、§3.4 未定。
+**目前停點：** §3.1 已實施，r20 真實 run 中 throwback 的未緩存輸入比 r19 A 降 31–36%。§3.2 已採用：r20 中 Solver 關閉思考後，單次調用延遲降到原來的約 1/3–1/4，throwback 4/4 解出；未驗證難題。§3.3、§3.4 未定。
 
 **依據：** [r18／r19 成本拆解](../../gates/run-cost-20261104/r18-r19-cost-breakdown.json)，由 `tests/manual/run-cost-breakdown.py` 從四個真實 run 的訊息與審計記錄離線算出（0 次模型調用）。模型均為 `volcano-plan/deepseek-v4.1-flash`。修正後用同一腳本重算，對比同一欄位。
 
@@ -44,7 +44,7 @@
 
 按「確定性高、成本低」排序。每項做完把結果寫回本節，並更新停點。
 
-### 3.1 追加上下文去重複（離線已實施，真實 run 待觀察）
+### 3.1 追加上下文去重複（已實施，真實 run 已觀察）
 
 **決定：** 追加內容只在它對模型的含義改變時才發送。
 
@@ -65,9 +65,19 @@
 - 現有上下文相關測試不回退。
 - 真實 run 中，相同題目的未緩存輸入下降、解題結果不變，留待下一次授權 run 一併觀察，不單獨為此跑批次。
 
-**實施狀態（2026-11-04，離線）：** 經驗區塊僅在 lesson 集合變化時進 delta，`signals` 與查詢移到 `context.presented` 的 `retrieval`；delta `state` 只帶變化子欄位，`publications` 為 `{upserted,removed}`；full 不變。typecheck、build、全量測試（797）、r15／r16 回放通過。r19 離線重算（`tests/manual/context-dedup-recompute.py`）：A 追加量 692,914→266,649 bytes，B 427,620→143,067；A 的經驗區塊 207 KB→0.5 KB，`state.publications` 182 KB→8 KB，`index.entries` 不變；B 因有 lesson 內容，經驗區塊仍保留 lesson 變化時的發送。證據：`docs/gates/run-cost-20261104/context-dedup.json`。真實 run 的未緩存輸入與解題結果留待下一次授權 run。
+**實施狀態（2026-11-04，離線）：** 經驗區塊僅在 lesson 集合變化時進 delta，`signals` 與查詢移到 `context.presented` 的 `retrieval`；delta `state` 只帶變化子欄位，`publications` 為 `{upserted,removed}`；full 不變。typecheck、build、全量測試（797）、r15／r16 回放通過。r19 離線重算（`tests/manual/context-dedup-recompute.py`）：A 追加量 692,914→266,649 bytes，B 427,620→143,067；A 的經驗區塊 207 KB→0.5 KB，`state.publications` 182 KB→8 KB，`index.entries` 不變；B 因有 lesson 內容，經驗區塊仍保留 lesson 變化時的發送。證據：`docs/gates/run-cost-20261104/context-dedup.json`。
 
-### 3.2 降低 reasoning 量（只有關閉思考可用；收益待批次驗證）
+**真實 run（r20 對照組，2026-11-04）：** 與 r19 A 同為 throwback，產品 `main@7246d226`，每次都用空經驗庫。
+- 未緩存輸入：769,212 → 532,893／490,623（−31%／−36%）。
+- 追加位元組：
+  - Recon：242,635 → 68,025／97,420；
+  - Solver：286,730 → 92,590／82,107；
+  - Engineer：163,549 → 83,285／80,541。
+- 兩次都解出，各提交 1 次。
+
+證據：[r20 結果](../../gates/run-cost-20261104/r20-solver-thinking.json) 的 `dedup_real_vs_r19A`。r19 A 的經驗庫同樣為空，但兩批之間還有其他差異，所以這只是方向一致的證據，不是嚴格對照。
+
+### 3.2 降低 reasoning 量（Solver 關閉思考已採用；難題未驗證）
 
 **接口（離線已回答）：** OpenCode 1.19.3 可以按角色把推理參數寫進請求。證據見 [reasoning 參數探針](../../gates/run-cost-20261104/reasoning-options-probe.json)，用本機假 provider 抓取請求正文，0 次模型調用。
 - **有效：** agent 的 `options` 生效，寫在 `opencode.json` 或 `agents/*.md` 的 frontmatter 都可以。`reasoningEffort` 變成請求的 `reasoning_effort`；其他鍵原樣透傳，例如 `thinking: {type: "disabled"}`。產品角色定義在 `product/opencode/agents/*.md`，可以直接加。
@@ -103,7 +113,7 @@
 **參數放在哪一層（決定）：** `thinking` 這類參數只對特定 provider 有效，所以放在批次的運行設定（profile 引用的 OpenCode 設定，與 `provider`／`model` 同一層），不寫進與 provider 無關的產品角色檔 `product/opencode/agents/*.md` 或產品 `opencode.json`。
 - launcher 只從運行設定合併各角色的 `agent.<角色>.options`。`prompt`、`permission`、`mode`、`steps` 等其他欄位仍由產品決定，運行設定裡出現就拒絕。
 - 已用本機假 provider 確認：設定檔中給同名 agent 加 `options`，會和 md 角色檔合併，該角色的請求帶上 `thinking: disabled`，其他角色不受影響（0 token）。
-- **狀態（2026-11-05，離線）：** launcher 已支持，待批次授權。見 `config/README.md`「各角色 options」；生效值記在 `state/run.json` 的 `agentOptions`；契約測試在 `tests/contract/launch-evidence.test.ts`。
+- **狀態：** launcher 已支持，r20 已在真實 run 中使用。見 `config/README.md`「各角色 options」；生效值記在 `state/run.json` 的 `agentOptions`；契約測試在 `tests/contract/launch-evidence.test.ts`。
 
 **實驗設計（批次對比，需另行授權）：**
 - **兩組：**
@@ -119,6 +129,41 @@
   - 解題變差就回退；
   - 結果不一致（例如一勝一負）就記為未定，不擴大結論。
 - **預算參考：** 每次上限 120 萬 token，4 次共 480 萬；按 r19 A 的用量，預計約 300 萬。
+
+**結果（r20，2026-11-04，已授權，實際用量 2,395,137 token）：** 證據見 [r20 結果](../../gates/run-cost-20261104/r20-solver-thinking.json)。依序跑 C1 → T1 → C2 → T2，產品源碼凍結。relay 共 531 次請求，全部返回 200，沒有被預算截斷，也沒有重發。
+
+| | C1 | T1 | C2 | T2 |
+| --- | ---: | ---: | ---: | ---: |
+| 結果（提交次數） | 解出（1） | 解出（1） | 解出（1） | 解出（1） |
+| 牆鐘（分鐘） | 21.9 | 13.2 | 15.5 | 14.2 |
+| 未緩存輸入 | 532,893 | 468,182 | 490,623 | 388,772 |
+| 全部 reasoning | 135,794 | 67,170 | 80,234 | 56,058 |
+| Solver 調用次數 | 36 | 39 | 32 | 17 |
+| Solver 延遲合計（秒） | 391 | 94 | 286 | 58 |
+| Solver 單次平均延遲（秒） | 10.9 | 2.4 | 8.9 | 3.4 |
+
+- **設定生效：**
+  - T 組 `state/run.json` 的 `agentOptions` 只有 Solver 的 `thinking: disabled`，C 組為空；
+  - T 組 Solver 的 56 則回覆都沒有 reasoning；
+  - 其他角色照常有 reasoning。
+- **確定的效果：**
+  - Solver 單次調用延遲降到原來的約 1/3–1/4；
+  - 每次 run 的 Solver 時間少約 4–5 分鐘；
+  - Solver 調用次數沒有因此系統性增加；
+  - 工具調用錯誤沒有增加，T 組 Solver 只有 1 次產物發布失敗。
+- **牆鐘只看方向：**
+  - 兩組分別少 8.7 和 1.3 分鐘；
+  - 其他角色的波動與省下的時間同一量級，例如 Recon 延遲合計在 270–482 秒之間；
+  - 較穩的估計是每次省下 Solver 那 4–5 分鐘，約佔牆鐘的 25–30%。
+
+**判定：採用。** 實驗組解題結果不差於對照組，Solver 生成量和延遲都明顯下降，符合上面的採用條件。
+- **適用範圍：** 只限 `volcano-plan/deepseek-v4.1-flash` 這個網關／模型。後續批次的運行設定預設給 `domain-solver` 加 `options.thinking = {type: "disabled"}`。參數層級不變，仍放在運行設定，不進產品角色檔。
+- **未回答：**
+  - 對難題或未解出題目的影響：4 次都解出，這一批看不出能力下降；
+  - 其他題目的效果。
+
+  之後跑到 Solver 卡住的題目時，加一組開啟思考的對照；若解題變差，就按題型回退。
+- **其他角色：** Recon 是剩下最大的時間來源，但它影響解題率，不在沒有難題對照時關閉思考；Verifier 仍由 §3.4 處理。
 
 ### 3.3 題內並行（未定，設計層面）
 

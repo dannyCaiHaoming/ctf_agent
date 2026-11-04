@@ -22,7 +22,7 @@ launcher 除了 `provider`、`model`、`enabled_providers`，還會讀取 profil
 - 沒有 `agent` 時行為不變。題後學習的設定另行組裝，不讀這個欄位。
 - 生效的各角色 options 寫入 `state/run.json` 的 `agentOptions`（`configSha256` 也已涵蓋），可據此區分批次的兩組 run。
 
-只對 `domain-solver` 關閉思考的範例片段（加在運行設定的頂層，不新增範例設定檔；自訂火山網關認這個參數，`reasoning_effort` 無效）：
+只對 `domain-solver` 關閉思考的範例片段（加在運行設定的頂層，不新增範例設定檔；自訂火山網關認這個參數，`reasoning_effort` 無效）。r20 對比後，使用 `volcano-plan/deepseek-v4.1-flash` 的批次預設加上這一段；依據與未驗證範圍見[解題延遲與上下文成本](../docs/superpowers/specs/2026-11-04-design-v1-run-latency-and-context-cost.md) §3.2：
 
 ```json
 "agent": {

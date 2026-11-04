@@ -1,0 +1,432 @@
+{
+ "kind": "real-model batch: design §3.2 solver thinking off vs control",
+ "scope": "local Docker target llmctf/2015q-web-throwback only; controller-side judge; 4 runs C1->T1->C2->T2; fresh empty experience store per run; post-run learning disabled; no retry, no provider switch",
+ "model": "volcano-plan/deepseek-v4.1-flash via local counting relay",
+ "product": "main@7246d226 (clean tree, source hashes frozen before each run)",
+ "only_difference": "runtime OpenCode config agent.domain-solver.options.thinking = {type: disabled}",
+ "budget": {
+  "per_run_cap": 1200000,
+  "authorized_total": 4800000,
+  "used_total": 2395137
+ },
+ "relay": {
+  "requests": 531,
+  "status": "all 200",
+  "capped": 0,
+  "resent": 0
+ },
+ "raw_artifacts": "/Users/caihaoming/Documents/pentest-agent-run-data/speed-real-20261105-r20-solver-thinking (not in repo)",
+ "note": "Structured counts only. No transcripts, tool outputs, flags or oracle data. Produced by tests/manual/run-cost-breakdown.py plus read-only counts over evidence/messages-*.json and state/run.json.",
+ "runs": {
+  "C1": {
+   "group": "control",
+   "run_id": "speed-r20-throwback-control-1",
+   "run_status": "completed",
+   "agent_options": {},
+   "result": "solved",
+   "submissions": 1,
+   "calls": 132,
+   "wall_min": 21.9,
+   "tokens": {
+    "input_uncached": 532893,
+    "cache_read": 8291072,
+    "output": 47731,
+    "reasoning": 135794
+   },
+   "worker_generated_tokens_per_sec": 140,
+   "corr_latency_generated_workers": 0.99,
+   "domain_solver": {
+    "calls": 36,
+    "input_uncached": 180132,
+    "context_avg": 116395,
+    "context_max": 177868,
+    "output": 11318,
+    "reasoning": 44962,
+    "latency_sec": 391,
+    "finish_length": 0,
+    "latency_per_call_sec": 10.9,
+    "messages_with_reasoning": 36,
+    "reasoning_parts": 36,
+    "tool_calls_by_status": {
+     "completed": 69
+    }
+   },
+   "roles": {
+    "engineer": {
+     "calls": 15,
+     "input_uncached": 84274,
+     "output": 7851,
+     "reasoning": 12858,
+     "latency_sec": 131,
+     "finish_length": 1
+    },
+    "verifier": {
+     "calls": 19,
+     "input_uncached": 66556,
+     "output": 6909,
+     "reasoning": 29363,
+     "latency_sec": 269,
+     "finish_length": 1
+    },
+    "domain-solver": {
+     "calls": 36,
+     "input_uncached": 180132,
+     "output": 11318,
+     "reasoning": 44962,
+     "latency_sec": 391,
+     "finish_length": 0
+    },
+    "coordinator": {
+     "calls": 21,
+     "input_uncached": 57465,
+     "output": 9221,
+     "reasoning": 4313,
+     "latency_sec": 132,
+     "finish_length": 0
+    },
+    "recon": {
+     "calls": 35,
+     "input_uncached": 140028,
+     "output": 10795,
+     "reasoning": 43595,
+     "latency_sec": 407,
+     "finish_length": 0
+    },
+    "intake": {
+     "calls": 6,
+     "input_uncached": 4438,
+     "output": 1637,
+     "reasoning": 703,
+     "latency_sec": 20,
+     "finish_length": 0
+    }
+   },
+   "appended_context_bytes": {
+    "engineer": 83285,
+    "domain-solver": 92590,
+    "recon": 68025
+   },
+   "result_source": "evidence/completion-results.json: 1 entry, businessOutcome accepted"
+  },
+  "T1": {
+   "group": "solver-thinking-off",
+   "run_id": "speed-r20-throwback-solver-thinking-off-1",
+   "run_status": "completed",
+   "agent_options": {
+    "domain-solver": {
+     "thinking": {
+      "type": "disabled"
+     }
+    }
+   },
+   "result": "solved",
+   "submissions": 1,
+   "calls": 136,
+   "wall_min": 13.2,
+   "tokens": {
+    "input_uncached": 468182,
+    "cache_read": 6541952,
+    "output": 45093,
+    "reasoning": 67170
+   },
+   "worker_generated_tokens_per_sec": 141,
+   "corr_latency_generated_workers": 0.99,
+   "domain_solver": {
+    "calls": 39,
+    "input_uncached": 85642,
+    "context_avg": 55355,
+    "context_max": 83435,
+    "output": 11632,
+    "reasoning": 0,
+    "latency_sec": 94,
+    "finish_length": 0,
+    "latency_per_call_sec": 2.4,
+    "messages_with_reasoning": 0,
+    "reasoning_parts": 0,
+    "tool_calls_by_status": {
+     "completed": 41
+    }
+   },
+   "roles": {
+    "coordinator": {
+     "calls": 25,
+     "input_uncached": 64167,
+     "output": 8602,
+     "reasoning": 1795,
+     "latency_sec": 105,
+     "finish_length": 0
+    },
+    "intake": {
+     "calls": 6,
+     "input_uncached": 4667,
+     "output": 1105,
+     "reasoning": 741,
+     "latency_sec": 16,
+     "finish_length": 0
+    },
+    "recon": {
+     "calls": 34,
+     "input_uncached": 129874,
+     "output": 12066,
+     "reasoning": 26168,
+     "latency_sec": 273,
+     "finish_length": 0
+    },
+    "domain-solver": {
+     "calls": 39,
+     "input_uncached": 85642,
+     "output": 11632,
+     "reasoning": 0,
+     "latency_sec": 94,
+     "finish_length": 0
+    },
+    "engineer": {
+     "calls": 16,
+     "input_uncached": 102707,
+     "output": 7249,
+     "reasoning": 14460,
+     "latency_sec": 136,
+     "finish_length": 1
+    },
+    "verifier": {
+     "calls": 16,
+     "input_uncached": 81125,
+     "output": 4439,
+     "reasoning": 24006,
+     "latency_sec": 203,
+     "finish_length": 0
+    }
+   },
+   "appended_context_bytes": {
+    "recon": 67833,
+    "domain-solver": 66991,
+    "engineer": 82899
+   },
+   "result_source": "evidence/completion-results.json: 1 entry, businessOutcome accepted"
+  },
+  "C2": {
+   "group": "control",
+   "run_id": "speed-r20-throwback-control-2",
+   "run_status": "completed",
+   "agent_options": {},
+   "result": "solved",
+   "submissions": 1,
+   "calls": 142,
+   "wall_min": 15.5,
+   "tokens": {
+    "input_uncached": 490623,
+    "cache_read": 8570112,
+    "output": 44445,
+    "reasoning": 80234
+   },
+   "worker_generated_tokens_per_sec": 133,
+   "corr_latency_generated_workers": 0.99,
+   "domain_solver": {
+    "calls": 32,
+    "input_uncached": 116974,
+    "context_avg": 70403,
+    "context_max": 115146,
+    "output": 10956,
+    "reasoning": 27736,
+    "latency_sec": 286,
+    "finish_length": 0,
+    "latency_per_call_sec": 8.9,
+    "messages_with_reasoning": 25,
+    "reasoning_parts": 25,
+    "tool_calls_by_status": {
+     "completed": 39,
+     "error": 1
+    }
+   },
+   "roles": {
+    "verifier": {
+     "calls": 12,
+     "input_uncached": 74481,
+     "output": 6149,
+     "reasoning": 19271,
+     "latency_sec": 191,
+     "finish_length": 1
+    },
+    "domain-solver": {
+     "calls": 32,
+     "input_uncached": 116974,
+     "output": 10956,
+     "reasoning": 27736,
+     "latency_sec": 286,
+     "finish_length": 0
+    },
+    "coordinator": {
+     "calls": 25,
+     "input_uncached": 41425,
+     "output": 7164,
+     "reasoning": 2301,
+     "latency_sec": 105,
+     "finish_length": 0
+    },
+    "intake": {
+     "calls": 5,
+     "input_uncached": 4743,
+     "output": 1456,
+     "reasoning": 832,
+     "latency_sec": 21,
+     "finish_length": 0
+    },
+    "recon": {
+     "calls": 57,
+     "input_uncached": 162239,
+     "output": 13861,
+     "reasoning": 21226,
+     "latency_sec": 270,
+     "finish_length": 0
+    },
+    "engineer": {
+     "calls": 11,
+     "input_uncached": 90761,
+     "output": 4859,
+     "reasoning": 8868,
+     "latency_sec": 97,
+     "finish_length": 0
+    }
+   },
+   "appended_context_bytes": {
+    "domain-solver": 82107,
+    "recon": 97420,
+    "engineer": 80541
+   },
+   "result_source": "evidence/completion-results.json: 1 entry, businessOutcome accepted"
+  },
+  "T2": {
+   "group": "solver-thinking-off",
+   "run_id": "speed-r20-throwback-solver-thinking-off-2",
+   "run_status": "completed",
+   "agent_options": {
+    "domain-solver": {
+     "thinking": {
+      "type": "disabled"
+     }
+    }
+   },
+   "result": "solved",
+   "submissions": 1,
+   "calls": 121,
+   "wall_min": 14.2,
+   "tokens": {
+    "input_uncached": 388772,
+    "cache_read": 7100032,
+    "output": 38142,
+    "reasoning": 56058
+   },
+   "worker_generated_tokens_per_sec": 111,
+   "corr_latency_generated_workers": 0.98,
+   "domain_solver": {
+    "calls": 17,
+    "input_uncached": 58797,
+    "context_avg": 46564,
+    "context_max": 57692,
+    "output": 4426,
+    "reasoning": 0,
+    "latency_sec": 58,
+    "finish_length": 0,
+    "latency_per_call_sec": 3.4,
+    "messages_with_reasoning": 0,
+    "reasoning_parts": 0,
+    "tool_calls_by_status": {
+     "completed": 19,
+     "error": 1
+    }
+   },
+   "roles": {
+    "engineer": {
+     "calls": 14,
+     "input_uncached": 83363,
+     "output": 7924,
+     "reasoning": 5360,
+     "latency_sec": 100,
+     "finish_length": 0
+    },
+    "recon": {
+     "calls": 57,
+     "input_uncached": 164441,
+     "output": 14804,
+     "reasoning": 38791,
+     "latency_sec": 482,
+     "finish_length": 0
+    },
+    "coordinator": {
+     "calls": 16,
+     "input_uncached": 32695,
+     "output": 5315,
+     "reasoning": 1594,
+     "latency_sec": 741,
+     "finish_length": 0
+    },
+    "verifier": {
+     "calls": 9,
+     "input_uncached": 44645,
+     "output": 3795,
+     "reasoning": 9050,
+     "latency_sec": 114,
+     "finish_length": 0
+    },
+    "domain-solver": {
+     "calls": 17,
+     "input_uncached": 58797,
+     "output": 4426,
+     "reasoning": 0,
+     "latency_sec": 58,
+     "finish_length": 0
+    },
+    "intake": {
+     "calls": 8,
+     "input_uncached": 4831,
+     "output": 1878,
+     "reasoning": 1263,
+     "latency_sec": 35,
+     "finish_length": 0
+    }
+   },
+   "appended_context_bytes": {
+    "engineer": 72606,
+    "recon": 84002,
+    "domain-solver": 58776
+   },
+   "result_source": "evidence/completion-results.json: 1 entry, businessOutcome accepted"
+  }
+ },
+ "dedup_real_vs_r19A": {
+  "source_r19A": "r18-r19-cost-breakdown.json",
+  "input_uncached": {
+   "r19A": 769212,
+   "C1": 532893,
+   "C2": 490623
+  },
+  "appended_context_bytes": {
+   "r19A": {
+    "recon": 242635,
+    "domain-solver": 286730,
+    "engineer": 163549
+   },
+   "C1": {
+    "engineer": 83285,
+    "domain-solver": 92590,
+    "recon": 68025
+   },
+   "C2": {
+    "domain-solver": 82107,
+    "recon": 97420,
+    "engineer": 80541
+   }
+  }
+ },
+ "verdict": {
+  "mechanism": "passed: agentOptions as configured; treatment domain-solver reasoning 0 in 56/56 messages, other roles unaffected",
+  "solver_speed": "confirmed: per-call latency 10.9/8.9 s -> 2.4/3.4 s; solver latency per run 391/286 s -> 94/58 s; solver calls 36/32 -> 39/17",
+  "wall_clock": "direction only: 21.9->13.2 and 15.5->14.2 min; other-role variance (recon 270-482 s) is of the same order as the saving",
+  "solving": "no degradation observed on throwback: 4/4 solved, 1 submission each",
+  "decision": "adopt as default runtime option for domain-solver on this gateway/model",
+  "not_answered": [
+   "effect on harder or unsolved challenges",
+   "effect on challenges other than throwback"
+  ]
+ }
+}
