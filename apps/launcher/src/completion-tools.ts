@@ -5,7 +5,7 @@ import {readdirSync,readFileSync,lstatSync} from 'node:fs';
 import {join} from 'node:path';
 import {z} from 'zod';
 import {WorkspaceRefused} from './workspace-tools.js';
-export const completionSchema=z.object({challenge:z.string().min(1).max(8192),version:z.string().min(1).max(8192),result:z.string().min(1).max(8192)}).strict();
+export const completionSchema=z.object({challenge:z.string().min(1).max(8192),version:z.string().min(1).max(8192),result:z.string().min(1).max(8192).optional()}).strict();
 const limitsSchema=z.object({
  attempts:z.discriminatedUnion('kind',[
   z.object({kind:z.literal('unlimited')}).strict(),
@@ -22,7 +22,7 @@ export interface CompletionJudge {
  id:string;scope?:string;timeoutMs:number;limits?:SubmissionLimits;
  submit(input:{intent:string;challenge:string;bytes:Buffer;signal:AbortSignal}):Promise<unknown>;
 }
-const recordSchema=z.object({intent:z.string().uuid(),run:z.string().min(1),challenge:z.string().min(1),version:z.string().min(1),result:z.string().min(1),judge:z.string().min(1).nullable(),judgeScope:z.string().min(1).optional(),candidateSha256:z.string().regex(/^[a-f0-9]{64}$/),candidateSize:z.number().int().safe().positive(),state:z.enum(['intent','sent','confirmed','unknown','not_sent','candidate_only']),sent:z.boolean(),solved:z.boolean(),createdAt:z.number().finite(),updatedAt:z.number().finite(),sentAt:z.number().finite().optional(),attemptReserved:z.boolean().optional(),rawReply:z.unknown().optional(),businessOutcome:z.string().optional(),rejection:z.enum(['wrong_answer','non_answer']).optional(),reason:z.string().optional()}).strict();
+const recordSchema=z.object({intent:z.string().uuid(),run:z.string().min(1),challenge:z.string().min(1),version:z.string().min(1),result:z.string().min(1).optional(),admission:z.enum(['verification','oracle_first']).optional(),captureResources:z.array(z.string()).optional(),judge:z.string().min(1).nullable(),judgeScope:z.string().min(1).optional(),candidateSha256:z.string().regex(/^[a-f0-9]{64}$/),candidateSize:z.number().int().safe().positive(),state:z.enum(['intent','sent','confirmed','unknown','not_sent','candidate_only']),sent:z.boolean(),solved:z.boolean(),createdAt:z.number().finite(),updatedAt:z.number().finite(),sentAt:z.number().finite().optional(),attemptReserved:z.boolean().optional(),rawReply:z.unknown().optional(),businessOutcome:z.string().optional(),rejection:z.enum(['wrong_answer','non_answer']).optional(),reason:z.string().optional()}).strict();
 export type CompletionRecord=z.infer<typeof recordSchema>;
 const reply=z.object({intent:z.string(),challenge:z.string(),status:z.enum(['accepted','rejected','duplicate','invalid_state','closed']),completed:z.boolean(),rejection:z.enum(['wrong_answer','non_answer']).optional()}).strict().refine(r=>r.rejection===undefined||r.status==='rejected');
 const deny=(reason:string):never=>{throw new WorkspaceRefused('completion '+reason);};
@@ -95,7 +95,7 @@ export class CompletionRequests {
   return {challenge,judgeAvailable:!!judge,allowed:reasons.length===0,reasons,remaining,nextAllowedAt,limits:judge?.limits??{attempts:{kind:'unknown'}}};
  }
  private async save(r:CompletionRecord){r.updatedAt=Date.now();await mkdir(this.directory,{recursive:true});const p=join(this.directory,r.intent+'.json'),tmp=p+'.'+randomUUID()+'.tmp';await writeFile(tmp,JSON.stringify(r,null,2),{flag:'wx'});await rename(tmp,p);}
- request(run:string,input:Record<string,unknown>,judge:CompletionJudge|undefined,eligible:()=>Promise<Buffer>,active:()=>void,signal?:AbortSignal):Promise<CompletionRecord>{
+ request(run:string,input:Record<string,unknown>,judge:CompletionJudge|undefined,eligible:()=>Promise<Buffer>,active:()=>void,signal?:AbortSignal,provenance?:(bytes:Buffer)=>string[]):Promise<CompletionRecord>{
   const parsed=completionSchema.safeParse(input);if(!parsed.success)deny('arguments');const a=parsed.data!;const key=challengeKey(a.challenge,judge);
   if(this.busy.has(key))return Promise.reject(new WorkspaceRefused('completion pending same challenge'));
   if(this.recoveryError)deny(this.recoveryError);
@@ -110,8 +110,23 @@ export class CompletionRequests {
    if(prior)return structuredClone(prior);
    // This request owns the challenge lock; ignore that lock for its own admission.
    const admit=(intent?:string)=>{const state=this.status(run,a.challenge,judge,intent??'new');if(judge&&!state.allowed)deny(state.reasons.join('; '));};
+   // Oracle-first (no Verifier result): deterministic host checks; any failure sends the caller to the Verifier path.
+   let captureResources:string[]|undefined;
+   if(a.result===undefined){
+    const failed:string[]=[];
+    if(!judge)failed.push('no judge');
+    else{
+     const lim=limitsSchema.safeParse(judge.limits);
+     if(!lim.success||lim.data.attempts.kind!=='unlimited')failed.push('submission attempts not unlimited');
+     else if(lim.data.cooldownMs!==undefined||lim.data.notBefore!==undefined||lim.data.blockedReason!==undefined)failed.push('submission cooldown or block');
+     if(this.history(a.challenge,judge).some(r=>r.state==='confirmed'&&r.rejection==='wrong_answer'))failed.push('prior wrong_answer');
+    }
+    captureResources=provenance?provenance(bytes):[];
+    if(!captureResources.length)failed.push('candidate not found in any host http capture');
+    if(failed.length)throw new WorkspaceRefused('verification required: '+failed.join('; '));
+   }
    admit();
-   const r:CompletionRecord={intent:randomUUID(),run,...a,judge:judge?.id??null,...(judge?{judgeScope:JSON.stringify([judge.id,scopeOf(judge)]),attemptReserved:true}:{}),candidateSha256:digest,candidateSize:bytes.length,state:judge?'intent':'candidate_only',sent:false,solved:false,createdAt:Date.now(),updatedAt:Date.now()};
+   const r:CompletionRecord={intent:randomUUID(),run,...a,admission:a.result===undefined?'oracle_first':'verification',...(captureResources?{captureResources}:{}),judge:judge?.id??null,...(judge?{judgeScope:JSON.stringify([judge.id,scopeOf(judge)]),attemptReserved:true}:{}),candidateSha256:digest,candidateSize:bytes.length,state:judge?'intent':'candidate_only',sent:false,solved:false,createdAt:Date.now(),updatedAt:Date.now()};
    this.records.push(r);
    try{await this.save(r);}catch(e){r.state='not_sent';r.attemptReserved=false;throw e;}
    if(!judge)return structuredClone(r);

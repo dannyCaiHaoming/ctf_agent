@@ -1002,13 +1002,18 @@ export class ControlService {
       const active=()=>{if(signal?.aborted)throw new ControlDenied('rpc abandoned');this.live(binding);if(this.stopReason)throw new ControlDenied('run stopped');if(Date.now()>=this.options.expiresAt)throw new ControlDenied('deadline');if(this.admitted>=this.options.budget.maxModelCalls||this.observed>=this.options.budget.maxObservableTokens)throw new ControlDenied('budget');};
       return {execute:async()=>{
         const result=await this.completions.request(run,args,this.options.completionJudges?.[String(args.challenge)],async()=>{
-          const page=await this.verificationResults.read(run,args,r=>this.checkVerification(r),active);
-          if(!page.completionAdmission.allowed)throw new ControlDenied(page.completionAdmission.reasons.join('; '));
+          const oracleFirst=args.result===undefined;
+          if(!oracleFirst){const page=await this.verificationResults.read(run,args,r=>this.checkVerification(r),active);
+          if(!page.completionAdmission.allowed)throw new ControlDenied(page.completionAdmission.reasons.join('; '));}
           const bytes=await this.packages.candidateBytes(run,String(args.challenge),String(args.version),active);
           // Recheck after bytes are loaded; do not mix results/versions across awaited reads.
-          const check=await this.verificationResults.read(run,args,r=>this.checkVerification(r),active);if(!check.completionAdmission.allowed)throw new ControlDenied(check.completionAdmission.reasons.join('; '));
+          if(!oracleFirst){const check=await this.verificationResults.read(run,args,r=>this.checkVerification(r),active);if(!check.completionAdmission.allowed)throw new ControlDenied(check.completionAdmission.reasons.join('; '));}
           const finalBytes=await this.packages.candidateBytes(run,String(args.challenge),String(args.version),active);if(!bytes.equals(finalBytes))throw new ControlDenied('fixed candidate changed');return finalBytes;
-        },active,signal);
+        },active,signal,candidate=>{
+          // Only this run/challenge's host HTTP captures count; job output and workspace files are model-controlled. Memory-only: empty after restart (fail-closed).
+          const challenge=String(args.challenge);
+          return [...this.outputSources.entries()].filter(([,o])=>o.source.kind==='http'&&o.source.run===run&&o.source.challenge===challenge&&o.bytes!==undefined&&o.bytes.includes(candidate)).map(([resource])=>resource);
+        });
         this.record(binding.sessionID,'completion.saved',true,undefined,result);return result;
       }};
     }
