@@ -1,0 +1,476 @@
+{
+ "step": "context-dedup",
+ "mode": "offline (0 model calls, run data read-only)",
+ "tests": {
+  "typecheck": "pass",
+  "build": "pass",
+  "vitest_all": {
+   "files": 59,
+   "tests": 797,
+   "passed": 797
+  },
+  "new_tests": [
+   "delta carries only changed state fields and publication items; merged deltas equal the full projection",
+   "sends the experience block only when the presented lesson set changes; signals go to the audit"
+  ],
+  "replay_r15": "passed (realModelCalls 0)",
+  "replay_r16": "passed (realModelCalls 0)",
+  "replay_note": "replay re-writes tracked gate JSON with new projection hashes (signals removed from experience); restored, not committed"
+ },
+ "criteria": {
+  "A_experience_only_on_lesson_set_change": "pass (contract test)",
+  "A_signals_to_audit": "pass (context.presented detail.retrieval)",
+  "B_budget_only_delta_has_only_budget": "pass",
+  "B_publications_upserted_removed": "pass",
+  "C_merged_deltas_equal_full": "pass",
+  "C_experience_refs_and_presented_audit_unchanged": "pass (existing tests + experience_refs asserted)",
+  "D_offline_recompute": "see recompute"
+ },
+ "delta_state_format": "state.<field> for changed fields; state.publications = {upserted:[items by ref], removed:[refs]}",
+ "recompute": {
+  "script": "tests/manual/context-dedup-recompute.py",
+  "source": "experience-real-20261104-r19-ab runs A/B (read-only)",
+  "approximation": "delta base assumed to be the previous payload of the same session file",
+  "runs": [
+   {
+    "run": "experience-r19-a-throwback-1",
+    "total_bytes": {
+     "old": 692914,
+     "new": 266649
+    },
+    "by_agent": {
+     "engineer": {
+      "index.entries": {
+       "old": 77679,
+       "new": 77679
+      },
+      "state.publications": {
+       "old": 67528,
+       "new": 3337
+      },
+      "state.budget": {
+       "old": 4093,
+       "new": 2203
+      },
+      "experience": {
+       "old": 2794,
+       "new": 163
+      },
+      "state.handoff": {
+       "old": 2704,
+       "new": 104
+      },
+      "version": {
+       "old": 1782,
+       "new": 1782
+      },
+      "base_version": {
+       "old": 1716,
+       "new": 1716
+      },
+      "state.closure": {
+       "old": 1222,
+       "new": 47
+      },
+      "index.coverage": {
+       "old": 1192,
+       "new": 1192
+      },
+      "state.in_flight": {
+       "old": 943,
+       "new": 733
+      },
+      "guidance": {
+       "old": 673,
+       "new": 673
+      },
+      "state.process_storage": {
+       "old": 572,
+       "new": 22
+      },
+      "interpretation": {
+       "old": 251,
+       "new": 251
+      },
+      "mode": {
+       "old": 188,
+       "new": 188
+      },
+      "current_question": {
+       "old": 158,
+       "new": 158
+      },
+      "state.gaps": {
+       "old": 52,
+       "new": 2
+      },
+      "recent": {
+       "old": 2,
+       "new": 2
+      }
+     },
+     "domain-solver": {
+      "state.publications": {
+       "old": 103220,
+       "new": 2426
+      },
+      "experience": {
+       "old": 86041,
+       "new": 163
+      },
+      "index.entries": {
+       "old": 67865,
+       "new": 67865
+      },
+      "state.budget": {
+       "old": 8007,
+       "new": 5338
+      },
+      "state.handoff": {
+       "old": 5304,
+       "new": 104
+      },
+      "version": {
+       "old": 3564,
+       "new": 3564
+      },
+      "base_version": {
+       "old": 3498,
+       "new": 3498
+      },
+      "state.closure": {
+       "old": 2397,
+       "new": 47
+      },
+      "index.coverage": {
+       "old": 2317,
+       "new": 2317
+      },
+      "state.in_flight": {
+       "old": 1827,
+       "new": 1022
+      },
+      "state.process_storage": {
+       "old": 1122,
+       "new": 22
+      },
+      "guidance": {
+       "old": 673,
+       "new": 673
+      },
+      "mode": {
+       "old": 377,
+       "new": 377
+      },
+      "interpretation": {
+       "old": 251,
+       "new": 251
+      },
+      "current_question": {
+       "old": 163,
+       "new": 163
+      },
+      "state.gaps": {
+       "old": 102,
+       "new": 2
+      },
+      "recent": {
+       "old": 2,
+       "new": 2
+      }
+     },
+     "recon": {
+      "experience": {
+       "old": 118235,
+       "new": 163
+      },
+      "index.entries": {
+       "old": 58133,
+       "new": 58133
+      },
+      "state.budget": {
+       "old": 18985,
+       "new": 7466
+      },
+      "state.publications": {
+       "old": 11708,
+       "new": 2164
+      },
+      "version": {
+       "old": 6138,
+       "new": 6138
+      },
+      "base_version": {
+       "old": 6072,
+       "new": 6072
+      },
+      "state.closure": {
+       "old": 4984,
+       "new": 56
+      },
+      "state.gaps": {
+       "old": 4264,
+       "new": 75
+      },
+      "index.coverage": {
+       "old": 3860,
+       "new": 3860
+      },
+      "state.handoff": {
+       "old": 3360,
+       "new": 141
+      },
+      "state.in_flight": {
+       "old": 3207,
+       "new": 2542
+      },
+      "state.process_storage": {
+       "old": 1958,
+       "new": 22
+      },
+      "guidance": {
+       "old": 673,
+       "new": 673
+      },
+      "mode": {
+       "old": 650,
+       "new": 650
+      },
+      "interpretation": {
+       "old": 251,
+       "new": 251
+      },
+      "current_question": {
+       "old": 155,
+       "new": 155
+      },
+      "recent": {
+       "old": 2,
+       "new": 2
+      }
+     }
+    }
+   },
+   {
+    "run": "experience-r19-b-mfw-1",
+    "total_bytes": {
+     "old": 427620,
+     "new": 143067
+    },
+    "by_agent": {
+     "engineer": {
+      "state.publications": {
+       "old": 42888,
+       "new": 2499
+      },
+      "index.entries": {
+       "old": 31823,
+       "new": 31823
+      },
+      "experience": {
+       "old": 9272,
+       "new": 6984
+      },
+      "state.budget": {
+       "old": 3454,
+       "new": 2669
+      },
+      "state.handoff": {
+       "old": 2332,
+       "new": 106
+      },
+      "version": {
+       "old": 1518,
+       "new": 1518
+      },
+      "base_version": {
+       "old": 1452,
+       "new": 1452
+      },
+      "state.closure": {
+       "old": 1034,
+       "new": 47
+      },
+      "index.coverage": {
+       "old": 1000,
+       "new": 1000
+      },
+      "state.in_flight": {
+       "old": 785,
+       "new": 400
+      },
+      "guidance": {
+       "old": 673,
+       "new": 673
+      },
+      "state.process_storage": {
+       "old": 484,
+       "new": 22
+      },
+      "interpretation": {
+       "old": 251,
+       "new": 251
+      },
+      "mode": {
+       "old": 160,
+       "new": 160
+      },
+      "current_question": {
+       "old": 158,
+       "new": 158
+      },
+      "state.gaps": {
+       "old": 44,
+       "new": 2
+      },
+      "recent": {
+       "old": 2,
+       "new": 2
+      }
+     },
+     "domain-solver": {
+      "experience": {
+       "old": 100760,
+       "new": 6984
+      },
+      "index.entries": {
+       "old": 23777,
+       "new": 23777
+      },
+      "state.publications": {
+       "old": 18333,
+       "new": 1873
+      },
+      "state.budget": {
+       "old": 2983,
+       "new": 1099
+      },
+      "state.handoff": {
+       "old": 2014,
+       "new": 106
+      },
+      "version": {
+       "old": 1320,
+       "new": 1320
+      },
+      "base_version": {
+       "old": 1254,
+       "new": 1254
+      },
+      "state.closure": {
+       "old": 893,
+       "new": 47
+      },
+      "index.coverage": {
+       "old": 877,
+       "new": 877
+      },
+      "state.in_flight": {
+       "old": 692,
+       "new": 587
+      },
+      "guidance": {
+       "old": 673,
+       "new": 673
+      },
+      "state.process_storage": {
+       "old": 418,
+       "new": 22
+      },
+      "interpretation": {
+       "old": 251,
+       "new": 251
+      },
+      "current_question": {
+       "old": 163,
+       "new": 163
+      },
+      "mode": {
+       "old": 139,
+       "new": 139
+      },
+      "state.gaps": {
+       "old": 38,
+       "new": 2
+      },
+      "recent": {
+       "old": 2,
+       "new": 2
+      }
+     },
+     "recon": {
+      "experience": {
+       "old": 142018,
+       "new": 27936
+      },
+      "index.entries": {
+       "old": 15193,
+       "new": 15193
+      },
+      "state.budget": {
+       "old": 5515,
+       "new": 3183
+      },
+      "state.publications": {
+       "old": 1856,
+       "new": 902
+      },
+      "version": {
+       "old": 1782,
+       "new": 1782
+      },
+      "base_version": {
+       "old": 1716,
+       "new": 1716
+      },
+      "state.closure": {
+       "old": 1456,
+       "new": 56
+      },
+      "state.gaps": {
+       "old": 1202,
+       "new": 75
+      },
+      "index.coverage": {
+       "old": 1153,
+       "new": 1153
+      },
+      "state.handoff": {
+       "old": 1031,
+       "new": 143
+      },
+      "state.in_flight": {
+       "old": 940,
+       "new": 695
+      },
+      "guidance": {
+       "old": 673,
+       "new": 673
+      },
+      "state.process_storage": {
+       "old": 572,
+       "new": 22
+      },
+      "interpretation": {
+       "old": 251,
+       "new": 251
+      },
+      "mode": {
+       "old": 188,
+       "new": 188
+      },
+      "current_question": {
+       "old": 155,
+       "new": 155
+      },
+      "recent": {
+       "old": 2,
+       "new": 2
+      }
+     }
+    }
+   }
+  ]
+ },
+ "layer_statement": "design v1 1.6: offline behavior only; real-run input reduction and unchanged solve result not yet observed"
+}
