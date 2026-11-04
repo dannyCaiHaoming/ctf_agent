@@ -240,14 +240,14 @@ ${JSON.stringify(prepared)}`);
         const lessonReply=await request(e,'lesson',`CTF_MEMORY_LESSON\nReturn JSON {lessons:[{title,tags:string[],when,steps:string[],checks:string[],avoid:string[],limits:string[]}]}. At most 3 lessons, at most 8 items per field, strings at most 600 characters. Extract transferable procedures only from this completed episode. Preserve applicability, failed approaches and unverified limits. No transferable content means empty lessons. Host binds sources; do not output IDs or success claims.\n${JSON.stringify({content:e.content,result:e.input.result,outcome:e.outcome})}`);
         const {value:contents,dropped:rawLessonDropped}=parseWithoutExtraKeys(z.object({lessons:z.array(lessonContent).max(3)}).strict(),lessonReply),lessonDropped=boundedDroppedKeys(store,rawLessonDropped);e.requests.at(-1).dropped_keys=lessonDropped;store.saveEpisode(e);
         if(contents.lessons.some(l=>Object.values(l).some(v=>Array.isArray(v)?v.length>8||v.some(s=>s.length>600):v.length>600)))throw new Error('learning output bounds');
-        const done=store.completeLessons(e,contents.lessons);report.episodes.push({id:e.episode_id,version:e.version,status:done.lesson_status,lesson_ids:done.lesson_ids,dropped_keys:{episode:e.requests.findLast((r:any)=>r.phase==='episode')?.dropped_keys??[],lesson:lessonDropped}});
+        const done=store.completeLessons(e,contents.lessons);report.episodes.push({id:e.episode_id,version:e.version,status:done.lesson_status,episode_status:done.episode_status,lesson_status:done.lesson_status,lesson_ids:done.lesson_ids,finish:{episode:e.requests.findLast((r:any)=>r.phase==='episode')?.finish??null,lesson:e.requests.at(-1)?.finish??null},dropped_keys:{episode:e.requests.findLast((r:any)=>r.phase==='episode')?.dropped_keys??[],lesson:lessonDropped}});
       }catch(error){
         const request=e.requests.at(-1),unknown=request?.state==='sent';
         if(request&&unknown){request.state='unknown';request.usage={availability:'unavailable'};report.usage.lowerBound=true;}
         const state=unknown?'unknown':String(error).includes('budget')?'budget_exhausted':'failed';
         if(phase==='episode')e.episode_status=state;else e.lesson_status=state;
         e.error=String(store.clean(String(error)));e.usage={...(perEpisode.get(e.episode_id)??{availability:'unavailable'}),reservedTokens:reserved};store.saveEpisode(e);
-        report.episodes.push({id:e.episode_id,version:e.version,status:phase==='episode'?e.episode_status:e.lesson_status,error:e.error});
+        report.episodes.push({id:e.episode_id,version:e.version,status:phase==='episode'?e.episode_status:e.lesson_status,episode_status:e.episode_status,lesson_status:e.lesson_status,finish:e.requests.at(-1)?.finish??null,dropped_keys:e.requests.at(-1)?.dropped_keys??[],error:e.error});
         if(unknown||Date.now()>=deadline||spent+reserved>=budget.maxObservableTokens)break;
       }
     }

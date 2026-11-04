@@ -36,6 +36,8 @@ describe('A: keys outside the schema are dropped and named; everything else stil
   const r=await learnEpisodes(f.options),saved=f.store.getEpisode(f.e.episode_id)!;
   expect(saved.lesson_status).toBe('completed');expect(saved.lesson_ids).toHaveLength(2);expect(r.status).toBe('completed');
   expect(r.episodes[0].dropped_keys.lesson).toEqual(['lessons.0.title_note','lessons.1.title_note']);
+  expect(r.episodes[0].episode_status).toBe('completed');expect(r.episodes[0].lesson_status).toBe('completed');
+  expect(r.episodes[0].finish).toEqual({episode:'stop',lesson:'stop'});
   expect(saved.requests.at(-1).dropped_keys).toEqual(['lessons.0.title_note','lessons.1.title_note']);
   const stored=JSON.parse(String((f.store.db.prepare('SELECT body FROM lessons').get() as any).body));expect(stored).not.toHaveProperty('title_note');expect(Object.keys(stored)).toContain('title');
   f.store.close();
@@ -72,6 +74,13 @@ describe('dropped key names are model-chosen: redacted and bounded',()=>{
   await learnEpisodes(f.options);const d=f.store.getEpisode(f.e.episode_id)!.requests[0].dropped_keys as string[];
   expect(JSON.stringify(d)).not.toContain(secret);expect(d).toHaveLength(33);expect(d.some(k=>k.endsWith('[truncated]')&&k.length<=128+12)).toBe(true);expect(d.at(-1)).toBe('[10 more dropped]');
   expect(d.every(k=>k.length<=140)).toBe(true);f.store.close();
+ });
+});
+
+describe('report carries the learning finish reason',()=>{
+ it('reports finish=length and failed episode status when the reply is cut',async()=>{
+  const f=fixture();script([ep(f.first)],'length');const r=await learnEpisodes(f.options);
+  expect(r.episodes[0].episode_status).toBe('failed');expect(r.episodes[0].finish).toBe('length');f.store.close();
  });
 });
 
