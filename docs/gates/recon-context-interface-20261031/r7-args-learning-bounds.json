@@ -1,0 +1,49 @@
+{
+  "slice": "R7: event-first tool args and learning output bounds",
+  "date": "2026-11-04",
+  "base_commit": "d537c673d4d21229246ef81948650221070f2bbe",
+  "realModelCalls": 0,
+  "trigger": "r17 real batch: 260/260 tool rows had args_json {} marked original_complete=1; episode learning rejected for summary 656/775 chars (r16 B: 711)",
+  "red_observed": [
+    "event-first tests failed on prior implementation (undefined input)",
+    "pending input {} tests (3) failed on first R7 fix",
+    "1,000-char summary rejected by old bounds"
+  ],
+  "commands": [
+    {
+      "cmd": "npm run typecheck",
+      "exit": 0
+    },
+    {
+      "cmd": "npm run build",
+      "exit": 0
+    },
+    {
+      "cmd": "npm test",
+      "exit": 0,
+      "result": "58 files / 774 tests (re-run by main session)"
+    },
+    {
+      "cmd": "r15 replay",
+      "exit": 0
+    },
+    {
+      "cmd": "r16 replay",
+      "exit": 0
+    }
+  ],
+  "rule": "event args complete only when status in running/completed/error; pending (SDK always carries input, often {}) is a placeholder; later real args upgrade incomplete to complete only",
+  "not_proven": [
+    "plugin behaviour in the real OpenCode runtime",
+    "real model output within new bounds"
+  ],
+  "source_sha256": {
+    "apps/opencode-plugin/src/index.ts": "f70de3b5085b2ad2f6741efa29af4164b4564eba626c70c5c53149ee98da1a66",
+    "apps/launcher/src/control-service.ts": "8d3b6b795c39eefcbcbad44129e8535e63958388b3de4d622efff2c66f24b884",
+    "apps/launcher/src/experience-store.ts": "786f0e889a4494f41b2807d81e573cf344a48e70a4d2fb947b44f059a5372085",
+    "apps/launcher/src/episode-learning.ts": "c6320345658f657fb9c1bc66e046af20118db55e174a5327df12a7bb7c653272",
+    "tests/contract/event-first-args.test.ts": "b38814f2cab721f5a507fe3de6598206546dd884aeff58ab7196d8513d105492",
+    "tests/contract/episode-learning.test.ts": "40a6c3929bca8a087094c3e38a1abf9346dc54be42f5c616bfb4bb4e76a795ca",
+    "tests/contract/opencode.test.ts": "8deec0ffb933400d4cb3fdaa7d14f142294454a787e7b5acf8a6d43ed2a1cc42"
+  }
+}

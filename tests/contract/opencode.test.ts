@@ -226,10 +226,14 @@ it('forwards complete native tool errors and outputs while excluding managed res
   expect((requests.at(-1)!.input.part.state as any).error).toBe(error);
   await h.event!({event:{type:'message.part.updated',properties:{part:part('ctf_workspace_read',{status:'completed',output})}}} as never);
   expect((requests.at(-1)!.input.part.state as any)).not.toHaveProperty('output');
+  await h.event!({event:{type:'message.part.updated',properties:{part:part('bash',{status:'running',input:{command:'echo synthetic'},metadata:{secret:'x'}})}}} as never);
+  expect((requests.at(-1)!.input.part.state as any)).toEqual({status:'running',input:{command:'echo synthetic'}});
+  await h.event!({event:{type:'message.part.updated',properties:{part:part('bash',{status:'running'})}}} as never);
+  expect((requests.at(-1)!.input.part.state as any)).not.toHaveProperty('input');
   await h.event!({event:{type:'message.part.updated',properties:{part:part('task',{status:'error',error})}}} as never);
   expect(requests.slice(-2).map(request=>request.operation)).toEqual(['process.event','task.event']);
   expect((requests.at(-2)!.input.part.state as any).error).toBe(error);
-  expect(requests.at(-1)!.input).toEqual({callID:'call-3',state:'error',error});
+  expect(requests.at(-1)!.input).toEqual({callID:'call-5',state:'error',error});
  }finally{mocked.mockRestore();}
 });
 it('admission without a user or prepared snapshot still reaches authenticated control',async()=>{

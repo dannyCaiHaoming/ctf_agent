@@ -205,3 +205,42 @@ it('drops single-step families before multi-step ones when excerpts overflow',as
  const {store,e}=draft(sources),p:any=prepareEpisodeInput(e),shown=new Set(p.sources.map((s:any)=>s.ref));
  expect(shown.has('recon:41')&&shown.has('recon:44')).toBe(true);expect(p.omitted_ranges.some((r:any)=>r.whole_family&&r.family.includes('/single/'))).toBe(true);store.close();
 });
+
+// r17: bounds relaxed per design §7 (summary 1,200; tags/failed/unresolved 12; other strings 600; lesson arrays 8, strings 600).
+function sequenced(responses:any[],finish='stop'){
+ let i=-1;
+ calls.start.mockImplementation(async(input:any)=>{const hooks=createCtfAgentHooks(input.config.plugin[0][1]);return {close:async()=>{},client:{session:{create:async()=>({data:{id:'s1'}}),promptAsync:async()=>{i++;await hooks['chat.params']!({sessionID:'s1',agent:'reference',model:{providerID:'local',id:'script'},message:{id:'u'+i}} as never,{maxOutputTokens:4096} as never);},messages:async()=>({data:[{info:{role:'assistant',time:{completed:1},finish,tokens:{input:10,output:10,reasoning:0}},parts:[{type:'text',text:JSON.stringify(responses[Math.min(i,responses.length-1)])}]}]})}}};});
+}
+async function boundsFixture(){
+ const {prepareEpisodeInput}=await import('../../apps/launcher/src/episode-learning.js');const f=configuredFixture();
+ f.e.input.sources=[fam(1,'http.request',{method:'GET',url:'https://app.example.test/a'},403)];
+ return {...f,first:(prepareEpisodeInput(f.e) as any).sources[0].ref as string};
+}
+const learn=(f:any)=>learnEpisodes({...f.options,episodes:[f.e],budget:{maxObservableTokens:100000,wallClockMs:3000}});
+describe('relaxed learning output bounds (r17)',()=>{
+ it('accepts a 1,000-char summary, 10 tags and a lesson with 8-item arrays; both prompts state the new limits',async()=>{
+  const f=await boundsFixture();const ep={summary:'s'.repeat(1000),tech_tags:Array.from({length:10},(_,i)=>'t'+i),steps:[step(f.first)],failed_paths:[],unresolved:[],experience_refs:[]};
+  const lesson={lessons:[{title:'t',tags:['a'],when:'w'.repeat(600),steps:Array(8).fill('x'.repeat(600)),checks:['c'],avoid:['a'],limits:['l']}]};
+  const prompts:string[]=[];sequenced([ep,lesson]);
+  const inner=calls.start.getMockImplementation()!;calls.start.mockImplementation(async(input:any)=>{const h:any=await inner(input);const pa=h.client.session.promptAsync;h.client.session.promptAsync=async(a:any)=>{prompts.push(JSON.stringify(a));return pa(a);};return h;});
+  await learn(f);
+  const saved=f.store.getEpisode(f.e.episode_id)!;expect(saved.error??null).toBeNull();expect(saved.content!.summary).toHaveLength(1000);expect(saved.lesson_status).not.toBe('failed');
+  expect(prompts[0]).toContain('1,200');expect(prompts[0]).not.toContain('at most 400');expect(prompts.at(-1)).toContain('at most 8 items');expect(prompts.at(-1)).toContain('at most 600');
+  f.store.close();
+ });
+ it.each([
+  ['summary over 1,200',{summary:'s'.repeat(1201)}],
+  ['13 tags',{tech_tags:Array.from({length:13},(_,i)=>'t'+i)}],
+  ['601-char tag',{tech_tags:['x'.repeat(601)]}],
+ ])('still rejects %s, fail-closed',async(_n,patch)=>{
+  const f=await boundsFixture();sequenced([{summary:'s',tech_tags:[],steps:[step(f.first)],failed_paths:[],unresolved:[],experience_refs:[],...patch}]);
+  const r=await learn(f);const saved=f.store.getEpisode(f.e.episode_id)!;
+  expect(r.requests).toBe(1);expect(saved.content).toBeNull();expect(saved.error).toContain('learning output bounds');f.store.close();
+ });
+ it('still rejects a lesson over the new limits, and invalid JSON',async()=>{
+  const f=await boundsFixture();const ep={summary:'s',tech_tags:[],steps:[step(f.first)],failed_paths:[],unresolved:[],experience_refs:[]};
+  sequenced([ep,{lessons:[{title:'t',tags:Array(9).fill('a'),when:'w',steps:['s'],checks:[],avoid:[],limits:[]}]}]);
+  await learn(f);const saved=f.store.getEpisode(f.e.episode_id)!;expect(saved.content).not.toBeNull();expect(saved.lesson_status).not.toBe('completed');
+  expect(f.store.search({query:'t',kind:'lesson'} as any).results).toEqual([]);f.store.close();
+ });
+});

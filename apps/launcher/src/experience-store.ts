@@ -165,20 +165,28 @@ export class ExperienceStore {
   start(s:ProcessScope,tool:string,args:unknown,options:StartOptions={}) {
     return this.transaction(()=> {
       const now=Date.now(),payload=options.prepared??this.preparePayload(args),complete=options.complete??true;
-      this.db.prepare(`INSERT OR IGNORE INTO recon_turns(step_id,run_id,challenge_id,session_id,role,execution_ref,message_id,turn_no,call_id,sequence,kind,tool,args_json,args_meta_json,status,original_complete,created_at,updated_at)
+      const inserted=this.db.prepare(`INSERT OR IGNORE INTO recon_turns(step_id,run_id,challenge_id,session_id,role,execution_ref,message_id,turn_no,call_id,sequence,kind,tool,args_json,args_meta_json,status,original_complete,created_at,updated_at)
         VALUES(?,?,?,?,?,?,?,?,?,?,'tool',?,?,?,'running',?,?,?)`).run(randomUUID(),s.run,s.challenge,s.session,s.role??'recon',s.execution??null,s.message??null,this.turn(s),s.call??null,this.sequence(s),tool,payload.raw,JSON.stringify({...payload.meta,complete}),complete?1:0,now,now);
+      // A placeholder row (event arrived before the call, or args were unavailable) is incomplete; real args may upgrade it once, never the reverse.
+      if(!inserted.changes&&complete&&s.call) {
+        const existing=this.db.prepare("SELECT args_meta_json,result_meta_json FROM recon_turns WHERE run_id=? AND session_id=? AND call_id=? AND kind='tool'").get(s.run,s.session,s.call) as {args_meta_json?:string;result_meta_json?:string}|undefined;
+        const argsMeta=this.parsedJson(existing?.args_meta_json),resultMeta=this.parsedJson(existing?.result_meta_json);
+        if(existing&&argsMeta&&argsMeta.complete===false)
+          this.db.prepare("UPDATE recon_turns SET args_json=?,args_meta_json=?,original_complete=?,updated_at=? WHERE run_id=? AND session_id=? AND call_id=? AND kind='tool'")
+            .run(payload.raw,JSON.stringify({...payload.meta,complete:true}),!resultMeta||resultMeta.complete===true?1:0,now,s.run,s.session,s.call);
+      }
       if(s.message)this.db.prepare('UPDATE recon_turns SET message_id=?,turn_no=? WHERE run_id=? AND session_id=? AND call_id=? AND message_id IS NULL').run(s.message,this.turn(s),s.run,s.session,s.call??null);
     });
   }
   finish(s:ProcessScope,status:string,result:unknown,options:FinishOptions={}) {
     this.transaction(()=>{
-      const existing=this.db.prepare("SELECT terminal_priority FROM recon_turns WHERE run_id=? AND session_id=? AND call_id=? AND kind='tool'").get(s.run,s.session,s.call??null) as {terminal_priority?:number}|undefined;
+      const existing=this.db.prepare("SELECT terminal_priority,args_meta_json FROM recon_turns WHERE run_id=? AND session_id=? AND call_id=? AND kind='tool'").get(s.run,s.session,s.call??null) as {terminal_priority?:number;args_meta_json?:string}|undefined;
       if(!existing)return;
       const priority=options.priority??20;
       if(priority<=(existing.terminal_priority??0))return;
-      const payload=options.prepared??this.preparePayload(result),complete=options.complete??true;
+      const payload=options.prepared??this.preparePayload(result),complete=options.complete??true,argsComplete=this.parsedJson(existing.args_meta_json)?.complete!==false;
       this.db.prepare(`UPDATE recon_turns SET status=?,result_json=?,result_meta_json=?,result_sha256=?,result_size=?,original_complete=?,terminal_priority=?,updated_at=?,finished_at=?
-        WHERE run_id=? AND session_id=? AND call_id=? AND kind='tool'`).run(status,payload.raw,JSON.stringify({...payload.meta,complete}),payload.meta.sha256,payload.meta.size,complete?1:0,priority,Date.now(),status==='running'?null:Date.now(),s.run,s.session,s.call??null);
+        WHERE run_id=? AND session_id=? AND call_id=? AND kind='tool'`).run(status,payload.raw,JSON.stringify({...payload.meta,complete}),payload.meta.sha256,payload.meta.size,complete&&argsComplete?1:0,priority,Date.now(),status==='running'?null:Date.now(),s.run,s.session,s.call??null);
     });
   }
   note(s:ProcessScope,input:unknown,validEvidence:(r:string)=>boolean) {
