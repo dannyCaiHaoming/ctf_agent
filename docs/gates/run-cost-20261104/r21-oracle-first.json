@@ -1,0 +1,274 @@
+{
+ "kind": "real-model batch: design §3.4 step 1 (oracle-first completion, conditional Verifier)",
+ "scope": "local Docker targets llmctf/2015q-web-throwback (V1, V2) and llmctf/2016q-web-mfw (M1); controller-side judges with attempts unlimited and no cooldown; fresh empty experience store per run; post-run learning disabled; no retry, no provider switch",
+ "model": "volcano-plan/deepseek-v4.1-flash via local counting relay; runtime option domain-solver thinking disabled (§3.2)",
+ "product": "main@3e0d39e3 (only untracked file: docs/local-challenges.md, documentation)",
+ "budget": {
+  "per_run_cap": 1200000,
+  "authorized_total": 3600000,
+  "used_total": 1224677
+ },
+ "relay": {
+  "requests": 337,
+  "status": "all 200",
+  "capped": 0
+ },
+ "raw_artifacts": "/Users/caihaoming/Documents/pentest-agent-run-data/speed-real-20261104-r21-oracle-first (not in repo)",
+ "note": "Structured counts only. No transcripts, tool outputs, candidates, flags or oracle data.",
+ "runs": {
+  "V1": {
+   "challenge": "throwback",
+   "run_id": "speed-r21-throwback-1",
+   "agent_options": {
+    "domain-solver": {
+     "thinking": {
+      "type": "disabled"
+     }
+    }
+   },
+   "submissions": [
+    {
+     "admission": "oracle_first",
+     "state": "confirmed",
+     "businessOutcome": "accepted",
+     "rejection": null,
+     "capture_resources": 3
+    }
+   ],
+   "result": "solved",
+   "completion_request_refusals": 0,
+   "verification_results": 0,
+   "calls": 153,
+   "wall_min": 12.4,
+   "tokens": {
+    "input_uncached": 433314,
+    "cache_read": 10788736,
+    "output": 46369,
+    "reasoning": 45543
+   },
+   "roles": {
+    "coordinator": {
+     "calls": 12,
+     "input_uncached": 21247,
+     "output": 4597,
+     "reasoning": 1563,
+     "latency_sec": 181,
+     "finish_length": 0
+    },
+    "intake": {
+     "calls": 5,
+     "input_uncached": 4421,
+     "output": 1409,
+     "reasoning": 457,
+     "latency_sec": 18,
+     "finish_length": 0
+    },
+    "recon": {
+     "calls": 49,
+     "input_uncached": 176127,
+     "output": 12992,
+     "reasoning": 35767,
+     "latency_sec": 386,
+     "finish_length": 0
+    },
+    "domain-solver": {
+     "calls": 74,
+     "input_uncached": 141786,
+     "output": 20764,
+     "reasoning": 0,
+     "latency_sec": 184,
+     "finish_length": 0
+    },
+    "engineer": {
+     "calls": 13,
+     "input_uncached": 89733,
+     "output": 6607,
+     "reasoning": 7756,
+     "latency_sec": 108,
+     "finish_length": 0
+    }
+   }
+  },
+  "V2": {
+   "challenge": "throwback",
+   "run_id": "speed-r21-throwback-2",
+   "agent_options": {
+    "domain-solver": {
+     "thinking": {
+      "type": "disabled"
+     }
+    }
+   },
+   "submissions": [
+    {
+     "admission": "oracle_first",
+     "state": "confirmed",
+     "businessOutcome": "accepted",
+     "rejection": null,
+     "capture_resources": 2
+    }
+   ],
+   "result": "solved",
+   "completion_request_refusals": 0,
+   "verification_results": 0,
+   "calls": 128,
+   "wall_min": 13.2,
+   "tokens": {
+    "input_uncached": 402340,
+    "cache_read": 8316544,
+    "output": 36790,
+    "reasoning": 59994
+   },
+   "roles": {
+    "coordinator": {
+     "calls": 15,
+     "input_uncached": 19702,
+     "output": 5346,
+     "reasoning": 1463,
+     "latency_sec": 794,
+     "finish_length": 0
+    },
+    "intake": {
+     "calls": 9,
+     "input_uncached": 7043,
+     "output": 2000,
+     "reasoning": 909,
+     "latency_sec": 30,
+     "finish_length": 0
+    },
+    "engineer": {
+     "calls": 10,
+     "input_uncached": 86392,
+     "output": 2939,
+     "reasoning": 13989,
+     "latency_sec": 115,
+     "finish_length": 1
+    },
+    "recon": {
+     "calls": 57,
+     "input_uncached": 198056,
+     "output": 15952,
+     "reasoning": 43633,
+     "latency_sec": 492,
+     "finish_length": 0
+    },
+    "domain-solver": {
+     "calls": 37,
+     "input_uncached": 91147,
+     "output": 10553,
+     "reasoning": 0,
+     "latency_sec": 91,
+     "finish_length": 0
+    }
+   }
+  },
+  "M1": {
+   "challenge": "mfw",
+   "run_id": "speed-r21-mfw-1",
+   "agent_options": {
+    "domain-solver": {
+     "thinking": {
+      "type": "disabled"
+     }
+    }
+   },
+   "submissions": [
+    {
+     "admission": "oracle_first",
+     "state": "confirmed",
+     "businessOutcome": "accepted",
+     "rejection": null,
+     "capture_resources": 1
+    }
+   ],
+   "result": "solved",
+   "completion_request_refusals": 0,
+   "verification_results": 0,
+   "calls": 56,
+   "wall_min": 4.8,
+   "tokens": {
+    "input_uncached": 161982,
+    "cache_read": 1143552,
+    "output": 20342,
+    "reasoning": 18003
+   },
+   "roles": {
+    "engineer": {
+     "calls": 15,
+     "input_uncached": 68331,
+     "output": 8393,
+     "reasoning": 12323,
+     "latency_sec": 146,
+     "finish_length": 0
+    },
+    "domain-solver": {
+     "calls": 8,
+     "input_uncached": 28122,
+     "output": 2415,
+     "reasoning": 0,
+     "latency_sec": 19,
+     "finish_length": 0
+    },
+    "coordinator": {
+     "calls": 15,
+     "input_uncached": 26801,
+     "output": 4259,
+     "reasoning": 1764,
+     "latency_sec": 64,
+     "finish_length": 0
+    },
+    "intake": {
+     "calls": 4,
+     "input_uncached": 4357,
+     "output": 642,
+     "reasoning": 384,
+     "latency_sec": 11,
+     "finish_length": 0
+    },
+    "recon": {
+     "calls": 14,
+     "input_uncached": 34371,
+     "output": 4633,
+     "reasoning": 3532,
+     "latency_sec": 68,
+     "finish_length": 0
+    }
+   }
+  }
+ },
+ "comparison": {
+  "throwback": {
+   "r20_T1": {
+    "calls": 136,
+    "wall_min": 13.2,
+    "input_uncached": 468182,
+    "verifier_latency_sec": 203
+   },
+   "r20_T2": {
+    "calls": 121,
+    "wall_min": 14.2,
+    "input_uncached": 388772,
+    "verifier_latency_sec": 114
+   }
+  },
+  "mfw": {
+   "r19_B": {
+    "calls": 67,
+    "wall_min": 9.3,
+    "input_uncached": 353331,
+    "verifier_latency_sec": 141,
+    "note": "solver thinking on and learning on; not a strict control"
+   }
+  }
+ },
+ "verdict": {
+  "mechanism": "passed: 3/3 submissions admitted oracle_first and accepted; 0 completion refusals; Verifier never dispatched; 0 verification results",
+  "verifier_time": "removed: 114-203 s per throwback run in r20 T, 141 s in r19 B -> 0",
+  "wall_clock": "throwback 13.2->12.4 and 14.2->13.2 min; within run-to-run variance (V1 solver 74 calls vs 39 in r20 T1, recon +113 s)",
+  "solving": "no degradation: 3/3 solved, one submission each",
+  "not_exercised": [
+   "wrong_answer followed by continued solving",
+   "verification required refusal followed by Verifier dispatch and resubmission"
+  ]
+ }
+}
