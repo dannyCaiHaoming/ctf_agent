@@ -1,0 +1,176 @@
+{
+  "kind": "offline loopback probe (0 model calls)",
+  "date": "2026-11-04",
+  "opencode": "1.19.3 (/Users/caihaoming/.opencode/bin/opencode), bundled @ai-sdk/openai-compatible",
+  "method": "local stub provider on 127.0.0.1 records request bodies (messages/tools dropped); `opencode run --agent <name> hi` per configuration; isolated XDG dirs",
+  "note": "Each run sends a title-generation request first (small model, reasoning_effort=low by OpenCode default); only the agent request (with tool_choice) is listed below.",
+  "agent_request_fields": {
+    "no_options": {
+      "reasoning_effort": null,
+      "thinking": null
+    },
+    "agent.variant=low (model variants {low:{reasoningEffort:low}})": {
+      "reasoning_effort": null,
+      "thinking": null,
+      "applied": false
+    },
+    "agent.variant=nothink (model variants {nothink:{thinking:{type:disabled}}})": {
+      "reasoning_effort": null,
+      "thinking": null,
+      "applied": false
+    },
+    "agent.options.reasoningEffort=minimal (opencode.json)": {
+      "reasoning_effort": "minimal",
+      "applied": true
+    },
+    "agent.options.thinking={type:disabled} (opencode.json)": {
+      "thinking": {
+        "type": "disabled"
+      },
+      "applied": true,
+      "note": "unknown option keys pass through into the request body"
+    },
+    "agents/*.md frontmatter options {thinking:{type:disabled}, reasoningEffort:low}": {
+      "reasoning_effort": "low",
+      "thinking": {
+        "type": "disabled"
+      },
+      "applied": true
+    }
+  },
+  "not_answered": "whether the volcano-plan gateway / deepseek-v4.1-flash honours reasoning_effort or thinking; needs an authorized real request",
+  "real_provider_probe": {
+    "date": "2026-11-04",
+    "authorization": "user in session: provider probe, 3-6 requests, <=10k tokens",
+    "target": "volcano-plan gateway (base URL from local .env, not recorded), model deepseek-v4.1-flash, via opencode run with agent options; no tools, title agent disabled, output limit 1500",
+    "prompt": "What is 17*23?",
+    "requests": 6,
+    "retries": 0,
+    "results": [
+      {
+        "agent": "default",
+        "input": 143,
+        "output": 2,
+        "reasoning": 17,
+        "finish": "stop",
+        "reasoning_part_chars": 54
+      },
+      {
+        "agent": "reasoning_effort=low",
+        "input": 143,
+        "output": 2,
+        "reasoning": 18,
+        "finish": "stop",
+        "reasoning_part_chars": 61
+      },
+      {
+        "agent": "thinking=disabled",
+        "input": 118,
+        "output": 7,
+        "reasoning": 0,
+        "finish": "stop",
+        "reasoning_part": "none"
+      },
+      {
+        "agent": "default",
+        "input": 15,
+        "output": 2,
+        "reasoning": 16,
+        "finish": "stop",
+        "reasoning_part_chars": 53,
+        "note": "input 15 = uncached remainder"
+      },
+      {
+        "agent": "reasoning_effort=low",
+        "input": 15,
+        "output": 2,
+        "reasoning": 18,
+        "finish": "stop",
+        "reasoning_part_chars": 60
+      },
+      {
+        "agent": "thinking=disabled",
+        "input": 118,
+        "output": 7,
+        "reasoning": 0,
+        "finish": "stop",
+        "reasoning_part": "none"
+      }
+    ],
+    "total_tokens_approx": 710,
+    "conclusion": {
+      "thinking_disabled": "honoured: 0 reasoning tokens, no reasoning part, answer still correct",
+      "reasoning_effort_low": "inconclusive: the prompt needs only ~17 reasoning tokens by default, too easy to show a difference"
+    }
+  },
+  "real_provider_probe_effort": {
+    "date": "2026-11-04",
+    "authorization": "user in session: run the small computation probe directly",
+    "target": "same gateway/model; output limit 4000; no tools",
+    "prompt": "CRT congruence question, single-number answer (expected 346)",
+    "requests": 6,
+    "retries": 0,
+    "total_tokens_approx": 2000,
+    "results": [
+      {
+        "agent": "default",
+        "input": 179,
+        "output": 2,
+        "reasoning": 241,
+        "finish": "stop",
+        "ms": 2990,
+        "correct": true
+      },
+      {
+        "agent": "reasoning_effort=low",
+        "input": 179,
+        "output": 2,
+        "reasoning": 191,
+        "finish": "stop",
+        "ms": 2796,
+        "correct": true
+      },
+      {
+        "agent": "default",
+        "input": 51,
+        "output": 2,
+        "reasoning": 240,
+        "finish": "stop",
+        "ms": 2895,
+        "correct": true
+      },
+      {
+        "agent": "reasoning_effort=low",
+        "input": 51,
+        "output": 2,
+        "reasoning": 235,
+        "finish": "stop",
+        "ms": 3047,
+        "correct": true
+      },
+      {
+        "agent": "default",
+        "input": 51,
+        "output": 2,
+        "reasoning": 227,
+        "finish": "stop",
+        "ms": 3718,
+        "correct": true
+      },
+      {
+        "agent": "reasoning_effort=low",
+        "input": 51,
+        "output": 2,
+        "reasoning": 253,
+        "finish": "stop",
+        "ms": 2976,
+        "correct": true
+      }
+    ],
+    "summary": {
+      "default_reasoning_avg": 236,
+      "low_reasoning_avg": 226
+    },
+    "conclusion": "reasoning_effort=low has no measurable effect on this gateway/model (difference within run-to-run noise); only thinking=disabled changes reasoning"
+  }
+}

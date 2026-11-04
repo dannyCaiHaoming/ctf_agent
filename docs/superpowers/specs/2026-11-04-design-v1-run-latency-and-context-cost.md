@@ -2,7 +2,7 @@
 
 **狀態：** [核心 design v1](2026-10-22-ctf-agent-design-v1.md) §1.4 的子設計，管「一次 run 的牆鐘時間和 token 花在哪、怎麼減」。解題方法本身（Skill／Reference 內容）屬於 [B／G 方法與耗時](2026-10-26-design-v1-b-method-generalization-and-efficiency.md)；Recon 記錄與追加式上下文的契約屬於 [Recon 重設計](2026-10-29-design-v1-recon-redesign.md) §4，本文只改它的**投影內容與發送頻率**，不改追加式放置。
 
-**目前停點：** §3.1 離線已實施並驗證，待下一次授權 run 觀察真實輸入；§3.2–§3.4 未定，需要先回答各自的問題。
+**目前停點：** §3.1 離線已實施並驗證，待下一次授權 run 觀察真實輸入。§3.2：OpenCode 按角色 `options` 有效；網關只認 `thinking: disabled`，`reasoning_effort` 無效，下一步是授權後對 Solver 關閉思考的批次對比。§3.3、§3.4 未定。
 
 **依據：** [r18／r19 成本拆解](../../gates/run-cost-20261104/r18-r19-cost-breakdown.json)，由 `tests/manual/run-cost-breakdown.py` 從四個真實 run 的訊息與審計記錄離線算出（0 次模型調用）。模型均為 `volcano-plan/deepseek-v4.1-flash`。修正後用同一腳本重算，對比同一欄位。
 
@@ -67,14 +67,40 @@
 
 **實施狀態（2026-11-04，離線）：** 經驗區塊僅在 lesson 集合變化時進 delta，`signals` 與查詢移到 `context.presented` 的 `retrieval`；delta `state` 只帶變化子欄位，`publications` 為 `{upserted,removed}`；full 不變。typecheck、build、全量測試（797）、r15／r16 回放通過。r19 離線重算（`tests/manual/context-dedup-recompute.py`）：A 追加量 692,914→266,649 bytes，B 427,620→143,067；A 的經驗區塊 207 KB→0.5 KB，`state.publications` 182 KB→8 KB，`index.entries` 不變；B 因有 lesson 內容，經驗區塊仍保留 lesson 變化時的發送。證據：`docs/gates/run-cost-20261104/context-dedup.json`。真實 run 的未緩存輸入與解題結果留待下一次授權 run。
 
-### 3.2 降低 reasoning 量（未定）
+### 3.2 降低 reasoning 量（只有關閉思考可用；收益待批次驗證）
 
-**要回答：**
-1. 當前 provider／模型是否支持按請求或按 agent 調整推理強度，經 OpenCode 設定能否生效？
-2. 哪些角色可以降：候選是 coordinator、intake、engineer；Recon、Solver、Verifier 先不動。
-3. 降低後解題率是否保持？
+**接口（離線已回答）：** OpenCode 1.19.3 可以按角色把推理參數寫進請求。證據見 [reasoning 參數探針](../../gates/run-cost-20261104/reasoning-options-probe.json)，用本機假 provider 抓取請求正文，0 次模型調用。
+- **有效：** agent 的 `options` 生效，寫在 `opencode.json` 或 `agents/*.md` 的 frontmatter 都可以。`reasoningEffort` 變成請求的 `reasoning_effort`；其他鍵原樣透傳，例如 `thinking: {type: "disabled"}`。產品角色定義在 `product/opencode/agents/*.md`，可以直接加。
+- **無效：** agent 的 `variant`（配合模型 `variants`）在 `opencode run` 中沒有生效，不採用。
+- **不處理：** 插件 `chat.params` 也能改 `options`，但角色層面的靜態設定用 frontmatter 已足夠；host 動態控制目前沒有需要，不經插件。
 
-**做法：** 先離線查清接口（0 token）；可行時用小批次真實 run 對比同題的解題結果、生成量與牆鐘。不可行則記為否決並寫明原因。
+**收益估算（r19 A，按生成速度約每秒 130 token 折算）：**
+
+| 角色 | reasoning | 約佔時間 |
+| --- | ---: | ---: |
+| Solver | 51,839 | 398 秒 |
+| Recon | 45,006 | 346 秒 |
+| Verifier | 22,611 | 173 秒 |
+| Engineer | 9,232 | 71 秒 |
+| Coordinator | 4,258 | 32 秒 |
+| Intake | 1,787 | 13 秒 |
+
+原先只打算降低 coordinator、intake、engineer。這三個角色即使把 reasoning 降到零，也只省約 116 秒，約佔 A 牆鐘的 8%。主要時間在 Recon 與 Solver（約 54%）和 Verifier（約 13%），但這三個角色也最可能影響解題率與驗證品質。B 的分佈更平均：Verifier 95 秒、Engineer 66 秒、Recon 59 秒、Solver 55 秒。
+
+**決定：**
+- 低風險角色（coordinator、intake）可以直接降低，但收益小，不單獨為它驗證。
+- 有意義的提速要在 Recon、Solver 上做，必須用真實 run 對比解題結果。
+- Verifier 不降低推理強度：驗證標準優先。它的成本另由 §3.4 處理。
+
+**provider 探針（2026-11-04，已授權，6 次請求，約 710 token）：** 證據同上檔的 `real_provider_probe`。自訂火山網關的 `deepseek-v4.1-flash`，問題為一道簡單乘法：
+- **`thinking: {type: "disabled"}` 生效：** 兩次 reasoning 都是 0，沒有 reasoning 段，答案仍正確。
+- **`reasoning_effort: low` 未能判斷：** 預設只用約 17 個 reasoning token，low 是 18，題目太簡單，看不出差別。
+
+**降檔補測（2026-11-04，6 次請求，約 2,000 token）：** 改用一道需要逐步推理的同餘題（答案 346），預設與 `low` 各 3 次，全部答對。預設 reasoning 為 241／240／227（平均 236），`low` 為 191／235／253（平均 226），差異在每次之間的波動範圍內。結論：這個網關／模型上 `reasoning_effort` 沒有可測的效果。
+
+**結論：** 能用的只有「整個角色關閉思考」這一個開關，沒有溫和的降檔選項。
+
+**下一步（需另行授權）：** 批次對比。先只對一個角色關閉思考（建議 Solver，reasoning 最多），同題 A／B 各跑至少兩次，與 r19 對比解題結果、生成 token 與牆鐘。解題結果變差就回退；結果持平再考慮 Recon。Verifier 不關閉思考。
 
 ### 3.3 題內並行（未定，設計層面）
 
