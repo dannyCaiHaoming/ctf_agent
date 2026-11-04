@@ -188,6 +188,8 @@ R4 之前，插件每輪會刪除舊 synthetic investigation context，並把新
 3. 原生 OpenCode 循環與 compaction 仍管理上下文，host 不自建摘要模型或旁路循環。
 4. 若公開 hook 無法把狀態放在穩定位置，應報告接口缺口；回退不能是每輪替換首部任務或擴大預算。
 
+**追加內容與發送頻率：** 放置契約以本節為準；哪些欄位在 delta 中發送、何時重發，以 [解題延遲與上下文成本](2026-11-04-design-v1-run-latency-and-context-cost.md) §3.1 為準。
+
 **放置方案已定：append-only combo。** [放置驗證](../../gates/recon-context-interface-20261031/placement-validation.json)以 OpenCode `1.19.3`、58 次腳本化 localhost 請求及 0 次真實模型調用比較五種候選；只有 append-only combo 通過全部 13 項檢查，其餘候選均失敗。產品接線採用：
 
 1. `chat.message` 追加當前狀態，使首輪及顯式新回合可見。

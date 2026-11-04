@@ -124,6 +124,81 @@ describe('Recon investigation context (design §4)', () => {
     store.close();
   });
 
+  it('delta carries only changed state fields and publication items; merged deltas equal the full projection', async () => {
+    const {store, service} = fixture();
+    seed(store, 3);
+    const pubs: any[] = [{ref: 'pub:a', source: {run: 'A', challenge: 'X', kind: 'file', sessionID: 'recon'}, sha256: 'a'.repeat(64), size: 1}, {ref: 'pub:b', source: {run: 'A', challenge: 'X', kind: 'file', sessionID: 'recon'}, sha256: 'b'.repeat(64), size: 2}];
+    (service as any).publicationSnapshot = () => pubs;
+    const mergeState = (state: any, change: any) => {
+      const next = {...state};
+      for (const [k, v] of Object.entries<any>(change)) {
+        if (k === 'publications') {
+          const byRef = new Map<string, any>(state.publications.map((p: any) => [p.ref, p]));
+          for (const r of v.removed) byRef.delete(r);
+          for (const p of v.upserted) byRef.set(p.ref, p);
+          next.publications = [...byRef.values()];
+        } else next[k] = v;
+      }
+      return next;
+    };
+    const first = await prepare(service, 'recon', {messageID: 'u1', placement: 'chat.message'});
+    const fullFirst = body(first.text);
+    let state = fullFirst.state, visible = first.version;
+    // Only the budget changes (a model call is admitted): the delta state holds budget alone, no experience block.
+    (service as any).admitted += 1;
+    let next = await prepare(service, 'recon', {messageID: 'u1', placement: 'tool.execute.after', callID: 'c1', visibleVersion: visible});
+    let delta = body(next.text);
+    expect(Object.keys(delta.state)).toEqual(['budget']);
+    expect(delta).not.toHaveProperty('experience');
+    state = mergeState(state, delta.state); visible = next.version;
+    // One publication added, one changed, then one removed.
+    pubs.push({ref: 'pub:c', source: {run: 'A', challenge: 'X', kind: 'file', sessionID: 'recon'}, sha256: 'c'.repeat(64), size: 3});
+    pubs[0] = {...pubs[0], sha256: 'd'.repeat(64)};
+    next = await prepare(service, 'recon', {messageID: 'u1', placement: 'tool.execute.after', callID: 'c2', visibleVersion: visible});
+    delta = body(next.text);
+    expect(Object.keys(delta.state)).toEqual(['publications']);
+    expect(delta.state.publications.upserted.map((p: any) => p.ref)).toEqual(['pub:a', 'pub:c']);
+    expect(delta.state.publications.removed).toEqual([]);
+    state = mergeState(state, delta.state); visible = next.version;
+    pubs.splice(1, 1);
+    next = await prepare(service, 'recon', {messageID: 'u1', placement: 'tool.execute.after', callID: 'c3', visibleVersion: visible});
+    delta = body(next.text);
+    expect(delta.state.publications).toEqual({upserted: [], removed: ['pub:b']});
+    state = mergeState(state, delta.state);
+    const full = body((await prepare(service, 'recon', {messageID: 'u2', placement: 'chat.message'})).text);
+    expect(full.mode).toBe('full');
+    expect(state).toEqual(full.state);
+    expect(full.experience).not.toHaveProperty('signals');
+    expect(full.experience).toHaveProperty('lessons');
+    store.close();
+  });
+
+  it('sends the experience block only when the presented lesson set changes; signals go to the audit', async () => {
+    const {store, service} = fixture();
+    seed(store, 2);
+    let set = [{id: 'L1', version: 1}];
+    (store as any).search = () => ({results: set.map(l => ({id: l.id, version: l.version}))});
+    (store as any).lessonSummary = (id: string, version: number) => ({id, version, title: `card ${id}`});
+    store.note({run: 'A', challenge: 'X', session: 'recon', call: 'n0'}, {kind: 'decision', assessment: 'probing alpha endpoint'}, () => true);
+    const first = await prepare(service, 'recon', {messageID: 'u1', placement: 'chat.message'});
+    expect(body(first.text).experience.lessons.map((l: any) => l.id)).toEqual(['L1']);
+    // New observations/decisions change retrieval signals but not the lesson set: no experience block.
+    store.note({run: 'A', challenge: 'X', session: 'recon', call: 'n1'}, {kind: 'decision', assessment: 'testing bravo parameter'}, () => true);
+    let next = await prepare(service, 'recon', {messageID: 'u1', placement: 'tool.execute.after', callID: 'c1', visibleVersion: first.version});
+    expect(body(next.text)).not.toHaveProperty('experience');
+    expect(next.text).not.toContain('"signals"');
+    // Lesson set changes: the next delta carries the new block.
+    set = [{id: 'L1', version: 1}, {id: 'L2', version: 1}];
+    store.note({run: 'A', challenge: 'X', session: 'recon', call: 'n2'}, {kind: 'decision', assessment: 'trying charlie cookie'}, () => true);
+    next = await prepare(service, 'recon', {messageID: 'u1', placement: 'tool.execute.after', callID: 'c2', visibleVersion: next.version});
+    expect(body(next.text).experience.lessons.map((l: any) => l.id)).toEqual(['L1', 'L2']);
+    const detail = (service as any).contextPrepared.get('recon');
+    const last = [...detail.values()].at(-1);
+    expect(last.experience_refs).toEqual(['lesson:L1@1', 'lesson:L2@1']);
+    expect(last.retrieval).toMatchObject({query: expect.any(String), signals: expect.any(Array)});
+    store.close();
+  });
+
   it('blocks the outbound model request after a projection failure until a projection succeeds', async () => {
     const {store, service} = fixture();
     seed(store, 2);

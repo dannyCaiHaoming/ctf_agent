@@ -1,0 +1,548 @@
+{
+  "kind": "offline run cost breakdown",
+  "generated_by": "tests/manual/run-cost-breakdown.py (0 model calls, read-only)",
+  "source": "/Users/caihaoming/Documents/pentest-agent-run-data/experience-real-20261104-r{18,19}-ab/runs/* (not in repo)",
+  "model": "volcano-plan/deepseek-v4.1-flash",
+  "note": "Structured counts only. Coordinator latency includes waiting for child tasks and is excluded from latency statistics.",
+  "runs": [
+    {
+      "run": "experience-r19-a-throwback-1",
+      "calls": 126,
+      "wall_min": 23.0,
+      "busy_min": 23.0,
+      "parallelism": 1.0,
+      "tokens": {
+        "input_uncached": 769212,
+        "cache_read": 10683648,
+        "output": 48124,
+        "reasoning": 134733
+      },
+      "corr_latency_generated_workers": 0.99,
+      "corr_latency_context_workers": 0.21,
+      "worker_generated_tokens_per_sec": 132,
+      "roles": {
+        "recon": {
+          "calls": 35,
+          "input_uncached": 212817,
+          "context_avg": 111153,
+          "context_max": 210617,
+          "output": 16467,
+          "reasoning": 45006,
+          "latency_sec": 470,
+          "finish_length": 0
+        },
+        "coordinator": {
+          "calls": 22,
+          "input_uncached": 61309,
+          "context_avg": 24459,
+          "context_max": 61959,
+          "output": 7262,
+          "reasoning": 4258,
+          "latency_sec": 138,
+          "finish_length": 0
+        },
+        "intake": {
+          "calls": 8,
+          "input_uncached": 5390,
+          "context_avg": 4161,
+          "context_max": 5134,
+          "output": 1865,
+          "reasoning": 1787,
+          "latency_sec": 35,
+          "finish_length": 0
+        },
+        "domain-solver": {
+          "calls": 34,
+          "input_uncached": 240313,
+          "context_avg": 152396,
+          "context_max": 238076,
+          "output": 10298,
+          "reasoning": 51839,
+          "latency_sec": 454,
+          "finish_length": 0
+        },
+        "verifier": {
+          "calls": 13,
+          "input_uncached": 77766,
+          "context_avg": 41093,
+          "context_max": 77064,
+          "output": 4840,
+          "reasoning": 22611,
+          "latency_sec": 227,
+          "finish_length": 1
+        },
+        "engineer": {
+          "calls": 14,
+          "input_uncached": 171617,
+          "context_avg": 91097,
+          "context_max": 170891,
+          "output": 7392,
+          "reasoning": 9232,
+          "latency_sec": 111,
+          "finish_length": 0
+        }
+      },
+      "appended_context_bytes": {
+        "recon": {
+          "experience": 118235,
+          "index.entries": 58133,
+          "state.budget": 18985,
+          "state.publications": 11708,
+          "version": 6138,
+          "base_version": 6072,
+          "state.closure": 4984,
+          "state.gaps": 4264,
+          "index.coverage": 3860,
+          "state.handoff": 3360,
+          "state.in_flight": 3207,
+          "state.process_storage": 1958,
+          "guidance": 673,
+          "mode": 650,
+          "interpretation": 251,
+          "current_question": 155,
+          "recent": 2
+        },
+        "domain-solver": {
+          "state.publications": 103220,
+          "experience": 86041,
+          "index.entries": 67865,
+          "state.budget": 8007,
+          "state.handoff": 5304,
+          "version": 3564,
+          "base_version": 3498,
+          "state.closure": 2397,
+          "index.coverage": 2317,
+          "state.in_flight": 1827,
+          "state.process_storage": 1122,
+          "guidance": 673,
+          "mode": 377,
+          "interpretation": 251,
+          "current_question": 163,
+          "state.gaps": 102,
+          "recent": 2
+        },
+        "engineer": {
+          "index.entries": 77679,
+          "state.publications": 67528,
+          "state.budget": 4093,
+          "experience": 2794,
+          "state.handoff": 2704,
+          "version": 1782,
+          "base_version": 1716,
+          "state.closure": 1222,
+          "index.coverage": 1192,
+          "state.in_flight": 943,
+          "guidance": 673,
+          "state.process_storage": 572,
+          "interpretation": 251,
+          "mode": 188,
+          "current_question": 158,
+          "state.gaps": 52,
+          "recent": 2
+        }
+      },
+      "appended_context_modes": {
+        "recon:full": 1,
+        "recon:delta": 92,
+        "domain-solver:full": 1,
+        "domain-solver:delta": 53,
+        "engineer:full": 1,
+        "engineer:delta": 26
+      }
+    },
+    {
+      "run": "experience-r19-b-mfw-1",
+      "calls": 67,
+      "wall_min": 9.3,
+      "busy_min": 9.3,
+      "parallelism": 1.0,
+      "tokens": {
+        "input_uncached": 353331,
+        "cache_read": 2220544,
+        "output": 33579,
+        "reasoning": 37994
+      },
+      "corr_latency_generated_workers": 0.98,
+      "corr_latency_context_workers": 0.16,
+      "worker_generated_tokens_per_sec": 128,
+      "roles": {
+        "recon": {
+          "calls": 15,
+          "input_uncached": 77411,
+          "context_avg": 45617,
+          "context_max": 76437,
+          "output": 6094,
+          "reasoning": 7766,
+          "latency_sec": 111,
+          "finish_length": 0
+        },
+        "domain-solver": {
+          "calls": 7,
+          "input_uncached": 75461,
+          "context_avg": 48540,
+          "context_max": 75220,
+          "output": 5162,
+          "reasoning": 7260,
+          "latency_sec": 93,
+          "finish_length": 0
+        },
+        "verifier": {
+          "calls": 8,
+          "input_uncached": 49612,
+          "context_avg": 31273,
+          "context_max": 49246,
+          "output": 4284,
+          "reasoning": 12465,
+          "latency_sec": 141,
+          "finish_length": 0
+        },
+        "coordinator": {
+          "calls": 16,
+          "input_uncached": 45840,
+          "context_avg": 21281,
+          "context_max": 46823,
+          "output": 6378,
+          "reasoning": 1177,
+          "latency_sec": 333,
+          "finish_length": 0
+        },
+        "intake": {
+          "calls": 4,
+          "input_uncached": 4310,
+          "context_avg": 3701,
+          "context_max": 4071,
+          "output": 1261,
+          "reasoning": 728,
+          "latency_sec": 19,
+          "finish_length": 0
+        },
+        "engineer": {
+          "calls": 17,
+          "input_uncached": 100697,
+          "context_avg": 55549,
+          "context_max": 99834,
+          "output": 10400,
+          "reasoning": 8598,
+          "latency_sec": 135,
+          "finish_length": 0
+        }
+      },
+      "appended_context_bytes": {
+        "recon": {
+          "experience": 142018,
+          "index.entries": 15193,
+          "state.budget": 5515,
+          "state.publications": 1856,
+          "version": 1782,
+          "base_version": 1716,
+          "state.closure": 1456,
+          "state.gaps": 1202,
+          "index.coverage": 1153,
+          "state.handoff": 1031,
+          "state.in_flight": 940,
+          "guidance": 673,
+          "state.process_storage": 572,
+          "interpretation": 251,
+          "mode": 188,
+          "current_question": 155,
+          "recent": 2
+        },
+        "domain-solver": {
+          "experience": 100760,
+          "index.entries": 23777,
+          "state.publications": 18333,
+          "state.budget": 2983,
+          "state.handoff": 2014,
+          "version": 1320,
+          "base_version": 1254,
+          "state.closure": 893,
+          "index.coverage": 877,
+          "state.in_flight": 692,
+          "guidance": 673,
+          "state.process_storage": 418,
+          "interpretation": 251,
+          "current_question": 163,
+          "mode": 139,
+          "state.gaps": 38,
+          "recent": 2
+        },
+        "engineer": {
+          "state.publications": 42888,
+          "index.entries": 31823,
+          "experience": 9272,
+          "state.budget": 3454,
+          "state.handoff": 2332,
+          "version": 1518,
+          "base_version": 1452,
+          "state.closure": 1034,
+          "index.coverage": 1000,
+          "state.in_flight": 785,
+          "guidance": 673,
+          "state.process_storage": 484,
+          "interpretation": 251,
+          "mode": 160,
+          "current_question": 158,
+          "state.gaps": 44,
+          "recent": 2
+        }
+      },
+      "appended_context_modes": {
+        "recon:full": 1,
+        "recon:delta": 26,
+        "domain-solver:full": 1,
+        "domain-solver:delta": 19,
+        "engineer:full": 1,
+        "engineer:delta": 22
+      }
+    },
+    {
+      "run": "experience-r18-a-throwback-1",
+      "calls": 143,
+      "wall_min": 21.9,
+      "busy_min": 21.9,
+      "parallelism": 1.0,
+      "tokens": {
+        "input_uncached": 582082,
+        "cache_read": 15798400,
+        "output": 45811,
+        "reasoning": 121559
+      },
+      "corr_latency_generated_workers": 0.99,
+      "corr_latency_context_workers": 0.08,
+      "worker_generated_tokens_per_sec": 129,
+      "roles": {
+        "domain-solver": {
+          "calls": 57,
+          "input_uncached": 269683,
+          "context_avg": 163747,
+          "context_max": 265458,
+          "output": 14444,
+          "reasoning": 57077,
+          "latency_sec": 587,
+          "finish_length": 1
+        },
+        "recon": {
+          "calls": 54,
+          "input_uncached": 258957,
+          "context_avg": 116300,
+          "context_max": 255553,
+          "output": 19049,
+          "reasoning": 53893,
+          "latency_sec": 533,
+          "finish_length": 0
+        },
+        "intake": {
+          "calls": 4,
+          "input_uncached": 4538,
+          "context_avg": 3758,
+          "context_max": 4293,
+          "output": 1621,
+          "reasoning": 1130,
+          "latency_sec": 24,
+          "finish_length": 0
+        },
+        "coordinator": {
+          "calls": 28,
+          "input_uncached": 48904,
+          "context_avg": 26843,
+          "context_max": 49424,
+          "output": 10697,
+          "reasoning": 9459,
+          "latency_sec": 738,
+          "finish_length": 0
+        }
+      },
+      "appended_context_bytes": {
+        "domain-solver": {
+          "experience": 141845,
+          "state.publications": 81061,
+          "index.entries": 77474,
+          "state.budget": 10556,
+          "state.handoff": 7102,
+          "version": 4554,
+          "base_version": 4488,
+          "state.closure": 3149,
+          "index.coverage": 2956,
+          "state.in_flight": 2372,
+          "state.process_storage": 1474,
+          "guidance": 673,
+          "mode": 482,
+          "interpretation": 251,
+          "current_question": 163,
+          "state.gaps": 134,
+          "recent": 2
+        },
+        "recon": {
+          "experience": 157986,
+          "index.entries": 65845,
+          "state.budget": 22627,
+          "version": 7392,
+          "base_version": 7326,
+          "state.closure": 5924,
+          "state.gaps": 5122,
+          "state.publications": 4659,
+          "index.coverage": 4652,
+          "state.handoff": 3991,
+          "state.in_flight": 3979,
+          "state.process_storage": 2332,
+          "mode": 783,
+          "guidance": 673,
+          "interpretation": 251,
+          "current_question": 155,
+          "recent": 2
+        }
+      },
+      "appended_context_modes": {
+        "domain-solver:full": 1,
+        "domain-solver:delta": 68,
+        "recon:full": 1,
+        "recon:delta": 111
+      }
+    },
+    {
+      "run": "experience-r18-b-mfw-1",
+      "calls": 99,
+      "wall_min": 13.3,
+      "busy_min": 13.3,
+      "parallelism": 1.0,
+      "tokens": {
+        "input_uncached": 434389,
+        "cache_read": 4081024,
+        "output": 45867,
+        "reasoning": 66521
+      },
+      "corr_latency_generated_workers": 0.99,
+      "corr_latency_context_workers": 0.13,
+      "worker_generated_tokens_per_sec": 140,
+      "roles": {
+        "coordinator": {
+          "calls": 27,
+          "input_uncached": 40969,
+          "context_avg": 23628,
+          "context_max": 41213,
+          "output": 8984,
+          "reasoning": 4468,
+          "latency_sec": 137,
+          "finish_length": 0
+        },
+        "engineer": {
+          "calls": 25,
+          "input_uncached": 209598,
+          "context_avg": 94998,
+          "context_max": 208064,
+          "output": 17631,
+          "reasoning": 26115,
+          "latency_sec": 285,
+          "finish_length": 1
+        },
+        "recon": {
+          "calls": 20,
+          "input_uncached": 56397,
+          "context_avg": 29194,
+          "context_max": 55456,
+          "output": 6792,
+          "reasoning": 6995,
+          "latency_sec": 116,
+          "finish_length": 0
+        },
+        "intake": {
+          "calls": 4,
+          "input_uncached": 4281,
+          "context_avg": 3758,
+          "context_max": 4154,
+          "output": 1176,
+          "reasoning": 648,
+          "latency_sec": 18,
+          "finish_length": 0
+        },
+        "domain-solver": {
+          "calls": 12,
+          "input_uncached": 69040,
+          "context_avg": 45646,
+          "context_max": 68212,
+          "output": 4789,
+          "reasoning": 11028,
+          "latency_sec": 117,
+          "finish_length": 0
+        },
+        "verifier": {
+          "calls": 11,
+          "input_uncached": 54104,
+          "context_avg": 32345,
+          "context_max": 53491,
+          "output": 6495,
+          "reasoning": 17267,
+          "latency_sec": 170,
+          "finish_length": 1
+        }
+      },
+      "appended_context_bytes": {
+        "engineer": {
+          "state.publications": 115284,
+          "index.entries": 48806,
+          "experience": 9716,
+          "state.budget": 6594,
+          "state.handoff": 4452,
+          "version": 2904,
+          "base_version": 2838,
+          "state.closure": 1974,
+          "index.coverage": 1861,
+          "state.in_flight": 1515,
+          "state.process_storage": 924,
+          "guidance": 673,
+          "mode": 307,
+          "interpretation": 251,
+          "current_question": 158,
+          "state.gaps": 84,
+          "recent": 2
+        },
+        "recon": {
+          "experience": 31370,
+          "index.entries": 19955,
+          "state.budget": 7016,
+          "state.publications": 5486,
+          "version": 2244,
+          "base_version": 2178,
+          "state.closure": 1848,
+          "state.gaps": 1545,
+          "index.coverage": 1442,
+          "state.handoff": 1290,
+          "state.in_flight": 1191,
+          "state.process_storage": 726,
+          "guidance": 673,
+          "interpretation": 251,
+          "mode": 237,
+          "current_question": 155,
+          "recent": 2
+        },
+        "domain-solver": {
+          "state.publications": 30594,
+          "index.entries": 25375,
+          "experience": 16979,
+          "state.budget": 2980,
+          "state.handoff": 2014,
+          "version": 1254,
+          "base_version": 1188,
+          "state.closure": 893,
+          "index.coverage": 836,
+          "state.in_flight": 680,
+          "guidance": 673,
+          "state.process_storage": 418,
+          "interpretation": 251,
+          "current_question": 163,
+          "mode": 132,
+          "state.gaps": 38,
+          "recent": 2
+        }
+      },
+      "appended_context_modes": {
+        "engineer:full": 1,
+        "engineer:delta": 43,
+        "recon:full": 1,
+        "recon:delta": 33,
+        "domain-solver:full": 1,
+        "domain-solver:delta": 18
+      }
+    }
+  ]
+}
