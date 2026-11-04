@@ -2,7 +2,7 @@
 
 **狀態：** [核心 design v1](2026-10-22-ctf-agent-design-v1.md) §1.4 的子設計，管「一次 run 的牆鐘時間和 token 花在哪、怎麼減」。解題方法本身（Skill／Reference 內容）屬於 [B／G 方法與耗時](2026-10-26-design-v1-b-method-generalization-and-efficiency.md)；Recon 記錄與追加式上下文的契約屬於 [Recon 重設計](2026-10-29-design-v1-recon-redesign.md) §4，本文只改它的**投影內容與發送頻率**，不改追加式放置。
 
-**目前停點：** §3.1 已實施，r20 真實 run 中 throwback 的未緩存輸入比 r19 A 降 31–36%。§3.2 已採用：r20 中 Solver 關閉思考後，單次調用延遲降到原來的約 1/3–1/4，throwback 4/4 解出；未驗證難題。§3.4 方向已定：Verifier 改為按條件觸發，以 oracle 為主，未實施。§3.3 延後，待 §3.4 之後再評估。
+**目前停點：** §3.1 已實施，r20 真實 run 中 throwback 的未緩存輸入比 r19 A 降 31–36%。§3.2 已採用：r20 中 Solver 關閉思考後，單次調用延遲降到原來的約 1/3–1/4，throwback 4/4 解出；未驗證難題。§3.4 直接提交已實施：r21 中 3/3 直接提交並被接受，Verifier 時間降為 0；「被要求送驗」與「答錯後繼續」兩條路徑尚無真實樣本。§3.3 延後，待 §3.4 之後再評估。
 
 **依據：** [r18／r19 成本拆解](../../gates/run-cost-20261104/r18-r19-cost-breakdown.json)，由 `tests/manual/run-cost-breakdown.py` 從四個真實 run 的訊息與審計記錄離線算出（0 次模型調用）。模型均為 `volcano-plan/deepseek-v4.1-flash`。修正後用同一腳本重算，對比同一欄位。
 
@@ -183,7 +183,7 @@
 
 並行實驗不和其他提速改動放在同一批次，避免變量混淆。
 
-### 3.4 Verifier 改為按條件觸發（方向已定，未實施）
+### 3.4 Verifier 改為按條件觸發（直接提交已實施；送驗與答錯路徑待真實樣本）
 
 **問題：** 每次提交都先經 Verifier，約佔牆鐘的 13–26%，單次生成量最大，多次因 `finish=length` 截斷。
 
@@ -192,7 +192,7 @@
 | run | Verifier 延遲 | 佔牆鐘 | 判斷（mode） | `finish=length` | 提交結果 |
 | --- | ---: | ---: | --- | ---: | --- |
 | r19 A throwback | 227 秒 | 16% | verified（replay） | 1 | 第一次提交 accepted |
-| r19 B mfw | 95 秒 | 17% | inconclusive（recompute） | 0 | 第一次提交 accepted |
+| r19 B mfw | 141 秒 | 25% | inconclusive（recompute） | 0 | 第一次提交 accepted |
 | r20 C1 throwback | 269 秒 | 20% | verified（evidence_audit） | 1 | 第一次提交 accepted |
 | r20 T1 throwback | 203 秒 | 26% | verified（evidence_audit） | 0 | 第一次提交 accepted |
 | r20 C2 throwback | 191 秒 | 21% | verified（evidence_audit） | 1 | 第一次提交 accepted |
@@ -224,15 +224,55 @@
    結果寫入審計並交給 Coordinator；它不是 verified，也不改變 solved 的認定。
 4. **不變：** 精確提交、錯誤候選去重、unknown 暫停同題提交、只有 host 回執才算 solved 等 D §7 規則不變。
 
-**需要改的地方（未實施）：**
+**需要改的地方：**
 - **`ctf_completion_request`：** 目前要求帶 verification `result`。要允許在第 1 點條件成立時不帶 `result`，由 host 依題目限制核對准入。
 - **確定性檢查：** host 加一個確定性檢查，結果進 completion 准入與審計。
 - **角色檔：** `coordinator.md` 送驗與可信完成兩節改為按條件送驗；`verifier.md` 不需要大改。
 - **design v1：** 第 15 行「Verifier 必須獨立」與 §1.3 的「獨立審閱仍保留」改為「觸發時獨立」。實施並驗收後再改 design v1 正文，避免文件先於代碼。
 
+**實施狀態（2026-11-04，`d07c52ec`）：**
+- **已實施：**
+  - `ctf_completion_request` 可不帶 `result`；
+  - host 的准入條件是：有裁判、次數不限、無冷卻或封鎖、同題沒有 `wrong_answer`，以及候選出現在本 run、本題的 host HTTP 捕獲中；
+  - 條件不成立時，以 `verification required:` 拒絕；
+  - 記錄帶 `admission` 與匹配的捕獲 resource；
+  - `coordinator.md` 改為按條件送驗。
+- **出處檢查的取捨：**
+  - 只認 HTTP 捕獲：job 輸出由模型腳本決定，不算出處；
+  - 捕獲只存在記憶體，重啟後一律送驗。
+- **未做：** flag 格式檢查（題目設定沒有格式欄位）；design v1 正文的修改，等送驗路徑有真實樣本後再改。
+
 **驗收：**
 - **離線：** 無模型測試覆蓋 4 種觸發條件與「不觸發直接提交」路徑；`wrong_answer`、unknown、去重等既有測試不回退。
 - **真實 run（需另行授權）：** 同題、同模型、同設定對比：解題結果不差於對照組，牆鐘下降約等於原 Verifier 時間。另需要一個「首個候選錯誤」的樣本，確認 `wrong_answer` 交回後團隊會繼續，而不是停止。
+
+**真實 run（r21，2026-11-04，已授權，實際用量 1,224,677 token）：** 證據見 [r21 結果](../../gates/run-cost-20261104/r21-oracle-first.json)。
+- **批次設定：**
+  - 產品 `main@3e0d39e3`，Solver 關閉思考，題後學習關閉；
+  - 兩個 judge 皆不限次數、無冷卻；
+  - 依序 V1、V2（throwback）→ M1（mfw）；
+  - relay 共 337 次請求，全部 200。
+
+| | r20 T1 → V1 | r20 T2 → V2 | r19 B → M1 |
+| --- | --- | --- | --- |
+| 結果 | 解出 → 解出 | 解出 → 解出 | 解出 → 解出 |
+| 提交路徑 | 送驗 → 直接提交 | 送驗 → 直接提交 | 送驗 → 直接提交 |
+| Verifier 延遲（秒） | 203 → 0 | 114 → 0 | 141 → 0 |
+| 牆鐘（分鐘） | 13.2 → 12.4 | 14.2 → 13.2 | 9.3 → 4.8 |
+| 總調用 | 136 → 153 | 121 → 128 | 67 → 56 |
+
+- **機制通過：**
+  - 3 次都只提交 1 次，都走直接提交，並被接受；
+  - 候選分別在 3、2、1 個 host HTTP 捕獲中找到出處；
+  - 沒有被拒的提交請求，Verifier 從未派出。
+- **確定的效果：** 每次 run 省下 Verifier 那 2–3.5 分鐘，解題結果不變。
+- **牆鐘只看方向：**
+  - throwback 只少約 1 分鐘，被其他角色的波動抵消：V1 的 Solver 調用 74 次，r20 T1 為 39 次；V1 的 Recon 也多了約 110 秒。
+  - mfw 快約一半，但 r19 B 開著 Solver 思考和學習，不是嚴格對照。
+
+**判定：** 直接提交路徑採用。以下兩條路徑在 r21 中沒有被觸發，仍待真實樣本：
+- 被拒為 `verification required` 後派 Verifier 再提交：可以只改 judge 設定觸發，例如把 mfw 設為 `attempts: limited`；
+- `wrong_answer` 後團隊繼續解題：需要第一個候選容易答錯的題目，候選見 [本機題目清單](../../local-challenges.md)。
 
 ### 3.5 已試路線摘要（延後）
 
