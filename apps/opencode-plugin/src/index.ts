@@ -159,7 +159,7 @@ export function createCtfAgentHooks(options: CTFPluginOptions): Hooks {
         // Identity/error backfill only; managed outputs are already persisted by their host tool.
         const state=part.state;
         await control(part.sessionID,'process.event',{part:{type:'tool',sessionID:part.sessionID,messageID:part.messageID,callID:part.callID,tool:part.tool,
-          state:{status:state.status,...(state.status==='error'?{error:state.error}:{}),...(state.status==='completed'&&!part.tool.startsWith('ctf_')?{output:state.output}:{})}}}).catch(()=>undefined);
+          state:{status:state.status,...(state.input!==undefined?{input:state.input}:{}),...(state.status==='error'?{error:state.error}:{}),...(state.status==='completed'&&!part.tool.startsWith('ctf_')?{output:state.output}:{})}}}).catch(()=>undefined);
       }
       if (part.type === 'tool' && part.tool === 'task' && part.state.status === 'error')
         await control(part.sessionID, 'task.event', {callID: part.callID, state: part.state.status, error: part.state.error});

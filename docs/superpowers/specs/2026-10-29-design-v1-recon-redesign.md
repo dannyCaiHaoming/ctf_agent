@@ -114,6 +114,19 @@ Recon 每一步至少保留下列關係：
 
 `ctf_recon_note` 是寫 decision／handoff 的窄入口；`ctf_recon_read` 與對應 artifact 讀取接口按 ID、範圍或 cursor 展開完整軌跡。工具成功不會自動生成語意結論，最終 handoff 也不能取代缺失的中間事實。
 
+**已知缺陷（r17，2026-11-04）：** 真實 runtime 中，工具的 `message.part.updated` 事件先於 `tool.execute.before` 到達；插件轉發事件時不帶 `input`，host 先以 `{}` 插入一列並標為完整，之後帶真實參數的寫入被 `INSERT OR IGNORE` 忽略。r17 兩題 260 條工具記錄的參數因此全部為空，卻標為 `original_complete=1`，族鍵也因此退化為只有工具名。R3 的測試只覆蓋了「先執行、後事件」的順序。修正要求：
+- 事件路徑沒有參數時，佔位列的參數標為不完整，不得標為完整；
+- 之後帶真實參數的寫入必須補上參數與完整度；
+- 事件若帶參數，按同一規則保存；
+- 測試必須覆蓋「事件先到」的順序。
+
+**修正狀態（無模型，2026-11-04）：** 已修正，證據見 [R7 記錄](../../gates/recon-context-interface-20261031/r7-args-learning-bounds.json)。
+- 插件轉發事件時帶上 `input`。
+- 事件參數只有在 `status` 為 `running`、`completed` 或 `error` 時才算完整。`pending` 狀態的 `input` 在 SDK 中是必有欄位，參數串流生成期間通常是空物件，因此一律標為不完整。
+- 之後帶真實參數的寫入（`tool.before` 或 running 事件）會補寫，只能從不完整升級為完整；參數不完整的列，即使結果完整，也不標為 `original_complete`。
+- 測試以真實事件形狀覆蓋三種順序。
+- 產品插件在真實 runtime 中的行為，要等下一次真實 run 驗證；r17 已落庫的空參數不會補回。
+
 ### 記錄範圍：所有解題角色
 
 **決定（2026-11-03）：步驟記錄擴大到同題所有綁定題目的角色：Recon、Domain Solver、Engineer、Verifier。** 2026-10-30 曾決定 Solver／Engineer 不建步驟表，只靠交回文字寫明做法；結果 episode 的求解段只剩最後一段文字，真正決定成敗的實驗過程沒有逐步來源，與「整體做題過程幫到後續類似題」的目標不符，因此改為同一套記錄。
@@ -366,12 +379,21 @@ host 綁定可信 outcome、Verifier judgment 與 end reason；模型只解釋�
 
 ### 有界輸出不破壞來源
 
-- 最多 8 個關鍵步驟。
-- 主正文最多 400 字元。
-- 最多產生 3 條 lesson。
-- 每條 lesson 的陣列欄位各最多 5 項，單條文字最多 400 字元。
+**決定（2026-11-04 放寬）：**
+- **episode：** 最多 8 個關鍵步驟；`summary` 最多 1,200 字元；`tech_tags` 最多 12 個；`failed_paths`、`unresolved` 各最多 12 項；其餘單條文字最多 600 字元。
+- **lesson：** 最多產生 3 條；每條的陣列欄位各最多 8 項，單條文字最多 600 字元。
+- **提示：** 請求中寫明上述上限。
 
-呼叫前保存原始 response、hash、`finish` reason 與實際 usage。`finish=length`、異常終止、invalid JSON 與欄位越界都要 fail-closed，不自動補 JSON、續寫或重試。r16 B 的 711 字元 response 雖被正確拒絕，仍說明摘要輸出受限；拒絕只阻止不完整摘要成為 episode，不能刪除或截斷它所依據的完整步驟與 artifacts。
+**依據：** 舊上限是 `summary` 400 字元、陣列 8 項、lesson 陣列 5 項，三次真實 run 全部因此失敗：
+- r16 B 的 `summary` 為 711 字元；
+- r17 A 為 656 字元；
+- r17 B 為 775 字元，且 `tech_tags` 有 10 個。
+
+三次的請求都正常結束（`finish=stop`），只是越界，結果整條學習鏈 0 條 lesson。新上限以觀察到的最大值加約五成餘量訂定，仍是有界輸出。
+
+**實施狀態（無模型，2026-11-04）：** 校驗與提示已按上述數值修改；1,000 字元 `summary`、10 個 `tech_tags` 的合法回應被接受，超過新上限、`finish=length` 與 invalid JSON 仍被拒絕。證據同 R7 記錄。真實模型能否穩定落在新上限內，要等下一次真實 run 驗證。
+
+呼叫前保存原始 response、hash、`finish` reason 與實際 usage。`finish=length`、異常終止、invalid JSON 與欄位越界仍然 fail-closed，不自動補 JSON、續寫、截斷或重試；放寬的只是上限數值，不是失敗語義。拒絕只阻止不合規的摘要成為 episode，不能刪除或截斷它所依據的完整步驟與 artifacts。
 
 ### Lesson 與經驗可用性
 
@@ -426,6 +448,7 @@ r16 B 曾搜尋經驗兩次但沒有調用 `ctf_experience_read`。這證明「s
 | [R5 episode 來源](../../gates/recon-context-interface-20261031/r5-episode-source.json) | §7 機械選取、步驟清單、`source_range`／`omitted_ranges`、失敗與未解的來源綁定；r15 A 98 步全在清單中；56 檔／753 測試 | 真實模型的 episode 忠實度、清單引用率或 lesson 收益 |
 | [r16 回放](../../gates/recon-context-interface-20261031/product-original-replay-r16.json) | r16 A 88 步全在步驟清單中；反例 #55／#56（302）與 #73／#74（403）在模型輸入中且結果類別正確；r15 回放不回退 | 這四步有完整摘錄、模型會據此避免錯誤泛化 |
 | [R6 解題角色記錄](../../gates/recon-context-interface-20261031/r6-solve-roles-recording.json) | 四個綁題角色逐步寫入、`role` 欄與遷移、`recon.read` 權限、本 session 最近步驟、清單帶角色；57 檔／760 測試；r15／r16 回放不回退 | Solver／Engineer 在真實 runtime 會讀軌跡、求解步驟記錄對 lesson 質量的改善 |
+| [R7 參數順序與學習上限](../../gates/recon-context-interface-20261031/r7-args-learning-bounds.json) | r17 發現的「事件先到」參數丟失已修正（pending 為不完整、真實參數補寫）；學習上限放寬；58 檔／774 測試；r15／r16 回放不回退 | 真實 runtime 中參數非空、真實模型輸出落在新上限內 |
 
 ### r16 的正反證據
 

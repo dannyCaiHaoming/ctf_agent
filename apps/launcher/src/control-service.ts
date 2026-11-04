@@ -356,8 +356,9 @@ export class ControlService {
     if(!store)return;
     const name=MANAGED_TOOLS.find(n=>`ctf_${n.replaceAll('.','_')}`===part.tool)??part.tool;
     try {
-      const args=await this.prepareProcessPayload(binding,store,scope,part.state?.input??{},'args');
-      store.start(scope,name,part.state?.input??{},{prepared:args});
+      // An event without input is only a placeholder: its (empty) args are incomplete until the real call supplies them.
+      const hasInput=part.state?.input!==undefined&&['running','completed','error'].includes(part.state?.status),args=await this.prepareProcessPayload(binding,store,scope,part.state?.input??{},'args');
+      store.start(scope,name,part.state?.input??{},{prepared:args,complete:hasInput});
       // Native error updates cover failures before execute/after, cancellation and denial.
       if(part.state?.status==='error') {
         const value={error:part.state.error},payload=await this.prepareProcessPayload(binding,store,scope,value,'result');
