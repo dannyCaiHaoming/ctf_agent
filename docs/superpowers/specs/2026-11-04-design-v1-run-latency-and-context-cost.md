@@ -2,7 +2,7 @@
 
 **狀態：** [核心 design v1](2026-10-22-ctf-agent-design-v1.md) §1.4 的子設計，管「一次 run 的牆鐘時間和 token 花在哪、怎麼減」。解題方法本身（Skill／Reference 內容）屬於 [B／G 方法與耗時](2026-10-26-design-v1-b-method-generalization-and-efficiency.md)；Recon 記錄與追加式上下文的契約屬於 [Recon 重設計](2026-10-29-design-v1-recon-redesign.md) §4，本文只改它的**投影內容與發送頻率**，不改追加式放置。
 
-**目前停點：** §3.1 離線已實施並驗證，待下一次授權 run 觀察真實輸入。§3.2：OpenCode 按角色 `options` 有效；網關只認 `thinking: disabled`，`reasoning_effort` 無效，下一步是授權後對 Solver 關閉思考的批次對比。§3.3、§3.4 未定。
+**目前停點：** §3.1 離線已實施並驗證，待下一次授權 run 觀察真實輸入。§3.2：網關只認 `thinking: disabled`；批次對比已設計，開跑前要先讓 launcher 合併運行設定中的各角色 `options`（進行中）。§3.3、§3.4 未定。
 
 **依據：** [r18／r19 成本拆解](../../gates/run-cost-20261104/r18-r19-cost-breakdown.json)，由 `tests/manual/run-cost-breakdown.py` 從四個真實 run 的訊息與審計記錄離線算出（0 次模型調用）。模型均為 `volcano-plan/deepseek-v4.1-flash`。修正後用同一腳本重算，對比同一欄位。
 
@@ -100,7 +100,25 @@
 
 **結論：** 能用的只有「整個角色關閉思考」這一個開關，沒有溫和的降檔選項。
 
-**下一步（需另行授權）：** 批次對比。先只對一個角色關閉思考（建議 Solver，reasoning 最多），同題 A／B 各跑至少兩次，與 r19 對比解題結果、生成 token 與牆鐘。解題結果變差就回退；結果持平再考慮 Recon。Verifier 不關閉思考。
+**參數放在哪一層（決定）：** `thinking` 這類參數只對特定 provider 有效，所以放在批次的運行設定（profile 引用的 OpenCode 設定，與 `provider`／`model` 同一層），不寫進與 provider 無關的產品角色檔 `product/opencode/agents/*.md` 或產品 `opencode.json`。
+- launcher 只從運行設定合併各角色的 `agent.<角色>.options`。`prompt`、`permission`、`mode`、`steps` 等其他欄位仍由產品決定，運行設定裡出現就拒絕。
+- 已用本機假 provider 確認：設定檔中給同名 agent 加 `options`，會和 md 角色檔合併，該角色的請求帶上 `thinking: disabled`，其他角色不受影響（0 token）。
+- 目前 launcher 只合併 `provider`、`model`、`enabled_providers`，需要先補上這一項。
+
+**實驗設計（批次對比，需另行授權）：**
+- **兩組：**
+  - 對照組：當前 `main`，含 §3.1 去重複；
+  - 實驗組：同一產品，運行設定只對 `domain-solver` 設 `options.thinking = {type: "disabled"}`。
+
+  兩組的產品、模型、預算與題目完全相同，唯一差別是這一項設定。
+- **題目：** 先只跑 throwback（Solver reasoning 最重）。兩組各兩次，共 4 次。mfw 太快，差異會被波動蓋過，暫不跑。
+- **隔離：** 每次 run 用新的空經驗庫並跳過題後學習，排除經驗與學習的影響。
+- **指標：** 每次報告解題結果、提交次數、總調用次數與牆鐘；另用 `tests/manual/run-cost-breakdown.py` 報告 Solver 的調用次數、reasoning、輸出與延遲，以及各角色的未緩存輸入。對照組的未緩存輸入同時用來觀察 §3.1 在真實運行中的效果。
+- **判定：**
+  - 實驗組解題結果不差於對照組，且 Solver 生成 token 與牆鐘明顯下降，才採用；
+  - 解題變差就回退；
+  - 結果不一致（例如一勝一負）就記為未定，不擴大結論。
+- **預算參考：** 每次上限 120 萬 token，4 次共 480 萬；按 r19 A 的用量，預計約 300 萬。
 
 ### 3.3 題內並行（未定，設計層面）
 
