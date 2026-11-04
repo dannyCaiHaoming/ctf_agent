@@ -210,7 +210,7 @@ function safeDetail(op: string, raw: unknown, redactions: readonly string[]): Re
     case 'package.prepared': return pick(detail, ['preparation', 'directory', 'workspaceDirectory', 'manifestSha256'], redactions);
     case 'verification.registered': return pick(detail, ['challenge', 'version', 'result', 'judgment', 'mode', 'effectiveJudgment'], redactions);
     case 'verification.job.terminal': return pick(detail, ['job', 'state', 'exitCode', 'command'], redactions);
-    case 'completion.saved': return pick(detail, ['challenge', 'version', 'result', 'judge', 'candidateSha256', 'candidateSize', 'state', 'solved', 'businessOutcome'], redactions);
+    case 'completion.saved': return pick(detail, ['challenge', 'version', 'result', 'judge', 'admission', 'captureResources', 'candidateSha256', 'candidateSize', 'state', 'solved', 'businessOutcome'], redactions);
     case 'budget_reached': return pick(detail, ['observedTokens'], redactions);
     case 'stop_marked': return pick(detail, ['reason'], redactions);
     case 'aborted': case 'stop_enumerated': case 'usage.read': return pick(detail, ['sessions', 'reason'], redactions);

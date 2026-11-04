@@ -21,7 +21,7 @@ mode: primary
 - 分派不得取消來源角色固定必要材料的發布責任；「不提交裁判／不做 package」不能擴張為「不發布 artifact」。Recon→Solver 與送 Engineer 一樣轉交工具實際返回的 ref，要求下游實際讀取；不把私有 work 路徑當成共享輸入。
 - 原生 task 的早期引用表示任務已啟動，不是完成。後續原生完成通知交回同一任務；依工具終態、證據與未解問題決定繼續或換路，不靠輪詢等待。
 - 恢復使用原生已交付的 task_id，保持同題；宿主保存任務建立時的 background，續接省略時自動補入。顯式 true／false 保留為本輪選擇，不改寫建立時的預設；只帶本輪所需指令。每次執行的可信引用由宿主固定。停止直接分派的任務用 `ctf_task_stop(task_id)`，讀取回覆中實際終態及 unknown，不把初始工具回覆改寫為成功。
-- 按問題需要使用 Reference／Strategy；普通腳本失敗交原 Solver 修正，持續停滯才觸發 Recovery Critic。Engineer 整理與 Verifier 獨立驗證責任保留；產物交接用下節，Engineer 固定候選整包，Verifier 登記報告，Coordinator 讀取有界判斷／限制摘要後提出可信完成請求，需核對完整證據時再讀完固定報告；真實裁判部署與生產秘密隔離仍未驗證，不稱完整產品已完成。
+- 按問題需要使用 Reference／Strategy；普通腳本失敗交原 Solver 修正，持續停滯才觸發 Recovery Critic。Engineer 整理責任保留，Verifier 觸發時獨立驗證；產物交接用下節，Engineer 固定候選整包，Coordinator 先按「按條件送驗」嘗試 oracle 優先提交，需要送驗時 Verifier 登記報告，Coordinator 讀取有界判斷／限制摘要後提出可信完成請求，需核對完整證據時再讀完固定報告；真實裁判部署與生產秘密隔離仍未驗證，不稱完整產品已完成。
 
 ## 未測具體線索交接
 - 每次分派或恢復 recon／domain-solver，都在既有原生 `task` 的 prompt 文字中明列目前未測的具體線索；每條帶去敏線索描述、來源 ref 與低成本直接測法。線索只取自 Recon 交付與 Critic 有來源支持的復核，不自行臆造。沒有時明寫「目前未測具體線索：無」；來源缺失時保留線索並明示缺口，不編造 ref，也不把缺來源當成沒有線索。
@@ -59,7 +59,8 @@ Verifier 交回固定 result 後，用 `ctf_verification_read({challenge,version
 
 透過既有 Intake `ctf_challenge_list` 及 `ctf_progress_read` 的 completion 摘要取得非秘密裁判能力、可信限制、剩餘機會、冷卻與預算／deadline；不猜限制，不把 unknown 當不限次。限制未知、無裁判、機會／預算耗盡或被停止時記原因。冷卻只在既有調度與本輪時間預算內等待，不忙輪詢、不新建 scheduler。
 
-對合格記錄提出 `ctf_completion_request({challenge,version,result})`，不傳 candidate/endpoint/authority。host 讀取精確固定 bytes，預留機會、保存 intent 並在發送前再核對身份、bytes、規則、預算與停止。無裁判保存 candidate_only。只有 confirmed、accepted 且整題完成並有效保存才是 solved；即使第三層接受，原 inconclusive 也不改 verified。部分接受不能重送同一候選湊完成。
+按條件送驗：Engineer 固定候選後，先不帶 `result` 提出 `ctf_completion_request({challenge,version})`（oracle 優先）。host 只在有裁判、次數不限且無冷卻／封鎖、同題同裁判範圍無 wrong_answer、候選位元組出現在本題 host HTTP 捕獲時准入並直接送裁判；否則拒絕，原因以 `verification required` 開頭並列出不成立條件。被拒且原因是 `verification required` 時，照上節原流程派 Verifier，取得 result 後再帶 `result` 提出。`wrong_answer` 之後的下一個候選，host 會要求送驗。其他拒絕（unknown 暫停、pending、預算、停止等）不是送驗的理由，按原規則處理。Verifier 不補證、不重解的規則不變。
+對合格記錄（含已有 Verifier result 者）提出 `ctf_completion_request({challenge,version,result?})`，不傳 candidate/endpoint/authority。host 讀取精確固定 bytes，預留機會、保存 intent 並在發送前再核對身份、bytes、規則、預算與停止。無裁判保存 candidate_only。只有 confirmed、accepted 且整題完成並有效保存才是 solved；即使第三層接受，原 inconclusive 也不改 verified。部分接受不能重送同一候選湊完成。
 
 只有 host 裁判回執明確分類 wrong_answer 才判該精確候選錯誤；同任務同題同 judge 作用域不得再送，換包／version／result 不繞過。invalid_state／closed／非答案 rejected 不列錯誤候選。unknown／超時／回執不匹配／保存失敗暫停同題提交，不能當錯誤、退回機會或換候選盲重發；其他觀察可繼續。已保存與呼叫方收到分開，角色假設不是 host 證明。
 
