@@ -6,7 +6,7 @@ import {join} from 'node:path';
 import {tmpdir} from 'node:os';
 const calls=vi.hoisted(()=>({start:vi.fn()}));
 vi.mock('@ctf/opencode-bridge',()=>({startManagedOpenCode:calls.start}));
-import {learnEpisodes,prepareEpisodeInput,modelOutputLimit} from '../../apps/launcher/src/episode-learning.js';
+import {learnEpisodes,prepareEpisodeInput,modelOutputLimit,decodeLearningResponse} from '../../apps/launcher/src/episode-learning.js';
 import {createCtfAgentHooks} from '../../apps/opencode-plugin/src/index.js';
 import {ExperienceStore} from '../../apps/launcher/src/experience-store.js';
 import {prepareRelearn} from '../manual/relearn-episodes.js';
@@ -74,6 +74,15 @@ describe('dropped key names are model-chosen: redacted and bounded',()=>{
   await learnEpisodes(f.options);const d=f.store.getEpisode(f.e.episode_id)!.requests[0].dropped_keys as string[];
   expect(JSON.stringify(d)).not.toContain(secret);expect(d).toHaveLength(33);expect(d.some(k=>k.endsWith('[truncated]')&&k.length<=128+12)).toBe(true);expect(d.at(-1)).toBe('[10 more dropped]');
   expect(d.every(k=>k.length<=140)).toBe(true);f.store.close();
+ });
+});
+
+describe('learning reply with a prose preamble',()=>{
+ it('takes the first balanced object after a sentence',()=>{
+  expect(decodeLearningResponse('Maximum steps reached. The JSON below is the record.\n{"summary":"a}b","n":1}','stop')).toEqual({summary:'a}b',n:1});
+ });
+ it('still rejects text without a JSON object',()=>{
+  expect(()=>decodeLearningResponse('no json here','stop')).toThrow('learning invalid JSON');
  });
 });
 

@@ -106,11 +106,24 @@ export function prepareEpisodeInput(e:Episode) {
 }
 /** The model sees a bounded view of the host-owned omitted ranges; the full list stays on the episode. */
 export const modelView=(p:ReturnType<typeof prepareEpisodeInput>)=>({...p,omitted_ranges:p.omitted_ranges.slice(0,SHOWN_RANGES),omitted_ranges_total:p.omitted_ranges.length});
+/** End index of the first balanced JSON object starting at `start`, ignoring braces inside strings. */
+function jsonObjectExtent(text:string,start:number):number {
+  let depth=0,inString=false,escaped=false;
+  for(let i=start;i<text.length;i++){const c=text[i];
+    if(inString){if(escaped)escaped=false;else if(c==='\\')escaped=true;else if(c==='"')inString=false;continue;}
+    if(c==='"')inString=true;else if(c==='{')depth++;else if(c==='}'){depth--;if(depth===0)return i;}
+  }
+  return -1;
+}
 export function decodeLearningResponse(raw:string,finish:unknown) {
   if(finish==='length')throw new Error('learning output length exhausted');
   if(finish!=='stop')throw new Error('learning abnormal finish: '+String(finish));
-  try{return JSON.parse(raw.replace(/^```(?:json)?\s*/,'').replace(/\s*```$/,''));}
-  catch{throw new Error('learning invalid JSON');}
+  const fenced=raw.replace(/^```(?:json)?\s*/,'').replace(/\s*```$/,'');
+  for(const text of [raw,fenced]){try{return JSON.parse(text);}catch{}}
+  // Models sometimes put a sentence before the JSON object; accept the first balanced object, keep everything else failing.
+  const start=raw.indexOf('{');
+  if(start>=0){const end=jsonObjectExtent(raw,start);if(end>start){try{return JSON.parse(raw.slice(start,end+1));}catch{}}}
+  throw new Error('learning invalid JSON');
 }
 
 /** Drop keys the schema does not name (any depth), recording path+key only. Everything else the schema rejects stays rejected. */
