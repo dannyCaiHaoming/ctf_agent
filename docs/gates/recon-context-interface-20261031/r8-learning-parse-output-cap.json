@@ -1,0 +1,90 @@
+{
+  "slice": "R8: learning reply parsing tolerance and model-derived output cap",
+  "date": "2026-11-04",
+  "base_commit": "d4c04531",
+  "realModelCalls": 0,
+  "trigger": "r18 real batch: A lesson reply rejected as a whole for one extra null key per lesson; B episode cut at finish=length with output 1889 + reasoning 2207 = hard-coded 4096",
+  "criteria": [
+    {
+      "item": "A: lesson with extra null key accepted, stored without it, dropped key path reported",
+      "result": "pass"
+    },
+    {
+      "item": "A: nested extra keys in episode (top level, steps, failed_paths/unresolved objects) dropped and named",
+      "result": "pass"
+    },
+    {
+      "item": "A: missing title, wrong type, over bounds, 4 lessons, episode missing summary still rejected",
+      "result": "pass"
+    },
+    {
+      "item": "A: stored episodeContent/lessonContent still strict",
+      "result": "pass"
+    },
+    {
+      "item": "B: maxOutputTokens equals limit.output (8000, 16000) when budget allows; shrinks under tight budget; below-floor budget reports exhausted without a request",
+      "result": "pass"
+    },
+    {
+      "item": "B: limit below 6000 fails before any session is created; finish=length still fail-closed without retry",
+      "result": "pass"
+    },
+    {
+      "item": "C: failed episode and failed lesson reset on a copy and completed with scripted model; original file hash unchanged and original status still failed",
+      "result": "pass"
+    },
+    {
+      "item": "C: non-failed episodes skipped; existing output copy refused",
+      "result": "pass"
+    },
+    {
+      "item": "C: dry run on a copy of the r18 store without budget: 3 planned requests, none sent, source hash unchanged",
+      "result": "pass"
+    },
+    {
+      "item": "A: dropped key names pass store.clean (synthetic secret redacted), each name capped at 128 chars, list capped at 32 with a marker for the remainder",
+      "result": "pass"
+    },
+    {
+      "item": "C: relearn copy store takes the profile secrets and redacts them (same as launch path); without secrets it would not",
+      "result": "pass"
+    }
+  ],
+  "commands": [
+    {
+      "cmd": "npm run typecheck",
+      "exit": 0
+    },
+    {
+      "cmd": "npm run build",
+      "exit": 0
+    },
+    {
+      "cmd": "npm test",
+      "exit": 0,
+      "result": "59 files / 792 tests"
+    },
+    {
+      "cmd": "r15 replay",
+      "exit": 0
+    },
+    {
+      "cmd": "r16 replay",
+      "exit": 0
+    }
+  ],
+  "constants": {
+    "default_output_limit": 8000,
+    "min_output_limit": 6000
+  },
+  "not_proven": [
+    "real model completing episode and lesson within the new output limit",
+    "real model reasoning staying inside the shared limit",
+    "re-learning of the two r18 episodes (needs separate authorization and token budget)"
+  ],
+  "source_sha256": {
+    "apps/launcher/src/episode-learning.ts": "b1506ea621760c1416d103d9daf60412d0453d993da5f8abe602b262ab70bc3e",
+    "tests/contract/learning-parse-output-cap.test.ts": "79fca47a453475ba9ebc335f484d2de4b093ea372a3d692b37a32043db7fa11d",
+    "tests/manual/relearn-episodes.ts": "5b33977d9346529e9ea9ca1245022333e47615af9050354a4e65b59cc3acc3c3"
+  }
+}

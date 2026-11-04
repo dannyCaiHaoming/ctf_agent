@@ -5,6 +5,7 @@
 依據：[Recon 詳細 design](../specs/2026-10-29-design-v1-recon-redesign.md) §3–§8，以及核心 design v1 §1.5–1.6。
 依據版本：`main@4f093b82`（含 R3–R6）。
 狀態：本 plan 已執行三次：r15（2026-10-30）、r16（2026-10-31）、r17（2026-11-04，用戶親自執行）。r17 發現步驟參數全部丟失、題後學習因輸出越界全部失敗，已由 R7 離線修正（見 design §3、§7）。下一次為 r18，**尚未授權**；預算等授權參數見 §3，由用戶填寫確認後才可開跑。r17 改用 `volcano-plan/deepseek-v4.1-flash`，r18 若沿用此模型，對比基準應以 r17 為主。
+**r18 已執行（2026-11-04）：** lesson 回應因多餘欄位整組被拒、episode 因寫死的 4,096 輸出上限被截斷，庫裡 0 條 lesson，已由 R8 離線修正（見 design §7）。下一次真實調用候選：用 `tests/manual/relearn-episodes.ts` 對 r18 的兩條 episode 在副本上重學習——**需另行授權，並明確模型／provider 與 token 預算**；未授權前不執行。
 
 ## 0. 當前交接
 

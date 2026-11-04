@@ -393,6 +393,11 @@ host 綁定可信 outcome、Verifier judgment 與 end reason；模型只解釋�
 
 **實施狀態（無模型，2026-11-04）：** 校驗與提示已按上述數值修改；1,000 字元 `summary`、10 個 `tech_tags` 的合法回應被接受，超過新上限、`finish=length` 與 invalid JSON 仍被拒絕。證據同 R7 記錄。真實模型能否穩定落在新上限內，要等下一次真實 run 驗證。
 
+**r18 結果與修正（無模型，2026-11-04）：** 放寬後的真實批次（r18）仍沒有產出 lesson，原因不在字數上限，證據與修正見 [R8 記錄](../../gates/recon-context-interface-20261031/r8-learning-parse-output-cap.json)。
+- **多餘欄位：** A 的 lesson 回應結構完整，每條只多一個值為 `null` 的欄位，被 `.strict()` 整組拒收。現在解析模型回應時丟棄 schema 以外的欄位（含巢狀），被丟棄的鍵路徑（不含值）寫入該次請求的 receipt（`dropped_keys`）與學習報告。存儲與讀取的 schema 仍是 `.strict()`；缺必填欄位、類型錯誤、數量與長度越界、來源綁定仍然拒收。
+- **輸出上限：** B 的 episode 以 `finish=length` 截斷，輸出 1,889 加 reasoning 2,207 剛好是寫死的 4,096。現在上限取當前模型在 OpenCode 設定中的 `limit.output`，沒有時用 8,000（r18 所用模型的設定值）；仍受剩餘學習預算約束，預算不足時按原規則報 `learning budget exhausted`。模型上限低於 6,000 時，發請求前就以可讀原因失敗，不白花一次請求：合法 episode 最長約 27k 字元（約 7k token），reasoning 與輸出共用同一上限，6,000 是在不放寬任何字數上限的前提下可接受的下限。`finish=length` 仍 fail-closed，不重試。
+- **重學習：** 已存的失敗 episode 可用手動腳本 `tests/manual/relearn-episodes.ts` 在經驗庫副本上重設並重跑；沒有顯式傳入預算參數時只輸出請求數與預留估算，不調用模型。
+
 呼叫前保存原始 response、hash、`finish` reason 與實際 usage。`finish=length`、異常終止、invalid JSON 與欄位越界仍然 fail-closed，不自動補 JSON、續寫、截斷或重試；放寬的只是上限數值，不是失敗語義。拒絕只阻止不合規的摘要成為 episode，不能刪除或截斷它所依據的完整步驟與 artifacts。
 
 ### Lesson 與經驗可用性
@@ -449,6 +454,7 @@ r16 B 曾搜尋經驗兩次但沒有調用 `ctf_experience_read`。這證明「s
 | [r16 回放](../../gates/recon-context-interface-20261031/product-original-replay-r16.json) | r16 A 88 步全在步驟清單中；反例 #55／#56（302）與 #73／#74（403）在模型輸入中且結果類別正確；r15 回放不回退 | 這四步有完整摘錄、模型會據此避免錯誤泛化 |
 | [R6 解題角色記錄](../../gates/recon-context-interface-20261031/r6-solve-roles-recording.json) | 四個綁題角色逐步寫入、`role` 欄與遷移、`recon.read` 權限、本 session 最近步驟、清單帶角色；57 檔／760 測試；r15／r16 回放不回退 | Solver／Engineer 在真實 runtime 會讀軌跡、求解步驟記錄對 lesson 質量的改善 |
 | [R7 參數順序與學習上限](../../gates/recon-context-interface-20261031/r7-args-learning-bounds.json) | r17 發現的「事件先到」參數丟失已修正（pending 為不完整、真實參數補寫）；學習上限放寬；58 檔／774 測試；r15／r16 回放不回退 | 真實 runtime 中參數非空、真實模型輸出落在新上限內 |
+| [R8 學習解析與輸出上限](../../gates/recon-context-interface-20261031/r8-learning-parse-output-cap.json) | r18 發現的兩個缺陷已離線修正：模型回應的多餘欄位被丟棄並記錄、輸出上限取模型設定；失敗 episode 可在副本上手動重學習；59 檔／792 測試；r15／r16 回放不回退 | 真實模型在新輸出上限下產出完整 episode／lesson |
 
 ### r16 的正反證據
 

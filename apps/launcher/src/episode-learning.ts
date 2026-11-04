@@ -113,6 +113,46 @@ export function decodeLearningResponse(raw:string,finish:unknown) {
   catch{throw new Error('learning invalid JSON');}
 }
 
+/** Drop keys the schema does not name (any depth), recording path+key only. Everything else the schema rejects stays rejected. */
+export function parseWithoutExtraKeys<T extends z.ZodTypeAny>(schema:T,value:unknown):{value:z.infer<T>;dropped:string[]} {
+  const dropped:string[]=[];
+  for(let round=0;round<32;round++) {
+    const parsed=schema.safeParse(value);
+    if(parsed.success)return {value:parsed.data,dropped};
+    const extras:Array<{path:Array<string|number>;keys:string[]}>=[];
+    const collect=(issues:z.ZodIssue[],other:boolean):boolean=>{
+      for(const i of issues) {
+        if(i.code==='unrecognized_keys')extras.push({path:i.path,keys:i.keys});
+        else if(i.code==='invalid_union'&&i.unionErrors.some(u=>u.issues.some(x=>x.code==='unrecognized_keys'))){for(const u of i.unionErrors)if(u.issues.some(x=>x.code==='unrecognized_keys'))collect(u.issues,other);}
+        else other=true;
+      }
+      return other;
+    };
+    // A rejection with any non-key issue (missing, type, bounds) is not repaired; report the original error.
+    if(collect(parsed.error.issues,false)||!extras.length)throw parsed.error;
+    let progressed=false;
+    for(const {path,keys} of extras) {
+      let node:any=value;for(const k of path)node=node?.[k];
+      if(!node||typeof node!=='object')continue;
+      for(const k of keys)if(k in node){delete node[k];dropped.push([...path,k].join('.'));progressed=true;}
+    }
+    if(!progressed)throw parsed.error;
+  }
+  throw new Error('learning output too many unrecognized keys');
+}
+/** OpenCode config gives each model its output limit; without one use 8000 (the largest limit seen on a real learning model). */
+const DEFAULT_OUTPUT_LIMIT=8000,MIN_OUTPUT_LIMIT=6000; // a legal episode is up to ~27k characters (~7k tokens) and reasoning counts against the same limit
+export function modelOutputLimit(config:Config):number {
+  const [provider,...rest]=String(config.model??'').split('/'),limit=(config.provider as any)?.[provider!]?.models?.[rest.join('/')]?.limit?.output;
+  return typeof limit==='number'&&Number.isFinite(limit)&&limit>0?Math.floor(limit):DEFAULT_OUTPUT_LIMIT;
+}
+
+/** Dropped key names are model-chosen: redact, cap each name at 128 chars and the list at 32, and mark any cut. */
+export function boundedDroppedKeys(store:ExperienceStore,dropped:string[]):string[] {
+  const names=dropped.slice(0,32).map(k=>{const c=String(store.clean(k));return c.length>128?c.slice(0,128)+' [truncated]':c;});
+  return dropped.length>32?[...names,`[${dropped.length-32} more dropped]`]:names;
+}
+
 export interface LearningBudget {maxObservableTokens:number;wallClockMs:number}
 export interface LearningOptions {store:ExperienceStore;episodes:Episode[];directory:string;config:Config;environment:Record<string,string>;binaryPath?:string;budget?:LearningBudget;explicitStop?:boolean}
 export async function learnEpisodes(options:LearningOptions) {
@@ -147,7 +187,9 @@ export async function learnEpisodes(options:LearningOptions) {
       if(Date.now()>=deadline)throw new Error('learning deadline');
       // Reserve a conservative byte-based input allowance plus bounded output before model admission.
       const inputAllowance=Buffer.byteLength(prompt)+4096,remaining=budget.maxObservableTokens-spent-reserved;
-      const maxOutput=Math.min(4096,remaining-inputAllowance);if(maxOutput<256)throw new Error('learning budget exhausted');
+      const modelLimit=modelOutputLimit(options.config);
+      if(modelLimit<MIN_OUTPUT_LIMIT)throw new Error(`learning model output limit ${modelLimit} is below the ${MIN_OUTPUT_LIMIT} a bounded ${phase} may need`);
+      const maxOutput=Math.min(modelLimit,remaining-inputAllowance);if(maxOutput<256)throw new Error('learning budget exhausted');
       const own=perEpisode.get(e.episode_id)??{availability:'unavailable',input:0,output:0,reasoning:0,reservedTokens:0};perEpisode.set(e.episode_id,own);
       const created=(await engine!.client.session.create({title:`CTF ${phase} ${e.episode_id}`},{throwOnError:true,signal:controller.signal})).data!;
       active={sessionID:created.id,admitted:false,reserve:inputAllowance+maxOutput,maxOutput};
@@ -184,9 +226,10 @@ export async function learnEpisodes(options:LearningOptions) {
           const full=prepareEpisodeInput(e),prepared=modelView(full),sourceRefs=[...prepared.sources.map(s=>s.ref),...prepared.step_list.lines.map(l=>l.split('|')[1]!)];
           e.omitted_ranges=full.omitted_ranges;e.model_input=prepared;e.model_input_hash=createHash('sha256').update(JSON.stringify(prepared)).digest('hex');
           e.episode_status='running';store.saveEpisode(e);
-          const result=episodeContent.parse(await request(e,'episode',`CTF_MEMORY_EPISODE
+          const reply=await request(e,'episode',`CTF_MEMORY_EPISODE
 Return JSON {summary,tech_tags:string[],steps:[{stage:recon|solve|engineering,action,observation,reason,source_refs:string[]}],failed_paths:[{text,source_refs:string[]}],unresolved:[{text,source_refs:string[]}],experience_refs:string[]}. Maximum 8 key steps; summary at most 1,200 characters; tech_tags, failed_paths and unresolved at most 12 items; every other string at most 600 characters; other arrays at most 8. Explain choices, failures and changes; do not transcribe logs. Full history remains in the host source skeleton. step_list has one line per step as sequence|ref|role|family|outcome_class (role is the host-bound recording role); sources holds excerpts for a subset. Cite only refs that appear in step_list or sources; do not cite omitted_refs. Every failed_paths and unresolved item must cite the listed source_refs it rests on; omitted_ranges names what was not provided, so do not generalize beyond provided sources. experience_refs must be exact already presented/read references. Host result is authoritative: completion/judge and Verifier are distinct. A role-local absence of submission is not a whole-attempt claim. Do not restate or adjudicate final outcome in prose; host renders that result separately.
-${JSON.stringify(prepared)}`));
+${JSON.stringify(prepared)}`);
+          const {value:result,dropped:rawDropped}=parseWithoutExtraKeys(episodeContent,reply),dropped=boundedDroppedKeys(store,rawDropped);e.requests.at(-1).dropped_keys=dropped;store.saveEpisode(e);
           if(result.summary.length>1200||result.tech_tags.length>12||result.tech_tags.some(t=>t.length>600)||result.experience_refs.length>8||result.experience_refs.some(t=>t.length>600)||[result.failed_paths,result.unresolved].some(a=>a.length>12||a.some(t=>(typeof t==='string'?t:t.text).length>600))||result.steps.length>8||result.steps.some(s=>[s.action,s.observation,s.reason].some(v=>v.length>600)))throw new Error('learning output bounds');
           if(result.steps.some(s=>s.source_refs.length===0||s.source_refs.some(r=>!sourceRefs.includes(r))))throw new Error('unbound episode step source');
           if([...result.failed_paths,...result.unresolved].some(t=>typeof t==='string'||t.source_refs.length===0||t.source_refs.some(r=>!sourceRefs.includes(r))))throw new Error('unbound episode failure/unresolved source');
@@ -194,9 +237,10 @@ ${JSON.stringify(prepared)}`));
           e.content={...store.clean(result),steps:result.steps.map(s=>({...store.clean(s),source_refs:s.source_refs})),failed_paths:result.failed_paths.map(t=>({...store.clean(t),source_refs:(t as any).source_refs})),unresolved:result.unresolved.map(t=>({...store.clean(t),source_refs:(t as any).source_refs})),experience_refs:result.experience_refs};e.episode_status='completed';store.saveEpisode(e);
         }
         phase='lesson';e.lesson_status='running';store.saveEpisode(e);
-        const contents=z.object({lessons:z.array(lessonContent).max(3)}).strict().parse(await request(e,'lesson',`CTF_MEMORY_LESSON\nReturn JSON {lessons:[{title,tags:string[],when,steps:string[],checks:string[],avoid:string[],limits:string[]}]}. At most 3 lessons, at most 8 items per field, strings at most 600 characters. Extract transferable procedures only from this completed episode. Preserve applicability, failed approaches and unverified limits. No transferable content means empty lessons. Host binds sources; do not output IDs or success claims.\n${JSON.stringify({content:e.content,result:e.input.result,outcome:e.outcome})}`));
+        const lessonReply=await request(e,'lesson',`CTF_MEMORY_LESSON\nReturn JSON {lessons:[{title,tags:string[],when,steps:string[],checks:string[],avoid:string[],limits:string[]}]}. At most 3 lessons, at most 8 items per field, strings at most 600 characters. Extract transferable procedures only from this completed episode. Preserve applicability, failed approaches and unverified limits. No transferable content means empty lessons. Host binds sources; do not output IDs or success claims.\n${JSON.stringify({content:e.content,result:e.input.result,outcome:e.outcome})}`);
+        const {value:contents,dropped:rawLessonDropped}=parseWithoutExtraKeys(z.object({lessons:z.array(lessonContent).max(3)}).strict(),lessonReply),lessonDropped=boundedDroppedKeys(store,rawLessonDropped);e.requests.at(-1).dropped_keys=lessonDropped;store.saveEpisode(e);
         if(contents.lessons.some(l=>Object.values(l).some(v=>Array.isArray(v)?v.length>8||v.some(s=>s.length>600):v.length>600)))throw new Error('learning output bounds');
-        const done=store.completeLessons(e,contents.lessons);report.episodes.push({id:e.episode_id,version:e.version,status:done.lesson_status,lesson_ids:done.lesson_ids});
+        const done=store.completeLessons(e,contents.lessons);report.episodes.push({id:e.episode_id,version:e.version,status:done.lesson_status,lesson_ids:done.lesson_ids,dropped_keys:{episode:e.requests.findLast((r:any)=>r.phase==='episode')?.dropped_keys??[],lesson:lessonDropped}});
       }catch(error){
         const request=e.requests.at(-1),unknown=request?.state==='sent';
         if(request&&unknown){request.state='unknown';request.usage={availability:'unavailable'};report.usage.lowerBound=true;}
