@@ -2,7 +2,7 @@
 
 **狀態：** [核心 design v1](2026-10-22-ctf-agent-design-v1.md) §1.4 的子設計，管「一次 run 的牆鐘時間和 token 花在哪、怎麼減」。解題方法本身（Skill／Reference 內容）屬於 [B／G 方法與耗時](2026-10-26-design-v1-b-method-generalization-and-efficiency.md)；Recon 記錄與追加式上下文的契約屬於 [Recon 重設計](2026-10-29-design-v1-recon-redesign.md) §4，本文只改它的**投影內容與發送頻率**，不改追加式放置。
 
-**目前停點：** §3.1 已實施，r20 真實 run 中 throwback 的未緩存輸入比 r19 A 降 31–36%。§3.2 已採用：r20 中 Solver 關閉思考後，單次調用延遲降到原來的約 1/3–1/4，throwback 4/4 解出；未驗證難題。§3.3、§3.4 未定。
+**目前停點：** §3.1 已實施，r20 真實 run 中 throwback 的未緩存輸入比 r19 A 降 31–36%。§3.2 已採用：r20 中 Solver 關閉思考後，單次調用延遲降到原來的約 1/3–1/4，throwback 4/4 解出；未驗證難題。§3.4 方向已定：Verifier 改為按條件觸發，以 oracle 為主，未實施。§3.3 延後，待 §3.4 之後再評估。
 
 **依據：** [r18／r19 成本拆解](../../gates/run-cost-20261104/r18-r19-cost-breakdown.json)，由 `tests/manual/run-cost-breakdown.py` 從四個真實 run 的訊息與審計記錄離線算出（0 次模型調用）。模型均為 `volcano-plan/deepseek-v4.1-flash`。修正後用同一腳本重算，對比同一欄位。
 
@@ -165,17 +165,74 @@
   之後跑到 Solver 卡住的題目時，加一組開啟思考的對照；若解題變差，就按題型回退。
 - **其他角色：** Recon 是剩下最大的時間來源，但它影響解題率，不在沒有難題對照時關閉思考；Verifier 仍由 §3.4 處理。
 
-### 3.3 題內並行（未定，設計層面）
+### 3.3 題內並行（延後；先做 §3.4）
 
-**問題：** 並行度為 1。例如 Recon 交回後同時派兩個 Solver 各走一條路線，牆鐘可能明顯縮短，但 token 增加，coordinator 調度、預算分配、結果合併與停止規則都要改。
+**問題：** 並行度為 1。例如 Recon 交回後同時派兩個 Solver 各走一條路線，牆鐘可能縮短，但 token 增加，coordinator 調度、預算分配、結果合併與停止規則都要改。
 
-**要回答：** 哪些階段可以安全並行、並行的停止條件、預算如何分攤、與 [Recon 重設計](2026-10-29-design-v1-recon-redesign.md) §5／§6 的交回與快照如何銜接。做之前另寫設計小節，不直接進 plan。
+**可行性（2026-11-04 離線審閱，未經真實 run）：**
+- **機制上大致可行。** `ctf_challenge_assign` 在每個（父會話, 角色）只有一個聲明，建立 task 時被消費（`apps/launcher/src/control-service.ts` 的 `challenge.assign` 分支），所以依序 assign → task(background) → assign → task(background) 理論上能起兩個同角色任務；[Recon 重設計](2026-10-29-design-v1-recon-redesign.md) §5 已要求並發角色共用同一筆原子預留。
+- **收益不確定：** 牆鐘由串行生成決定。並行只在 Recon 交回時有至少兩條可信度相當、互不依賴的路線時才省時間；第一條路線就解出時，只會讓 token 翻倍。兩個會話各有緩存，同一份 Recon 快照要付兩次未緩存輸入。
+- **未解的問題：**
+  - **停止規則受限：** 背景任務執行中不會喚醒 Coordinator，只能在其中一個交回時再 `ctf_task_stop` 另一個。
+  - **預算互相影響：** 一個 Solver 觸發 closure 會吃掉共享預算，影響另一個。
+  - **經驗來源未定義：** 兩條並行軌跡如何對應 episode／lesson 的來源規則（Recon 重設計 §7），目前沒有定義。
 
-### 3.4 Verifier 成本（未定）
+**決定：** 延後。先做 §3.4，它的收益是確定的。之後若要做，只考慮以下形式，另寫設計小節再進 plan：
+- **條件並行：** 只在 Recon 交回列出至少兩條未測路線時並行，上限 2 個；第一個候選被 oracle 接受後，停掉其餘任務。
+- **提交與驗證並行：** 若 §3.4 之後仍有需要觸發 Verifier 的提交，提交與 Verifier 同時進行，oracle 回 accepted 就停掉 Verifier。這只在題目允許錯誤提交時適用。
 
-**問題：** 每次提交約 4 分鐘，單次生成量最大，曾因 `finish=length` 截斷。
+並行實驗不和其他提速改動放在同一批次，避免變量混淆。
 
-**要回答：** Verifier 的生成量花在哪些步驟；能否縮短輸出；簡單提交能否走更輕的檢查而不降低驗證標準。先用現有記錄離線拆解，再決定。
+### 3.4 Verifier 改為按條件觸發（方向已定，未實施）
+
+**問題：** 每次提交都先經 Verifier，約佔牆鐘的 13–26%，單次生成量最大，多次因 `finish=length` 截斷。
+
+**事實（r19 A／B、r20 C1／T1／C2／T2，共 6 次 run，全部離線讀取記錄）：**
+
+| run | Verifier 延遲 | 佔牆鐘 | 判斷（mode） | `finish=length` | 提交結果 |
+| --- | ---: | ---: | --- | ---: | --- |
+| r19 A throwback | 227 秒 | 16% | verified（replay） | 1 | 第一次提交 accepted |
+| r19 B mfw | 95 秒 | 17% | inconclusive（recompute） | 0 | 第一次提交 accepted |
+| r20 C1 throwback | 269 秒 | 20% | verified（evidence_audit） | 1 | 第一次提交 accepted |
+| r20 T1 throwback | 203 秒 | 26% | verified（evidence_audit） | 0 | 第一次提交 accepted |
+| r20 C2 throwback | 191 秒 | 21% | verified（evidence_audit） | 1 | 第一次提交 accepted |
+| r20 T2 throwback | 114 秒 | 13% | verified（recompute） | 0 | 第一次提交 accepted |
+
+- **Verifier 沒有改變過任何一次結果。** 6 次中沒有 rejected。r19 B 的 inconclusive 按第三層照常提交，同樣被接受。
+- **實際上常在重做解題。** r19 A 用 `repro.sh` 對目標重跑了整條利用鏈；r20 C1 重跑 `repro_throwback.py` 3 次，另跑兩個診斷腳本。這不是重解，但等於把 Solver 最後一段再執行一遍。
+- **Solver 提速後，Verifier 的佔比上升。** §3.2 關閉 Solver 思考後，Verifier 成為更明顯的固定成本。
+
+**為什麼價值低：** 2026-10-28 起 verified 已不是提交前置（design v1 §1.3、[D](2026-10-24-design-v1-d-candidate-verification-minimal.md) §5–7），inconclusive 也照常提交。Verifier 只有在給出「有反證的 rejected」時才改變行動，價值約等於「正確攔下錯誤候選的機率」乘以「一次錯誤提交的代價」。題目有即時 oracle、錯誤提交沒有懲罰時，錯誤提交的代價接近一次調用，而 Verifier 每次固定花 2–4.5 分鐘。
+
+**外部參考：**
+- [D-CIPHER](https://arxiv.org/abs/2502.10931)（[代碼](https://github.com/NYU-LLM-CTF/nyuctf_agents)）與 NYU CTF baseline 沒有 Verifier 角色，錯誤 flag 由環境 oracle 回報後繼續解題。
+- XBOW 在沒有 oracle 的真實漏洞場景才做驗證，而且公開說明 LLM 不擅長確認，改用非 AI 的確定性 validator（[Black Hat USA 2025 摘要](https://vxrl.medium.com/black-hat-usa-2025-in-the-age-of-ai-part-2-92014992d311)）。對 CTF 而言，flag oracle 本身就是確定性 validator。
+
+**決定（方向）：**
+1. **以 oracle 為主。** 有裁判、提交機會不稀缺且答錯無懲罰時，Engineer 固定候選後直接提出可信完成。host 判定 `wrong_answer` 就交回團隊，由 oracle 擔任驗證。
+2. **Verifier 按條件觸發，與 Recovery Critic 同類。** 觸發條件：
+   - 無裁判（`candidate_only`）；
+   - 提交次數有限、有冷卻或答錯有懲罰，或限制未知；
+   - host 的確定性檢查不通過；
+   - 已有一次 `wrong_answer` 後的下一個候選。
+
+   觸發時仍是獨立上下文，原有三層方法與「不補證、不重解」不變。
+3. **host 做便宜的確定性檢查，不用 LLM：**
+   - 候選是否符合題面或平台給出的 flag 格式（若有）；
+   - 候選 bytes 能否在已固定的證據（HTTP 捕獲、job 輸出、artifact）中找到出處。
+
+   結果寫入審計並交給 Coordinator；它不是 verified，也不改變 solved 的認定。
+4. **不變：** 精確提交、錯誤候選去重、unknown 暫停同題提交、只有 host 回執才算 solved 等 D §7 規則不變。
+
+**需要改的地方（未實施）：**
+- **`ctf_completion_request`：** 目前要求帶 verification `result`。要允許在第 1 點條件成立時不帶 `result`，由 host 依題目限制核對准入。
+- **確定性檢查：** host 加一個確定性檢查，結果進 completion 准入與審計。
+- **角色檔：** `coordinator.md` 送驗與可信完成兩節改為按條件送驗；`verifier.md` 不需要大改。
+- **design v1：** 第 15 行「Verifier 必須獨立」與 §1.3 的「獨立審閱仍保留」改為「觸發時獨立」。實施並驗收後再改 design v1 正文，避免文件先於代碼。
+
+**驗收：**
+- **離線：** 無模型測試覆蓋 4 種觸發條件與「不觸發直接提交」路徑；`wrong_answer`、unknown、去重等既有測試不回退。
+- **真實 run（需另行授權）：** 同題、同模型、同設定對比：解題結果不差於對照組，牆鐘下降約等於原 Verifier 時間。另需要一個「首個候選錯誤」的樣本，確認 `wrong_answer` 交回後團隊會繼續，而不是停止。
 
 ### 3.5 已試路線摘要（延後）
 
