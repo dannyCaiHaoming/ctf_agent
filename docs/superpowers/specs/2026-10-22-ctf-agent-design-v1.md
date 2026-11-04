@@ -12,7 +12,7 @@
 
 產品是一套由 OpenCode 承載的多 Agent CTF 系統，最終連同運行環境封裝為 Ubuntu ARM64 Docker 鏡像。OpenCode 負責模型、主／子會話、工具調用循環及上下文管理；Agent 定義、產品運行指令、Skills 和 References 以文檔及配置交付。項目不另造通用 Agent framework。
 
-產品保留九項責任：Coordination、Intake/Triage、Target Recon、Reference、Strategy、Domain Solver、Solution Engineering、Verification、Recovery Critic。Solver 是其中一項，不能代表整個產品。會話安排可以自適應合併簡單職責，職責不能消失；Verifier 必須獨立，Recovery Critic 按持續停滯條件觸發。
+產品保留九項責任：Coordination、Intake/Triage、Target Recon、Reference、Strategy、Domain Solver、Solution Engineering、Verification、Recovery Critic。Solver 是其中一項，不能代表整個產品。會話安排可以自適應合併簡單職責，職責不能消失；Verifier 按條件觸發，觸發時必須獨立；Recovery Critic 按持續停滯條件觸發。觸發條件以 [解題延遲與上下文成本](2026-11-04-design-v1-run-latency-and-context-cost.md) §3.4 為準。
 
 | 職責 | 主要工作 |
 | --- | --- |
@@ -23,14 +23,14 @@
 | Strategy | 排序假設，核對前提與反證條件，選擇最小實驗和換路時機 |
 | Domain Solver | 使用方法與工具執行實驗、編寫或修正腳本、讀取反饋，產生候選或失敗證據；首批 Web／Misc／Crypto |
 | Solution Engineer | 整理解法腳本、命令、依賴和候選提取，形成可驗證產物 |
-| Verifier | 独立核实候选：直接检查、LLM审阅或记录无法验证；消费现有材料，不补证，提交由Coordinator／host执行 |
+| Verifier | 按条件触发，独立核实候选：直接检查、LLM审阅或记录无法验证；消费现有材料，不补证，提交由Coordinator／host执行 |
 | Recovery Critic | 持續停滯時指出遺漏、錯誤前提及不同路線 |
 
 取題與做題分開。「取題」是接收和準備可求解的任務，不等同於平台 API 拉題：包括平台題目、已運行的本地／遠端靶場、開發測試中部署的真實靶場，以及使用者直接提供的題面／附件。Intake/Triage 根據來源使用適合的接入能力，確認材料、目標、授權與判定方式；平台 API adapter 只是其中一種工具。做題由 Agent 團隊根據證據選擇 Skill、Reference、工具及實驗腳本，不由宿主硬編碼題目解法。缺少接入或環境能力時，由開發者在自主求解過程之外修補，不把人工解題幫助冒充自主成功。
 
 開發用 `AGENTS.md` 與產品運行用 `AGENTS.md` 必須分開。前者服務倉庫開發；後者描述發布後 CTF Agent 的目標、角色協作、方法與知識使用、運行邊界和成功標準。題目附件中的同名文件不能覆蓋產品指令。
 
-發布後流程：啟動鏡像及注入配置 → 載入產品定義並啟動 Coordinator → **第三步由題目接入 Agent 接題** → 組織解題團隊 → 根據反饋修正或換路 → Engineer 整理候選與 Verifier 獨立驗證 → Coordinator 提出提交、Platform Service 執行 → 繼續其他題目或結束並保存證據。
+發布後流程：啟動鏡像及注入配置 → 載入產品定義並啟動 Coordinator → **第三步由題目接入 Agent 接題** → 組織解題團隊 → 根據反饋修正或換路 → Engineer 整理候選 → Coordinator 提出提交（條件允許時直接提交，否則先由 Verifier 獨立驗證）、Platform Service 執行 → 繼續其他題目或結束並保存證據。
 
 ### 1.1 產品目標與首版範圍
 
@@ -58,7 +58,7 @@ Agent 交接只攜帶下一步必要資訊：目標、輸入與證據引用、�
 | 二：LLM 推理核实 | 审阅现有流程、理论、证据和日志，判断候选是否有支持、是否有反证 | 有支持则记录 LLM 判断及依据；仍无法确定转三 |
 | 三：无法验证后尝试 | 保留 inconclusive 和缺口日志，结束验证，不补材料、不伪造 verified | Coordinator 自动按题目提交限制与剩余预算请求裁判，不逐次问用户 |
 
-明确反证记录为 Verifier rejected，不混入“无法确定”；角色判断不是裁判判错。验证意见与提交准入分开：**独立审阅仍保留，但 verified 不再是提交或 solved 的必要前置。** replay/recompute/evidence_audit 是可选方法，不是三项必做流程；没有重放能力时转已有材料审阅，不借 job 联网绕权限。Verifier 不持有提交、提示或实例管理权限。
+明确反证记录为 Verifier rejected，不混入“无法确定”；角色判断不是裁判判错。验证意见与提交准入分开：**独立审阅在触发时保留，verified 不再是提交或 solved 的必要前置。** 2026-11-04 起改为 oracle 优先：有裁判、次数不限、无冷却、同题未答错且候选在 host HTTP 捕获中有出处时直接提交；否则 host 以 `verification required` 拒绝，Coordinator 再送 Verifier（r21／r22 真实 run 已验证两条路径，见 [解題延遲與上下文成本](2026-11-04-design-v1-run-latency-and-context-cost.md) §3.4）。 replay/recompute/evidence_audit 是可选方法，不是三项必做流程；没有重放能力时转已有材料审阅，不借 job 联网绕权限。Verifier 不持有提交、提示或实例管理权限。
 
 host 负责可信身份、候选 bytes、scope、题目提交限制、预算和操作状态。材料不足影响验证意见，不自动禁止第三层；候选无法确定／损坏、身份错配、越权、预算不足与在途提交未知仍阻止相应操作。条件未知不当无限额，不以新会话或新包重置次数。确认错误的候选按同题同裁判作用域及精确 bytes记住并去重；只有裁判明确判错才加入该记录。超时、断连、限流、权限错误及结果未知不当错误 flag；unknown不盲重发，按可信记录保留已知消耗并收束状态。
 
@@ -156,7 +156,7 @@ G 長作業的既有背景路徑採異步返回可信引用、後續自動交付
 
 固定证据、候选包、三层 Verifier 与可信完成的接口细节，以 [D 最小设计](2026-10-24-design-v1-d-candidate-verification-minimal.md) 为准；r5 的主张、五类阻塞及历史实验见[证据到完成子文件](2026-10-26-design-v1-d-evidence-to-completion.md)。前者负责当前契约，后者保留事实与诊断，不以历史 blocker恢复旧门槛。
 
-Engineer 整理现有材料并固定候选；Verifier 直接核实或使用 LLM审阅，无法确定则记录原因，不负责补证。Coordinator 对第三层按题目限制与剩余预算自动尝试，host 负责精确提交、错误候选去重、unknown处理及可信结果。独立性、身份和候选完整性保持；取消“必须effective verified才能提交”及要求完整证明的通用前置，不清空历史必要条件来伪造通过。
+Engineer 整理现有材料并固定候选；满足 oracle 优先条件时直接提交，否则 Verifier 直接核实或使用 LLM审阅，无法确定则记录原因，不负责补证。Coordinator 对第三层按题目限制与剩余预算自动尝试，host 负责精确提交、错误候选去重、unknown处理及可信结果。独立性、身份和候选完整性保持；取消“必须effective verified才能提交”及要求完整证明的通用前置，不清空历史必要条件来伪造通过。
 
 五接口的旧实现和本地 mfw verified／accepted／solved 历史证据保留，见 D §7.1–7.2。r5 原记录仍为 inconclusive且未调用裁判。三层策略的报告、completion和角色文案已在独立工作区实现并完成无模型验证，当前状态以 [D §8.1](2026-10-24-design-v1-d-candidate-verification-minimal.md#81-2026-10-28-三层与受限尝试无模型结果) 为准；已核对整合主区，不证明模型自然行为或真实裁判能力，也不开放尚未受约束的目标操作。
 
@@ -243,7 +243,7 @@ Critic 的关键前提与未完成线索复核见[否定证据与路线复核子
 | Verifier | 固定候选与现有材料读取、独立工作区、已获准的直接核实、LLM审阅及判断记录 | 不继承Solver私有推理、不改原候选、不补证或重新解题、无平台提示／实例管理／提交；无法直接核实转LLM审阅，仍无法确定按D第三层处理 |
 | Recovery Critic | 必要狀態、證據、已否定路線與知識讀取，交付不同路線建議 | 默認無實驗、寫入候選、分派或平台操作 |
 
-這是默認分工，不要求每個責任都建立獨立會話；簡單職責合併須在派發時由宿主明確綁定並取所需最小能力，不允許 Agent 自稱兼任角色取得權限。Verifier 始終獨立。工具可見性與執行許可都要約束，真正執行仍以可信會話、run、題目 scope 和角色核對，不能只依賴模型傳入的 role 字段。
+這是默認分工，不要求每個責任都建立獨立會話；簡單職責合併須在派發時由宿主明確綁定並取所需最小能力，不允許 Agent 自稱兼任角色取得權限。Verifier 被觸發時始終獨立。工具可見性與執行許可都要約束，真正執行仍以可信會話、run、題目 scope 和角色核對，不能只依賴模型傳入的 role 字段。
 
 所有接口共同返回可理解的結果、必要證據引用及錯誤類別。區分缺能力、越界、資源不足、一般工具失敗和結果未知；不讓工具錯誤默默結束求解，也不由模型維護 host 已知字段。工具註冊名、精確參數及原生／受管入口映射在 C 和 G 的可行性核對後定稿；上述能力責任與權限邊界不留空，也不以新增完整 schema 框架作前置。
 

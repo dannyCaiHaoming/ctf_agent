@@ -2,7 +2,7 @@
 
 **狀態：** [核心 design v1](2026-10-22-ctf-agent-design-v1.md) §1.4 的子設計，管「一次 run 的牆鐘時間和 token 花在哪、怎麼減」。解題方法本身（Skill／Reference 內容）屬於 [B／G 方法與耗時](2026-10-26-design-v1-b-method-generalization-and-efficiency.md)；Recon 記錄與追加式上下文的契約屬於 [Recon 重設計](2026-10-29-design-v1-recon-redesign.md) §4，本文只改它的**投影內容與發送頻率**，不改追加式放置。
 
-**目前停點：** §3.1 已實施，r20 真實 run 中 throwback 的未緩存輸入比 r19 A 降 31–36%。§3.2 已採用：r20 中 Solver 關閉思考後，單次調用延遲降到原來的約 1/3–1/4，throwback 4/4 解出；未驗證難題。§3.4 直接提交已實施：r21 中 3/3 直接提交並被接受，Verifier 時間降為 0；「被要求送驗」與「答錯後繼續」兩條路徑尚無真實樣本。§3.3 延後，待 §3.4 之後再評估。
+**目前停點：** §3.1 已實施，r20 真實 run 中 throwback 的未緩存輸入比 r19 A 降 31–36%。§3.2 已採用：r20 中 Solver 關閉思考後，單次調用延遲降到原來的約 1/3–1/4，throwback 4/4 解出；未驗證難題。§3.4 已採用：r21 直接提交 3/3 被接受，Verifier 時間降為 0；r22 的送驗回退路徑也走通，design v1 正文已改為「按條件觸發」。只剩「答錯後繼續」尚無真實樣本。§3.3 延後，待 §3.4 之後再評估。
 
 **依據：** [r18／r19 成本拆解](../../gates/run-cost-20261104/r18-r19-cost-breakdown.json)，由 `tests/manual/run-cost-breakdown.py` 從四個真實 run 的訊息與審計記錄離線算出（0 次模型調用）。模型均為 `volcano-plan/deepseek-v4.1-flash`。修正後用同一腳本重算，對比同一欄位。
 
@@ -183,7 +183,7 @@
 
 並行實驗不和其他提速改動放在同一批次，避免變量混淆。
 
-### 3.4 Verifier 改為按條件觸發（直接提交已實施；送驗與答錯路徑待真實樣本）
+### 3.4 Verifier 改為按條件觸發（已採用；答錯路徑待真實樣本）
 
 **問題：** 每次提交都先經 Verifier，約佔牆鐘的 13–26%，單次生成量最大，多次因 `finish=length` 截斷。
 
@@ -240,7 +240,8 @@
 - **出處檢查的取捨：**
   - 只認 HTTP 捕獲：job 輸出由模型腳本決定，不算出處；
   - 捕獲只存在記憶體，重啟後一律送驗。
-- **未做：** flag 格式檢查（題目設定沒有格式欄位）；design v1 正文的修改，等送驗路徑有真實樣本後再改。
+- **未做：** flag 格式檢查（題目設定沒有格式欄位）。
+- **正文（2026-11-04，r22 後）：** design v1 第 15、26、33、61、159、246 行與 [D](2026-10-24-design-v1-d-candidate-verification-minimal.md) §7 已改為「按條件觸發、觸發時獨立」，`result` 可選。
 
 **驗收：**
 - **離線：** 無模型測試覆蓋 4 種觸發條件與「不觸發直接提交」路徑；`wrong_answer`、unknown、去重等既有測試不回退。
@@ -273,6 +274,19 @@
 **判定：** 直接提交路徑採用。以下兩條路徑在 r21 中沒有被觸發，仍待真實樣本：
 - 被拒為 `verification required` 後派 Verifier 再提交：可以只改 judge 設定觸發，例如把 mfw 設為 `attempts: limited`；
 - `wrong_answer` 後團隊繼續解題：需要第一個候選容易答錯的題目，候選見 [本機題目清單](../../local-challenges.md)。
+
+**送驗回退（r22，2026-11-04，已授權，實際用量 281,366 token）：** 證據見 [r22 結果](../../gates/run-cost-20261104/r22-verify-fallback.json)。
+- **設定：** mfw 跑 1 次，產品代碼與 r21 相同；與 r21 M1 唯一的差別是 judge 改為 `attempts: limited, max: 3`。
+- **順序：**
+  - seq 624：不帶 `result` 的提交被拒，原因只有 `submission attempts not unlimited`，出處檢查本身通過；
+  - seq 627：指定 Verifier，判定 inconclusive（recompute）；
+  - seq 744：帶 `result` 提交，`admission: verification`，被接受。
+- **沒有出現：** 沒有再試不帶 `result` 的提交，也沒有提前結束 run。
+- **代價：** Verifier 130 秒；被拒到再提交共 12 次調用、146 秒；牆鐘 7.8 分鐘，r21 M1 為 4.8 分鐘。
+
+**判定：** 送驗回退路徑通過，§3.4 採用。
+- **待補：** `wrong_answer` 後團隊是否繼續解題，等有第一個候選容易答錯的題目時，在該批次中一併觀察，不單獨為它開批次。
+- **之後：** 若出現 Verifier 回 rejected、或 `wrong_answer` 後團隊停止的真實樣本，再回到本節。
 
 ### 3.5 已試路線摘要（延後）
 

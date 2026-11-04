@@ -1,0 +1,143 @@
+{
+ "kind": "real-model batch: design §3.4 verification-required fallback",
+ "scope": "local Docker target llmctf/2016q-web-mfw; controller-side judge with attempts limited max 3, no cooldown; fresh empty experience store; post-run learning disabled; one run, no retry, no provider switch",
+ "model": "volcano-plan/deepseek-v4.1-flash via local counting relay; domain-solver thinking disabled",
+ "product": "main@1011ac3d (code identical to 3e0d39e3; only uncommitted change: plan §0 text)",
+ "only_difference_from_r21_M1": "judge limits attempts unlimited -> limited max 3",
+ "budget": {
+  "cap": 1200000,
+  "used": 281366
+ },
+ "relay": {
+  "requests": 65,
+  "status": "all 200",
+  "capped": 0
+ },
+ "raw_artifacts": "/Users/caihaoming/Documents/pentest-agent-run-data/speed-real-20261104-r22-verify-fallback (not in repo)",
+ "note": "Structured counts only. No transcripts, tool outputs, candidates, flags or oracle data.",
+ "run": {
+  "run_id": "speed-r22-mfw-fallback-1",
+  "result": "solved",
+  "calls": 65,
+  "wall_min": 7.8,
+  "tokens": {
+   "input_uncached": 220113,
+   "cache_read": 1438720,
+   "output": 29037,
+   "reasoning": 32216
+  },
+  "completion_requests": [
+   {
+    "seq": 624,
+    "allow": false,
+    "reason": "verification required: submission attempts not unlimited"
+   },
+   {
+    "seq": 744,
+    "allow": true
+   }
+  ],
+  "assigns": [
+   {
+    "seq": 45,
+    "role": "recon"
+   },
+   {
+    "seq": 370,
+    "role": "domain-solver"
+   },
+   {
+    "seq": 439,
+    "role": "engineer"
+   },
+   {
+    "seq": 627,
+    "role": "verifier"
+   }
+  ],
+  "submissions": [
+   {
+    "admission": "verification",
+    "has_result": true,
+    "state": "confirmed",
+    "businessOutcome": "accepted",
+    "rejection": null
+   }
+  ],
+  "verification_results": [
+   {
+    "effectiveJudgment": "inconclusive",
+    "mode": "recompute"
+   }
+  ],
+  "refusal_to_resubmit": {
+   "calls": 12,
+   "wall_sec": 146.2,
+   "source": "r22-report.md"
+  },
+  "roles": {
+   "recon": {
+    "calls": 20,
+    "input_uncached": 51118,
+    "output": 7651,
+    "reasoning": 8929,
+    "latency_sec": 124,
+    "finish_length": 0
+   },
+   "domain-solver": {
+    "calls": 5,
+    "input_uncached": 26285,
+    "output": 1829,
+    "reasoning": 0,
+    "latency_sec": 17,
+    "finish_length": 0
+   },
+   "verifier": {
+    "calls": 6,
+    "input_uncached": 38640,
+    "output": 4737,
+    "reasoning": 11774,
+    "latency_sec": 130,
+    "finish_length": 1
+   },
+   "coordinator": {
+    "calls": 16,
+    "input_uncached": 37886,
+    "output": 6253,
+    "reasoning": 1595,
+    "latency_sec": 344,
+    "finish_length": 0
+   },
+   "intake": {
+    "calls": 6,
+    "input_uncached": 6012,
+    "output": 1468,
+    "reasoning": 1778,
+    "latency_sec": 31,
+    "finish_length": 0
+   },
+   "engineer": {
+    "calls": 12,
+    "input_uncached": 60172,
+    "output": 7099,
+    "reasoning": 8140,
+    "latency_sec": 102,
+    "finish_length": 0
+   }
+  }
+ },
+ "comparison": {
+  "r21_M1": {
+   "wall_min": 4.8,
+   "calls": 56,
+   "verifier_latency_sec": 0
+  }
+ },
+ "verdict": {
+  "fallback": "passed: refused once (verification required: submission attempts not unlimited) -> Verifier assigned and run (inconclusive/recompute) -> resubmitted with result -> accepted; no retry without result, no early end",
+  "cost": "Verifier 130 s; refusal to resubmission 12 calls / 146 s; wall 7.8 vs 4.8 min in r21 M1",
+  "not_exercised": [
+   "wrong_answer followed by continued solving"
+  ]
+ }
+}

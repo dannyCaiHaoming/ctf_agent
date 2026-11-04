@@ -76,7 +76,7 @@ Coordinator 交固定 challenge/version、候选、现有材料与预算，由 h
 
 ## 7. 接口五：按限制自动尝试与可信完成
 
-由 Coordinator 根据 Verifier 记录提出明确 challenge/version/result 的提交意图，host 解析固定候选并执行准入。第一／二层支持的候选与第三层无法确定的候选都可进入提交；**不再要求 effective verified 才能请求裁判**。第三层自动使用本题允许的提交机会和剩余预算，不逐次问用户，不扩大已授权目标、预算或平台权限。没有判官则保存 candidate_only，不虚构提交或成功。
+由 Coordinator 提出明确 challenge/version 的提交意图，host 解析固定候选并执行准入。**2026-11-04 起 `result` 可选（oracle 优先）：** 有裁判、次数不限、无冷却或封锁、同题同裁判范围无 `wrong_answer`、候选 bytes 出现在本 run 本题的 host HTTP 捕获中时，不带 `result` 直接准入；否则以 `verification required:` 拒绝，Coordinator 送 Verifier 后带 `result` 提交。条件与真实 run 证据见[解题延迟与上下文成本](2026-11-04-design-v1-run-latency-and-context-cost.md) §3.4。带 `result` 时按下述规则准入。第一／二层支持的候选与第三层无法确定的候选都可进入提交；**不再要求 effective verified 才能请求裁判**。第三层自动使用本题允许的提交机会和剩余预算，不逐次问用户，不扩大已授权目标、预算或平台权限。没有判官则保存 candidate_only，不虚构提交或成功。
 
 host 从实际题目／adapter 配置及运行记录检查提交次数、速率／冷却、扣分规则、deadline和剩余预算；模型不估算剩余次数或把 unknown 当无限制。约束不明时先使用已有可信查询／配置，仍无法确认准入就记录具体阻塞，不反复向用户询问，也不自行增加配额。等待冷却仍占用原时间预算，不靠新 run／session 重置限制。
 
