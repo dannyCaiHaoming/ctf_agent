@@ -16,7 +16,7 @@
 | 題目 | 映像 | 類別 | 資產位置 | 端口慣例 | 真實 run 記錄 |
 | --- | --- | --- | --- | --- | --- |
 | throwback | `llmctf/2015q-web-throwback`（`ec0deee9a8a4`） | web | `web-validation/`，題面附件 `public/2015q-web-throwback/`；最新 judge 與 profile 在 `speed-real-20261104-r21-oracle-first/` | 8001 | r17／r18 A 未解出；r19 A 解出；r20 4/4 解出，每次提交 1 次；r21 2/2 解出，都是直接提交 |
-| mfw | `llmctf/2016q-web-mfw`（`15394bdd3844`） | web | `m1-mfw/`，附件 `public/src.tar.gz`；最新 judge 與 profile 在 `speed-real-20261104-r21-oracle-first/` | 8010 | r17 B 解出（提交 2 次）；r18 B、r19 B 解出（提交 1 次）；r21 解出，直接提交 |
+| mfw | `llmctf/2016q-web-mfw`（`15394bdd3844`） | web | `m1-mfw/`，附件 `public/src.tar.gz`；最新 judge 與 profile 在 `speed-real-20261104-r21-oracle-first/` | 8010 | r17 B 解出（提交 2 次）；r18 B、r19 B 解出（提交 1 次）；r21 解出，直接提交；r22（judge 限 3 次）解出，被要求送驗後帶 result 提交 |
 | seizure cipher | `llmctf/2016f-web-seizurecipher`（`d2c38e325a12`） | web／crypto | `web-validation/`，附件 `public/2016f-web-seizure_cipher/`；調試批次見 `seizurecipher-debug-20261029-r9` 至 `r13-recon-cap` | 8003 | r9–r13 調試共 7 個批次目錄，全部沒有提交，均未解出 |
 
 ## 2. 已下載、未接入 harness：Alibaba CTF bench（web）
