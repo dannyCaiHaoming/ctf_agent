@@ -4,13 +4,22 @@
 
 **狀態：** [核心 design v1](2026-10-22-ctf-agent-design-v1.md) 的 Recon 現行子設計。本文已取代舊備份與舊正式稿中的累積式回補，是 Recon 記錄、上下文中呈現、交回、快照消費及 episode／lesson 的單一權威。它定義產品目標與契約，不代表目前工作樹已完整實現，也不代表真實模型已驗收。
 
-**目前停點：** r16 已暴露上下文重寫造成緩存前綴失效、Recon 未及時交回、固定快照正文未被同一消費者讀完，以及 episode 只看局部來源並把晚期失敗錯誤泛化為整題結論。§3 完整過程軌跡、§4 追加式上下文與 §7 episode 來源契約已在產品實施並通過無模型驗收；§5 的 Recon cap／closure 與 §6 的快照凍結發布也已實施（見各節實施狀態）。產品插件尚未在真實 OpenCode runtime 中運行。下列內容仍需另立有界 plan 驗證或實施：
+**目前停點：** 記錄與學習鏈路已收口。r16 暴露的問題（上下文重寫、Recon 未交回、episode 只看局部來源）已由 §3–§7 的實施處理；r17–r19 三個真實批次又找出並修正了參數丟失與三種學習失敗。到 r19，以下各環節都已在真實 OpenCode runtime 中走通（見 §8「真實批次的正反證據」）：
+- 四個角色逐步記錄、參數完整；
+- 追加式上下文；
+- Recon 在 closure 前主動交回；
+- A 的 episode 與 lesson 入庫，並自動呈現給 B。
 
-- §3 的 `visible_intent`、`visible_observation`、`args_shape` 尚未寫入。
-- §6 的消費記錄：`index_received`、同一消費者讀到 `done`。
-- 控制完整投影在單次請求與原生壓縮中的輸入成本（r15 A full projection 約 46.6 KB）。
-- 可靠估算或預留 input token，並在硬停前留出交回窗口。
-- 用真實模型驗證模型是否會依據歷史軌跡避免重複探索、正確選路並及時交回。
+這一段**不能**推出經驗讓解題變好：模型沒有翻看舊步驟，B 沒有主動查閱經驗，也沒有對照組。下一階段需另立 design 切片與 plan，候選事項：
+
+- **經驗是否有用：** 同題、同模型、同預算的無經驗對照組（B0），以及成對的相似題；做之前先做經驗衛生：
+  - 同題防回聲：檢索目前不排除同一題自己的經驗；
+  - 入庫去敏：清理路徑、網址；
+  - 失敗局只提煉「避免什麼」。
+- **讀取端使用審計（§6）：** `index_received`、同一消費者讀到 `done`，以及經驗的 `read`／`evaluated`／`adopted` 鏈。
+- **已試路線摘要：** 在上下文中呈現每族已試結果。r19 沒有任何角色用 `recon.read` 展開舊步驟，只有機械索引可能不夠。
+- **Input token 預留（§5）：** 可靠估算並預留 input token，在硬停前留出交回窗口。
+- **§3 未寫入的欄位：** `visible_intent`、`visible_observation`、`args_shape`。
 
 本文件不授權安裝、真實模型運行、commit 或 push。
 
@@ -125,7 +134,7 @@ Recon 每一步至少保留下列關係：
 - 事件參數只有在 `status` 為 `running`、`completed` 或 `error` 時才算完整。`pending` 狀態的 `input` 在 SDK 中是必有欄位，參數串流生成期間通常是空物件，因此一律標為不完整。
 - 之後帶真實參數的寫入（`tool.before` 或 running 事件）會補寫，只能從不完整升級為完整；參數不完整的列，即使結果完整，也不標為 `original_complete`。
 - 測試以真實事件形狀覆蓋三種順序。
-- 產品插件在真實 runtime 中的行為，要等下一次真實 run 驗證；r17 已落庫的空參數不會補回。
+- 真實 runtime 已驗證：r18 空參數 A 1/170、B 2/110，r19 A 3/188、B 4/76；剩下的都是本來就不帶參數的調用。r17 已落庫的空參數不會補回。
 
 ### 記錄範圍：所有解題角色
 
@@ -197,7 +206,7 @@ R4 之前，插件每輪會刪除舊 synthetic investigation context，並把新
 - **失敗處理：** 任一 projection 失敗只封鎖該 session 的出站請求，直到下一次成功準備。
 
 仍未證明：
-- 產品插件在真實 runtime 中的 hook 行為，目前只有腳本化 hook 與真實 ControlService 證明；
+- 模型是否使用追加的索引：r18／r19 中產品插件在真實 runtime 的追加、delta 與 `context.presented` 審計都正常（r19 B 70 次，首次 full、之後 delta），但沒有任何角色調用 `recon.read` 展開舊步驟；
 - compaction 請求是否經過 `chat.params`；
 - 插件重啟後未回報的投遞審計會遺失（正文仍留在歷史中）。
 
@@ -256,7 +265,7 @@ r16 A 是反例：Recon 准入 31 次、88 次工具，仍沒有 decision 或 ha
 **實施狀態（無模型）：**
 - **已實施：** 按題 Recon cap（`reconMaxModelCalls` 為 `B`、`reconClosureReserve` 為 `R`）；累計准入達 `B−R` 進入 closure、達 `B` 為 exhausted，未配置時關閉。closure 期間只放行本節列出的收尾工具。R4 起，預算、closure 與 handoff 狀態隨追加式上下文對模型可見。
 - **尚未實施：** input token 的估算與預留；目前的准入只按模型調用次數計，在途回應仍可能越過 token 門檻。
-- **未驗證：** 模型是否會在 closure 前自然交回。
+- **真實 run：** r18、r19 兩題都在 closure 前主動交回（r19 A 第 35 次准入、B 第 15 次，交回時仍在 exploration；r17 A 是被 60 次上限強制停止）。decision 只在交回前寫一兩條，沒有在重要結果或換路時寫。
 
 ---
 
@@ -375,7 +384,9 @@ host 綁定可信 outcome、Verifier judgment 與 end reason；模型只解釋�
 - **限制：** 這四步都沒有完整摘錄。模型只看得到「302」「403」與族鍵，看不到跳轉目標或回應內容。能否據此避免把晚期 403 泛化為整題結論，要靠真實模型驗證；若不足，可再考慮讓摘錄規則跨族照顧同一路徑前綴的結果變化，屆時另行決定。
 - **r16 B：** 30 步全部在清單中。
 
-**仍未證明：** 真實模型寫出的 episode 是否忠實、是否會引用清單行，以及 lesson 的跨題收益。
+**真實 run（r19）：** A 的 212 步中有 25 步帶摘錄，模型寫出 8 個步驟、4 條失敗路徑、5 條未解項，來源引用都通過綁定校驗；3 條 lesson 都綁定 A 的 episode@1。
+
+**仍未證明：** episode 的自然語言解釋是否忠實於引用的步驟（只有機械綁定，沒有人工核對），以及 lesson 的跨題收益。
 
 ### 有界輸出不破壞來源
 
@@ -391,14 +402,19 @@ host 綁定可信 outcome、Verifier judgment 與 end reason；模型只解釋�
 
 三次的請求都正常結束（`finish=stop`），只是越界，結果整條學習鏈 0 條 lesson。新上限以觀察到的最大值加約五成餘量訂定，仍是有界輸出。
 
-**實施狀態（無模型，2026-11-04）：** 校驗與提示已按上述數值修改；1,000 字元 `summary`、10 個 `tech_tags` 的合法回應被接受，超過新上限、`finish=length` 與 invalid JSON 仍被拒絕。證據同 R7 記錄。真實模型能否穩定落在新上限內，要等下一次真實 run 驗證。
+**實施狀態（無模型，2026-11-04）：** 校驗與提示已按上述數值修改；1,000 字元 `summary`、10 個 `tech_tags` 的合法回應被接受，超過新上限、`finish=length` 與 invalid JSON 仍被拒絕。證據同 R7 記錄。r18、r19 的 episode 摘要都落在新上限內（r18 A 624 字元），沒有再因字數被拒。
 
 **r18 結果與修正（無模型，2026-11-04）：** 放寬後的真實批次（r18）仍沒有產出 lesson，原因不在字數上限，證據與修正見 [R8 記錄](../../gates/recon-context-interface-20261031/r8-learning-parse-output-cap.json)。
 - **多餘欄位：** A 的 lesson 回應結構完整，每條只多一個值為 `null` 的欄位，被 `.strict()` 整組拒收。現在解析模型回應時丟棄 schema 以外的欄位（含巢狀），被丟棄的鍵路徑（不含值）寫入該次請求的 receipt（`dropped_keys`）與學習報告。存儲與讀取的 schema 仍是 `.strict()`；缺必填欄位、類型錯誤、數量與長度越界、來源綁定仍然拒收。
 - **輸出上限：** B 的 episode 以 `finish=length` 截斷，輸出 1,889 加 reasoning 2,207 剛好是寫死的 4,096。現在上限取當前模型在 OpenCode 設定中的 `limit.output`，沒有時用 8,000（r18 所用模型的設定值）；仍受剩餘學習預算約束，預算不足時按原規則報 `learning budget exhausted`。模型上限低於 6,000 時，發請求前就以可讀原因失敗，不白花一次請求：合法 episode 最長約 27k 字元（約 7k token），reasoning 與輸出共用同一上限，6,000 是在不放寬任何字數上限的前提下可接受的下限。`finish=length` 仍 fail-closed，不重試。
 - **重學習：** 已存的失敗 episode 可用手動腳本 `tests/manual/relearn-episodes.ts` 在經驗庫副本上重設並重跑；沒有顯式傳入預算參數時只輸出請求數與預留估算，不調用模型。
 
-呼叫前保存原始 response、hash、`finish` reason 與實際 usage。`finish=length`、異常終止、invalid JSON 與欄位越界仍然 fail-closed，不自動補 JSON、續寫、截斷或重試；放寬的只是上限數值，不是失敗語義。拒絕只阻止不合規的摘要成為 episode，不能刪除或截斷它所依據的完整步驟與 artifacts。
+**r19 結果與修正（2026-11-04）：** 證據見 [r17–r19 真實批次](../../gates/recon-context-interface-20261031/real-r17-r19.json)。
+- **A：** episode 與 lesson 都以 `finish=stop` 完成，3 條 lesson 入庫，沒有多餘欄位。
+- **B：** episode 回應在 JSON 前多了一句說明，被判為 invalid JSON。現在解碼依次嘗試純 JSON、去掉代碼圍欄，最後取第一個括號平衡的 JSON 物件；字串內的括號不計，取不到物件仍判失敗。修正後在副本上重學習 B，2 次請求、約 2.1 萬 token，episode 與 lesson 完成，3 條 lesson，原庫未改。r19 正式庫中 B 的 episode 仍是失敗狀態。
+- **學習報告：** `learning-report.json` 每個 episode 直接列出兩個階段的狀態、`finish` 與 `dropped_keys`，判斷失敗原因不必讀 episode 本體。
+
+呼叫前保存原始 response、hash、`finish` reason 與實際 usage。`finish=length`、異常終止、invalid JSON 與欄位越界仍然 fail-closed，不自動補 JSON、續寫、截斷或重試（略過 JSON 前的說明文字、丟棄多餘欄位不改動被接受的內容，不屬於補寫）；放寬的只是上限數值，不是失敗語義。拒絕只阻止不合規的摘要成為 episode，不能刪除或截斷它所依據的完整步驟與 artifacts。
 
 ### Lesson 與經驗可用性
 
@@ -439,6 +455,12 @@ r16 B 曾搜尋經驗兩次但沒有調用 `ctf_experience_read`。這證明「s
 
 下一輪從本設計生成聚焦 plan。先驗證最小接口與資料契約，再實施；涉及真實模型時，還要重新明確模型、provider、求解／學習預算、預留與嘗試上限。舊 r16 資料及 r15 對照只讀，新增結果沿用既有 evidence／gate 位置。
 
+**真實批次的做法（r17–r19 沿用）：**
+- 複製上一批次目錄的 `scripts/` 與 `configs/`（起停靶場、`run-once.mts`、計數 relay、0 token 整鏈彩排、預檢），刪掉複製過來的 `runs/`，從空經驗庫開始。不沿用舊經驗庫：檢索目前不排除同一題自己的經驗。
+- 付費 run 前先跑 0 token 彩排，確認追加式上下文、四角色記錄與參數非空、relay 計數與准入一致。
+- A 的學習完成、經驗庫關閉後才啟動 B；每題一次，不重試、不換 provider。
+- 授權寫明目標、模型／provider、批次與 token 上限（r17–r19 為每題求解 1.2M、學習 100k，合計 2.6M）。學習失敗時，可先用重學習腳本在副本上定向驗證，不必重跑整批。
+
 ### 現有證據能支持到哪裡
 
 | 證據 | 已支持 | 不能推出 |
@@ -455,8 +477,26 @@ r16 B 曾搜尋經驗兩次但沒有調用 `ctf_experience_read`。這證明「s
 | [R6 解題角色記錄](../../gates/recon-context-interface-20261031/r6-solve-roles-recording.json) | 四個綁題角色逐步寫入、`role` 欄與遷移、`recon.read` 權限、本 session 最近步驟、清單帶角色；57 檔／760 測試；r15／r16 回放不回退 | Solver／Engineer 在真實 runtime 會讀軌跡、求解步驟記錄對 lesson 質量的改善 |
 | [R7 參數順序與學習上限](../../gates/recon-context-interface-20261031/r7-args-learning-bounds.json) | r17 發現的「事件先到」參數丟失已修正（pending 為不完整、真實參數補寫）；學習上限放寬；58 檔／774 測試；r15／r16 回放不回退 | 真實 runtime 中參數非空、真實模型輸出落在新上限內 |
 | [R8 學習解析與輸出上限](../../gates/recon-context-interface-20261031/r8-learning-parse-output-cap.json) | r18 發現的兩個缺陷已離線修正：模型回應的多餘欄位被丟棄並記錄、輸出上限取模型設定；失敗 episode 可在副本上手動重學習；59 檔／792 測試；r15／r16 回放不回退 | 真實模型在新輸出上限下產出完整 episode／lesson |
+| [r17–r19 真實批次](../../gates/recon-context-interface-20261031/real-r17-r19.json) | 真實 runtime 中：四角色逐步記錄且參數完整；追加式上下文與投遞審計；Recon 在 closure 前主動交回；A 的 episode／lesson 入庫並自動呈現給 B；r19 兩題首次提交即解出 | 經驗提升解題（無 B0 對照、A／B 非相似題、每題一次）；模型讀了或採用了 lesson；episode 解釋的忠實度 |
 
-### r16 的正反證據
+### 真實批次的正反證據
+
+**r17–r19（2026-11-04，`volcano-plan/deepseek-v4.1-flash`）：** 判定為「機制通過、行為不足」。
+
+已接通：
+
+- 四個角色逐步記錄；r17 的參數全空由 R7 修正，r18／r19 只剩本來就不帶參數的調用。
+- 追加式上下文在真實 runtime 中首次 full、之後 delta，沒有重複版本。
+- Recon 在 closure 前主動交回（r18、r19 兩題都是）。
+- 題後學習三次失敗都已修正：r17 字數上限、r18 多餘欄位與輸出 token 上限、r19 JSON 前的說明文字。r19 A 的 3 條 lesson 入庫，B 的 70 次上下文注入都帶著它們。
+
+仍未閉環：
+
+- 沒有任何角色用 `recon.read` 展開舊步驟；decision 只在交回前寫。
+- B 沒有主動 search 或 read 經驗，沒有可觀察的採用鏈。lesson 只是被呈現，不能說被使用。
+- r19 兩題首次提交即解出，B 的准入從 r18 的 99 次降到 67 次；但每題只跑一次，A、B 不是相似題，也沒有 B0 對照，差異不能歸因於經驗。
+
+**r16（2026-10-31）：**
 
 已接通：
 
@@ -472,6 +512,8 @@ r16 B 曾搜尋經驗兩次但沒有調用 `ctf_experience_read`。這證明「s
 - B 搜尋經驗兩次卻未讀取或形成可觀察的採用鏈。
 - B 的 711 字元 learning response 被正確拒絕，但輸出品質尚未解決。
 
+其中交回、episode 來源覆蓋與學習輸出已在 r18／r19 解決；快照正文是否讀完、經驗是否被採用仍未解決。
+
 R1／R2 能證明失敗局部隔離，不能把兩題寫成整體能力通過。
 
 ### 仍未證明的事項
@@ -480,12 +522,12 @@ R1／R2 能證明失敗局部隔離，不能把兩題寫成整體能力通過。
 - 自動 compaction 是否能保留完整 tool-call／result 與可導航索引。
 - input-token reservation 是否可靠，能否在硬停前留出完整交回。
 - 完整索引在長題中是否可保持低 overhead 與可理解性。
-- 真實模型是否會查閱舊步驟、引用指紋並避免無根據重複。
+- 真實模型是否會查閱舊步驟、引用指紋並避免無根據重複（r19：沒有調用 `recon.read`；同角色重複參數指紋 A 1 次、B 0 次，但無法區分是否因看了索引）。
 - 有效 decision 的自然生成率及它相對於自動工具軌跡的增益。
 - episode 的自然語言解釋是否忠實於完整來源範圍。
 - 真實下游是否讀完同一快照版本的必要正文。
 - 重啟後未知 publication 能否安全核對。
-- 經驗呈現是否能被模型實際評估，以及同模型、同預算下的跨題收益。
+- 經驗呈現是否能被模型實際評估，以及同模型、同預算下的跨題收益（r19：lesson 已呈現給 B，但 B 沒有查閱，也沒有 B0 對照）。
 - 正式映像、統計收益與歷史資料遷移。
 
 這些 unknown 只改變相應局部結論，不否定已定的資料職責與失敗邊界。證據承擔過程；本設計只保留當前決策、限制與可信來源。

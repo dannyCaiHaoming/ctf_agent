@@ -1,0 +1,61 @@
+{
+  "kind": "real-model batch summary",
+  "scope": "local Docker targets llmctf/2015q-web-throwback (A) and llmctf/2016q-web-mfw (B); controller-side judges; one run per challenge, no retry, no provider switch; fresh empty experience store per batch",
+  "model": "volcano-plan/deepseek-v4.1-flash via local counting relay",
+  "raw_artifacts": "/Users/caihaoming/Documents/pentest-agent-run-data/experience-real-20261104-r{17,18,19}-ab (not in repo; queried read-only on copies)",
+  "note": "Structured counts only. No transcripts, tool outputs, lesson text, flags or oracle data.",
+  "batches": {
+    "r17": {
+      "product": "main@4f093b82 (R3-R6)",
+      "A": {"admissions": 148, "input_tokens": 649580, "result": "unsolved"},
+      "B": {"admissions": 132, "input_tokens": 565798, "result": "solved", "submissions": 2},
+      "tool_rows_with_empty_args": "260/260",
+      "learning": "all rejected: summary 656/775 chars over the 400 bound",
+      "fixed_by": "R7"
+    },
+    "r18": {
+      "product": "main@d4c04531 (R7)",
+      "A": {"admissions": 143, "input_tokens": 582082, "result": "unsolved", "recon_handoff": "admission 54 of cap 60, seq 111/173"},
+      "B": {"admissions": 99, "input_tokens": 434389, "result": "solved", "submissions": 1, "recon_handoff": "admission 20, seq 35/112"},
+      "tool_rows_with_empty_args": {"A": "1/170", "B": "2/110", "note": "remaining rows are genuinely argument-less calls"},
+      "learning": {
+        "A": "episode completed (summary 624 chars); lesson set rejected: every lesson carried an extra null key under .strict()",
+        "B": "episode finish=length: output 1889 + reasoning 2207 = fixed cap 4096"
+      },
+      "lessons_stored": 0,
+      "fixed_by": "R8"
+    },
+    "r19": {
+      "product": "main@34878ee1 (R7 + R8 + per-phase finish in learning-report); B relearn on main@2da8bb72",
+      "A": {"admissions": 126, "input_tokens": 769212, "total_tokens": 952069, "result": "solved", "submissions": 1,
+            "steps_by_role": {"recon": 88, "domain-solver": 53, "engineer": 26, "verifier": 21},
+            "recon": {"admissions": 35, "cap_state_at_handoff": "exploration", "decisions": 2, "first_decision_seq": 89, "handoff_seq": 91, "max_seq": 191},
+            "empty_args": "3/188", "repeated_same_role_fingerprints": 1,
+            "experience_search_calls": 2, "recon_read_calls": 0},
+      "B": {"admissions": 67, "input_tokens": 353331, "total_tokens": 424904, "result": "solved", "submissions": 1,
+            "steps_by_role": {"recon": 24, "domain-solver": 20, "engineer": 22, "verifier": 10},
+            "recon": {"admissions": 15, "cap_state_at_handoff": "exploration", "decisions": 1, "first_decision_seq": 25, "handoff_seq": 26, "max_seq": 78},
+            "empty_args": "4/76", "repeated_same_role_fingerprints": 0,
+            "context_presented": {"total": 70, "by_role": {"recon": 27, "domain-solver": 20, "engineer": 23}, "each_carried_A_lessons": 3},
+            "experience_search_calls": 0, "experience_read_calls": 0, "recon_read_calls": 0},
+      "learning": {
+        "A": {"episode": "completed", "lesson": "completed", "finish": {"episode": "stop", "lesson": "stop"}, "lessons": 3,
+              "lesson_source": "all bound to A episode@1", "episode_coverage": {"available": 212, "excerpted": 25, "steps": 8, "failed_paths": 4, "unresolved": 5},
+              "dropped_keys": {"episode": [], "lesson": []}},
+        "B": {"episode": "failed", "finish": "stop", "error": "learning invalid JSON", "cause": "one prose sentence before the JSON object"},
+        "tokens": 45592
+      },
+      "B_relearn_on_copy": {"fix": "decodeLearningResponse accepts the first balanced JSON object after a prose preamble (2da8bb72)",
+                            "status": "completed", "episode": "completed", "lesson": "completed", "lessons": 3,
+                            "tokens": {"input": 15883, "output": 3221, "reasoning": 1477}, "requests": 2, "source_unchanged": true},
+      "batch_total_tokens": 1422555,
+      "authorized_cap": 2600000
+    }
+  },
+  "plan_verdict_r19": "mechanism passed, behaviour insufficient: recording, append-only context, pre-closure handoff and the A->lesson->B presentation chain worked in the real runtime; no role expanded old steps with recon.read, B never searched or read experience, and no adoption evidence chain exists",
+  "not_answerable_from_these_batches": [
+    "whether experience improves solving: needs a same-challenge, same-model, same-budget no-experience baseline (B0)",
+    "transfer between similar challenges: A and B are not a matched pair",
+    "single runs per challenge: admissions/tokens differences between batches are not attributable to any change"
+  ]
+}
