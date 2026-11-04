@@ -337,3 +337,49 @@ it('R2: final input persistence failure alone leaves the completed solve unchang
  expect(state.learning.inputErrors.map((e:any)=>e.phase)).toEqual(['final_input']);
  expect(await json('evidence/learning.json')).toMatchObject({status:'pending',input_capture:{status:'pending'}});
 });
+
+describe('runtime agent options', () => {
+  const setRuntimeAgent = async (agent?: unknown) => {
+    const path = join(dir, 'opencode.json'), value = JSON.parse(await readFile(path, 'utf8'));
+    if (agent !== undefined) value.agent = agent;
+    await writeFile(path, JSON.stringify(value));
+  };
+  const productAgents = async () => JSON.parse(await readFile(join(process.cwd(), 'product/opencode/opencode.json'), 'utf8')).agent;
+  const thinking = { type: 'disabled' };
+  it('merges options over same-name product agent and leaves other agents unchanged', async () => {
+    await setRuntimeAgent({ 'domain-solver': { options: { thinking } }, recon: { options: { reasoningEffort: 'low' } } });
+    expect(await run()).toMatchObject({ code: 0, status: 'completed' });
+    const base = await productAgents();
+    const agent = (config as unknown as { agent: Record<string, Record<string, unknown>> }).agent;
+    expect(agent['domain-solver']).toEqual({ ...base['domain-solver'], options: { ...base['domain-solver']?.options, thinking } });
+    expect(agent.recon).toEqual({ ...base.recon, options: { ...base.recon?.options, reasoningEffort: 'low' } });
+    expect(agent.build).toEqual(base.build);
+    const record = await checkEvidence();
+    expect(record.agentOptions).toEqual({ 'domain-solver': { thinking }, recon: { reasoningEffort: 'low' } });
+  });
+  it('lets runtime options override same-key product options', async () => {
+    const product = join(dir, 'product');
+    await mkdir(join(product, 'opencode', 'agents'), { recursive: true });
+    await writeFile(join(product, 'opencode', 'agents', 'demo.md'), '---\ndescription: d\nmode: subagent\n---\nbody\n');
+    await writeFile(join(product, 'opencode', 'opencode.json'), JSON.stringify({ agent: { demo: { description: 'kept', options: { a: 1, b: 2 } } } }));
+    await setRuntimeAgent({ demo: { options: { b: 3, c: 4 } } });
+    expect(await launch({ profile: join(dir, 'profile.json'), runsRoot: join(dir, 'runs'), runId: 'run', product })).toMatchObject({ code: 0 });
+    expect((config as unknown as { agent: unknown }).agent).toEqual({ demo: { description: 'kept', options: { a: 1, b: 3, c: 4 } } });
+  });
+  it.each([
+    ['prompt', { 'domain-solver': { prompt: 'x' } }],
+    ['permission', { 'domain-solver': { options: {}, permission: { '*': 'allow' } } }],
+    ['model', { 'domain-solver': { options: {}, model: 'a/b' } }],
+    ['disable', { coordinator: { disable: true } }],
+    ['unknown agent', { 'no-such-agent': { options: { a: 1 } } }]
+  ])('blocks %s before OpenCode starts', async (_name, agent) => {
+    await setRuntimeAgent(agent);
+    await expect(run()).rejects.toThrow(/blocked_configuration/);
+    expect(fake.start).not.toHaveBeenCalled();
+  });
+  it('without runtime agent leaves the product agent config unchanged and records no options', async () => {
+    expect(await run()).toMatchObject({ code: 0 });
+    expect((config as unknown as { agent: unknown }).agent).toEqual((await productAgents()));
+    expect((await checkEvidence()).agentOptions).toEqual({});
+  });
+});

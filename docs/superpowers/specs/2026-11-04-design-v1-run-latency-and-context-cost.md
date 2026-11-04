@@ -2,7 +2,7 @@
 
 **狀態：** [核心 design v1](2026-10-22-ctf-agent-design-v1.md) §1.4 的子設計，管「一次 run 的牆鐘時間和 token 花在哪、怎麼減」。解題方法本身（Skill／Reference 內容）屬於 [B／G 方法與耗時](2026-10-26-design-v1-b-method-generalization-and-efficiency.md)；Recon 記錄與追加式上下文的契約屬於 [Recon 重設計](2026-10-29-design-v1-recon-redesign.md) §4，本文只改它的**投影內容與發送頻率**，不改追加式放置。
 
-**目前停點：** §3.1 離線已實施並驗證，待下一次授權 run 觀察真實輸入。§3.2：網關只認 `thinking: disabled`；批次對比已設計，開跑前要先讓 launcher 合併運行設定中的各角色 `options`（進行中）。§3.3、§3.4 未定。
+**目前停點：** §3.1 離線已實施並驗證，待下一次授權 run 觀察真實輸入。§3.2：網關只認 `thinking: disabled`；批次對比已設計，launcher 已支持合併運行設定中的各角色 `options`，待批次授權。§3.3、§3.4 未定。
 
 **依據：** [r18／r19 成本拆解](../../gates/run-cost-20261104/r18-r19-cost-breakdown.json)，由 `tests/manual/run-cost-breakdown.py` 從四個真實 run 的訊息與審計記錄離線算出（0 次模型調用）。模型均為 `volcano-plan/deepseek-v4.1-flash`。修正後用同一腳本重算，對比同一欄位。
 
@@ -103,7 +103,7 @@
 **參數放在哪一層（決定）：** `thinking` 這類參數只對特定 provider 有效，所以放在批次的運行設定（profile 引用的 OpenCode 設定，與 `provider`／`model` 同一層），不寫進與 provider 無關的產品角色檔 `product/opencode/agents/*.md` 或產品 `opencode.json`。
 - launcher 只從運行設定合併各角色的 `agent.<角色>.options`。`prompt`、`permission`、`mode`、`steps` 等其他欄位仍由產品決定，運行設定裡出現就拒絕。
 - 已用本機假 provider 確認：設定檔中給同名 agent 加 `options`，會和 md 角色檔合併，該角色的請求帶上 `thinking: disabled`，其他角色不受影響（0 token）。
-- 目前 launcher 只合併 `provider`、`model`、`enabled_providers`，需要先補上這一項。
+- **狀態（2026-11-05，離線）：** launcher 已支持，待批次授權。見 `config/README.md`「各角色 options」；生效值記在 `state/run.json` 的 `agentOptions`；契約測試在 `tests/contract/launch-evidence.test.ts`。
 
 **實驗設計（批次對比，需另行授權）：**
 - **兩組：**

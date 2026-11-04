@@ -14,6 +14,22 @@
 
 目前只完成配置改動，未對該網關發起真實請求，因此不證明端點可達、`deepseek-v4.1-flash` 這個模型名被接受或計費可用。`limit` 沿用同族的保守值（context 128000、output 8000），如網關另有上限需按實測調整。
 
+## 各角色 options（運行設定的 `agent` 欄位）
+
+launcher 除了 `provider`、`model`、`enabled_providers`，還會讀取 profile 引用的 OpenCode 設定中的 `agent.<角色>.options`，與產品 `opencode.json` 中同名 agent 的 `options` 合併（運行設定覆蓋同名鍵），用於放只對特定 provider 有效的請求參數。限制：
+
+- 只接受 `options`；`prompt`、`permission`、`mode`、`steps`、`model`、`disable` 等其他鍵，或產品未定義的角色名，一律以 `blocked_configuration` 拒絕。
+- 沒有 `agent` 時行為不變。題後學習的設定另行組裝，不讀這個欄位。
+- 生效的各角色 options 寫入 `state/run.json` 的 `agentOptions`（`configSha256` 也已涵蓋），可據此區分批次的兩組 run。
+
+只對 `domain-solver` 關閉思考的範例片段（加在運行設定的頂層，不新增範例設定檔；自訂火山網關認這個參數，`reasoning_effort` 無效）：
+
+```json
+"agent": {
+  "domain-solver": { "options": { "thinking": { "type": "disabled" } } }
+}
+```
+
 ## DeepSeek 官方 API
 
 在倉庫根目錄的 `.env` 設置 `DEEPSEEK_API_KEY`（欄位範例見 `.env.example`）。launcher 從當前目錄讀取 `.env`，已有進程環境變量優先；密鑰只注入受管 OpenCode 進程，不寫入產品資產或 JSON 配置。`.env` 已被 Git 忽略。

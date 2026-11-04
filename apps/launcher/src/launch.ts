@@ -108,6 +108,29 @@ async function collectLayer(layer: string): Promise<Array<{ source: string; targ
   return items;
 }
 
+/** Runtime config may only add `agent.<name>.options` for agents the product defines; merge over the product's same-name options. */
+function mergeAgentOptions(runtimeAgent: unknown, baseAgent: unknown, productAgents: ReadonlySet<string>): { agent?: Record<string, unknown>; effective: Record<string, Record<string, unknown>> } {
+  const effective: Record<string, Record<string, unknown>> = {};
+  if (runtimeAgent === undefined) return { effective };
+  const isObject = (v: unknown): v is Record<string, unknown> => !!v && typeof v === 'object' && !Array.isArray(v);
+  if (!isObject(runtimeAgent)) throw new Blocked('runtime config "agent" must be an object');
+  const base = isObject(baseAgent) ? baseAgent : {};
+  const agent: Record<string, unknown> = { ...base };
+  for (const [name, entry] of Object.entries(runtimeAgent)) {
+    if (!productAgents.has(name)) throw new Blocked(`runtime config agent.${name} is not an agent defined by the product`);
+    if (!isObject(entry)) throw new Blocked(`runtime config agent.${name} must be an object`);
+    const extra = Object.keys(entry).filter(key => key !== 'options');
+    if (extra.length) throw new Blocked(`runtime config agent.${name} may only set options; found ${extra.join(', ')}`);
+    if (!isObject(entry.options)) throw new Blocked(`runtime config agent.${name}.options must be an object`);
+    const product = isObject(base[name]) ? base[name] as Record<string, unknown> : {};
+    const productOptions = isObject(product.options) ? product.options : {};
+    const options = { ...productOptions, ...entry.options };
+    agent[name] = { ...product, options };
+    effective[name] = options;
+  }
+  return { agent, effective };
+}
+
 function assertNoAsk(value: unknown): void {
   if (value === 'ask') throw new Blocked('product configuration must not use permission "ask"');
   if (value && typeof value === 'object') Object.values(value).forEach(assertNoAsk);
@@ -198,9 +221,11 @@ async function runLaunch(options: LaunchOptions, rpc: { url: string; token: stri
   };
 
   // 4. Merge runtime fields and start OpenCode through the managed launcher.
+  const productAgents = new Set([...targets.keys()].filter(t => /^agents\/[^/]+\.md$/.test(t)).map(t => basename(t, '.md')));
+  const merged = mergeAgentOptions(loaded.config.agent, baseConfig.agent, productAgents);
   const pluginEntry = join(repoRoot, 'apps', 'opencode-plugin', 'src', 'entry.ts');
   const config = {
-    ...baseConfig, default_agent: COORDINATOR, plugin: [[pluginEntry, { controlUrl: rpc.url, controlToken: rpc.token, tools: MANAGED_TOOLS }]], model: loaded.config.model, small_model: loaded.config.model,
+    ...baseConfig, ...(merged.agent ? { agent: merged.agent } : {}), default_agent: COORDINATOR, plugin: [[pluginEntry, { controlUrl: rpc.url, controlToken: rpc.token, tools: MANAGED_TOOLS }]], model: loaded.config.model, small_model: loaded.config.model,
     provider: loaded.config.provider, ...(loaded.config.enabled_providers ? { enabled_providers: loaded.config.enabled_providers } : {})
   };
   const deadlineMs = options.deadlineMs ?? profile.budget.wallClockMs;
@@ -410,7 +435,7 @@ async function runLaunch(options: LaunchOptions, rpc: { url: string; token: stri
   await save(join(real.evidence, 'verification-results.json'), control.verificationResultSnapshot());
   await save(join(real.evidence, 'assets.json'), { productRevision, copies });
   await save(join(real.state, 'run.json'), { runId, status, rootResult, rootSessionId: rootId || null, sessions: [...sessionIds],
-    deadlineMs, opencodeVersion: engine.version, model: loaded.config.model, configSha256: sha256(JSON.stringify({ ...config, plugin: undefined })), productRevision,
+    deadlineMs, agentOptions: merged.effective, opencodeVersion: engine.version, model: loaded.config.model, configSha256: sha256(JSON.stringify({ ...config, plugin: undefined })), productRevision,
     learning:learningSummary,budget: profile.budget, admittedModelCalls: control.admitted, stopReason: control.stopReason ?? null, usageTotal,
     paths: real, timeline });
   return { code: status === 'completed' ? 0 : 1, status, runDir };
