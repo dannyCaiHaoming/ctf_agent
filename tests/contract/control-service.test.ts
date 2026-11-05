@@ -52,7 +52,7 @@ function fakeService(sessions: Record<string, { parentID?: string; agent?: strin
       version=p.version;
       }
       try { await handle(id, 'tool.execute', { tool: 'challenge.assign', args: { role: b.args!.subagent_type, challenge: 'C-fixture',...(version?{version}:{}) } }); }
-      catch (error) { if (!(error instanceof Error) || error.message !== 'denied: dispatch') throw error; }
+      catch (error) { if (!(error instanceof Error) || !error.message.startsWith('denied: dispatch')) throw error; }
     }
     return handle(id, op, input);
   };
@@ -362,6 +362,24 @@ describe('G-V1 cross-round challenge binding', () => {
     await expect(bind(s)).rejects.toThrow('denied: unbound session');
     expect(s.bindings.size).toBe(1);
     await assign(s); await dispatch(s); await bind(s); expect(topic(s)).toBe('X');
+  });
+  it('dispatch denial shows hard-coded reason and fixed hint to the model, audit keeps bare form', async () => {
+    const s = fixture();
+    await expect(s.handle('root', 'tool.before', { tool: 'task', callID: 'c1', args: { prompt: 'x' } }))
+      .rejects.toThrow(/^denied: dispatch: role not dispatchable\. task must include subagent_type/);
+    await expect(s.handle('root', 'tool.before', { tool: 'task', callID: 'c2', args: { subagent_type: 'nobody' } }))
+      .rejects.toThrow(/role not dispatchable\. subagent_type must be one of: .*recon/);
+    await expect(dispatch(s)).rejects.toThrow(/^denied: dispatch: no challenge declared for role\. call ctf_challenge_assign/);
+    await assign(s); await dispatch(s);
+    await expect(dispatch(s)).rejects.toThrow('denied: dispatch: pending dispatch exists for role');
+    const denials = s.audit.filter(r => !r.allow && r.reason?.startsWith('denied: dispatch'));
+    expect(denials.length).toBeGreaterThan(0);
+    expect(denials.every(r => r.reason === 'denied: dispatch' && typeof (r.detail as { error?: string }).error === 'string')).toBe(true);
+  });
+  it('unbound session denial does not leak its detail to the model', async () => {
+    const s = fixture();
+    const err = await bind(s).catch((e: Error) => e);
+    expect((err as Error).message).toBe('denied: unbound session');
   });
   it('T3 duplicate declarations preserve original, unassign is idempotent, pending cannot be cancelled', async () => {
     const s = fixture(); await assign(s);

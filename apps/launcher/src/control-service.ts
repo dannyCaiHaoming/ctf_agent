@@ -38,7 +38,13 @@ const NATIVE_TOOL_ROLES: Record<string, readonly Role[]> = { skill: ROLES, read:
 const INTAKE_BY_ID = new Map(INTAKE_TOOLS.map(name => [`ctf_${name.replaceAll('.', '_')}`, name]));
 
 export class ControlDenied extends Error {
-  constructor(code: string, readonly detail?: string) { super(code === 'budget' ? 'budget denied' : `denied: ${code}`); }
+  /** Model-visible message; `dispatch` denials carry only their hard-coded reason (+ fixed hint), never dynamic detail. Audit keeps the bare form in `auditMessage`. */
+  readonly auditMessage: string;
+  constructor(code: string, readonly detail?: string, hint?: string) {
+    const bare = code === 'budget' ? 'budget denied' : `denied: ${code}`;
+    super(code === 'dispatch' && detail ? `${bare}: ${detail}${hint ? `. ${hint}` : ''}` : bare);
+    this.auditMessage = bare;
+  }
 }
 
 export interface RunBudget {
@@ -289,7 +295,7 @@ export class ControlService {
       if (operation === 'context.prepare') this.projectionFailures.add(sessionID);
       try { await this.recordProcess(this.bindings.get(sessionID), operation, body, 'error', {error:String(error)}); } catch { /* preserve original failure; no side effect has been newly admitted */ }
       const denied = error instanceof ControlDenied ? error : new ControlDenied(error instanceof HttpRefused || error instanceof JobRefused || error instanceof WorkspaceRefused ? error.code : 'control error', String(error));
-      this.record(sessionID, operation, false, denied.message, { tool: body.tool, callID: body.callID, error: denied.detail }); throw denied;
+      this.record(sessionID, operation, false, denied.auditMessage, { tool: body.tool, callID: body.callID, error: denied.detail }); throw denied;
     }
   }
 
@@ -1363,7 +1369,9 @@ export class ControlService {
   /** C design section 3.1: dispatch table, task_id ownership, one pending dispatch per parent and role. */
   private registerDispatch(binding: Binding, callID: string, args: Record<string, unknown>): void {
     const role = args.subagent_type;
-    if (!isRole(role) || !DISPATCH[binding.role]?.includes(role)) throw new ControlDenied('dispatch', 'role not dispatchable');
+    if (!isRole(role) || !DISPATCH[binding.role]?.includes(role)) throw new ControlDenied('dispatch', 'role not dispatchable', typeof role === 'string' && role !== ''
+      ? `subagent_type must be one of: ${(DISPATCH[binding.role] ?? []).join(', ')}`
+      : 'task must include subagent_type (also when resuming with task_id)');
     if (!callID) throw new ControlDenied('dispatch', 'missing call id');
     const taskId = args.task_id;
     if (taskId !== undefined && taskId !== null && taskId !== '') {
@@ -1382,7 +1390,7 @@ export class ControlService {
     const byRole = this.pending.get(binding.sessionID) ?? new Map();
     if (byRole.has(role)) throw new ControlDenied('dispatch', 'pending dispatch exists for role');
     const challengeId = this.declarations.get(binding.sessionID)?.get(role);
-    if (CHALLENGE_ROLES.includes(role) && challengeId === undefined) throw new ControlDenied('dispatch', 'no challenge declared for role');
+    if (CHALLENGE_ROLES.includes(role) && challengeId === undefined) throw new ControlDenied('dispatch', 'no challenge declared for role', 'call ctf_challenge_assign to declare this role\'s challenge first, then dispatch');
     if(role==='verifier'&&args.background!==true)throw new ControlDenied('verification execution');
     byRole.set(role, { callID, challengeId, background: args.background === true,version:this.versions.get(binding.sessionID+'/'+role) });
     this.declarations.get(binding.sessionID)?.delete(role);
