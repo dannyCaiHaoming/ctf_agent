@@ -14,7 +14,7 @@ vi.mock('node:fs/promises', async importOriginal => {
     return fs.writeFile(...args);
   } };
 });
-import { launch } from '../../apps/launcher/src/launch.js';
+import { launch, ROOT_CONTINUATION_MESSAGE } from '../../apps/launcher/src/launch.js';
 import { ControlService } from '../../apps/launcher/src/control-service.js';
 
 const SECRET = 'fictional-evidence-key-0123456789';
@@ -234,7 +234,6 @@ describe('launch failure evidence with SDK stand-in only', () => {
 describe('root final report provenance', () => {
   const assistant = (finish: string, text: string, extra = {}) => ({ ...msg('root'), info: { ...msg('root').info, finish, ...extra }, parts: [{ type: 'text', text }] });
   it.each<[string, string, string, string, Record<string, unknown>?]>([
-    ['length', '', 'incomplete', 'length'], ['length', 'partial', 'incomplete', 'length'],
     ['stop', 'unsolved', 'complete', 'stop'], ['stop', '  ', 'incomplete', 'missing_text'],
     ['other', 'text', 'unknown', 'unknown_finish'], ['stop', 'partial', 'unknown', 'not_completed', { time: { created: 2 } }],
     ['tool-calls', 'partial', 'incomplete', 'tool_calls'],
@@ -306,6 +305,74 @@ describe('root final report provenance', () => {
 
 });
 
+describe('root length continuation', () => {
+  const turn = (id: string, finish: string, text: string, created: number) => ({ ...msg('root'), info: { ...msg('root').info, id, finish, time: { created, completed: created + 1 } }, parts: [{ type: 'text', text }] });
+  /** stages[n] is the assistant list Root shows after n continuation prompts; every poll is one messages read. */
+  async function scripted(stages: Array<Array<[string, string, string]>>, extra: { deadlineMs?: number; slowMs?: number } = {}) {
+    let stage = 0;
+    const prompts: string[] = [];
+    client.session.promptAsync = (async (input: { parts: Array<{ text: string }> }) => { if (input.parts[0]!.text === ROOT_CONTINUATION_MESSAGE) { prompts.push(input.parts[0]!.text); stage++; } return {}; }) as never;
+    client.session.messages = (async ({ sessionID }: { sessionID: string }) => {
+      if (extra.slowMs) await new Promise(r => setTimeout(r, extra.slowMs));
+      if (sessionID !== 'root') return { data: [] };
+      return { data: [user('root'), ...stages[Math.min(stage, stages.length - 1)]!.map(([id, finish, text], i) => turn(id, finish, text, 2 + i * 2))] };
+    }) as never;
+    const result = await launch({ profile: join(dir, 'profile.json'), runsRoot: join(dir, 'runs'), runId: 'run', deadlineMs: extra.deadlineMs });
+    return { result, prompts };
+  }
+  const L = (id: string): [string, string, string] => [id, 'length', ''];
+  it('recovers after one continuation', async () => {
+    const { result, prompts } = await scripted([[L('a1')], [L('a1'), ['a2', 'stop', 'final report']]]);
+    expect(result.status).toBe('completed');
+    expect(prompts).toHaveLength(1);
+    const record = await json('state/run.json');
+    expect(record.rootContinuations).toBe(1);
+    expect(record.rootResult).toMatchObject({ assistantMessageID: 'a2', completeness: 'complete', reason: 'stop' });
+    const events = (await readFile(join(dir, 'runs/run/progress.jsonl'), 'utf8')).trim().split('\n').map(l => JSON.parse(l)).filter(e => e.op === 'root.continuation');
+    expect(events).toHaveLength(1);
+    expect(events[0].facts).toMatchObject({ sequence: 1, assistantMessageID: 'a1' });
+  });
+  it('settles as incomplete after two consecutive continuations still end in length', async () => {
+    const { result, prompts } = await scripted([[L('a1')], [L('a1'), L('a2')], [L('a1'), L('a2'), L('a3')]]);
+    expect(result.status).toBe('completed');
+    expect(prompts).toHaveLength(2);
+    const record = await json('state/run.json');
+    expect(record.rootContinuations).toBe(2);
+    expect(record.rootResult).toMatchObject({ completeness: 'incomplete', reason: 'length', finish: 'length' });
+  });
+  it('resets the consecutive count after a tool-calls turn', async () => {
+    const T: [string, string, string] = ['a3', 'tool-calls', ''];
+    const { result, prompts } = await scripted([[L('a1')], [L('a1'), L('a2')], [L('a1'), L('a2'), T, L('a4')], [L('a1'), L('a2'), T, L('a4'), ['a5', 'stop', 'done']]]);
+    expect(result.status).toBe('completed');
+    expect(prompts).toHaveLength(3);
+    const record = await json('state/run.json');
+    expect(record.rootContinuations).toBe(3);
+    expect(record.rootResult).toMatchObject({ completeness: 'complete', reason: 'stop' });
+  });
+  it('does not continue when budget is already exhausted', async () => {
+    const path = join(dir, 'profile.json');
+    const profile = JSON.parse(await readFile(path, 'utf8')); profile.budget.maxObservableTokens = 1;
+    await writeFile(path, JSON.stringify(profile));
+    const { result, prompts } = await scripted([[L('a1')]]);
+    expect(result.status).toBe('budget_exceeded');
+    expect(prompts).toHaveLength(0);
+    expect((await json('state/run.json')).rootContinuations).toBe(0);
+  });
+  it('does not continue when the deadline passes while observing', async () => {
+    const { result, prompts } = await scripted([[L('a1')]], { deadlineMs: 30, slowMs: 80 });
+    expect(result.status).toBe('deadline_exceeded');
+    expect(prompts).toHaveLength(0);
+  });
+  it('neither continues nor settles while a dispatch is outstanding', async () => {
+    mode = 'pending';
+    rootSequence = [[user('root'), turn('a1', 'length', '', 2)]];
+    const prompts: unknown[] = [];
+    client.session.promptAsync = (async (input: { parts: Array<{ text: string }> }) => { if (input.parts[0]!.text === ROOT_CONTINUATION_MESSAGE) prompts.push(input); return {}; }) as never;
+    expect((await run(false, 300)).status).toBe('deadline_exceeded');
+    expect(prompts).toHaveLength(0);
+    expect((await json('state/run.json')).rootContinuations).toBe(0);
+  });
+});
 
 describe('R2 learning input failures remain separate from solve lifecycle',()=>{
  it('keeps solving after eager capture throws, preserves trusted solved, and reports pending learning',async()=>{

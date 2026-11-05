@@ -21,11 +21,14 @@ import type { OpencodeClient } from '@opencode-ai/sdk/v2';
 import { Blocked } from './blocked.js';
 import { prepareRun, type PreparedChallenge } from './run-prep.js';
 import { ControlService, MANAGED_TOOLS, summarizeUsage, type Message, type SessionUsage } from './control-service.js';
-import { classifyRootResult, canSettleRoot, type RootResult } from './root-result.js';
+import { classifyRootResult, canSettleRoot, trailingLengthTurns, type RootResult } from './root-result.js';
 import { ProgressLedger } from './progress-ledger.js';
 import { startControlRpc } from './control-rpc.js';
 import { loadLocalEnv } from '../../cli/src/composition/localEnv.js';
 import { loadReleaseProfile } from '../../cli/src/composition/releaseProfile.js';
+
+export const ROOT_CONTINUATION_MESSAGE = '上一回合因單次輸出上限中斷，沒有產生可用正文。請依目前進度直接決定下一步：派單、提交，或給出最終報告；不要重複長篇分析。';
+const MAX_ROOT_CONTINUATIONS = 2; // consecutive, reset once Root produces a non-length turn
 
 export const START_MESSAGE = '開始運行。按產品運行約定，由 Coordinator 組織各角色並經 Intake 取得題目。';
 const COORDINATOR = 'coordinator';
@@ -247,6 +250,8 @@ async function runLaunch(options: LaunchOptions, rpc: { url: string; token: stri
   let rootResult: RootResult = classifyRootResult([]);
   let frozenRootResult = false;
   let preStopRootError = false;
+  let rootContinuations = 0;
+  let lastContinuedAssistant = '';
   const observeRoot = (messages: Parameters<typeof classifyRootResult>[0]) => {
     preStopRootError ||= messages.some(m => m.info.role === 'assistant' && !!m.info.error);
     return classifyRootResult(messages);
@@ -326,6 +331,23 @@ async function runLaunch(options: LaunchOptions, rpc: { url: string; token: stri
         const messages = (await client.session.messages({ sessionID: rootId }, { throwOnError: true })).data ?? [];
         rootResult = observeRoot(messages);
         if (rootResult.hasError) throw new Error('root assistant error');
+        if (rootResult.finish === 'length' && rootResult.completed && rootResult.assistantMessageID && !control.hasOutstandingWork(statuses)
+          && trailingLengthTurns(messages) <= MAX_ROOT_CONTINUATIONS) {
+          // Truncated by the per-turn output cap: continue instead of settling, unless budget or deadline already ended the run.
+          idleSeen = 0; idleSource = '';
+          if (rootResult.assistantMessageID !== lastContinuedAssistant) {
+            await control.checkBudget();
+            if (control.stopReason || Date.now() >= deadlineAt) continue;
+            lastContinuedAssistant = rootResult.assistantMessageID;
+            rootContinuations++;
+            const at = Date.now();
+            progress.append({ seq: control.audit.at(-1)?.seq ?? 0, t: at - t0, at, sessionID: rootId, op: 'root.continuation', allow: true,
+              detail: { sequence: rootContinuations, assistantMessageID: lastContinuedAssistant } });
+            await client.session.promptAsync({ sessionID: rootId, agent: COORDINATOR, parts: [{ type: 'text', text: ROOT_CONTINUATION_MESSAGE }] }, { throwOnError: true });
+          }
+          await delay(500);
+          continue;
+        }
         const source = JSON.stringify(rootResult);
         idleSeen = canSettleRoot(rootResult) && !control.hasOutstandingWork(statuses) ? (source === idleSource ? idleSeen + 1 : 1) : 0;
         idleSource = source;
@@ -434,7 +456,7 @@ async function runLaunch(options: LaunchOptions, rpc: { url: string; token: stri
   await save(join(real.evidence, 'completion-results.json'), control.completionSnapshot());
   await save(join(real.evidence, 'verification-results.json'), control.verificationResultSnapshot());
   await save(join(real.evidence, 'assets.json'), { productRevision, copies });
-  await save(join(real.state, 'run.json'), { runId, status, rootResult, rootSessionId: rootId || null, sessions: [...sessionIds],
+  await save(join(real.state, 'run.json'), { runId, status, rootResult, rootSessionId: rootId || null, sessions: [...sessionIds], rootContinuations,
     deadlineMs, agentOptions: merged.effective, opencodeVersion: engine.version, model: loaded.config.model, configSha256: sha256(JSON.stringify({ ...config, plugin: undefined })), productRevision,
     learning:learningSummary,budget: profile.budget, admittedModelCalls: control.admitted, stopReason: control.stopReason ?? null, usageTotal,
     paths: real, timeline });
