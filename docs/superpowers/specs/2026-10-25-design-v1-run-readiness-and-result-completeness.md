@@ -71,6 +71,25 @@ SDK 读取和导出非原子，exportedSourceMatches 只说明导出是否匹配
 
 实现位于 `apps/launcher/src/root-result.ts`、`launch.ts`、`progress-ledger.ts`，回归位于 `tests/contract/launch-evidence.test.ts`。提交 `7f0ad97b` 包含经明确授权的 progress-ledger 底座及控制服务审计字段／回调依赖，不包含 progress 工具、插件或角色改动。
 
+**Root 生成到上限：續接而不收束（2026-11-05 決定並實施；真實 run 待觀察）。**
+
+- **依據：** Alibaba a2 批次（`runs/alibaba-easy-20261105-a2/`）B1、B4 兩題未解出。兩次 Root 最後一則 assistant 都是 `finish=length`、output 0、reasoning 8,000，`rootResult` 記為 incomplete／length。
+  - 按上面的收束規則，連續兩次 idle 一致就結束 run，記為 `completed`。
+  - 當時牆鐘只用了 17–19 分鐘（上限 30 分鐘），observable token 約用了單題上限的 9%。
+  - Root 是唯一能繼續派單或提交的角色，它的回合被截斷就等於整個 run 停止。
+- **決定：** Root 空閒、沒有在途工作，且最新 assistant 是已完成、無 error 的 `length` 時，不自然收束。host 在預算與 deadline 內，向 Root 發一則固定的續接 user 消息，要求它依現有進度直接決定下一步：派單、提交或給出最終報告，不重複長篇分析。
+  - 續接消息走一般准入，消耗照常計入，不另設預算。
+  - **上限：** 連續 2 次續接後 Root 仍以 `length` 結束，就按原規則收束，`rootResult` 照實記 incomplete／length。中間只要出現 tool-calls 或 stop，計數就歸零。
+  - **審計：** 每次續接寫入 progress 事件；`state/run.json` 記錄續接次數。
+  - **範圍：** 只處理 Root 的 `length`。空白 stop、unknown 與子任務的 `length` 不變，子任務仍按[空正文恢復](2026-10-26-design-v1-c-empty-result-recovery.md)由 Coordinator 決定是否續接。
+- **實施（2026-11-05，離線）：**
+  - **代碼：** `launch.ts` 的 Root idle 分支；`root-result.ts` 的 `trailingLengthTurns` 計算末尾連續 `length` 回合，超過 2 就按原規則收束。續接前做預算與 deadline 檢查，同一則 assistant 不重複續接。
+  - **記錄：** progress 事件 `root.continuation`（帶序號與 assistantMessageID）；`state/run.json` 的 `rootContinuations`。
+  - **測試：** `tests/contract/launch-evidence.test.ts` 覆蓋一次續接後恢復、達到上限、計數歸零、預算已用完、deadline 已到、仍有在途工作六種情境。
+  - **合併與檢查：** 提交 `93be58b3`，合併 `df2c329d`；合併後主 checkout 的 typecheck、build、全量測試（60 檔 826 項）通過。
+  - **未驗證：** 真實模型在收到續接消息後是否會交出可用決定，留待下一次授權 run 觀察。
+- **另行處理：** 單次輸出上限 8,000 被 reasoning 用完，是運行設定問題，不在此修。下一批次的運行設定應提高 Coordinator 的輸出上限或關閉它的思考；後者在[解題延遲](2026-11-04-design-v1-run-latency-and-context-cost.md) §3.2 已列為低風險。
+
 ### 4.2 后台子任务：冻结该次执行的来源
 
 **可信绑定。** 先由现有 SDK parent/role 与原生 task call→child metadata 完成 binding，再在串行状态边界选择唯一未 delivered 的 starting/running 后台 execution，核对 parent／role，冻结 chat.message 的 user ID。model.call 中的 ID 在验证样本中也是 user，只作交叉佐证。resume 的 binding.dispatchCallID 仍可能是首轮值，必须使用当前 execution 的 callID/ref。

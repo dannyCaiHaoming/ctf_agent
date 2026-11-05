@@ -73,6 +73,31 @@
 
 G 的慢工具接线、取消与 RPC 时限以该子文件 §7.2、§7.2.1 为准。本轮独立工作区已完成产品 entry／launcher／C 的无模型接线：SDK 与外部等待不占状态队列，队列仅做存活复核、准入／分派／资源登记等短暂变更；保留第 10.1、10.3 节既有修补。绑定的私有目录在首次准入前准备，停止发生在任何异步等待中时，返回后再复核，不允许新启动。产品代码尚未合并主区。
 
+### 3.1 拒絕原因對模型可見（2026-11-05 決定並實施；真實 run 待觀察）
+
+- **依據：** Alibaba a2 批次 B2（`runs/alibaba-easy-20261105-a2/runs/B2/`）中，Coordinator 發了 50 次 `task`，其中 41 次被拒。
+  - **審計中的原因：** 36 次是 `role not dispatchable`，實際是沒帶 `subagent_type`（含 3 次帶 `task_id` 續接時漏帶）；5 次是 `no challenge declared for role`，即未先 assign。
+  - **模型收到的訊息：** 只有 `denied: dispatch`。`ControlDenied` 只把 code 放進訊息，detail 只寫審計，所以模型無從修正，只能反覆重試。Solver 在這個 run 中實際沒有調用任何工具。
+- **決定：** 分派類拒絕（code `dispatch`）把固定的原因字串帶進模型可見的訊息，例如 `denied: dispatch: no challenge declared for role`，並附一句固定的修正提示：
+  - **缺 `subagent_type`：** 提示 `task` 必須帶 `subagent_type`，續接時也要帶。
+  - **未 assign：** 提示先調用 `ctf_challenge_assign`。
+  - **其他固定原因：** 原樣帶出即可。
+- **邊界：**
+  - 只帶出源碼中寫死的原因字串。含動態值的 detail（例如 `unbound session` 的 JSON、session ID、路徑）不帶出。
+  - 其他 code 的拒絕訊息不在本次改動範圍。
+  - 預算類拒絕仍沿用第 4 節的固定文字，避免觸發 OpenCode 的重試。
+
+- **實施（2026-11-05，離線）：**
+  - **代碼：** `ControlDenied` 新增可選的 `hint`。code 為 `dispatch` 且帶 detail 時，模型可見訊息為 `denied: dispatch: <原因>[. <提示>]`。
+  - **提示：**
+    - 缺 `subagent_type` 時，提示要帶 `subagent_type`，續接時也要帶；
+    - 角色不可分派時，列出可分派的角色名；
+    - 未宣告題目時，提示先調用 `ctf_challenge_assign`。
+  - **審計：** 審計以 `auditMessage` 保存原本的 `denied: <code>`，detail 照舊寫入。
+  - **其他拒絕：** 其他 code 與預算拒絕的訊息不變。
+  - **測試：** `tests/contract/control-service.test.ts` 新增原因與提示可見、動態 detail 不外洩的案例；`g-async-lifecycle.test.ts` 的一處舊訊息斷言已隨之更新。
+  - **合併與檢查：** 提交 `a7127665`，合併 `3868c2f7`；合併後全量測試通過（同上，826 項）。
+  - **未驗證：** Coordinator 看到原因後是否會改正調用，留待下一次授權 run 觀察。
 ## 4. 預算准入與計量
 
 | 項目 | 做法 |
