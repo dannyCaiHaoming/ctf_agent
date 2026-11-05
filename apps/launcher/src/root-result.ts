@@ -44,3 +44,10 @@ export function classifyRootResult(messages: readonly RootMessage[], evidence: s
 export function canSettleRoot(result: RootResult): boolean {
   return !!result.assistantMessageID && result.completed && result.finish !== 'tool-calls';
 }
+/** Consecutive length-truncated assistant turns at the tail of the root session (each followed by a host continuation except the last). */
+export function trailingLengthTurns(messages: readonly RootMessage[]): number {
+  const assistants = messages.filter(m => m.info.role === 'assistant').sort((a, b) => (a.info.time?.created ?? 0) - (b.info.time?.created ?? 0));
+  let count = 0;
+  for (let i = assistants.length - 1; i >= 0 && assistants[i]!.info.finish === 'length' && !assistants[i]!.info.error; i--) count++;
+  return count;
+}

@@ -211,6 +211,7 @@ function safeDetail(op: string, raw: unknown, redactions: readonly string[]): Re
     case 'verification.registered': return pick(detail, ['challenge', 'version', 'result', 'judgment', 'mode', 'effectiveJudgment'], redactions);
     case 'verification.job.terminal': return pick(detail, ['job', 'state', 'exitCode', 'command'], redactions);
     case 'completion.saved': return pick(detail, ['challenge', 'version', 'result', 'judge', 'admission', 'captureResources', 'candidateSha256', 'candidateSize', 'state', 'solved', 'businessOutcome'], redactions);
+    case 'root.continuation': return pick(detail, ['sequence', 'assistantMessageID'], redactions);
     case 'budget_reached': return pick(detail, ['observedTokens'], redactions);
     case 'stop_marked': return pick(detail, ['reason'], redactions);
     case 'aborted': case 'stop_enumerated': case 'usage.read': return pick(detail, ['sessions', 'reason'], redactions);
@@ -230,6 +231,7 @@ function summaryFor(record: AuditRecord, facts: Record<string, unknown>, redacti
   if (record.op === 'artifact.published' || record.op === 'package.published') return `${record.op} ${String(facts.ref ?? '')}`.trim();
   if (record.op === 'verification.registered') return `verification ${String(facts.effectiveJudgment ?? facts.judgment ?? facts.result ?? 'registered')}`;
   if (record.op === 'completion.saved') return `completion ${String(facts.businessOutcome ?? facts.state ?? 'saved')}${facts.solved === true ? ' solved' : ''}`;
+  if (record.op === 'root.continuation') return `root length continuation #${String(facts.sequence ?? '')}`;
   if (record.op === 'task.completion') return `child task ${String(facts.state ?? 'completed')}`;
   return shortText(record.op, redactions, 300);
 }
