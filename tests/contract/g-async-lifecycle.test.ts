@@ -1,4 +1,4 @@
-import {it,expect,afterEach} from 'vitest';
+import {it,expect,afterEach,vi} from 'vitest';
 import {mkdtemp,mkdir,rm,readFile} from 'node:fs/promises';import{createHash}from'node:crypto';import{tmpdir}from'node:os';import{join}from'node:path';
 import{ControlService}from'../../apps/launcher/src/control-service.js';
 const clean:Array<()=>Promise<unknown>>=[];afterEach(async()=>{for(const f of clean.splice(0).reverse())await f();});
@@ -381,4 +381,41 @@ it('sync promotion (running envelope with background metadata) is not a terminal
  await f.c.handle('root','tool.after',{tool:'task',callID:'p1',metadata:{parentSessionId:'root',sessionId:'recon-1',background:true},output:'<task id="recon-1" state="running">'});
  expect(f.byCall('p1')).toMatchObject({mode:'sync',state:'running'});
  await expect(f.c.handle('root','tool.before',{tool:'task',callID:'p2',args:{subagent_type:'recon',task_id:'recon-1',background:false}})).rejects.toThrow('denied: dispatch');
+});
+
+// Handoff decision facts: display-only numbers from existing host records; synthetic data only.
+function seedDispatches(c:any,spec:Array<[string,string|undefined]>){spec.forEach(([role,challengeId],i)=>{const e=[...c.executions.values()][0];c.executions.set('seed-'+i,{...structuredClone(e),ref:'seed-'+i,role,challengeId});});}
+function pinClock(c:any,ref:string,remaining=30000,turn=5000){const t=Date.now();c.options.expiresAt=t+turn+remaining;c.executions.get(ref).dispatchedAt=t;return vi.spyOn(Date,'now').mockReturnValue(t+turn);}
+it('decision facts: background display carries four values from host records; other challenges are not counted',async()=>{
+ const f=await resultFixture();const c=f.c as any;const e=f.c.executionSnapshot()[0]!;
+ seedDispatches(c,[['recon','X'],['intake','X'],['recon','Y']]);
+ const spy=pinClock(c,e.ref);try{
+  const r=await f.c.handle('root','chat.message',completion(f.c)) as any;
+  expect(r.completionDisplays[0]).toMatchObject({completeness:'complete',textChars:4,decisionFacts:{remainingMs:30000,turnMs:5000,dispatches:{recon:2,intake:1},packaged:false}});
+ }finally{spy.mockRestore();}
+});
+it('decision facts: synchronous display carries the same values and keeps the display/dedup contract',async()=>{
+ const f=await syncFixture();const c=f.c as any;const sync=c.executions.get(c.syncCalls.get('root/sync-1').execution);
+ seedDispatches(c,[['intake','X']]);
+ const spy=pinClock(c,sync.ref,12000,3000);try{
+  const r=await f.after() as any;
+  expect(r.syncDisplay).toMatchObject({callID:'sync-1',completeness:'complete',textChars:4,decisionFacts:{remainingMs:12000,turnMs:3000,dispatches:{recon:2,intake:1},packaged:false}});
+  expect(await f.after()).toEqual({ok:true});
+ }finally{spy.mockRestore();}
+});
+it('decision facts: packaged turns yes once the same challenge has a package publication; other challenges do not',async()=>{
+ const f=await resultFixture();const c=f.c as any;const real=c.publicationSnapshot.bind(c);
+ const pub=(challenge:string)=>({ref:'p',source:{kind:'package',run:'run',challenge}});
+ c.publicationSnapshot=()=>[pub('Y')];
+ expect(((await f.c.handle('root','chat.message',completion(f.c))) as any).completionDisplays[0].decisionFacts.packaged).toBe(false);
+ const g=await resultFixture();const d=g.c as any;d.publicationSnapshot=()=>[pub('X')];
+ expect(((await g.c.handle('root','chat.message',completion(g.c))) as any).completionDisplays[0].decisionFacts.packaged).toBe(true);
+ expect(real()).toEqual([]);
+});
+it('decision facts: unknown result keeps textChars null; past deadline remainingMs is 0',async()=>{
+ const f=await resultFixture();f.set([]);const c=f.c as any;const e=f.c.executionSnapshot()[0]!;
+ const spy=pinClock(c,e.ref,0,1000);c.options.expiresAt-=500;try{
+  const r=await f.c.handle('root','chat.message',completion(f.c)) as any;
+  expect(r.completionDisplays[0]).toMatchObject({completeness:'unknown',textChars:null,decisionFacts:{remainingMs:0,turnMs:1000}});
+ }finally{spy.mockRestore();}
 });

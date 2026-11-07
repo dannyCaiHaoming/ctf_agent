@@ -371,3 +371,24 @@ describe('Recon append-only context wiring (design §4)',()=>{
   }finally{mocked.mockRestore();}
  });
 });
+
+it('renders decision facts as one numbers-only line after the completeness facts, without duplicating them in the JSON',async()=>{
+ const {createCtfAgentHooks}=await import('../../apps/opencode-plugin/src/index.js');
+ const fact={role:'domain-solver',completeness:'complete',reason:'stop',finish:'stop',textChars:4,source:'associated'};
+ const decisionFacts={remainingMs:760000,turnMs:785000,dispatches:{'domain-solver':4,'recovery-critic':1},packaged:false};
+ const mocked=vi.spyOn(globalThis,'fetch').mockImplementation(async(_url,init)=>{
+  const body=JSON.parse(String(init?.body));
+  return new Response(JSON.stringify({result:body.operation==='chat.message'?{completionDisplays:[{ref:'ref',...fact,decisionFacts}]}:{syncDisplay:{callID:'call',...fact,decisionFacts}}}),{status:200});
+ });
+ try{
+  const h=createCtfAgentHooks({controlUrl:'http://127.0.0.1:12345',controlToken:'x'.repeat(40),tools:[]});
+  const line='decision facts: remaining=12m40s, turn=13m05s, dispatches=domain-solver×4, recovery-critic×1, packaged=no';
+  const output:any={message:{id:'notice'},parts:[]};
+  await h['chat.message']!({sessionID:'root',messageID:'notice'} as never,output);
+  const text:string=output.parts[0].text;
+  expect(text).toContain(JSON.stringify({ref:'ref',...fact}));expect(text.endsWith('\n'+line)).toBe(true);expect(text).not.toContain('remainingMs');
+  const after={title:'native',output:'native',metadata:{}};
+  await h['tool.execute.after']!({sessionID:'root',tool:'task',callID:'call',args:{}},after);
+  expect(after.output).toContain(JSON.stringify({callID:'call',...fact}));expect(after.output.endsWith('\n'+line)).toBe(true);
+ }finally{mocked.mockRestore();}
+});
