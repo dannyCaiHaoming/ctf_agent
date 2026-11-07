@@ -202,3 +202,9 @@ L1 已证 on-demand skill 调用不可靠（r7 全 run 0 次）。因此「固�
 **r8-2（2026-10-29）对 D 的意义有限：D 仍未验证。** 该 run 解出 throwback，但 **Recovery Critic 准入为 0**——没有停滞、没有触发交回边界换路；解题靠 Domain Solver 直接测对路线（属 A 的作用域），不是「停滞后被 redirect 救回」（D 的作用域）。因此 D 的停滞→Critic 机制在此 run **未被行使，仍未验证**；要验 D 需要一个真会停滞、需换路的 run。详见 [现状 §0.2](2026-10-22-ctf-agent-current-state-and-migration.md#02-真實運行的已知結果r6-修復與-r7-未解分開記錄)。
 
 **r10（2026-10-29，seizurecipher，产品版本 `cddcbb25`，含 A+D）：D 的 Critic→redirect 路径首次真跑触发。** 约第 13 分钟 Recovery Critic 给出 `redirect`（从盲几何还原改为来源语意优先），Coordinator 接受并派 Recon 第二回合。这是 r7/r8-2/r9（Critic 准入均为 0）之后**第一次**观察到 D 的停滞→Critic→Coordinator 决策路径在真实 run 里实际运作——**机制层面得到首个正向证据**。但保留：(1) 该 redirect **未**带来解题，该题仍卡在「看图」能力缺口（见 [图像观察 design](2026-10-29-design-v1-image-observation.md)），所以这验证的是「D 会触发并被消费」，不是「D 能救回解题」；(2) 单题单次，不证明触发判断总是基于事实或总能换对路。r10 运行于合并能力分支（`1dde2b8a`）之前的 `cddcbb25`，不含本月 search/diff/job 改动。
+
+### 5.8 Alibaba a3／a4 核對（2026-11-06，只讀結構化欄位）
+
+- **§5.6 的結論在新樣本上仍成立：** a3 三題的 Solver 幾乎每次調用參數都不同（C1 `job.run` 204 次 203 種 fingerprint，C3 `http.request` 230 次全不同），精確 fingerprint 重複不觸發；回應正文與 job 輸出的雜湊也持續出現新值。改用「結果雜湊多樣性」或「N 次無新 artifact」同樣不能把卡住的回合和已解出 run 的 Solver 回合分開，細節見 [Recon 重設計](2026-10-29-design-v1-recon-redesign.md) §5「推廣到 Solver 等長執行角色」。
+- **候選 D 的觸發仍取決於回合長短：** a3 C1 首個 Solver 回合 11.5 分鐘才交回；a4 開啟 Solver 思考後交回很頻繁（6 個回合各 0.2–2.9 分鐘），但 Coordinator 每次都再派 Solver，沒有派 Critic 或 Engineer，20.2 分鐘自行結束。a3 C3 在 19.9 分鐘派了 Recovery Critic，C2 派了 Reference，說明交回邊界的派單路徑能走到，是否換對路未判斷。
+- **去向：** 不在本節新增宿主停滯信號。觸發層改由 Recon 重設計 §5 評估「按角色調用額度」與「牆鐘階段」兩種 closure 觸發條件（不需執行中喚醒 Coordinator）；交回時 Coordinator 看得到什麼，見[結果完整性](2026-10-25-design-v1-run-readiness-and-result-completeness.md) §5.2。

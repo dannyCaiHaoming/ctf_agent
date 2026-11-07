@@ -1,0 +1,1546 @@
+{
+ "tool": "tests/manual/closure-trigger-replay.py",
+ "model_calls": 0,
+ "fields": "progress.jsonl role/op/kind/elapsedMs/facts.tool/facts.role/facts.ref/facts.safeArgs.ref; run.json deadlineMs/stopReason; completion-results solved",
+ "summary": {
+  "success_solver_rounds_to_consumed_material": {
+   "model_calls": {
+    "n": 11,
+    "min": 4,
+    "max": 88,
+    "values": [
+     4,
+     7,
+     15,
+     17,
+     29,
+     35,
+     36,
+     38,
+     73,
+     79,
+     88
+    ]
+   },
+   "tool_calls": {
+    "n": 11,
+    "min": 5,
+    "max": 91,
+    "values": [
+     5,
+     14,
+     16,
+     17,
+     36,
+     39,
+     57,
+     67,
+     74,
+     82,
+     91
+    ]
+   },
+   "minutes": {
+    "n": 11,
+    "min": 0.17,
+    "max": 6.2,
+    "values": [
+     0.17,
+     0.24,
+     0.76,
+     1.35,
+     1.41,
+     2.09,
+     2.95,
+     3.04,
+     4.36,
+     4.74,
+     6.2
+    ]
+   }
+  },
+  "unsolved_solver_rounds": {
+   "model_calls": {
+    "n": 24,
+    "min": 1,
+    "max": 252,
+    "values": [
+     1,
+     1,
+     1,
+     2,
+     6,
+     7,
+     9,
+     10,
+     11,
+     12,
+     14,
+     21,
+     23,
+     24,
+     25,
+     47,
+     51,
+     60,
+     77,
+     85,
+     94,
+     101,
+     204,
+     252
+    ]
+   },
+   "tool_calls": {
+    "n": 24,
+    "min": 0,
+    "max": 254,
+    "values": [
+     0,
+     0,
+     0,
+     2,
+     5,
+     6,
+     8,
+     10,
+     10,
+     15,
+     20,
+     23,
+     23,
+     27,
+     47,
+     51,
+     63,
+     70,
+     95,
+     99,
+     108,
+     139,
+     211,
+     254
+    ]
+   },
+   "minutes": {
+    "n": 24,
+    "min": 0.0,
+    "max": 12.36,
+    "values": [
+     0.0,
+     0.0,
+     0.0,
+     0.03,
+     0.48,
+     0.61,
+     0.65,
+     0.81,
+     1.14,
+     1.96,
+     2.01,
+     2.03,
+     2.42,
+     2.6,
+     2.68,
+     4.4,
+     5.28,
+     5.47,
+     7.51,
+     7.81,
+     9.47,
+     9.88,
+     11.23,
+     12.36
+    ]
+   }
+  },
+  "recon_rounds": {
+   "model_calls": {
+    "n": 20,
+    "min": 4,
+    "max": 61,
+    "values": [
+     4,
+     11,
+     13,
+     14,
+     14,
+     16,
+     19,
+     20,
+     34,
+     35,
+     35,
+     43,
+     49,
+     53,
+     57,
+     57,
+     57,
+     57,
+     58,
+     61
+    ]
+   },
+   "minutes": {
+    "n": 20,
+    "min": 0.25,
+    "max": 9.07,
+    "values": [
+     0.25,
+     0.97,
+     1.29,
+     1.65,
+     1.84,
+     2.24,
+     2.26,
+     2.53,
+     4.23,
+     4.26,
+     4.8,
+     4.95,
+     6.18,
+     6.29,
+     6.59,
+     7.03,
+     7.42,
+     7.85,
+     7.94,
+     9.07
+    ]
+   }
+  }
+ },
+ "runs": [
+  {
+   "run": "alibaba-a1-ac5a1bc0-1",
+   "solved": true,
+   "stopReason": "error",
+   "deadline_min": 30.0,
+   "end_min": 19.4,
+   "engineer_start_min": 13.35,
+   "first_completion_min": 18.17,
+   "rounds": [
+    {
+     "role": "recon",
+     "start_min": 0.49,
+     "active_min": 9.07,
+     "model_calls": 58,
+     "tool_calls": 83,
+     "published": 5,
+     "engineer_consumed": 0,
+     "calls_before_first_consumed": null,
+     "tools_before_first_consumed": null,
+     "min_before_first_consumed": null
+    },
+    {
+     "role": "domain-solver",
+     "start_min": 9.9,
+     "active_min": 3.21,
+     "model_calls": 91,
+     "tool_calls": 94,
+     "published": 3,
+     "engineer_consumed": 3,
+     "calls_before_first_consumed": 88,
+     "tools_before_first_consumed": 91,
+     "min_before_first_consumed": 3.04
+    }
+   ],
+   "wallclock_phase": {
+    "reserve_4min": {
+     "trigger_min": 26.0,
+     "reached": false,
+     "inflight_long_roles": [],
+     "engineer_started_before": true,
+     "first_completion_before": true
+    },
+    "reserve_6min": {
+     "trigger_min": 24.0,
+     "reached": false,
+     "inflight_long_roles": [],
+     "engineer_started_before": true,
+     "first_completion_before": true
+    },
+    "reserve_8min": {
+     "trigger_min": 22.0,
+     "reached": false,
+     "inflight_long_roles": [],
+     "engineer_started_before": true,
+     "first_completion_before": true
+    }
+   }
+  },
+  {
+   "run": "alibaba-a1-bypassit1-1",
+   "solved": true,
+   "stopReason": "completed",
+   "deadline_min": 30.0,
+   "end_min": 18.06,
+   "engineer_start_min": 13.74,
+   "first_completion_min": 17.82,
+   "rounds": [
+    {
+     "role": "recon",
+     "start_min": 0.47,
+     "active_min": 6.29,
+     "model_calls": 43,
+     "tool_calls": 57,
+     "published": 3,
+     "engineer_consumed": 2,
+     "calls_before_first_consumed": 39,
+     "tools_before_first_consumed": 54,
+     "min_before_first_consumed": 5.89
+    },
+    {
+     "role": "domain-solver",
+     "start_min": 7.52,
+     "active_min": 0.11,
+     "model_calls": 5,
+     "tool_calls": 8,
+     "published": 0,
+     "engineer_consumed": 0,
+     "calls_before_first_consumed": null,
+     "tools_before_first_consumed": null,
+     "min_before_first_consumed": null
+    },
+    {
+     "role": "domain-solver",
+     "start_min": 8.19,
+     "active_min": 4.95,
+     "model_calls": 82,
+     "tool_calls": 85,
+     "published": 3,
+     "engineer_consumed": 3,
+     "calls_before_first_consumed": 79,
+     "tools_before_first_consumed": 82,
+     "min_before_first_consumed": 4.74
+    }
+   ],
+   "wallclock_phase": {
+    "reserve_4min": {
+     "trigger_min": 26.0,
+     "reached": false,
+     "inflight_long_roles": [],
+     "engineer_started_before": true,
+     "first_completion_before": true
+    },
+    "reserve_6min": {
+     "trigger_min": 24.0,
+     "reached": false,
+     "inflight_long_roles": [],
+     "engineer_started_before": true,
+     "first_completion_before": true
+    },
+    "reserve_8min": {
+     "trigger_min": 22.0,
+     "reached": false,
+     "inflight_long_roles": [],
+     "engineer_started_before": true,
+     "first_completion_before": true
+    }
+   }
+  },
+  {
+   "run": "alibaba-a1-bypassit2-1",
+   "solved": false,
+   "stopReason": "completed",
+   "deadline_min": 30.0,
+   "end_min": 14.87,
+   "engineer_start_min": null,
+   "first_completion_min": null,
+   "rounds": [
+    {
+     "role": "recon",
+     "start_min": 0.77,
+     "active_min": 4.95,
+     "model_calls": 35,
+     "tool_calls": 50,
+     "published": 3,
+     "engineer_consumed": 0,
+     "calls_before_first_consumed": null,
+     "tools_before_first_consumed": null,
+     "min_before_first_consumed": null
+    },
+    {
+     "role": "domain-solver",
+     "start_min": 6.08,
+     "active_min": 7.51,
+     "model_calls": 85,
+     "tool_calls": 95,
+     "published": 6,
+     "engineer_consumed": 0,
+     "calls_before_first_consumed": null,
+     "tools_before_first_consumed": null,
+     "min_before_first_consumed": null
+    }
+   ],
+   "wallclock_phase": {
+    "reserve_4min": {
+     "trigger_min": 26.0,
+     "reached": false,
+     "inflight_long_roles": [],
+     "engineer_started_before": false,
+     "first_completion_before": false
+    },
+    "reserve_6min": {
+     "trigger_min": 24.0,
+     "reached": false,
+     "inflight_long_roles": [],
+     "engineer_started_before": false,
+     "first_completion_before": false
+    },
+    "reserve_8min": {
+     "trigger_min": 22.0,
+     "reached": false,
+     "inflight_long_roles": [],
+     "engineer_started_before": false,
+     "first_completion_before": false
+    }
+   }
+  },
+  {
+   "run": "alibaba-a2-bypassit2-1",
+   "solved": false,
+   "stopReason": "completed",
+   "deadline_min": 30.0,
+   "end_min": 16.83,
+   "engineer_start_min": null,
+   "first_completion_min": null,
+   "rounds": [
+    {
+     "role": "recon",
+     "start_min": 0.59,
+     "active_min": 4.8,
+     "model_calls": 57,
+     "tool_calls": 60,
+     "published": 2,
+     "engineer_consumed": 0,
+     "calls_before_first_consumed": null,
+     "tools_before_first_consumed": null,
+     "min_before_first_consumed": null
+    },
+    {
+     "role": "domain-solver",
+     "start_min": 5.79,
+     "active_min": 9.47,
+     "model_calls": 101,
+     "tool_calls": 108,
+     "published": 0,
+     "engineer_consumed": 0,
+     "calls_before_first_consumed": null,
+     "tools_before_first_consumed": null,
+     "min_before_first_consumed": null
+    },
+    {
+     "role": "domain-solver",
+     "start_min": 15.42,
+     "active_min": 0.03,
+     "model_calls": 2,
+     "tool_calls": 2,
+     "published": 2,
+     "engineer_consumed": 0,
+     "calls_before_first_consumed": null,
+     "tools_before_first_consumed": null,
+     "min_before_first_consumed": null
+    }
+   ],
+   "wallclock_phase": {
+    "reserve_4min": {
+     "trigger_min": 26.0,
+     "reached": false,
+     "inflight_long_roles": [],
+     "engineer_started_before": false,
+     "first_completion_before": false
+    },
+    "reserve_6min": {
+     "trigger_min": 24.0,
+     "reached": false,
+     "inflight_long_roles": [],
+     "engineer_started_before": false,
+     "first_completion_before": false
+    },
+    "reserve_8min": {
+     "trigger_min": 22.0,
+     "reached": false,
+     "inflight_long_roles": [],
+     "engineer_started_before": false,
+     "first_completion_before": false
+    }
+   }
+  },
+  {
+   "run": "alibaba-a2-ezbean-1",
+   "solved": false,
+   "stopReason": "completed",
+   "deadline_min": 30.0,
+   "end_min": 16.48,
+   "engineer_start_min": 11.35,
+   "first_completion_min": null,
+   "rounds": [
+    {
+     "role": "recon",
+     "start_min": 0.79,
+     "active_min": 1.65,
+     "model_calls": 19,
+     "tool_calls": 22,
+     "published": 2,
+     "engineer_consumed": 0,
+     "calls_before_first_consumed": null,
+     "tools_before_first_consumed": null,
+     "min_before_first_consumed": null
+    },
+    {
+     "role": "domain-solver",
+     "start_min": 4.33,
+     "active_min": 0.0,
+     "model_calls": 1,
+     "tool_calls": 0,
+     "published": 0,
+     "engineer_consumed": 0,
+     "calls_before_first_consumed": null,
+     "tools_before_first_consumed": null,
+     "min_before_first_consumed": null
+    }
+   ],
+   "wallclock_phase": {
+    "reserve_4min": {
+     "trigger_min": 26.0,
+     "reached": false,
+     "inflight_long_roles": [],
+     "engineer_started_before": true,
+     "first_completion_before": false
+    },
+    "reserve_6min": {
+     "trigger_min": 24.0,
+     "reached": false,
+     "inflight_long_roles": [],
+     "engineer_started_before": true,
+     "first_completion_before": false
+    },
+    "reserve_8min": {
+     "trigger_min": 22.0,
+     "reached": false,
+     "inflight_long_roles": [],
+     "engineer_started_before": true,
+     "first_completion_before": false
+    }
+   }
+  },
+  {
+   "run": "alibaba-a2-8a6ac7ff-1",
+   "solved": true,
+   "stopReason": "completed",
+   "deadline_min": 30.0,
+   "end_min": 10.43,
+   "engineer_start_min": 5.7,
+   "first_completion_min": 10.29,
+   "rounds": [
+    {
+     "role": "recon",
+     "start_min": 0.63,
+     "active_min": 2.26,
+     "model_calls": 13,
+     "tool_calls": 20,
+     "published": 3,
+     "engineer_consumed": 3,
+     "calls_before_first_consumed": 10,
+     "tools_before_first_consumed": 18,
+     "min_before_first_consumed": 1.96
+    },
+    {
+     "role": "domain-solver",
+     "start_min": 3.41,
+     "active_min": 2.1,
+     "model_calls": 18,
+     "tool_calls": 17,
+     "published": 2,
+     "engineer_consumed": 2,
+     "calls_before_first_consumed": 17,
+     "tools_before_first_consumed": 16,
+     "min_before_first_consumed": 2.09
+    }
+   ],
+   "wallclock_phase": {
+    "reserve_4min": {
+     "trigger_min": 26.0,
+     "reached": false,
+     "inflight_long_roles": [],
+     "engineer_started_before": true,
+     "first_completion_before": true
+    },
+    "reserve_6min": {
+     "trigger_min": 24.0,
+     "reached": false,
+     "inflight_long_roles": [],
+     "engineer_started_before": true,
+     "first_completion_before": true
+    },
+    "reserve_8min": {
+     "trigger_min": 22.0,
+     "reached": false,
+     "inflight_long_roles": [],
+     "engineer_started_before": true,
+     "first_completion_before": true
+    }
+   }
+  },
+  {
+   "run": "alibaba-a2-ezoj-1",
+   "solved": false,
+   "stopReason": "completed",
+   "deadline_min": 30.0,
+   "end_min": 18.9,
+   "engineer_start_min": null,
+   "first_completion_min": null,
+   "rounds": [
+    {
+     "role": "recon",
+     "start_min": 0.48,
+     "active_min": 1.29,
+     "model_calls": 11,
+     "tool_calls": 25,
+     "published": 0,
+     "engineer_consumed": 0,
+     "calls_before_first_consumed": null,
+     "tools_before_first_consumed": null,
+     "min_before_first_consumed": null
+    },
+    {
+     "role": "recon",
+     "start_min": 2.8,
+     "active_min": 0.25,
+     "model_calls": 4,
+     "tool_calls": 2,
+     "published": 2,
+     "engineer_consumed": 0,
+     "calls_before_first_consumed": null,
+     "tools_before_first_consumed": null,
+     "min_before_first_consumed": null
+    },
+    {
+     "role": "domain-solver",
+     "start_min": 3.38,
+     "active_min": 12.36,
+     "model_calls": 252,
+     "tool_calls": 254,
+     "published": 2,
+     "engineer_consumed": 0,
+     "calls_before_first_consumed": null,
+     "tools_before_first_consumed": null,
+     "min_before_first_consumed": null
+    },
+    {
+     "role": "domain-solver",
+     "start_min": 17.18,
+     "active_min": 0.48,
+     "model_calls": 10,
+     "tool_calls": 10,
+     "published": 0,
+     "engineer_consumed": 0,
+     "calls_before_first_consumed": null,
+     "tools_before_first_consumed": null,
+     "min_before_first_consumed": null
+    }
+   ],
+   "wallclock_phase": {
+    "reserve_4min": {
+     "trigger_min": 26.0,
+     "reached": false,
+     "inflight_long_roles": [],
+     "engineer_started_before": false,
+     "first_completion_before": false
+    },
+    "reserve_6min": {
+     "trigger_min": 24.0,
+     "reached": false,
+     "inflight_long_roles": [],
+     "engineer_started_before": false,
+     "first_completion_before": false
+    },
+    "reserve_8min": {
+     "trigger_min": 22.0,
+     "reached": false,
+     "inflight_long_roles": [],
+     "engineer_started_before": false,
+     "first_completion_before": false
+    }
+   }
+  },
+  {
+   "run": "alibaba-a3-bypassit2-1",
+   "solved": false,
+   "stopReason": "deadline",
+   "deadline_min": 30.0,
+   "end_min": 30.01,
+   "engineer_start_min": null,
+   "first_completion_min": null,
+   "rounds": [
+    {
+     "role": "recon",
+     "start_min": 0.61,
+     "active_min": 7.03,
+     "model_calls": 61,
+     "tool_calls": 65,
+     "published": 5,
+     "engineer_consumed": 0,
+     "calls_before_first_consumed": null,
+     "tools_before_first_consumed": null,
+     "min_before_first_consumed": null
+    },
+    {
+     "role": "domain-solver",
+     "start_min": 8.03,
+     "active_min": 11.23,
+     "model_calls": 204,
+     "tool_calls": 211,
+     "published": 9,
+     "engineer_consumed": 0,
+     "calls_before_first_consumed": null,
+     "tools_before_first_consumed": null,
+     "min_before_first_consumed": null
+    },
+    {
+     "role": "domain-solver",
+     "start_min": 20.61,
+     "active_min": 2.42,
+     "model_calls": 25,
+     "tool_calls": 27,
+     "published": 5,
+     "engineer_consumed": 0,
+     "calls_before_first_consumed": null,
+     "tools_before_first_consumed": null,
+     "min_before_first_consumed": null
+    },
+    {
+     "role": "domain-solver",
+     "start_min": 24.69,
+     "active_min": 5.28,
+     "model_calls": 60,
+     "tool_calls": 63,
+     "published": 0,
+     "engineer_consumed": 0,
+     "calls_before_first_consumed": null,
+     "tools_before_first_consumed": null,
+     "min_before_first_consumed": null
+    }
+   ],
+   "wallclock_phase": {
+    "reserve_4min": {
+     "trigger_min": 26.0,
+     "reached": true,
+     "inflight_long_roles": [
+      "domain-solver"
+     ],
+     "engineer_started_before": false,
+     "first_completion_before": false
+    },
+    "reserve_6min": {
+     "trigger_min": 24.0,
+     "reached": true,
+     "inflight_long_roles": [],
+     "engineer_started_before": false,
+     "first_completion_before": false
+    },
+    "reserve_8min": {
+     "trigger_min": 22.0,
+     "reached": true,
+     "inflight_long_roles": [
+      "domain-solver"
+     ],
+     "engineer_started_before": false,
+     "first_completion_before": false
+    }
+   }
+  },
+  {
+   "run": "alibaba-a3-ezbean-1",
+   "solved": false,
+   "stopReason": "deadline",
+   "deadline_min": 30.0,
+   "end_min": 30.0,
+   "engineer_start_min": null,
+   "first_completion_min": null,
+   "rounds": [
+    {
+     "role": "recon",
+     "start_min": 0.58,
+     "active_min": 2.24,
+     "model_calls": 14,
+     "tool_calls": 27,
+     "published": 5,
+     "engineer_consumed": 0,
+     "calls_before_first_consumed": null,
+     "tools_before_first_consumed": null,
+     "min_before_first_consumed": null
+    },
+    {
+     "role": "domain-solver",
+     "start_min": 3.45,
+     "active_min": 7.81,
+     "model_calls": 94,
+     "tool_calls": 99,
+     "published": 4,
+     "engineer_consumed": 0,
+     "calls_before_first_consumed": null,
+     "tools_before_first_consumed": null,
+     "min_before_first_consumed": null
+    },
+    {
+     "role": "domain-solver",
+     "start_min": 15.73,
+     "active_min": 4.4,
+     "model_calls": 51,
+     "tool_calls": 51,
+     "published": 3,
+     "engineer_consumed": 0,
+     "calls_before_first_consumed": null,
+     "tools_before_first_consumed": null,
+     "min_before_first_consumed": null
+    },
+    {
+     "role": "domain-solver",
+     "start_min": 20.85,
+     "active_min": 5.47,
+     "model_calls": 47,
+     "tool_calls": 47,
+     "published": 3,
+     "engineer_consumed": 0,
+     "calls_before_first_consumed": null,
+     "tools_before_first_consumed": null,
+     "min_before_first_consumed": null
+    },
+    {
+     "role": "domain-solver",
+     "start_min": 27.01,
+     "active_min": 2.6,
+     "model_calls": 23,
+     "tool_calls": 23,
+     "published": 2,
+     "engineer_consumed": 0,
+     "calls_before_first_consumed": null,
+     "tools_before_first_consumed": null,
+     "min_before_first_consumed": null
+    }
+   ],
+   "wallclock_phase": {
+    "reserve_4min": {
+     "trigger_min": 26.0,
+     "reached": true,
+     "inflight_long_roles": [
+      "domain-solver"
+     ],
+     "engineer_started_before": false,
+     "first_completion_before": false
+    },
+    "reserve_6min": {
+     "trigger_min": 24.0,
+     "reached": true,
+     "inflight_long_roles": [
+      "domain-solver"
+     ],
+     "engineer_started_before": false,
+     "first_completion_before": false
+    },
+    "reserve_8min": {
+     "trigger_min": 22.0,
+     "reached": true,
+     "inflight_long_roles": [
+      "domain-solver"
+     ],
+     "engineer_started_before": false,
+     "first_completion_before": false
+    }
+   }
+  },
+  {
+   "run": "alibaba-a3-ezoj-1",
+   "solved": false,
+   "stopReason": "deadline",
+   "deadline_min": 30.0,
+   "end_min": 30.01,
+   "engineer_start_min": 25.81,
+   "first_completion_min": null,
+   "rounds": [
+    {
+     "role": "recon",
+     "start_min": 0.66,
+     "active_min": 2.53,
+     "model_calls": 16,
+     "tool_calls": 33,
+     "published": 3,
+     "engineer_consumed": 0,
+     "calls_before_first_consumed": null,
+     "tools_before_first_consumed": null,
+     "min_before_first_consumed": null
+    },
+    {
+     "role": "domain-solver",
+     "start_min": 3.77,
+     "active_min": 9.88,
+     "model_calls": 77,
+     "tool_calls": 139,
+     "published": 1,
+     "engineer_consumed": 1,
+     "calls_before_first_consumed": 76,
+     "tools_before_first_consumed": 139,
+     "min_before_first_consumed": 9.88
+    },
+    {
+     "role": "domain-solver",
+     "start_min": 14.91,
+     "active_min": 1.96,
+     "model_calls": 21,
+     "tool_calls": 20,
+     "published": 1,
+     "engineer_consumed": 1,
+     "calls_before_first_consumed": 20,
+     "tools_before_first_consumed": 20,
+     "min_before_first_consumed": 1.96
+    },
+    {
+     "role": "domain-solver",
+     "start_min": 18.15,
+     "active_min": 0.61,
+     "model_calls": 11,
+     "tool_calls": 10,
+     "published": 1,
+     "engineer_consumed": 1,
+     "calls_before_first_consumed": 10,
+     "tools_before_first_consumed": 10,
+     "min_before_first_consumed": 0.61
+    },
+    {
+     "role": "domain-solver",
+     "start_min": 22.15,
+     "active_min": 0.65,
+     "model_calls": 9,
+     "tool_calls": 8,
+     "published": 0,
+     "engineer_consumed": 0,
+     "calls_before_first_consumed": null,
+     "tools_before_first_consumed": null,
+     "min_before_first_consumed": null
+    },
+    {
+     "role": "domain-solver",
+     "start_min": 23.17,
+     "active_min": 2.01,
+     "model_calls": 14,
+     "tool_calls": 70,
+     "published": 1,
+     "engineer_consumed": 1,
+     "calls_before_first_consumed": 13,
+     "tools_before_first_consumed": 70,
+     "min_before_first_consumed": 2.01
+    }
+   ],
+   "wallclock_phase": {
+    "reserve_4min": {
+     "trigger_min": 26.0,
+     "reached": true,
+     "inflight_long_roles": [],
+     "engineer_started_before": true,
+     "first_completion_before": false
+    },
+    "reserve_6min": {
+     "trigger_min": 24.0,
+     "reached": true,
+     "inflight_long_roles": [
+      "domain-solver"
+     ],
+     "engineer_started_before": false,
+     "first_completion_before": false
+    },
+    "reserve_8min": {
+     "trigger_min": 22.0,
+     "reached": true,
+     "inflight_long_roles": [],
+     "engineer_started_before": false,
+     "first_completion_before": false
+    }
+   }
+  },
+  {
+   "run": "alibaba-a4-bypassit2-1",
+   "solved": false,
+   "stopReason": "completed",
+   "deadline_min": 30.0,
+   "end_min": 20.24,
+   "engineer_start_min": null,
+   "first_completion_min": null,
+   "rounds": [
+    {
+     "role": "recon",
+     "start_min": 0.5,
+     "active_min": 7.42,
+     "model_calls": 53,
+     "tool_calls": 79,
+     "published": 6,
+     "engineer_consumed": 0,
+     "calls_before_first_consumed": null,
+     "tools_before_first_consumed": null,
+     "min_before_first_consumed": null
+    },
+    {
+     "role": "domain-solver",
+     "start_min": 8.48,
+     "active_min": 2.03,
+     "model_calls": 12,
+     "tool_calls": 15,
+     "published": 0,
+     "engineer_consumed": 0,
+     "calls_before_first_consumed": null,
+     "tools_before_first_consumed": null,
+     "min_before_first_consumed": null
+    },
+    {
+     "role": "domain-solver",
+     "start_min": 11.5,
+     "active_min": 0.0,
+     "model_calls": 1,
+     "tool_calls": 0,
+     "published": 0,
+     "engineer_consumed": 0,
+     "calls_before_first_consumed": null,
+     "tools_before_first_consumed": null,
+     "min_before_first_consumed": null
+    },
+    {
+     "role": "domain-solver",
+     "start_min": 12.04,
+     "active_min": 0.0,
+     "model_calls": 1,
+     "tool_calls": 0,
+     "published": 0,
+     "engineer_consumed": 0,
+     "calls_before_first_consumed": null,
+     "tools_before_first_consumed": null,
+     "min_before_first_consumed": null
+    },
+    {
+     "role": "domain-solver",
+     "start_min": 13.4,
+     "active_min": 2.68,
+     "model_calls": 24,
+     "tool_calls": 23,
+     "published": 3,
+     "engineer_consumed": 0,
+     "calls_before_first_consumed": null,
+     "tools_before_first_consumed": null,
+     "min_before_first_consumed": null
+    },
+    {
+     "role": "domain-solver",
+     "start_min": 17.17,
+     "active_min": 1.14,
+     "model_calls": 6,
+     "tool_calls": 5,
+     "published": 0,
+     "engineer_consumed": 0,
+     "calls_before_first_consumed": null,
+     "tools_before_first_consumed": null,
+     "min_before_first_consumed": null
+    },
+    {
+     "role": "domain-solver",
+     "start_min": 19.1,
+     "active_min": 0.81,
+     "model_calls": 7,
+     "tool_calls": 6,
+     "published": 0,
+     "engineer_consumed": 0,
+     "calls_before_first_consumed": null,
+     "tools_before_first_consumed": null,
+     "min_before_first_consumed": null
+    }
+   ],
+   "wallclock_phase": {
+    "reserve_4min": {
+     "trigger_min": 26.0,
+     "reached": false,
+     "inflight_long_roles": [],
+     "engineer_started_before": false,
+     "first_completion_before": false
+    },
+    "reserve_6min": {
+     "trigger_min": 24.0,
+     "reached": false,
+     "inflight_long_roles": [],
+     "engineer_started_before": false,
+     "first_completion_before": false
+    },
+    "reserve_8min": {
+     "trigger_min": 22.0,
+     "reached": false,
+     "inflight_long_roles": [],
+     "engineer_started_before": false,
+     "first_completion_before": false
+    }
+   }
+  },
+  {
+   "run": "speed-r21-mfw-1",
+   "solved": true,
+   "stopReason": "completed",
+   "deadline_min": 30.0,
+   "end_min": 4.84,
+   "engineer_start_min": 2.21,
+   "first_completion_min": 4.73,
+   "rounds": [
+    {
+     "role": "recon",
+     "start_min": 0.39,
+     "active_min": 0.97,
+     "model_calls": 14,
+     "tool_calls": 22,
+     "published": 5,
+     "engineer_consumed": 5,
+     "calls_before_first_consumed": 12,
+     "tools_before_first_consumed": 18,
+     "min_before_first_consumed": 0.84
+    },
+    {
+     "role": "domain-solver",
+     "start_min": 1.71,
+     "active_min": 0.25,
+     "model_calls": 8,
+     "tool_calls": 15,
+     "published": 2,
+     "engineer_consumed": 2,
+     "calls_before_first_consumed": 7,
+     "tools_before_first_consumed": 14,
+     "min_before_first_consumed": 0.24
+    }
+   ],
+   "wallclock_phase": {
+    "reserve_4min": {
+     "trigger_min": 26.0,
+     "reached": false,
+     "inflight_long_roles": [],
+     "engineer_started_before": true,
+     "first_completion_before": true
+    },
+    "reserve_6min": {
+     "trigger_min": 24.0,
+     "reached": false,
+     "inflight_long_roles": [],
+     "engineer_started_before": true,
+     "first_completion_before": true
+    },
+    "reserve_8min": {
+     "trigger_min": 22.0,
+     "reached": false,
+     "inflight_long_roles": [],
+     "engineer_started_before": true,
+     "first_completion_before": true
+    }
+   }
+  },
+  {
+   "run": "speed-r21-throwback-1",
+   "solved": true,
+   "stopReason": "completed",
+   "deadline_min": 30.0,
+   "end_min": 12.46,
+   "engineer_start_min": 10.48,
+   "first_completion_min": 12.31,
+   "rounds": [
+    {
+     "role": "recon",
+     "start_min": 0.56,
+     "active_min": 6.18,
+     "model_calls": 49,
+     "tool_calls": 96,
+     "published": 6,
+     "engineer_consumed": 0,
+     "calls_before_first_consumed": null,
+     "tools_before_first_consumed": null,
+     "min_before_first_consumed": null
+    },
+    {
+     "role": "domain-solver",
+     "start_min": 7.19,
+     "active_min": 2.96,
+     "model_calls": 74,
+     "tool_calls": 77,
+     "published": 4,
+     "engineer_consumed": 4,
+     "calls_before_first_consumed": 73,
+     "tools_before_first_consumed": 74,
+     "min_before_first_consumed": 2.95
+    }
+   ],
+   "wallclock_phase": {
+    "reserve_4min": {
+     "trigger_min": 26.0,
+     "reached": false,
+     "inflight_long_roles": [],
+     "engineer_started_before": true,
+     "first_completion_before": true
+    },
+    "reserve_6min": {
+     "trigger_min": 24.0,
+     "reached": false,
+     "inflight_long_roles": [],
+     "engineer_started_before": true,
+     "first_completion_before": true
+    },
+    "reserve_8min": {
+     "trigger_min": 22.0,
+     "reached": false,
+     "inflight_long_roles": [],
+     "engineer_started_before": true,
+     "first_completion_before": true
+    }
+   }
+  },
+  {
+   "run": "speed-r21-throwback-2",
+   "solved": true,
+   "stopReason": "completed",
+   "deadline_min": 30.0,
+   "end_min": 13.25,
+   "engineer_start_min": 10.92,
+   "first_completion_min": 13.02,
+   "rounds": [
+    {
+     "role": "recon",
+     "start_min": 0.86,
+     "active_min": 7.94,
+     "model_calls": 57,
+     "tool_calls": 103,
+     "published": 2,
+     "engineer_consumed": 2,
+     "calls_before_first_consumed": 54,
+     "tools_before_first_consumed": 102,
+     "min_before_first_consumed": 7.7
+    },
+    {
+     "role": "domain-solver",
+     "start_min": 9.25,
+     "active_min": 1.36,
+     "model_calls": 37,
+     "tool_calls": 58,
+     "published": 2,
+     "engineer_consumed": 2,
+     "calls_before_first_consumed": 36,
+     "tools_before_first_consumed": 57,
+     "min_before_first_consumed": 1.35
+    }
+   ],
+   "wallclock_phase": {
+    "reserve_4min": {
+     "trigger_min": 26.0,
+     "reached": false,
+     "inflight_long_roles": [],
+     "engineer_started_before": true,
+     "first_completion_before": true
+    },
+    "reserve_6min": {
+     "trigger_min": 24.0,
+     "reached": false,
+     "inflight_long_roles": [],
+     "engineer_started_before": true,
+     "first_completion_before": true
+    },
+    "reserve_8min": {
+     "trigger_min": 22.0,
+     "reached": false,
+     "inflight_long_roles": [],
+     "engineer_started_before": true,
+     "first_completion_before": true
+    }
+   }
+  },
+  {
+   "run": "speed-r22-mfw-fallback-1",
+   "solved": true,
+   "stopReason": "completed",
+   "deadline_min": 30.0,
+   "end_min": 7.79,
+   "engineer_start_min": 3.47,
+   "first_completion_min": 7.63,
+   "rounds": [
+    {
+     "role": "recon",
+     "start_min": 0.77,
+     "active_min": 1.84,
+     "model_calls": 20,
+     "tool_calls": 38,
+     "published": 1,
+     "engineer_consumed": 1,
+     "calls_before_first_consumed": 16,
+     "tools_before_first_consumed": 38,
+     "min_before_first_consumed": 1.58
+    },
+    {
+     "role": "domain-solver",
+     "start_min": 3.01,
+     "active_min": 0.17,
+     "model_calls": 5,
+     "tool_calls": 6,
+     "published": 2,
+     "engineer_consumed": 2,
+     "calls_before_first_consumed": 4,
+     "tools_before_first_consumed": 5,
+     "min_before_first_consumed": 0.17
+    }
+   ],
+   "wallclock_phase": {
+    "reserve_4min": {
+     "trigger_min": 26.0,
+     "reached": false,
+     "inflight_long_roles": [],
+     "engineer_started_before": true,
+     "first_completion_before": true
+    },
+    "reserve_6min": {
+     "trigger_min": 24.0,
+     "reached": false,
+     "inflight_long_roles": [],
+     "engineer_started_before": true,
+     "first_completion_before": true
+    },
+    "reserve_8min": {
+     "trigger_min": 22.0,
+     "reached": false,
+     "inflight_long_roles": [],
+     "engineer_started_before": true,
+     "first_completion_before": true
+    }
+   }
+  },
+  {
+   "run": "speed-r20-throwback-control-1",
+   "solved": true,
+   "stopReason": "completed",
+   "deadline_min": 30.0,
+   "end_min": 21.9,
+   "engineer_start_min": 14.62,
+   "first_completion_min": 21.74,
+   "rounds": [
+    {
+     "role": "recon",
+     "start_min": 0.66,
+     "active_min": 6.59,
+     "model_calls": 35,
+     "tool_calls": 70,
+     "published": 2,
+     "engineer_consumed": 0,
+     "calls_before_first_consumed": null,
+     "tools_before_first_consumed": null,
+     "min_before_first_consumed": null
+    },
+    {
+     "role": "domain-solver",
+     "start_min": 7.91,
+     "active_min": 6.2,
+     "model_calls": 36,
+     "tool_calls": 69,
+     "published": 3,
+     "engineer_consumed": 3,
+     "calls_before_first_consumed": 35,
+     "tools_before_first_consumed": 67,
+     "min_before_first_consumed": 6.2
+    }
+   ],
+   "wallclock_phase": {
+    "reserve_4min": {
+     "trigger_min": 26.0,
+     "reached": false,
+     "inflight_long_roles": [],
+     "engineer_started_before": true,
+     "first_completion_before": true
+    },
+    "reserve_6min": {
+     "trigger_min": 24.0,
+     "reached": false,
+     "inflight_long_roles": [],
+     "engineer_started_before": true,
+     "first_completion_before": true
+    },
+    "reserve_8min": {
+     "trigger_min": 22.0,
+     "reached": false,
+     "inflight_long_roles": [],
+     "engineer_started_before": true,
+     "first_completion_before": true
+    }
+   }
+  },
+  {
+   "run": "speed-r20-throwback-control-2",
+   "solved": true,
+   "stopReason": "completed",
+   "deadline_min": 30.0,
+   "end_min": 15.52,
+   "engineer_start_min": 10.2,
+   "first_completion_min": 15.37,
+   "rounds": [
+    {
+     "role": "recon",
+     "start_min": 0.6,
+     "active_min": 4.23,
+     "model_calls": 57,
+     "tool_calls": 102,
+     "published": 6,
+     "engineer_consumed": 0,
+     "calls_before_first_consumed": null,
+     "tools_before_first_consumed": null,
+     "min_before_first_consumed": null
+    },
+    {
+     "role": "domain-solver",
+     "start_min": 5.28,
+     "active_min": 4.56,
+     "model_calls": 32,
+     "tool_calls": 40,
+     "published": 4,
+     "engineer_consumed": 4,
+     "calls_before_first_consumed": 29,
+     "tools_before_first_consumed": 36,
+     "min_before_first_consumed": 4.36
+    }
+   ],
+   "wallclock_phase": {
+    "reserve_4min": {
+     "trigger_min": 26.0,
+     "reached": false,
+     "inflight_long_roles": [],
+     "engineer_started_before": true,
+     "first_completion_before": true
+    },
+    "reserve_6min": {
+     "trigger_min": 24.0,
+     "reached": false,
+     "inflight_long_roles": [],
+     "engineer_started_before": true,
+     "first_completion_before": true
+    },
+    "reserve_8min": {
+     "trigger_min": 22.0,
+     "reached": false,
+     "inflight_long_roles": [],
+     "engineer_started_before": true,
+     "first_completion_before": true
+    }
+   }
+  },
+  {
+   "run": "speed-r20-throwback-solver-thinking-off-1",
+   "solved": true,
+   "stopReason": "completed",
+   "deadline_min": 30.0,
+   "end_min": 13.23,
+   "engineer_start_min": 7.04,
+   "first_completion_min": 13.09,
+   "rounds": [
+    {
+     "role": "recon",
+     "start_min": 0.51,
+     "active_min": 4.26,
+     "model_calls": 34,
+     "tool_calls": 71,
+     "published": 4,
+     "engineer_consumed": 2,
+     "calls_before_first_consumed": 31,
+     "tools_before_first_consumed": 69,
+     "min_before_first_consumed": 4.05
+    },
+    {
+     "role": "domain-solver",
+     "start_min": 5.29,
+     "active_min": 1.42,
+     "model_calls": 39,
+     "tool_calls": 41,
+     "published": 3,
+     "engineer_consumed": 3,
+     "calls_before_first_consumed": 38,
+     "tools_before_first_consumed": 39,
+     "min_before_first_consumed": 1.41
+    }
+   ],
+   "wallclock_phase": {
+    "reserve_4min": {
+     "trigger_min": 26.0,
+     "reached": false,
+     "inflight_long_roles": [],
+     "engineer_started_before": true,
+     "first_completion_before": true
+    },
+    "reserve_6min": {
+     "trigger_min": 24.0,
+     "reached": false,
+     "inflight_long_roles": [],
+     "engineer_started_before": true,
+     "first_completion_before": true
+    },
+    "reserve_8min": {
+     "trigger_min": 22.0,
+     "reached": false,
+     "inflight_long_roles": [],
+     "engineer_started_before": true,
+     "first_completion_before": true
+    }
+   }
+  },
+  {
+   "run": "speed-r20-throwback-solver-thinking-off-2",
+   "solved": true,
+   "stopReason": "completed",
+   "deadline_min": 30.0,
+   "end_min": 14.21,
+   "engineer_start_min": 10.18,
+   "first_completion_min": 14.06,
+   "rounds": [
+    {
+     "role": "recon",
+     "start_min": 0.84,
+     "active_min": 7.85,
+     "model_calls": 57,
+     "tool_calls": 88,
+     "published": 6,
+     "engineer_consumed": 2,
+     "calls_before_first_consumed": 54,
+     "tools_before_first_consumed": 83,
+     "min_before_first_consumed": 7.51
+    },
+    {
+     "role": "domain-solver",
+     "start_min": 9.07,
+     "active_min": 0.8,
+     "model_calls": 17,
+     "tool_calls": 20,
+     "published": 3,
+     "engineer_consumed": 3,
+     "calls_before_first_consumed": 15,
+     "tools_before_first_consumed": 17,
+     "min_before_first_consumed": 0.76
+    }
+   ],
+   "wallclock_phase": {
+    "reserve_4min": {
+     "trigger_min": 26.0,
+     "reached": false,
+     "inflight_long_roles": [],
+     "engineer_started_before": true,
+     "first_completion_before": true
+    },
+    "reserve_6min": {
+     "trigger_min": 24.0,
+     "reached": false,
+     "inflight_long_roles": [],
+     "engineer_started_before": true,
+     "first_completion_before": true
+    },
+    "reserve_8min": {
+     "trigger_min": 22.0,
+     "reached": false,
+     "inflight_long_roles": [],
+     "engineer_started_before": true,
+     "first_completion_before": true
+    }
+   }
+  }
+ ]
+}

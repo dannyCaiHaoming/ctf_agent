@@ -2,7 +2,7 @@
 
 **狀態：** [核心 design v1](2026-10-22-ctf-agent-design-v1.md) §1.4 的子設計，管「一次 run 的牆鐘時間和 token 花在哪、怎麼減」。解題方法本身（Skill／Reference 內容）屬於 [B／G 方法與耗時](2026-10-26-design-v1-b-method-generalization-and-efficiency.md)；Recon 記錄與追加式上下文的契約屬於 [Recon 重設計](2026-10-29-design-v1-recon-redesign.md) §4，本文只改它的**投影內容與發送頻率**，不改追加式放置。
 
-**目前停點：** §3.1 已實施，r20 真實 run 中 throwback 的未緩存輸入比 r19 A 降 31–36%。§3.2 已採用：r20 中 Solver 關閉思考後，單次調用延遲降到原來的約 1/3–1/4，throwback 4/4 解出；未驗證難題。§3.4 已採用：r21 直接提交 3/3 被接受，Verifier 時間降為 0；r22 的送驗回退路徑也走通，design v1 正文已改為「按條件觸發」。只剩「答錯後繼續」尚無真實樣本。§3.3 延後，待 §3.4 之後再評估。
+**目前停點：** §3.1 已實施，r20 真實 run 中 throwback 的未緩存輸入比 r19 A 降 31–36%。§3.2 已採用：r20 中 Solver 關閉思考後，單次調用延遲降到原來的約 1/3–1/4，throwback 4/4 解出；未驗證難題。§3.4 已採用：r21 直接提交 3/3 被接受，Verifier 時間降為 0；r22 的送驗回退路徑也走通，design v1 正文已改為「按條件觸發」。只剩「答錯後繼續」尚無真實樣本。§3.3 延後，待 §3.4 之後再評估。2026-11-06 依 Alibaba a1–a4 記錄新增兩項決定：§3.4 對不限次數裁判去掉出處條件（已實施，真實 run 待觀察）；§3.2 下一批關閉 Coordinator 思考（運行設定）。未解題組的量測方式見 §4。
 
 **依據：** [r18／r19 成本拆解](../../gates/run-cost-20261104/r18-r19-cost-breakdown.json)，由 `tests/manual/run-cost-breakdown.py` 從四個真實 run 的訊息與審計記錄離線算出（0 次模型調用）。模型均為 `volcano-plan/deepseek-v4.1-flash`。修正後用同一腳本重算，對比同一欄位。
 
@@ -165,6 +165,12 @@
   之後跑到 Solver 卡住的題目時，加一組開啟思考的對照；若解題變差，就按題型回退。
 - **其他角色：** Recon 是剩下最大的時間來源，但它影響解題率，不在沒有難題對照時關閉思考；Verifier 仍由 §3.4 處理。
 
+**Coordinator（2026-11-06 決定；運行設定，下一批生效）：**
+- **證據（只取訊息的 finish 與 token 欄位）：** a2、a3 共 6 次 Coordinator 回合以 `finish=length` 結束（a2 B1、B4，a3 C1、C2 各 1 次，C3 2 次）。其中 5 次是 reasoning 8,000、output 0，另一次是 reasoning 6,831、output 1,169，都是思考用完了模型的 `limit.output=8000`。每次被截斷的回合約 51–58 秒，之後靠 [Root 續接](2026-10-25-design-v1-run-readiness-and-result-completeness.md) §4.1 才繼續。a4 沒有截斷，但最大單次 reasoning 也有 6,219。
+- **決定：** 下一批的運行設定對 `coordinator` 設 `options.thinking = {type: "disabled"}`，與 Solver 同一層級、同一機制。這屬於上面「低風險角色可以直接降低」的範圍，不單獨為它跑驗證。Root 續接保留為安全網，不當作解法。
+- **不採用：** 提高輸出上限。`limit.output` 是這個網關／模型的設定，提高後是否仍有效未經探針確認；而且只會讓被截斷前的思考更長。
+- **觀察項：** 隨下一次授權批次記錄 Coordinator 的 `length` 次數與派單選擇。若 Coordinator 的派單明顯變差（例如不再派 Critic／Engineer），就回退並記錄，不擴大結論。
+
 ### 3.3 題內並行（延後；先做 §3.4）
 
 **問題：** 並行度為 1。例如 Recon 交回後同時派兩個 Solver 各走一條路線，牆鐘可能縮短，但 token 增加，coordinator 調度、預算分配、結果合併與停止規則都要改。
@@ -288,6 +294,43 @@
 - **待補：** `wrong_answer` 後團隊是否繼續解題，等有第一個候選容易答錯的題目時，在該批次中一併觀察，不單獨為它開批次。
 - **之後：** 若出現 Verifier 回 rejected、或 `wrong_answer` 後團隊停止的真實樣本，再回到本節。
 
+**出處條件的修訂（2026-11-06 決定；2026-11-07 已實施，真實 run 待觀察）：** 不限次數的裁判不再要求候選出現在 host HTTP 捕獲中。這推翻了 `d07c52ec` 的「只認 HTTP 捕獲」取捨；r22 驗證的是「次數有限 → 送驗」回退路徑，這部分不變。輸入是 [Alibaba a1–a4 harness 分析](../analysis/2026-11-06-alibaba-a1-a4-harness-findings.md) 的 P0-3。
+
+- **證據（control-audit 的拒絕記錄、progress 的派單與 `completion.saved` 時間、各批結構化報告）：**
+
+  | run | 拒絕時刻 | 拒絕原因 | Verifier 判定 | 拒絕 → 被接受 | 結果 |
+  | --- | ---: | --- | --- | ---: | --- |
+  | a1 A1（ac5a1bc0） | 899 秒 | `candidate not found in any host http capture` | verified（recompute） | 191 秒 | accepted |
+  | a1 A2（bypassit1） | 921 秒 | 同上 | inconclusive（unable） | 148 秒 | accepted |
+  | a2 B3（8a6ac7ff） | 457 秒 | 同上 | inconclusive（recompute） | 160 秒 | accepted |
+  | a3 C3（ezoj） | 1,709 秒 | 同上 | 未產生（deadline） | — | 未提交 |
+
+  - **四次拒絕全部只因出處條件**，裁判本身都是不限次數、無冷卻。前三次的候選都由 job 產出（`captureResources=0`），隨後都被裁判接受：出處條件攔下的全是正確候選。
+  - **Verifier 沒有改變任何結果。** 三次中兩次 inconclusive，照第三層規則照樣提交。加上本節表中 r19–r22 的 7 次，Verifier 至今 10 次都沒有給出 rejected。
+  - 原分析寫的「130–150 秒」是 a1 報告的 Verifier 延遲（149／131 秒）。從被拒到被接受的實際延遲是 148–191 秒。
+  - **推斷：** a3 C3 若在 28.5 分鐘直接提交，裁判在 deadline 前能回覆；候選是否正確無法從結構化記錄判斷，不作為「本可解出」的證據。
+- **為什麼推翻：**
+  - 出處條件原本是讓 host 做一次便宜的確定性檢查。但 job 是 Solver 取得結果的主要途徑：a3 C1 的 Solver 有 204 次 `job.run`、只有 4 次 `http.request`。只認 HTTP 捕獲，就等於這類題目的提交一律送驗。
+  - 在不限次數、無冷卻、答錯無懲罰的裁判下，答錯只多一次提交與一次回執。oracle 本身就是確定性 validator，比 Verifier 更直接。
+- **新規則：**
+  - **直接准入：** 有裁判、次數不限、無冷卻或封鎖、同題同裁判範圍沒有 `wrong_answer`。候選出處只寫入審計與 completion 記錄（有無匹配的捕獲 resource），不再決定准入。
+  - **仍然送驗：**
+    - 無裁判；
+    - 次數有限、有冷卻、有懲罰或限制未知；
+    - 同題已有 `wrong_answer` 後的下一個候選。
+  - **不變：** 精確提交、錯誤候選去重、unknown 暫停同題提交、只有 host 回執算 solved。
+- **風險與觀察：**
+  - 錯誤提交會更早到達 oracle。「`wrong_answer` 後團隊繼續」仍沒有真實樣本，所以下一次授權批次要記錄 `wrong_answer` 次數，以及其後 Coordinator 是否繼續派單。
+  - 若出現「同一 run 多次答錯並因此停止」的樣本，回到本節重新評估。
+- **需要改的地方（實施時）：**
+  - completion 准入去掉出處條件，保留出處檢查的審計輸出；
+  - 改寫對應的契約測試；
+  - `coordinator.md` 的送驗條件同步改寫。
+
+- **實施狀態（2026-11-07，離線）：** 提交 `b2dab475`，合併 `276c1687`。已完成上列三項：准入刪去捕獲條件，`captureResources` 照常記錄；契約測試改為「只在檔案／job 輸出／無捕獲」時准入並送裁判；`coordinator.md` 同步。合併後主 checkout 的 typecheck、build、全量測試（60 檔 826 項）通過。真實 run 未做。
+
+  design v1 正文與 [D](2026-10-24-design-v1-d-candidate-verification-minimal.md) §7 已同步改為新規則。
+
 ### 3.5 已試路線摘要（延後）
 
 r19 中重複探索不是主要成本，但未解出的 r18 A 有大量同路徑重複。待有更多卡住的題目樣本時再評估，歸入 [Recon 重設計](2026-10-29-design-v1-recon-redesign.md) 的後續事項，不在本文推進。
@@ -297,3 +340,14 @@ r19 中重複探索不是主要成本，但未解出的 r18 A 有大量同路徑
 - 每次修正後，用 `tests/manual/run-cost-breakdown.py` 對新的 run 重算，與 §2 同欄位對比；結構化結果放 `docs/gates/run-cost-<日期>/`。
 - 單次 run 的差異只作方向參考。要宣稱提速，至少同題重複兩到三次，並報告解題結果。
 - 真實 run 需另行授權：目標、模型／provider、批次與 token 上限。
+
+**未解題組的配對量測（2026-11-06）：**
+- **為什麼要配對：** a2、a3、a4 的停止規則或思考設定各不相同，每題只跑一次，只能看方向。例如 a4 在 20.2 分鐘自行結束、a3 同題跑滿 deadline，這不能歸因到思考開關。
+- **先離線，再花 token：** closure 觸發條件已用 19 個 run 的記錄離線重算（2026-11-07），結論是三種觸發條件都暫不採用，見 [Recon 重設計](2026-10-29-design-v1-recon-redesign.md) §5「推廣到 Solver 等長執行角色」。配對批次只用來量測已實施或已定的改動：§3.4 出處條件修訂、§3.2 Coordinator 思考，以及之後若實施的交回時決策事實。
+- **配對設計：** 同三題（bypassit2、ezbean、ezoj）× 2 臂 × 每臂 2 次。兩臂的產品、模型、預算、裁判設定與運行設定相同，只差一項改動。§3.2 的 Coordinator 思考設定、§3.4 的出處條件修訂和 closure 觸發條件，各自單獨配對，不疊在同一批。
+- **指標（每次 run）：**
+  - accepted 與提交次數、`wrong_answer` 次數；
+  - 首次 Solver 交回、進入 Engineer、首次 completion 請求的時刻；
+  - 各角色調用數、observable token；
+  - 是否觸及 deadline、Coordinator `length` 次數。
+- **判定：** 沿用 §3.2 的規則：解題不差且目標指標改善才採用，解題變差就回退，一勝一負記為未定。

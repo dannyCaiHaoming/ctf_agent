@@ -87,8 +87,9 @@ SDK 读取和导出非原子，exportedSourceMatches 只说明导出是否匹配
   - **記錄：** progress 事件 `root.continuation`（帶序號與 assistantMessageID）；`state/run.json` 的 `rootContinuations`。
   - **測試：** `tests/contract/launch-evidence.test.ts` 覆蓋一次續接後恢復、達到上限、計數歸零、預算已用完、deadline 已到、仍有在途工作六種情境。
   - **合併與檢查：** 提交 `93be58b3`，合併 `df2c329d`；合併後主 checkout 的 typecheck、build、全量測試（60 檔 826 項）通過。
-  - **未驗證：** 真實模型在收到續接消息後是否會交出可用決定，留待下一次授權 run 觀察。
-- **另行處理：** 單次輸出上限 8,000 被 reasoning 用完，是運行設定問題，不在此修。下一批次的運行設定應提高 Coordinator 的輸出上限或關閉它的思考；後者在[解題延遲](2026-11-04-design-v1-run-latency-and-context-cost.md) §3.2 已列為低風險。
+  - **真實模型行為：** 見下方 a3 結果。
+- **另行處理：** 單次輸出上限 8,000 被 reasoning 用完，是運行設定問題，不在此修。決定見[解題延遲](2026-11-04-design-v1-run-latency-and-context-cost.md) §3.2「Coordinator」：下一批關閉 Coordinator 思考，續接保留為安全網。
+- **真實 run（a3，2026-11-05）：** 三題各續接 1 次（`rootContinuations=1`），續接後 1–2 分鐘內都再次派單（C1 23.2→24.5 分鐘、C2 14.7→15.6、C3 17.0→18.0），一直跑到 30 分鐘 deadline，沒有在第一次 `length` 時結算。每次被截斷的回合約 51–58 秒。三題都未解出：續接只避免了提前停止，不改善解題。
 
 ### 4.2 后台子任务：冻结该次执行的来源
 
@@ -130,6 +131,28 @@ SDK 读取和导出非原子，exportedSourceMatches 只说明导出是否匹配
 **验收：** 实际 launcher/plugin/ControlService 与固定 OpenCode 的本地确定性 provider 请求中，原结果及 host 事实须同时存在，ref/call、角色与完整性须和同源记录一致；仅 hook 返回、审计或消息保存不算到达请求。覆盖同 child 两轮 empty/partial length→stop、unknown 与重复／错身份／停止拒绝边界；旧轮不得改写，unknown 不冒充空报告。SDK 替身只证明相应分支，不冒充真实传输故障。
 
 正式实现已核对实际父请求与持久化来源；缺 Part 身份字段的初版失败仍作为历史证据保留。host 检查与 plugin 保存之间仍非原子。早期证据见[父展示验证](../../gates/g-solver-verification-20261023/run-completeness-20261025/parent-display/README.md)与 §6 联合验证。
+
+**交回時的決策事實（待驗證，2026-11-06）：** 來自 [Alibaba a1–a4 harness 分析](../analysis/2026-11-06-alibaba-a1-a4-harness-findings.md) 的 P1-1。
+
+- **核對（a4 單題單次，只取 dispatch／completion 時間與工具計數）：**
+  - 原分析稱「Solver 約 5–6 分鐘就交回」，不準確。實際是兩個 Solver 會話、6 次交回，每回合 0.2–2.9 分鐘。
+  - Coordinator 每次都再派 Solver，沒有派 Critic 或 Engineer；20.2 分鐘自行結束時剩約 9.8 分鐘。
+  - Coordinator 共 27 次回覆，`ctf_progress_read` 4 次。
+  - 「開啟 Solver 思考使交回變快」只有這一次觀察，不作結論。
+- **現狀：**
+  - 交回時推送給 Coordinator 的只有上面的完整性欄位。
+  - 剩餘牆鐘（`completion.budget.deadline`）、已准入調用數和進度摘要，要 Coordinator 自己調 `ctf_progress_read` 才看得到；a3 C1 整個 run 只讀了 1 次。
+  - 「尚無候選／已有候選未打包」沒有 host 可見的結構化事實：Solver 發布的 artifact 沒有類型，只有 Engineer 的 `package.publish` 是結構化的。
+- **候選做法（未定）：** 在既有的交回事實旁追加少量 host 已有的數字：
+  - 剩餘牆鐘；
+  - 本回合調用數與時長；
+  - 本題是否已有 package。
+
+  只追加事實，不附建議動作，不改「Critic 只建議、Coordinator 決定」。
+- **要回答的問題與去向：**
+  1. a4 的 Coordinator 決策點上，這些數字能否從現有記錄算出？能就只改展示，不新增記錄。
+  2. 追加後 Coordinator 的派單是否改變（換路、派 Critic、派 Engineer 的比例）？只能由授權的配對 run 回答，方法見[解題延遲](2026-11-04-design-v1-run-latency-and-context-cost.md) §4。不變就撤回，不再疊加提示。
+  3. 「已有候選」若需要 Solver 標記，屬於接口變更，先回到 [Recon 重設計](2026-10-29-design-v1-recon-redesign.md) §5「推廣到 Solver 等長執行角色」的問題 3 一併決定，不在此單獨新增欄位。
 
 ### 5.3 同步关联与多通知消费
 

@@ -58,7 +58,7 @@ Agent 交接只攜帶下一步必要資訊：目標、輸入與證據引用、�
 | 二：LLM 推理核实 | 审阅现有流程、理论、证据和日志，判断候选是否有支持、是否有反证 | 有支持则记录 LLM 判断及依据；仍无法确定转三 |
 | 三：无法验证后尝试 | 保留 inconclusive 和缺口日志，结束验证，不补材料、不伪造 verified | Coordinator 自动按题目提交限制与剩余预算请求裁判，不逐次问用户 |
 
-明确反证记录为 Verifier rejected，不混入“无法确定”；角色判断不是裁判判错。验证意见与提交准入分开：**独立审阅在触发时保留，verified 不再是提交或 solved 的必要前置。** 2026-11-04 起改为 oracle 优先：有裁判、次数不限、无冷却、同题未答错且候选在 host HTTP 捕获中有出处时直接提交；否则 host 以 `verification required` 拒绝，Coordinator 再送 Verifier（r21／r22 真实 run 已验证两条路径，见 [解題延遲與上下文成本](2026-11-04-design-v1-run-latency-and-context-cost.md) §3.4）。 replay/recompute/evidence_audit 是可选方法，不是三项必做流程；没有重放能力时转已有材料审阅，不借 job 联网绕权限。Verifier 不持有提交、提示或实例管理权限。
+明确反证记录为 Verifier rejected，不混入“无法确定”；角色判断不是裁判判错。验证意见与提交准入分开：**独立审阅在触发时保留，verified 不再是提交或 solved 的必要前置。** 2026-11-04 起改为 oracle 优先：有裁判、次数不限、无冷却、同题未答错时直接提交（2026-11-07 起不再要求 host HTTP 捕获出处）；否则 host 以 `verification required` 拒绝，Coordinator 再送 Verifier（r21／r22 真实 run 已验证两条路径，见 [解題延遲與上下文成本](2026-11-04-design-v1-run-latency-and-context-cost.md) §3.4，出处条件的修订见同节）。 replay/recompute/evidence_audit 是可选方法，不是三项必做流程；没有重放能力时转已有材料审阅，不借 job 联网绕权限。Verifier 不持有提交、提示或实例管理权限。
 
 host 负责可信身份、候选 bytes、scope、题目提交限制、预算和操作状态。材料不足影响验证意见，不自动禁止第三层；候选无法确定／损坏、身份错配、越权、预算不足与在途提交未知仍阻止相应操作。条件未知不当无限额，不以新会话或新包重置次数。确认错误的候选按同题同裁判作用域及精确 bytes记住并去重；只有裁判明确判错才加入该记录。超时、断连、限流、权限错误及结果未知不当错误 flag；unknown不盲重发，按可信记录保留已知消耗并收束状态。
 

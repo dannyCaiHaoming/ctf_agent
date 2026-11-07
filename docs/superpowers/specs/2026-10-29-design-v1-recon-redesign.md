@@ -269,6 +269,63 @@ r16 A 是反例：Recon 准入 31 次、88 次工具，仍沒有 decision 或 ha
 - **尚未實施：** input token 的估算與預留；目前的准入只按模型調用次數計，在途回應仍可能越過 token 門檻。
 - **真實 run：** r18、r19 兩題都在 closure 前主動交回（r19 A 第 35 次准入、B 第 15 次，交回時仍在 exploration；r17 A 是被 60 次上限強制停止）。decision 只在交回前寫一兩條，沒有在重要結果或換路時寫。
 
+### 推廣到 Solver 等長執行角色（離線重算後暫不採用，2026-11-07）
+
+**狀態：** 離線重算已完成（0 次模型調用），三種觸發條件都暫不採用，未實施；結論與去向見本節末。輸入是 [Alibaba a1–a4 harness 分析](../analysis/2026-11-06-alibaba-a1-a4-harness-findings.md) 的 P0-1（新資訊量計數觸發 closure）與 P0-2（按牆鐘分階段 closure）。「長執行內部停滯沒有觸發點」這個問題本身，以及候選 B（宿主停滯信號）、D（有界回合交回）的取捨，見[路線複核](2026-10-25-design-v1-negative-evidence-and-route-review.md) §5；本節只管「能否把本節的 closure 用到 Recon 以外的角色」。
+
+**為什麼放在這裡：** 路線複核 §5.6 否定宿主信號的理由之一，是子任務執行中沒有通知路徑。本節的 closure 不需要喚醒 Coordinator：它在 child 自己的下一次工具調用上以拒絕消息出現，child 依本節的收尾工具交回，交回邊界再由 Coordinator 照既有停滯規則決定。所以推廣只需新增觸發條件，不需要新的通知路徑、monitor 或 scheduler。
+
+**證據核對（只取 `progress.jsonl` 的 role／op／tool／argFingerprint／elapsedMs、`state/jobs` 與 HTTP 捕獲檔的 sha256 計數，不讀內容）：**
+
+| 判定 | 內容 |
+| --- | --- |
+| 已證實 | a3 C1（bypassit2）Solver 兩個會話登記 204 次 `job.run`（訊息裡 206 個 tool part）；C3（ezoj）Solver 230 次 `http.request`。 |
+| 已證實 | **按參數重複計數不會觸發。** C1 Solver `job.run` 204 次中 203 種 argFingerprint，C2 148 次中 147 種，C3 `http.request` 230 次全部不同；任一 fingerprint 最多出現 2 次。prompt 的「相同工具／參數重複 3 次」與分析提出的「相同 argv 雜湊重複次數」都不會在這三題觸發。這與路線複核 §5.6 對 r7 的結論相同。 |
+| 已證實 | **按結果雜湊多樣性也不會觸發。** C3 Solver 230 份回應正文只有 72 種 sha256，但每 20 次中至少 4 種，最後一次請求仍是新正文；C1／C2 Solver 的 job 輸出（stdout＋stderr）幾乎每次都不同（159 次 158 種、148 次 143 種）。「最近 20 次只有 1 種結果」在三題都不成立。 |
+| 已證實 | **「N 次調用沒有新 artifact」會在解出的 run 裡誤觸發。** Solver 的 artifact 集中在交回前一次發布：a3 C1 首個 Solver 回合 200 次調用後才發布；但已解出的 a1 A1、A2 的 Solver 也是在 90、91 次無 artifact 的調用後才一次發布勝出材料。分析舉例的「30 次沒有新 artifact」會在這兩次成功 run 產生候選之前就收束 Solver。 |
+| 已證實 | a3 C3 的 Verifier 在 28.7 分鐘才派出（Engineer 25.8 分鐘派出，completion 在 28.5 分鐘被 `verification required` 拒絕），30.1 分鐘 deadline 前沒有結果。 |
+| 已證實 | **按時間階段收束只會影響有候選的題。** a3 C1、C2 到 deadline 都沒有進入 Engineer；只有 C3 有可打包的材料。對前兩題，時間階段 closure 只會更早停下無候選的 Solver，不會產生提交。 |
+| 推斷 | 收尾所需時間：Engineer 從派出到首次 completion 請求在 a1 A1／A2、a2 B3、a3 C3 為 97–161 秒；走 Verifier 回退時，被拒到被接受再加 148–191 秒。保留 6–8 分鐘覆蓋了 Verifier 路徑；若[解題延遲](2026-11-04-design-v1-run-latency-and-context-cost.md) §3.4 的出處條件修訂落地，直接提交路徑約 3 分鐘即可。 |
+| 待驗證 | Solver 的「候選已出現」目前沒有 host 可見的結構化事實（artifact 記錄沒有類型欄位，只有 Engineer 的 `package.publish` 是結構化的），所以「時間到時固定目前最佳候選」由誰判斷、host 如何知道有無候選，仍未定。 |
+
+**候選做法與離線重算結論：**
+
+- **A. 按角色的調用額度與 closure 預留。** 把本節的 `B`／`R` 推廣到 domain-solver 每回合，沿用同一套收尾工具與交回要求。只計調用次數，不判斷語義，所以不會被「換著參數試」繞過。**結論：暫不採用。** 樣本內能分開，但餘量小，收益也沒有證據（見問題 1）。
+- **B. 牆鐘階段 closure。** 剩餘時間低於收尾預留時，host 讓仍在執行的 Solver／Recon 進入 closure。**結論：作為 child closure 不採用。** 它不傷成功 run，但 C3 的延誤不在長回合裡（見問題 2）。
+- **C. 新資訊量計數。** argv 重複、結果雜湊多樣性與 artifact 間隔都不能區分卡住回合與成功回合（見上表）。**結論：不實施。**
+
+三者都不新增 judge 權，換路仍由 Coordinator 決定、Critic 只建議。
+
+**離線重算（2026-11-07）：**
+- **工具與證據：** 腳本 `tests/manual/closure-trigger-replay.py`；結果 [closure-replay-20261107.json](../../gates/run-cost-20261104/closure-replay-20261107.json)。
+- **只讀欄位：** `progress.jsonl` 的 role／op／kind／elapsedMs／tool／ref，`state/run.json` 的 deadlineMs／stopReason，以及 completion-results 的 solved。
+- **樣本：** 共 19 個 run。
+  - 已解出 11 個：a1 A1、A2，a2 B3，r20 C1／C2／T1／T2，r21 V1／V2／M1，r22 F1；
+  - 未解出 8 個：a1 A3，a2 B1／B2／B4，a3 C1–C3，a4 D1。
+- **回合的定義：** 從 Coordinator 派出或恢復某角色，到下一次派單為止。
+- **「帶出材料」的定義：** 這一回合發布的 artifact，之後被 Engineer 讀取。這只能事後判定，不等於候選正確。
+
+1. **成功與卡住的 Solver 回合能否按調用數或時長分開？**
+   - **成功 run：** 11 個帶出材料的 Solver 回合，在發布那份材料前用了 4–88 次模型調用、0.2–6.2 分鐘。最多的是 a1 A1：88 次調用，只用 3.2 分鐘，因為 job 很快。
+   - **未解 run：** 24 個 Solver 回合，調用數 1–252 次，時長 0–12.4 分鐘。
+     - 超過 88 次調用的有 4 個：a3 C2 94、a2 B1 101、a3 C1 204、a2 B4 252；
+     - 超過 6.2 分鐘的有 6 個。其中 a3 C3 首回合在第 9.9 分鐘、第 76 次調用時才發布後來被 Engineer 讀取的材料。
+   - **判定：**
+     - 按時長設上限，會截斷 C3 首回合的材料，所以不可分。
+     - 按調用數，約 100 次的上限在樣本內不誤傷成功回合，但 88 與 94 之間的餘量很小，成功樣本只有 11 個。
+     - 收益也沒有證據：截斷長回合只是把控制權交回 Coordinator。a4 的 Solver 回合都很短（0.2–2.9 分鐘），Coordinator 仍只是反覆再派 Solver。
+   - **去向：** A 不實施，只記錄這份分佈。之後若配對 run 需要止損上限，從這份分佈取值再議。
+2. **牆鐘階段 closure 何時觸發？會不會截斷成功 run？**
+   - **不截斷成功 run：** 11 個已解出 run 最晚在 21.9 分鐘結束。預留 4／6／8 分鐘（觸發在 26／24／22 分鐘）在成功 run 中一次都不會觸發；a1／a2／a4 的未解 run 也都在觸發前自行結束。
+   - 只有 a3 三題會觸發：
+     - **C1、C2：** 觸發時 Solver 在途，但整個 run 都沒有帶出材料的回合，收束不會產生提交。
+     - **C3：** 首回合在 13.6 分鐘已發布 Engineer 之後讀取的材料。14.9–25.6 分鐘間，Coordinator 又派了 4 個 0.6–2.0 分鐘的短 Solver 回合和 1 次 Recovery Critic，才在 25.8 分鐘派 Engineer。預留 8 分鐘時（22.0 分鐘）沒有長角色在途，正好在兩次派單之間。
+   - **判定：** C3 的延誤來自 Coordinator 的派單選擇，不是長回合。對 child 進入 closure 解決不了它。
+   - **去向：** B 不作為 child closure 實施。剩餘牆鐘改作 Coordinator 交回時可見的事實，見[結果完整性](2026-10-25-design-v1-run-readiness-and-result-completeness.md) §5.2「交回時的決策事實」。C3 另一段延誤（送驗回退）由[解題延遲](2026-11-04-design-v1-run-latency-and-context-cost.md) §3.4 的出處條件修訂處理。
+3. **「已有候選」能否由現有結構化事實判定？**
+   - 不能在運行中判定。「Engineer 之後讀取」只能事後知道，artifact 記錄沒有類型；運行中結構化的只有 Engineer 的 `package.publish`。
+   - **去向：** 交回時可見的事實只用「本題是否已有 package」，不推斷 Solver 是否已有候選。
+
 ---
 
 ## 6. 固定交接、快照消費與恢復
