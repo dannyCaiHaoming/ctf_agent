@@ -123,7 +123,7 @@ interface Resource { run: string; sessionID: string; challengeId: string; callID
 interface TaskStopResult { state: 'stopped' | 'unknown' | 'completed' | 'failed'; resources: 'settled' | 'unknown'; sessionAbort: 'confirmed' | 'unknown' | 'not_required'; executionRef?: string }
 interface ReconTurns { admittedTurns: number; state: 'exploration' | 'closure' | 'exhausted' }
 interface ReconStop { reason: string; refs: string[]; result?: TaskStopResult }
-interface Execution { mode: 'sync' | 'background'; source: ChildSource; resultFacts: ChildResult | null; recon?: ReconTurns; reconStop?: ReconStop; version?: string; ref: string; run: string; parent: string; callID: string; role: Role; challengeId?: string; childID?: string; state: 'starting' | 'running' | 'completed' | 'failed' | 'cancelled'; delivered: boolean; noticeMessageID?: string; delivery?: 'queued' | 'consumed' | 'suppressed' | 'stop_reply'; lateResult?: string; initialOutput?: string; result?: string }
+interface Execution { mode: 'sync' | 'background'; source: ChildSource; resultFacts: ChildResult | null; recon?: ReconTurns; reconStop?: ReconStop; version?: string; ref: string; run: string; parent: string; callID: string; role: Role; challengeId?: string; dispatchedAt?: number; childID?: string; state: 'starting' | 'running' | 'completed' | 'failed' | 'cancelled'; delivered: boolean; noticeMessageID?: string; delivery?: 'queued' | 'consumed' | 'suppressed' | 'stop_reply'; lateResult?: string; initialOutput?: string; result?: string }
 /** Result-delivery view of a synchronous dispatch. Identity, source and facts live only on its Execution (the accessors below), so the two cannot disagree. */
 interface SyncCall {parent:string;callID:string;role:Role;execution:string;childID?:string;source:ChildSource;state: 'active' | 'reading' | 'done'; fingerprint:string;displayed:boolean;facts?:ChildResult|null}
 interface Preparation {sessionID:string;execution:string;version:string;directory:string;metadata:{path:string;sha256:string;size:number}[];files:{path:string;sha256:string;size:number}[]}
@@ -192,6 +192,13 @@ export class ControlService {
   }
   private readonly fileSources = new Map<string,{sha256:string;source:ArtifactSource}>();
   private readonly outputSources = new Map<string, {source: ArtifactSource; bytes?: Buffer; complete?: boolean}>();
+  /** Display-only numbers at a hand-back boundary, all from existing host records; carries no advice. */
+  private decisionFacts(e: Execution): { remainingMs: number; turnMs: number; dispatches: Record<string, number>; packaged: boolean } {
+    const now = Date.now(), dispatches: Record<string, number> = {};
+    for (const x of this.executions.values()) if (x.run === e.run && x.challengeId === e.challengeId) dispatches[x.role] = (dispatches[x.role] ?? 0) + 1;
+    return { remainingMs: Math.max(0, this.options.expiresAt - now), turnMs: Math.max(0, now - (e.dispatchedAt ?? now)), dispatches,
+      packaged: e.challengeId !== undefined && this.publicationSnapshot().some(p => p.source.run === e.run && p.source.challenge === e.challengeId && p.source.kind === 'package') };
+  }
   publicationSnapshot() { return this.publications.snapshot(); }
   private source(binding: Binding, kind: ArtifactSource['kind'], resource: string, execution?: string): ArtifactSource {
     const e=execution ?? [...this.executions.values()].find(e=>e.childID===binding.sessionID && e.state==='running')?.ref;
@@ -270,7 +277,7 @@ export class ControlService {
               if (e.parent !== sessionID || e.noticeMessageID !== body.messageID || e.delivery !== 'queued' || !child || child.state !== 'active' && !e.reconStop || Date.now() >= child.expiresAt) throw new ControlDenied('completion correlation');
               const f = e.resultFacts!;
               return { ref: e.ref, role: e.role, completeness: f.completeness, reason: f.reason, finish: f.finish, textChars: f.completeness === 'unknown' ? null : f.textChars, source: e.source.status,
-                ...(e.reconStop ? { localStop: e.reconStop } : {}) };
+                decisionFacts: this.decisionFacts(e), ...(e.reconStop ? { localStop: e.reconStop } : {}) };
             });
             return completionDisplays.length ? { bound: true, completionDisplays } : { bound: true };
           }
@@ -910,7 +917,7 @@ export class ControlService {
       // Both modes mint the one execution identity of this call; background/sync only decides how the result is awaited and delivered.
       const ref = randomUUID();
       const taskID = typeof args.task_id === 'string' ? args.task_id : undefined;
-      const execution: Execution = { mode: background ? 'background' : 'sync', source: {status:'unknown',userMessageID:null,observedAt:null,reason:'missing_source'}, resultFacts:null, ref, run: this.options.runId ?? 'run', parent: binding.sessionID, callID: String(body.callID), role: args.subagent_type as Role, version: this.versions.get(binding.sessionID+'/'+String(args.subagent_type)), challengeId: taskID ? this.bindings.get(taskID)?.challengeId : this.pending.get(binding.sessionID)?.get(args.subagent_type as Role)?.challengeId, childID: taskID, state: taskID ? 'running' : 'starting', delivered: !background };
+      const execution: Execution = { mode: background ? 'background' : 'sync', source: {status:'unknown',userMessageID:null,observedAt:null,reason:'missing_source'}, resultFacts:null, ref, run: this.options.runId ?? 'run', parent: binding.sessionID, callID: String(body.callID), role: args.subagent_type as Role, version: this.versions.get(binding.sessionID+'/'+String(args.subagent_type)), challengeId: taskID ? this.bindings.get(taskID)?.challengeId : this.pending.get(binding.sessionID)?.get(args.subagent_type as Role)?.challengeId, dispatchedAt: Date.now(), childID: taskID, state: taskID ? 'running' : 'starting', delivered: !background };
       this.executions.set(ref, execution);
       this.versions.delete(binding.sessionID+'/'+String(args.subagent_type));
       this.record(binding.sessionID, 'task.execution', true, undefined, {...execution});
@@ -1532,7 +1539,7 @@ export class ControlService {
             // The existing plugin renders syncDisplay verbatim; no plugin/transport changes are needed.
             if (this.stopReason || this.bindings.get(sessionID)?.state !== 'active' || Date.now() >= this.options.expiresAt) return { ok: true };
             return { ok: true, syncDisplay: { callID, role: c.role, completeness: 'unknown', reason: execution.reconStop!.reason,
-              finish: null, textChars: null, source: c.source.status, localStop: { ...execution.reconStop!, result } } };
+              finish: null, textChars: null, source: c.source.status, decisionFacts: this.decisionFacts(execution), localStop: { ...execution.reconStop!, result } } };
           });
         } };
       }
@@ -1559,7 +1566,7 @@ export class ControlService {
             c.facts=facts;
             // Promotion (running envelope, background metadata) is not a terminal fact: the execution stays running until a trusted terminal is correlated (design §8.2, Q5).
             if(metadata.background!==true)this.settleSync(c,trusted&&ordinaryCompleted&&facts.reason!=='binding_identity'?'completed':'failed');
-            const display={callID:c.callID,role:c.role,completeness:facts.completeness,reason:facts.reason,finish:facts.finish,textChars:facts.completeness==='unknown'?null:facts.textChars,source:c.source.status};
+            const display={callID:c.callID,role:c.role,completeness:facts.completeness,reason:facts.reason,finish:facts.finish,textChars:facts.completeness==='unknown'?null:facts.textChars,source:c.source.status,decisionFacts:this.decisionFacts(this.executions.get(c.execution)!)};
             this.record(sessionID,'sync.result',true,undefined,{callID:c.callID,childID:c.childID,source:{...c.source},facts:{...facts}});
             if(c.displayed)return {ok:true};c.displayed=true;return {ok:true,syncDisplay:display};
           });

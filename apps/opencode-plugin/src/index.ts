@@ -11,6 +11,13 @@ export interface CTFPluginOptions {
 }
 
 export const pluginId = 'ctf-agent-host-foundation';
+
+type DecisionFacts = { remainingMs: number; turnMs: number; dispatches: Record<string, number>; packaged: boolean };
+const duration = (ms: number) => { const t = Math.floor(Math.max(0, ms) / 1000), h = Math.floor(t / 3600), m = Math.floor(t % 3600 / 60), sec = t % 60; return h ? `${h}h${String(m).padStart(2, '0')}m${String(sec).padStart(2, '0')}s` : `${m}m${String(sec).padStart(2, '0')}s`; };
+/** Numbers only; the host supplies the facts and no suggested action is rendered. */
+const decisionLine = (f?: DecisionFacts) => f ? `\ndecision facts: remaining=${duration(f.remainingMs)}, turn=${duration(f.turnMs)}, dispatches=${Object.entries(f.dispatches).map(([role, n]) => `${role}×${n}`).join(', ') || 'none'}, packaged=${f.packaged ? 'yes' : 'no'}` : '';
+const withoutDecisionFacts = <T extends { decisionFacts?: unknown }>(d: T) => { const { decisionFacts: _omit, ...rest } = d; return rest; };
+
 const packageEntry={path:tool.schema.string(),purpose:tool.schema.enum(['script','input','evidence'])};
 const reportSelection={start:tool.schema.number().int().nonnegative().optional(),end:tool.schema.number().int().nonnegative().optional(),necessary:tool.schema.boolean(),context:tool.schema.string()};
 const diffPath = tool.schema.string().refine(path => {
@@ -165,8 +172,8 @@ export function createCtfAgentHooks(options: CTFPluginOptions): Hooks {
         await control(part.sessionID, 'task.event', {callID: part.callID, state: part.state.status, error: part.state.error});
     },
     async 'chat.message'(input, output) {
-      const reply = await control(input.sessionID, 'chat.message', { agent: input.agent, messageID: input.messageID ?? output.message?.id, parts: output.parts }) as { completionDisplays?: Array<{ref:string;role:string;completeness:string;reason:string;finish:string|null;textChars:number|null;source:string}> };
-      for (const fact of reply.completionDisplays ?? []) output.parts.push({ id: 'prt_' + crypto.randomUUID().replaceAll('-', ''), sessionID: input.sessionID, messageID: output.message.id, type: 'text', synthetic: true, text: '[CTF host result facts] ' + JSON.stringify(fact) + '\nExecution ended does not imply a complete report; complete does not imply correct or solved.' });
+      const reply = await control(input.sessionID, 'chat.message', { agent: input.agent, messageID: input.messageID ?? output.message?.id, parts: output.parts }) as { completionDisplays?: Array<{ref:string;role:string;completeness:string;reason:string;finish:string|null;textChars:number|null;source:string;decisionFacts?:DecisionFacts}> };
+      for (const fact of reply.completionDisplays ?? []) output.parts.push({ id: 'prt_' + crypto.randomUUID().replaceAll('-', ''), sessionID: input.sessionID, messageID: output.message.id, type: 'text', synthetic: true, text: '[CTF host result facts] ' + JSON.stringify(withoutDecisionFacts(fact)) + '\nExecution ended does not imply a complete report; complete does not imply correct or solved.' + decisionLine(fact.decisionFacts) });
       const messageID=output.message?.id??input.messageID;
       const context=await appendContext(input.sessionID,{placement:'chat.message',...(messageID?{messageID}:{})});
       if(context)output.parts.push({id:'prt_'+crypto.randomUUID().replaceAll('-',''),sessionID:input.sessionID,messageID:messageID!,type:'text',synthetic:true,text:context});
@@ -206,8 +213,8 @@ export function createCtfAgentHooks(options: CTFPluginOptions): Hooks {
       }
     },
     async 'tool.execute.after'(input, output) {
-      const reply=await control(input.sessionID,'tool.after',{tool:input.tool,callID:input.callID,metadata:output.metadata,output:output.output}) as {syncDisplay?:unknown};
-      if(reply.syncDisplay)output.output += '\n[CTF host synchronous result facts] '+JSON.stringify(reply.syncDisplay)+'\nExecution ended does not imply a complete report; complete does not imply correct or solved.';
+      const reply=await control(input.sessionID,'tool.after',{tool:input.tool,callID:input.callID,metadata:output.metadata,output:output.output}) as {syncDisplay?:{decisionFacts?:DecisionFacts}};
+      if(reply.syncDisplay)output.output += '\n[CTF host synchronous result facts] '+JSON.stringify(withoutDecisionFacts(reply.syncDisplay))+'\nExecution ended does not imply a complete report; complete does not imply correct or solved.'+decisionLine(reply.syncDisplay.decisionFacts);
       const context=await appendContext(input.sessionID,{placement:'tool.execute.after',callID:input.callID});
       if(context)output.output+='\n'+context;
     }
