@@ -59,7 +59,7 @@ Verifier 交回固定 result 後，用 `ctf_verification_read({challenge,version
 
 透過既有 Intake `ctf_challenge_list` 及 `ctf_progress_read` 的 completion 摘要取得非秘密裁判能力、可信限制、剩餘機會、冷卻與預算／deadline；不猜限制，不把 unknown 當不限次。限制未知、無裁判、機會／預算耗盡或被停止時記原因。冷卻只在既有調度與本輪時間預算內等待，不忙輪詢、不新建 scheduler。
 
-按條件送驗：Engineer 固定候選後，先不帶 `result` 提出 `ctf_completion_request({challenge,version})`（oracle 優先）。host 只在有裁判、次數不限且無冷卻／封鎖、同題同裁判範圍無 wrong_answer、候選位元組出現在本題 host HTTP 捕獲時准入並直接送裁判；否則拒絕，原因以 `verification required` 開頭並列出不成立條件。被拒且原因是 `verification required` 時，照上節原流程派 Verifier，取得 result 後再帶 `result` 提出。`wrong_answer` 之後的下一個候選，host 會要求送驗。其他拒絕（unknown 暫停、pending、預算、停止等）不是送驗的理由，按原規則處理。Verifier 不補證、不重解的規則不變。
+按條件送驗：Engineer 固定候選後，先不帶 `result` 提出 `ctf_completion_request({challenge,version})`（oracle 優先）。host 只在有裁判、次數不限且無冷卻／封鎖、同題同裁判範圍無 wrong_answer 時准入並直接送裁判；否則拒絕，原因以 `verification required` 開頭並列出不成立條件。被拒且原因是 `verification required` 時，照上節原流程派 Verifier，取得 result 後再帶 `result` 提出。`wrong_answer` 之後的下一個候選，host 會要求送驗。其他拒絕（unknown 暫停、pending、預算、停止等）不是送驗的理由，按原規則處理。Verifier 不補證、不重解的規則不變。
 對合格記錄（含已有 Verifier result 者）提出 `ctf_completion_request({challenge,version,result?})`，不傳 candidate/endpoint/authority。host 讀取精確固定 bytes，預留機會、保存 intent 並在發送前再核對身份、bytes、規則、預算與停止。無裁判保存 candidate_only。只有 confirmed、accepted 且整題完成並有效保存才是 solved；即使第三層接受，原 inconclusive 也不改 verified。部分接受不能重送同一候選湊完成。
 
 只有 host 裁判回執明確分類 wrong_answer 才判該精確候選錯誤；同任務同題同 judge 作用域不得再送，換包／version／result 不繞過。invalid_state／closed／非答案 rejected 不列錯誤候選。unknown／超時／回執不匹配／保存失敗暫停同題提交，不能當錯誤、退回機會或換候選盲重發；其他觀察可繼續。已保存與呼叫方收到分開，角色假設不是 host 證明。

@@ -122,7 +122,6 @@ export class CompletionRequests {
      if(this.history(a.challenge,judge).some(r=>r.state==='confirmed'&&r.rejection==='wrong_answer'))failed.push('prior wrong_answer');
     }
     captureResources=provenance?provenance(bytes):[];
-    if(!captureResources.length)failed.push('candidate not found in any host http capture');
     if(failed.length)throw new WorkspaceRefused('verification required: '+failed.join('; '));
    }
    admit();
