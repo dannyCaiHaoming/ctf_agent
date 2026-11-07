@@ -153,6 +153,27 @@ SDK 读取和导出非原子，exportedSourceMatches 只说明导出是否匹配
   1. a4 的 Coordinator 決策點上，這些數字能否從現有記錄算出？能就只改展示，不新增記錄。
   2. 追加後 Coordinator 的派單是否改變（換路、派 Critic、派 Engineer 的比例）？只能由授權的配對 run 回答，方法見[解題延遲](2026-11-04-design-v1-run-latency-and-context-cost.md) §4。不變就撤回，不再疊加提示。
   3. 「已有候選」若需要 Solver 標記，屬於接口變更，先回到 [Recon 重設計](2026-10-29-design-v1-recon-redesign.md) §5「推廣到 Solver 等長執行角色」的問題 3 一併決定，不在此單獨新增欄位。
+- **a5 E2 補充（2026-11-07，產品 `9e874d44`，只讀結構化欄位，見 [E2 生命週期分析](../analysis/2026-11-07-a5-e2-lifecycle.md)）：**
+  - 跑到 deadline 的原因不是收束規則：1714s 續派的背景 Solver 仍在跑，`hasOutstandingWork` 為真，符合設計。
+  - 預算未觸及，也沒有拒絕擋住 Engineer；Coordinator 7 次續派中 4 次是同一個 Solver，全程沒派 Engineer。recovery-critic 給出 `redirect` 後，仍續派同一個 Solver。
+  - `ctf_progress_read` 只給絕對 `deadline`，不給剩餘時間與各角色派出統計；705s→1560s 的單個 Solver 回合約 13 分鐘，期間 Coordinator 沒有回合。
+  - 問題 1 的答案：剩餘牆鐘、回合時長、各角色派出次數、本題是否已有 package，都能從現有 execution、budget 與 publication 記錄算出，不需新增記錄。
+- **決定（2026-11-07）：** 實作上面的候選做法，在交回事實旁追加這四項，各角色派出次數是 a5 E2 新增的一項。只追加事實，不附建議動作。保留或撤回由問題 2 的配對 run 決定。
+  - Solver 單回合時長上限屬於觸發層，不在本項；仍歸 [Recon 重設計](2026-10-29-design-v1-recon-redesign.md) §5 的牆鐘階段 closure 評估。
+- **實作（2026-11-08，merge `2ed7054c`，含 `9590bc0b`）：**
+  - **欄位：** 背景交回的 `completionDisplays`、同步交回的 `syncDisplay`（含 Recon 本地停止）都帶 `decisionFacts: {remainingMs, turnMs, dispatches, packaged}`。
+  - **來源：**
+    - `remainingMs` 為 `expiresAt` 減去當下時間，不小於 0；
+    - `turnMs` 取自 `Execution` 的記憶體欄位 `dispatchedAt`，續派是新的 execution，所以按回合計；
+    - `dispatches` 統計本 run、本題的 executions，含本次；
+    - `packaged` 看本題 publication 中有無 `package` 類。
+  - **不新增持久記錄。**
+  - **渲染：** plugin 在原完整性事實後追加一行 `decision facts: remaining=…, turn=…, dispatches=role×n…, packaged=yes|no`。原 JSON 事實不含這四項，避免重複。全文只有數字，沒有建議句。
+  - **驗證（無模型）：**
+    - 確定性測試覆蓋背景與同步交回、打包前後、unknown 結果、已過 deadline、跨題不混算；
+    - typecheck、build、全量 831 項通過。
+  - **沒有改動：** 角色 prompt、收束、預算與准入都未改。
+  - **尚未回答：** 問題 2 仍未回答。配對 run 前，Coordinator 的派單是否因此改變屬未知；不變就撤回。
 
 ### 5.3 同步关联与多通知消费
 
