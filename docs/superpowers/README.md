@@ -20,6 +20,7 @@
 | 何时读取 | 文档 | 当前状态与未验证边界 |
 | --- | --- | --- |
 | 判断跨组件职责、产品范围或验收要求 | [核心设计 v1](specs/2026-10-22-ctf-agent-design-v1.md) | 当前架构依据；第 3 节仍有待决项，不把全文视为全部已实现。 |
+| 排查 Coordinator／Recon／Solver 重复探索、交接后无推进，区分架构与能力问题 | [团队决策上下文](specs/2026-11-07-design-v1-team-decision-context.md) | 2026-11-07 设计建议：保留角色，复用主本承载判断并提供角色工作视图。2026-11-08 §6.0 两项前置完成：承接未见缺口，瓶颈在 Solver 未产出候选及 child `length` 截断；§6.1 第一片暂缓、不写 plan，§5 保留为候选。未改实现。 |
 | 修改产品资产布局、固定副本、原生 Skill／Reference 载入 | [A／B 产品资产与 Skill](specs/2026-10-22-design-v1-ab-product-assets.md) | 资产复制、metadata、版本记录已接入；历史无模型 skill → read 连通成立。当前角色准入与 Skill 根内受控 read 已接入，见下方 Skill 核对 §7.2；共用知识目录仍待按需推进。 |
 | 修改角色／Web Skill 中的工具用法，排查旧接口描述 | [产品角色与 Web Skill 契约对齐](specs/2026-10-24-design-v1-product-instruction-contract-alignment.md) | 六份产品文档清理已完成、无模型回归与复核通过；必要清理及剩余收口已提交（`31b10b58`、`f7ad776b`）。不证明模型遵循。 |
 | 修正报告 blocker 的交接、无依据重包或重算比较区间 | [Agent 交接连续性](specs/2026-10-24-design-v1-agent-handoff-continuity.md) | Coordinator／Verifier 最小修改已实作、无模型回归通过并提交（`77e40a5d`）；其余一般交接建议仍为候选，效率改善未验证。 |
