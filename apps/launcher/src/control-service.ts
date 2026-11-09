@@ -123,7 +123,7 @@ interface Resource { run: string; sessionID: string; challengeId: string; callID
 interface TaskStopResult { state: 'stopped' | 'unknown' | 'completed' | 'failed'; resources: 'settled' | 'unknown'; sessionAbort: 'confirmed' | 'unknown' | 'not_required'; executionRef?: string }
 interface ReconTurns { admittedTurns: number; state: 'exploration' | 'closure' | 'exhausted' }
 interface ReconStop { reason: string; refs: string[]; result?: TaskStopResult }
-interface Execution { mode: 'sync' | 'background'; source: ChildSource; resultFacts: ChildResult | null; recon?: ReconTurns; reconStop?: ReconStop; version?: string; ref: string; run: string; parent: string; callID: string; role: Role; challengeId?: string; dispatchedAt?: number; childID?: string; state: 'starting' | 'running' | 'completed' | 'failed' | 'cancelled'; delivered: boolean; noticeMessageID?: string; delivery?: 'queued' | 'consumed' | 'suppressed' | 'stop_reply'; lateResult?: string; initialOutput?: string; result?: string }
+interface Execution { mode: 'sync' | 'background'; source: ChildSource; resultFacts: ChildResult | null; recon?: ReconTurns; reconStop?: ReconStop; version?: string; ref: string; run: string; parent: string; callID: string; role: Role; challengeId?: string; dispatchedAt?: number; modelCalls?: number; childID?: string; state: 'starting' | 'running' | 'completed' | 'failed' | 'cancelled'; delivered: boolean; noticeMessageID?: string; delivery?: 'queued' | 'consumed' | 'suppressed' | 'stop_reply'; lateResult?: string; initialOutput?: string; result?: string }
 /** Result-delivery view of a synchronous dispatch. Identity, source and facts live only on its Execution (the accessors below), so the two cannot disagree. */
 interface SyncCall {parent:string;callID:string;role:Role;execution:string;childID?:string;source:ChildSource;state: 'active' | 'reading' | 'done'; fingerprint:string;displayed:boolean;facts?:ChildResult|null}
 interface Preparation {sessionID:string;execution:string;version:string;directory:string;metadata:{path:string;sha256:string;size:number}[];files:{path:string;sha256:string;size:number}[]}
@@ -414,10 +414,15 @@ export class ControlService {
     const run=this.options.runId??'run',challenge=binding.challengeId!,quota=this.reconTurns.get(challenge);
     const execution=[...this.executions.values()].find(e=>e.childID===binding.sessionID&&e.state==='running');
     const handoffs=view.all.filter(e=>e.kind==='handoff').map(e=>e.id);
+    const now=Date.now(),turn=this.turnExecution(binding);
     return {
       in_flight:{record_ids:view.in_flight_ids,resources:this.resourceSnapshot().filter(r=>r.run===run&&r.challengeId===challenge&&r.state!=='settled').map(r=>({session:r.sessionID,callID:r.callID,tool:r.tool,state:r.state,job:r.job??null,deadline:r.deadline}))},
       publications:this.publicationSnapshot().filter(p=>p.source.run===run&&p.source.challenge===challenge).map(p=>({ref:p.ref,kind:p.source.kind,session:p.source.sessionID??null,sha256:p.sha256,size:p.size})),
       budget:{admitted_model_calls:this.admitted,max_model_calls:this.options.budget.maxModelCalls,observed_tokens:this.observed,max_observable_tokens:this.options.budget.maxObservableTokens,expires_at:this.options.expiresAt,
+        // Display-only host facts for the child's own hand-back judgment; whole minutes keep the context version stable within a minute. Never a stop gate.
+        remaining_min:Math.floor(Math.max(0,this.options.expiresAt-now)/60000),
+        turn_elapsed_min:turn?.dispatchedAt===undefined?null:Math.floor(Math.max(0,now-turn.dispatchedAt)/60000),
+        turn_model_calls:turn?(turn.modelCalls??0):null,
         recon:binding.role==='recon'&&this.options.budget.reconMaxModelCalls!==undefined?{admitted_turns:quota?.admittedTurns??0,max_turns:this.options.budget.reconMaxModelCalls,closure_reserve:this.options.budget.reconClosureReserve??null}:null},
       closure:{state:binding.role==='recon'?quota?.state??'exploration':null,stop:execution?.reconStop?.reason??null,run_stop:this.stopReason??null},
       handoff:{recorded_ids:handoffs,snapshots:this.audit.filter(a=>a.op==='recon.snapshot'&&a.allow&&handoffs.includes(Number((a.detail as any)?.handoff_id))).map(a=>({handoff_id:(a.detail as any).handoff_id,ref:(a.detail as any).ref}))},
@@ -808,6 +813,8 @@ export class ControlService {
       execution.recon = { admittedTurns: (execution.recon?.admittedTurns ?? 0) + 1, state: recon.state };
       this.record(binding.sessionID, 'recon.admitted', true, undefined, { execution: execution.ref, ...recon });
     }
+    const turn = this.turnExecution(binding);
+    if (turn) turn.modelCalls = (turn.modelCalls ?? 0) + 1;
     this.admitted++;
     const requestMessageIDs = new Set(Array.isArray(body.requestMessageIDs) ? body.requestMessageIDs.filter((id): id is string => typeof id === 'string') : []);
     for (const e of this.executions.values()) if (e.parent === binding.sessionID && e.delivery === 'queued' && requestMessageIDs.has(e.noticeMessageID!)) { e.delivery = 'consumed'; this.record(binding.sessionID, 'task.delivered', true, undefined, {ref: e.ref, messageID: e.noticeMessageID, admitNo: this.admitted}); }
@@ -821,6 +828,13 @@ export class ControlService {
     let quota = this.reconTurns.get(binding.challengeId);
     if (!quota) { quota = { admittedTurns: 0, state: 'exploration' }; this.reconTurns.set(binding.challengeId, quota); }
     return quota;
+  }
+
+  /** The one running execution of this child in its own run/challenge/parent; undefined when absent or ambiguous (never guessed). */
+  private turnExecution(binding: Binding): Execution | undefined {
+    const active = [...this.executions.values()].filter(e => e.childID === binding.sessionID && e.state === 'running' &&
+      e.run === (this.options.runId ?? 'run') && e.challengeId === binding.challengeId && e.parent === binding.parentID);
+    return active.length === 1 ? active[0] : undefined;
   }
 
   private reconExecution(binding: Binding): Execution {
