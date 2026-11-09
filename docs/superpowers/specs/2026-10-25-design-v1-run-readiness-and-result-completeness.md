@@ -173,7 +173,37 @@ SDK 读取和导出非原子，exportedSourceMatches 只说明导出是否匹配
     - 確定性測試覆蓋背景與同步交回、打包前後、unknown 結果、已過 deadline、跨題不混算；
     - typecheck、build、全量 831 項通過。
   - **沒有改動：** 角色 prompt、收束、預算與准入都未改。
-  - **尚未回答：** 問題 2 仍未回答。配對 run 前，Coordinator 的派單是否因此改變屬未知；不變就撤回。
+- **問題 2 的首次觀察（a6，2026-11-08，產品 `6c965475`，報告 `runs/alibaba-easy-20261108-a6/a6-report.md`）：** 設定同 a5：ezoj ×2、8a6ac7ff ×1，Solver thinking 開，每 run 3M／30 分鐘。
+  - **派單模式未改變。** F2 的 Solver 交回 6 次，其中 5 次立刻續派同角色；每次交回時 `packaged=no`，remaining 由 975 秒降到 519 秒，全程沒派 Engineer。最後一次交回後 Coordinator 不再派單，run 以 `completed` 結束，0 提交，尚餘約 8.6 分鐘。F1 同樣沒進 Engineer，到 deadline 停止。
+  - **對照題未退化。** K2 在 Recon 交回後直接派 Engineer，4.8 分鐘 accepted。
+  - **限制。** 每設定一次、非配對 A/B；渲染文字不入審計，四個值按 host 口徑重算，不能證明模型讀到或用了。
+  - **判斷。** 沒有觀察到改善，但樣本不足以判定無效。四項事實只增加交回時的一行數字、不改行為規則，暫不撤回，作為後續對照的固定基線；不再為此疊加提示或新欄位。下一步改由 [團隊決策上下文](2026-11-07-design-v1-team-decision-context.md) §6.0 第 2 項的交回內容核對，區分「承接」與「Solver 探索」缺口。
+  - **另見。** 同批 F1 的 Recon、F1／F2 的 Solver 交回出現 `incomplete（length）`，F2 一個 Recon 回合約 10 分鐘以 `unknown` 交回。
+- **child 單次輸出上限（決定，2026-11-08）：**
+  - **依據。** [交回內容核對](../analysis/2026-11-08-handoff-content-check.md)：a3–a6 有 8 次 child 交回因 `finish=length` 截斷，既沒回答問題也沒留線索，全部落在未產出候選的 6 個 run。Recon（未開思考）與 Solver（開思考）都有截斷，所以不只是思考佔用輸出。
+  - **現況。** 所有角色共用模型 `limit.output=8000`。這是[配置說明](../../../config/README.md)沿用的保守值，網關實際上限未核實。§5.4 已確認 length 訊息的 output＋reasoning 恰為 8000。
+  - **下一批運行設定。**
+    - 把運行設定中模型的 `limit.output` 提高到 32000，只改 run 的 `configs/opencode.*.json`，不改產品代碼與範例配置。
+    - 開跑前用一次最小真實請求確認網關接受 32000；被拒時退到 16000，並記入報告。這次請求計入批次預算。
+    - 其餘設定同 a6，包括 decisionFacts 基線與 Solver 思考開啟。
+  - **判據。**
+    - child 交回的 `finish=length` 次數，與 a6 同口徑比較；
+    - Coordinator 的 `finish=length` 與 Root 續接次數；
+    - 單回合 output＋reasoning 的分佈，確認上限確實生效；
+    - 次要指標：牆鐘與 token 變化、是否產出候選。
+  - **歸因限制。** 截斷減少不等於解題能力提升。若截斷歸零而候選仍為 0，瓶頸確認在探索能力，轉 P2 失敗復盤。
+  - **a7 結果（2026-11-08，`6c965475`，[報告](../../../runs/alibaba-easy-20261108-a7/a7-report.md)）：**
+    - **設定。** 只把 run 的 `limit.output` 由 8000 改為 32000；開跑前最小真實請求 `max_tokens=32000` 回 HTTP 200（49 tokens，計入批次預算），未退 16000；其餘同 a6。[P2 復盤](../analysis/2026-11-06-alibaba-a1-a4-harness-findings.md)已於開跑前完成。
+    - **截斷。** child `finish=length` 由 3 次降為 0；Coordinator `finish=length` 與 Root 續接都是 0，與 a6 相同。
+    - **上限未成為約束。** 單次 call 的 output＋reasoning 最大 13,049，沒有任何 call 接近 32,000；a6 的 8,000 上限曾命中 3 次。
+    - **結果。** 仍是 1/3 solved（K2）。F1 的 recon 單一 execution 跑到 30 分鐘 deadline 未交回；F2 的 solver 單回合 24.1 分鐘、剩 23 秒才交回，0 提交；K2 9.54 分（a6 4.8 分）。
+    - **用量。** observable 1,631,227（a6 1,109,532，+47%）；牆鐘與單回合時長都上升。
+    - **判斷。**
+      - **截斷不是 F1／F2 無候選的主因。** 截斷歸零後兩題仍沒有可提交候選；32000 也未成為約束。不再調高上限。
+      - **a7 沒有測到 Solver 探索能力，不據此確認「瓶頸在探索能力」。** 上一條判據的前提是 Solver 有完整的探索與交回機會，本批不滿足：F1 從未派出 Solver；F2 只有一次 Solver 交回，且剩 23 秒，分不清能力不足還是時間不足。探索能力假設目前主要由 [P2 復盤](../analysis/2026-11-06-alibaba-a1-a4-harness-findings.md)的缺口分類支持。
+      - **新觀察：child 單次 execution 可吃掉整個 deadline。** a6 的 `length` 截斷實際上讓 child 提早交回、Coordinator 拿回控制；上限放寬後，失敗從「交回不完整」變成「沒有交回」（F1 recon 約 30 分鐘、52 次 call 被取消）。單次 call 的 output＋reasoning 中位數在 F1／F2 升為 a6 的 4.7／3.6 倍（K2 1.4 倍），是否因 `max_tokens` 增大而推理變多屬推測，未驗證。
+      - **上限（決定，2026-11-08）。** 後續批次維持 32000。8000 截斷產生的是 0 輸出的空交回，Coordinator 無法據以判斷；它順帶造成的提早交回只是副作用，不作時間控制手段。
+      - **單次 execution 長度。** 不再以 host 門檻限制；改由 child 依執行中可見的時間事實自判交回，候選見 [Recon 重設計](2026-10-29-design-v1-recon-redesign.md) §5「執行中可見的時間事實，由 child 自判交回」，不在本項。若不先處理，P2 指向的方法補強在下一批的效果可能被同類超時掩蓋。
 
 ### 5.3 同步关联与多通知消费
 
