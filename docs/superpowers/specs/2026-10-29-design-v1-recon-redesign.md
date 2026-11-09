@@ -326,6 +326,41 @@ r16 A 是反例：Recon 准入 31 次、88 次工具，仍沒有 decision 或 ha
    - 不能在運行中判定。「Engineer 之後讀取」只能事後知道，artifact 記錄沒有類型；運行中結構化的只有 Engineer 的 `package.publish`。
    - **去向：** 交回時可見的事實只用「本題是否已有 package」，不推斷 Solver 是否已有候選。
 
+### 執行中可見的時間事實，由 child 自判交回（候選，2026-11-08）
+
+**狀態：** 無模型已實施（2026-11-09，未提交）；真實行為未驗證。停止判斷歸 agent，host 只提供事實；不新增門檻。
+
+**為什麼不再調門檻。** 上面的 A／B／C 與按題 Recon cap 取值，都是把「何時停」交給 host 常數，且每輪都要重新取值。a7（[結果完整性](2026-10-25-design-v1-run-readiness-and-result-completeness.md) §5.2）放寬輸出上限後，F1 的 Recon 單次 execution 約 30 分鐘、52 次調用未交回；F2 的 Solver 單次 24 分鐘、剩 23 秒才交回。角色規則早已要求自判交回（[路線複核](2026-10-25-design-v1-negative-evidence-and-route-review.md) §5.7 候選 D），所以缺的不是規則，而是判斷所需的事實。
+
+**現況（代碼核對）。**
+- child 的調查上下文 `budget` 已帶 run 全局的已准入調用、已觀測 token 與 `expires_at`（`control-service.ts` `contextState`），變化時以 delta 重送。
+- `expires_at` 是絕對時間；上下文沒有當前時間，剩餘時間要模型自己換算。
+- 沒有本回合已用時間或本回合調用數。
+- 這些相對值目前只在交回時以 decisionFacts（remainingMs、turnMs）給 Coordinator（[結果完整性](2026-10-25-design-v1-run-readiness-and-result-completeness.md) §5.2）。
+- 按題 Recon cap 已實施，但 a6／a7 設為 1000，等於關閉。
+
+**候選做法。**
+- 在同一 `budget` 狀態加入 host 計算的相對值：本題剩餘時間、本回合已用時間、本回合模型調用數。回合起點與 decisionFacts 的 turnMs 同口徑：每次原生 `task` 呼叫（含帶 `task_id` 的續接）都新建 execution 並重設起點。時間取整分鐘，避免上下文版本每次都變。
+- 沿用既有追加式 delta，不新增工具、喚醒路徑、monitor 或強制停止。
+- 角色規則只補一句：依這些事實套用既有交回條件。不寫具體分鐘或次數。
+
+**實施（2026-11-09，無模型）。**
+- `control-service.ts`：Execution 新增每回合模型調用計數，准入時只記入該 child 唯一的 running execution，零個或多個時不記。`contextState` 的 `budget` 新增 `remaining_min`、`turn_elapsed_min`、`turn_model_calls`，皆取整分鐘或整數；找不到唯一 running execution 時後兩欄為 `null`，不填 0。`expires_at` 與其他欄位不變。
+- `recon.md`、`domain-solver.md` 各補一句：這三個值是 host 事實，據此套用既有交回條件，host 不會因此強制停止。不含具體分鐘或次數。
+- 只對 recon／domain-solver／engineer 呈現（沿用 `prepareContext` 的角色範圍）；Verifier 與 Coordinator 不變。
+- **驗證：** `tests/contract/investigation-context.test.ts` 新增 2 項：同步與背景兩種派單的數值、准入後遞增、他 child 不計入、續接新回合從 0 起算且舊計數保留在舊 execution、無或多個 running execution 為 `null`、同一分鐘內版本不變。既有「准入後 delta 只含 budget」與端到端案例（實際附加到出站消息的文字含三欄）通過。typecheck、build、全量 833 項通過。
+- **限制：** 跨分鐘時版本會變，delta 會多送一次 budget，這是預期行為。fixture 通過只證明工程鏈路，不證明模型會依時間交回。
+
+**不做。** 不設 host 停止門檻，不新增 judge，不改 closure 語義。deadline、全局 token 與按題 Recon cap 保留為硬安全網，不再作為調參手段；Recon cap 維持現值。
+
+**風險。** a6 已把同類事實給 Coordinator，派單行為沒有改變。child 拿到時間事實後也可能照樣跑到 deadline。
+
+**驗證與去向。**
+- **無模型：** child 的實際出站請求帶上述相對值並隨調用更新；同步、背景與續接的回合起點正確；Verifier 不因此獲得求解上下文。
+- **真實 run（另行授權）：** 與 a7 同設定對照。判據是單次 execution 時長分佈、是否仍有 child 跑到 deadline 未交回、交回理由是否引用時間事實。
+- **若事實已抵達而行為不變：** 記為「模型不會用時間做停止判斷」的能力證據，不回頭調門檻；是否由 Coordinator 層改用其他方式，另行設計。
+- 結論回寫本節。
+
 ---
 
 ## 6. 固定交接、快照消費與恢復

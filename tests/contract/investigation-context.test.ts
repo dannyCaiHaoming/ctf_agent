@@ -251,6 +251,9 @@ describe('Recon investigation context (design §4)', () => {
       const first = await message('recon', 'u1');
       const appended = first.parts.at(-1).text as string;
       expect(body(appended)).toMatchObject({mode: 'full', index: {coverage: {total: 3, complete: true}}});
+      // The time facts are in the text actually appended to the outbound message, not only in hook results.
+      // The fixture execution has no dispatch time, so elapsed is unknown (null) while the call count is known (0).
+      expect(body(appended).state.budget).toEqual(expect.objectContaining({remaining_min: expect.any(Number), turn_elapsed_min: null, turn_model_calls: 0}));
       seed(store, 1, 16, 'job');
       const toolOutput = {title: 't', output: 'native', metadata: {}};
       await h['tool.execute.after']!({sessionID: 'recon', tool: 'ctf_workspace_read', callID: 'c1', args: {}}, toolOutput);
@@ -275,6 +278,48 @@ describe('Recon investigation context (design §4)', () => {
       await expect(params('recon-b', 'b1')).resolves.toBeUndefined();
       store.db.exec('ALTER TABLE recon_turns_hidden RENAME TO recon_turns');
     } finally { mocked.mockRestore(); store.close(); }
+  });
+
+  it('budget carries whole-minute time facts and per-turn model calls of the running execution only', async () => {
+    for (const mode of ['background', 'sync'] as const) {
+      const {store, service} = fixture();
+      const s = service as any, t = Date.now();
+      s.options.expiresAt = t + 21.5 * 60000;
+      for (const id of ['recon', 'recon-b']) Object.assign(s.executions.get(`ex-${id}`), {mode, dispatchedAt: t - 3.5 * 60000});
+      const budget = async (session: string) => body((await prepare(service, session, {messageID: 'u1', placement: 'chat.message'})).text).state.budget;
+      expect(await budget('recon')).toMatchObject({remaining_min: 21, turn_elapsed_min: 3, turn_model_calls: 0, expires_at: s.options.expiresAt});
+      await service.handle('recon', 'model.call', {agent: 'recon'});
+      await service.handle('recon', 'model.call', {agent: 'recon'});
+      await service.handle('recon-b', 'model.call', {agent: 'recon'});
+      // Another child's calls are not counted; the global counter still sees all three.
+      expect(await budget('recon')).toMatchObject({turn_model_calls: 2, admitted_model_calls: 3});
+      expect(await budget('recon-b')).toMatchObject({turn_model_calls: 1});
+      // Continuation of the same child is a new execution: the turn restarts and the old count is not carried.
+      s.executions.get('ex-recon').state = 'completed';
+      s.executions.set('ex-recon-2', {...s.executions.get('ex-recon'), ref: 'ex-recon-2', state: 'running', dispatchedAt: Date.now(), modelCalls: undefined});
+      expect(await budget('recon')).toMatchObject({turn_elapsed_min: 0, turn_model_calls: 0});
+      await service.handle('recon', 'model.call', {agent: 'recon'});
+      expect(await budget('recon')).toMatchObject({turn_model_calls: 1});
+      expect(s.executions.get('ex-recon').modelCalls).toBe(2);
+      // No running execution, or an ambiguous one: unknown, never 0.
+      s.executions.get('ex-recon-2').state = 'completed';
+      expect(await budget('recon')).toMatchObject({remaining_min: 21, turn_elapsed_min: null, turn_model_calls: null});
+      s.executions.set('ex-recon-3', {...s.executions.get('ex-recon-b'), ref: 'ex-recon-3'});
+      expect(await budget('recon-b')).toMatchObject({turn_elapsed_min: null, turn_model_calls: null});
+      store.close();
+    }
+  });
+
+  it('time facts do not change the context version within the same minute', async () => {
+    const {store, service} = fixture();
+    const s = service as any;
+    // Mid-minute values on both clocks, so the 20 ms below cannot cross a minute boundary.
+    s.options.expiresAt = Date.now() + 10.5 * 60000;
+    s.executions.get('ex-recon').dispatchedAt = Date.now() - 30000;
+    const first = await prepare(service, 'recon', {messageID: 'u1', placement: 'chat.message'});
+    await new Promise(r => setTimeout(r, 20));
+    expect(await prepare(service, 'recon', {messageID: 'u1', placement: 'tool.execute.after', callID: 'c1', visibleVersion: first.version})).toEqual({version: first.version, unchanged: true});
+    store.close();
   });
 
   it('keeps R3 recon.read navigation intact', async () => {

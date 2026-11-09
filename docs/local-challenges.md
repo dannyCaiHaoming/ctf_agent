@@ -33,23 +33,23 @@
   - 本機 judge adapter：要從 `tests/` 推導，而且不能讓模型讀到；
   - challenges／profile 設定；
   - 固定的端口綁定。
-- **真實 run：** 全部未跑。
+- **真實 run：** a1–a6 批次跑過下表標註的題目（a1 在 `~/Documents/pentest-agent-run-data/alibaba-easy-20261104-a1/`，a2–a6 在 `runs/`；各批 judge／profile 在該批次目錄）；其餘未跑。
 
 | 題目（`alibabactf-` 之後） | 類別 | 難度 | 冒煙 | 服務:端口 | 附件 | 備註 |
 | --- | --- | --- | --- | --- | --- | --- |
-| 2023-web-ac5a1bc0 | web | easy | HTTP 就緒 | app:8080 | 有 | |
-| 2023-web-bypassit1 | web | easy | HTTP 就緒 | bypassit1:8080 | 有 | |
-| 2023-web-bypassit2 | web | easy | HTTP 就緒 | web:8080 | 有 | |
+| 2023-web-ac5a1bc0 | web | easy | HTTP 就緒 | app:8080 | 有 | a1 批次解出（19.4 分；送驗後提交 1 次） |
+| 2023-web-bypassit1 | web | easy | HTTP 就緒 | bypassit1:8080 | 有 | a1 批次解出（18.0 分；job 配額用盡，Verifier 判 inconclusive，提交 1 次被接受） |
+| 2023-web-bypassit2 | web | easy | HTTP 就緒 | web:8080 | 有 | a1 批次未解出（14.8 分；100 次 job 配額用盡後結束，沒有提交） |
 | 2023-web-bytecode_ballet | reverse | medium | TCP 就緒 | target:1337 | 有 | 目錄名含 web，實為 reverse |
 | 2023-web-ezbean | web | easy | HTTP 就緒 | tomcat:8081 | 有 | |
 | 2023-web-wee1 | web | medium | HTTP 就緒 | wee:8889 | 有 | |
-| 2024-web-8a6ac7ff | web | easy | HTTP 就緒 | app:23000 | 無 | |
+| 2024-web-8a6ac7ff | web | easy | HTTP 就緒 | app:23000 | 無 | a2 批次解出（10.5 分；1 次提交）；a5 對照組解出（8.5 分；oracle_first，1 次提交）；a6 對照組解出（4.8 分；未派 Solver，oracle_first，1 次提交）；a7 對照組解出（9.5 分；recon→solver→engineer，oracle_first，1 次提交） |
 | 2024-web-Pastebin | web | difficult | HTTP 就緒 | app:28080 | 有 | 唯一標為 difficult |
 | 2024-web-easyCAS | web | medium | HTTP 就緒 | app:8080 | 無 | |
 | 2025-web-EspressoCoffee | web | medium | HTTP 就緒 | espresso-coffee:8000 | 有 | |
 | 2025-web-Jtools | web | medium | 只有 TCP | jtools:8888 | 有 | 裸 `GET /` 無回應，冒煙改用 `GET /?data=` |
 | 2025-web-RustAction | web | medium | HTTP 就緒 | rust-action:8000 | 有 | |
-| 2025-web-ezoj | web | easy | HTTP 就緒 | ezoj:5000 | 無 | |
+| 2025-web-ezoj | web | easy | HTTP 就緒 | ezoj:5000 | 無 | a2 未解出（19.0 分，0 提交）；a3 deadline（30.1 分，0 提交）；a5 E1 解出（16.5 分，oracle_first），E2 deadline（30.1 分，0 提交）；a6 F1 deadline、F2 completed，均 0 提交、未派 Engineer；a7 F1 deadline（30.1 分，recon 未交回）、F2 completed（30.0 分，0 提交），輸出上限 32000、child length 0 |
 | 2026-web-Bad_Traveling | web | medium | HTTP 就緒 | timu-env:9090 | 有 | |
 | 2026-web-Easy_Login | web | medium | HTTP 就緒 | app:3000 | 有 | 2 個服務（app＋mongo）；題面別名指向 mongo:27017 |
 | 2026-web-Fileury | web | medium | HTTP 就緒 | target:8081 | 有 | `primary_service` 不是 compose 服務，改用別名 |

@@ -20,6 +20,7 @@
 | 何时读取 | 文档 | 当前状态与未验证边界 |
 | --- | --- | --- |
 | 判断跨组件职责、产品范围或验收要求 | [核心设计 v1](specs/2026-10-22-ctf-agent-design-v1.md) | 当前架构依据；第 3 节仍有待决项，不把全文视为全部已实现。 |
+| 排查 Coordinator／Recon／Solver 重复探索、交接后无推进，区分架构与能力问题 | [团队决策上下文](specs/2026-11-07-design-v1-team-decision-context.md) | 2026-11-07 设计建议：保留角色，复用主本承载判断并提供角色工作视图。2026-11-08 §6.0 两项前置完成：承接未见缺口，瓶颈在 Solver 未产出候选及 child `length` 截断；§6.1 第一片暂缓、不写 plan，§5 保留为候选。未改实现。 |
 | 修改产品资产布局、固定副本、原生 Skill／Reference 载入 | [A／B 产品资产与 Skill](specs/2026-10-22-design-v1-ab-product-assets.md) | 资产复制、metadata、版本记录已接入；历史无模型 skill → read 连通成立。当前角色准入与 Skill 根内受控 read 已接入，见下方 Skill 核对 §7.2；共用知识目录仍待按需推进。 |
 | 修改角色／Web Skill 中的工具用法，排查旧接口描述 | [产品角色与 Web Skill 契约对齐](specs/2026-10-24-design-v1-product-instruction-contract-alignment.md) | 六份产品文档清理已完成、无模型回归与复核通过；必要清理及剩余收口已提交（`31b10b58`、`f7ad776b`）。不证明模型遵循。 |
 | 修正报告 blocker 的交接、无依据重包或重算比较区间 | [Agent 交接连续性](specs/2026-10-24-design-v1-agent-handoff-continuity.md) | Coordinator／Verifier 最小修改已实作、无模型回归通过并提交（`77e40a5d`）；其余一般交接建议仍为候选，效率改善未验证。 |
@@ -31,7 +32,7 @@
 | 修改 workspace／HTTP／job、异步交付、恢复或执行边界 | [G 最小版](specs/2026-10-23-design-v1-g-solver-minimal.md) | 已定部分接入主区并有无模型验收，单题真实运行观察见 §9.2；整体未定稿，隔离、网络 scope、资源总量与剩余契约见 §10。 |
 | 排查模型误用 workspace 路径或改进工具说明 | [G run 复盘与路径可发现性](specs/2026-10-24-design-v1-g-run-review-and-path-affordance.md) | 路径说明与示例已修正，既有 guard 保留，定向回归通过；修正后的模型遵循未验证。 |
 | 修改进度记录、停滞信号、Critic 判断，或准备练习批次 | [本地三题练习与进度帐本](specs/2026-10-24-design-v1-local-practice-suite-and-progress-ledger.md) | 进度帐本最小切片已接入并通过无模型验证；三题真实模型批次未授权，部分题目 oracle 未核实，不设正式成功率门槛。 |
-| 排查空交接、length 结束、结果归属或父上下文缺信息 | [结果完整性与交接可见性](specs/2026-10-25-design-v1-run-readiness-and-result-completeness.md) | 已按最小范围接入：同步关联、父展示、多通知消费及 Critic 条件澄清；无模型验收与独立 review 通过，见[实施证据](../gates/g-solver-verification-20261023/run-completeness-20261025/final-implementation/README.md)。8000 未调；报告质量与 Critic 实际调用效果未验证。实作 plan 已完成回补并删除。 |
+| 排查空交接、length 结束、结果归属或父上下文缺信息 | [结果完整性与交接可见性](specs/2026-10-25-design-v1-run-readiness-and-result-completeness.md) | 已按最小范围接入：同步关联、父展示、多通知消费及 Critic 条件澄清；无模型验收与独立 review 通过，见[实施证据](../gates/g-solver-verification-20261023/run-completeness-20261025/final-implementation/README.md)。child 输出上限自 a7 起为运行设定 32000；报告质量与 Critic 实际调用效果未验证。实作 plan 已完成回补并删除。 |
 | 追溯旧架构取舍、迁移原因或已知教训 | [现状、教训与迁移记录](specs/2026-10-22-ctf-agent-current-state-and-migration.md) | 历史参考，部分状态已过期；优先核对当前实现与详细 design。旧待办、冻结轨迹和里程碑不自动继承。 |
 
 ## 当前能力边界
