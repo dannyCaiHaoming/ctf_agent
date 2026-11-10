@@ -98,16 +98,17 @@ npm run build
 ## Session Learnings (auto-updated by handoff)
 
 ### Implicit Rules
-- Replies to user in Traditional Chinese
-- Design docs mixed: ~10 simplified, ~12 traditional; core design-v1 mixes both
-- Design = current decision snapshot, not run log (AGENTS.md); evidence detail belongs in docs/gates or docs/superpowers/analysis
-- Commit/push only on explicit user request; stash@{0} entangled-0.2+C-quarantine-20261020 left untouched
+- Reply to user in Traditional Chinese
+- Commit/push only on explicit user request
+- Run evidence: bounded structured reads only; no exploitation content; user forbids model-driven pentest work in engineering sessions
+- Offline scripts run with python3 -I; gates outputs contain counts only, no text
 
 ### Key Decisions
-- Decision: bounded read of existing run evidence = engineering mode; experiment mode only for contacting challenge services, running challenge scripts, real solves — Reason: old wording made models refuse offline review, looked like safety block
-- Decision: closed small sub-slices merge into parent design then delete, originals in git history — Reason: doc count only grew; AGENTS.md now states this
-- Decision: design-b §8 headings date-free (8 收敛子片 / 8.1 显式线索帐本 / 8.2 路线优先级的 Skill 内容增量) — Reason: stable GitHub anchors for inbound links
-- Decision: fix status lines only where contradicting facts, no mass reformat — Reason: most designs already state status in date line
-- Decision: no bulk simplified/traditional conversion; unify per rewritten paragraph — Reason: avoid huge diffs
+- Decision: workbook = mechanical fold of existing append-only recon_turns record; notes gain slot + supersedes — Reason: design forbids second editable fact store; workbook is state, record is evidence
+- Decision: slots goal/constraints(host), facts, hypotheses, refuted routes (Recon/Solver), open questions (Coordinator mainly), materials(host), candidate status, host facts — Reason: separate who experiments (writes facts) from who orders questions; Coordinator never rewrites facts, fixes unsourced premises
+- Decision: role views from same fold; Coordinator gets status/questions + one-line facts under restricted redaction; Verifier excluded — Reason: first time Coordinator sees investigation content, touches secrets-out-of-context baseline
+- Decision: caps entry 300 chars; facts/refuted 20; hypotheses/questions 8; materials 12; candidate 3; views Recon/Solver 12K chars, Coordinator 8K, Engineer 4K; overflow keeps writes, view shows newest N + omitted count — Reason: Coordinator manual clue lists 9-21 lines/2-9 refs over 42 dispatches, ~3x headroom; host must not judge importance
+- Decision: §4 Q3 'not supported' no longer blocks persistence — Reason: old check only verified handbacks had content, not that next role used them
+- Decision: old §6.1 Solver note + §6.3 role views merged into new §6.1; §6.4 adds relaxing Solver handback threshold after workbook works — Reason: one slice, continuity first then longer Solver rounds
 
 <!-- handoff:learnings:end -->
