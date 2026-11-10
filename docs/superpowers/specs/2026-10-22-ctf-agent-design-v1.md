@@ -128,7 +128,7 @@ Recon 的完整过程轨迹、可导航上下文、及时交回、固定快照�
 
 ### C. 原生多 Agent 與薄控制層
 
-Coordinator／Recon／Solver 的問題歸屬與決策交接調整，見[團隊決策上下文子設計](2026-11-07-design-v1-team-decision-context.md)，此範圍的建議細節以子設計為準。推薦保留角色與原生循環，復用主本承載 Solver 判斷並提供角色適用的決策視圖；未改產品權限，不恢復已否決的機械停滯／時間 closure，也不將接口接通等同模型能力改善。2026-11-08 子設計 §6.0 前置完成：a3–a6 交回核對未見承接缺口，瓶頸在 Solver 未產出候選及 child `length` 截斷，故第一片暫緩、不寫 plan；後續改走[結果完整性 §5.2](2026-10-25-design-v1-run-readiness-and-result-completeness.md)的 child 輸出上限調整與 P2 失敗復盤。
+Coordinator／Recon／Solver 的問題歸屬與決策交接調整，見[團隊決策上下文子設計](2026-11-07-design-v1-team-decision-context.md)，此範圍的建議細節以子設計為準。推薦保留角色與原生循環，復用主本承載 Solver 判斷並提供角色適用的決策視圖；未改產品權限，不恢復已否決的機械停滯／時間 closure，也不將接口接通等同模型能力改善。2026-11-08 交回核對未見承接缺口，瓶頸在 Solver 未產出候選，故 Solver note 第一片暫緩；child 輸出上限與執行時長另見[結果完整性 §5.2](2026-10-25-design-v1-run-readiness-and-result-completeness.md)。2026-11-10 核對無候選時的續派大致合理（子設計 §4 問題 1）；Recon 時長大致合理、每題仍需派 Recon（子設計 §4 問題 2），不另定 Recon 完成條件；ezoj 基線本身慢的部分歸 [Recon 重設計 §5](2026-10-29-design-v1-recon-redesign.md)。
 
 2026-10-26 r4 多角色生成到上限但无正文的后续策略，细节以[空正文与结果恢复子设计](2026-10-26-design-v1-c-empty-result-recovery.md)为准。2026-10-27 已完成普通 completed 多轮工具链的结果分类修复：区分已结算工具中间步骤与唯一终态，复用冻结来源与完整性出口；同步 running／promotion 不猜终态，报告完整性与失败生命周期独立。定向 114 项、全套 533 项及同步／后台原生 scripted 父端验收通过，条件和证据见子设计 §3.1.2／§5.4。实际额度接线、输入缩减／额度／续接的生成效果仍待独立验证；不默认自动重试，不宣称整个 C 或全部竞态已完成。
 

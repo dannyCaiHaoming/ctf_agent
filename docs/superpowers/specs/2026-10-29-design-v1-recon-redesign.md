@@ -328,11 +328,11 @@ r16 A 是反例：Recon 准入 31 次、88 次工具，仍沒有 decision 或 ha
 
 ### 執行中可見的時間事實，由 child 自判交回（候選，2026-11-08）
 
-**狀態：** 無模型已實施（2026-11-09，未提交）；真實行為未驗證。停止判斷歸 agent，host 只提供事實；不新增門檻。
+**狀態：** 已實施並合併（2026-11-09，`7c414e6e`）；a8 真實 run 已驗證（單次）。停止判斷歸 agent，host 只提供事實；不新增門檻。
 
 **為什麼不再調門檻。** 上面的 A／B／C 與按題 Recon cap 取值，都是把「何時停」交給 host 常數，且每輪都要重新取值。a7（[結果完整性](2026-10-25-design-v1-run-readiness-and-result-completeness.md) §5.2）放寬輸出上限後，F1 的 Recon 單次 execution 約 30 分鐘、52 次調用未交回；F2 的 Solver 單次 24 分鐘、剩 23 秒才交回。角色規則早已要求自判交回（[路線複核](2026-10-25-design-v1-negative-evidence-and-route-review.md) §5.7 候選 D），所以缺的不是規則，而是判斷所需的事實。
 
-**現況（代碼核對）。**
+**現況（實作前，代碼核對）。**
 - child 的調查上下文 `budget` 已帶 run 全局的已准入調用、已觀測 token 與 `expires_at`（`control-service.ts` `contextState`），變化時以 delta 重送。
 - `expires_at` 是絕對時間；上下文沒有當前時間，剩餘時間要模型自己換算。
 - 沒有本回合已用時間或本回合調用數。
@@ -358,7 +358,19 @@ r16 A 是反例：Recon 准入 31 次、88 次工具，仍沒有 decision 或 ha
 **驗證與去向。**
 - **無模型：** child 的實際出站請求帶上述相對值並隨調用更新；同步、背景與續接的回合起點正確；Verifier 不因此獲得求解上下文。
 - **真實 run（另行授權）：** 與 a7 同設定對照。判據是單次 execution 時長分佈、是否仍有 child 跑到 deadline 未交回、交回理由是否引用時間事實。
-- **若事實已抵達而行為不變：** 記為「模型不會用時間做停止判斷」的能力證據，不回頭調門檻；是否由 Coordinator 層改用其他方式，另行設計。
+
+**a8 結果（2026-11-09，`7c414e6e`，[報告](../../../runs/alibaba-easy-20261109-a8/a8-report.md)）：** 與 a7 同設定（輸出上限 32000、Solver thinking、每 run 3M／30 分鐘），三個 run 都在 deadline 前 completed，1/3 solved（K2）。
+
+- **事實抵達並被使用。** `context.presented` 分別 111／123／59 次，多為 delta；child 推理直接引用三個欄位：F1 Recon 記 `remaining_min 17, elapsed 11` 與 `12, 16`；F2 Solver 記 `remaining_min ~12, turn Model calls 25`，交回理由寫 `remaining_min`≈8；F2 Critic 記剩約 7 分鐘；K2 Solver 觀察 `turn_model_calls` 以 assistant turn 遞增。
+- **時長。** child execution 最長 1770.6→1170.1 秒，最長 solver 1446.9→979.9 秒，中位數 251.5→108.5 秒，>20 分鐘由 1 降為 0；run 牆鐘 25.39／25.77／7.15 分。
+- **deadline。** a7 有 1 個 child（F1 Recon）到 deadline 未交回；a8 為 0，全部完成。
+- **交回理由。** 12 次 child 交回只有 2 次明確引用剩餘分鐘（F2 Solver、F2 Critic），另 3 次只說「時間盒」／deadline 等泛稱，其餘未提及。事實進入推理，但多數最終理由不回述具體數值。
+- **收束方式：按剩餘時間預留，不按回合長度。** 長 child 都跑到剩約 8–10 分鐘才交回：F1 Recon 19.5 分鐘、剩 598 秒；F2 Solver 16.3 分鐘、剩 512 秒，剩約 12 分鐘時推理仍寫「還能跑幾批」。後續短回合（27–140 秒）是因為剩餘時間已少。第一個長 child 仍佔全程約 2/3；F1／F2 在剩約 4.5 分鐘時 completed，0 提交，餘時未用。`turn_elapsed_min`／`turn_model_calls` 未見被用作單回合上限。
+- **證據位置。** delta 隨 `ctf_*` 工具結果落盤在各 run 的 `opencode.db`（`part.data`），child 當時看到的三個值可以逐條核對，不只靠 `context.presented` 計數。
+- **用量。** 1,417,365（a7 1,631,227，-13.1%）。
+- **判斷。** 描述上支持「事實可用、模型會用來避免拖到 deadline」：最長 execution 不再貼 deadline，推理有實際引用。不支持「模型會主動縮短單回合」；execution 中位數下降主要來自後段的短回合。單次、非配對，不能排除題目與模型抖動；2/12 的最終理由引用率也還不足以宣稱可審計。前段長 child 佔用大半時間、尾段餘時未用，是否值得處理留待配對重跑後再判斷，不據此調門檻。
+
+- **若後續配對重跑仍見事實抵達而行為不變：** 記為「模型不會用時間做停止判斷」的能力證據，不回頭調門檻；是否由 Coordinator 層改用其他方式，另行設計。
 - 結論回寫本節。
 
 ---

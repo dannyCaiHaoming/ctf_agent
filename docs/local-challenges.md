@@ -43,13 +43,13 @@
 | 2023-web-bytecode_ballet | reverse | medium | TCP 就緒 | target:1337 | 有 | 目錄名含 web，實為 reverse |
 | 2023-web-ezbean | web | easy | HTTP 就緒 | tomcat:8081 | 有 | |
 | 2023-web-wee1 | web | medium | HTTP 就緒 | wee:8889 | 有 | |
-| 2024-web-8a6ac7ff | web | easy | HTTP 就緒 | app:23000 | 無 | a2 批次解出（10.5 分；1 次提交）；a5 對照組解出（8.5 分；oracle_first，1 次提交）；a6 對照組解出（4.8 分；未派 Solver，oracle_first，1 次提交）；a7 對照組解出（9.5 分；recon→solver→engineer，oracle_first，1 次提交） |
+| 2024-web-8a6ac7ff | web | easy | HTTP 就緒 | app:23000 | 無 | a2 批次解出（10.5 分；1 次提交）；a5 對照組解出（8.5 分；oracle_first，1 次提交）；a6 對照組解出（4.8 分；未派 Solver，oracle_first，1 次提交）；a7 對照組解出（9.5 分；recon→solver→engineer，oracle_first，1 次提交）；a8 對照組解出（7.2 分；recon→solver→engineer，oracle_first，1 次提交） |
 | 2024-web-Pastebin | web | difficult | HTTP 就緒 | app:28080 | 有 | 唯一標為 difficult |
 | 2024-web-easyCAS | web | medium | HTTP 就緒 | app:8080 | 無 | |
 | 2025-web-EspressoCoffee | web | medium | HTTP 就緒 | espresso-coffee:8000 | 有 | |
 | 2025-web-Jtools | web | medium | 只有 TCP | jtools:8888 | 有 | 裸 `GET /` 無回應，冒煙改用 `GET /?data=` |
 | 2025-web-RustAction | web | medium | HTTP 就緒 | rust-action:8000 | 有 | |
-| 2025-web-ezoj | web | easy | HTTP 就緒 | ezoj:5000 | 無 | a2 未解出（19.0 分，0 提交）；a3 deadline（30.1 分，0 提交）；a5 E1 解出（16.5 分，oracle_first），E2 deadline（30.1 分，0 提交）；a6 F1 deadline、F2 completed，均 0 提交、未派 Engineer；a7 F1 deadline（30.1 分，recon 未交回）、F2 completed（30.0 分，0 提交），輸出上限 32000、child length 0 |
+| 2025-web-ezoj | web | easy | HTTP 就緒 | ezoj:5000 | 無 | a2 未解出（19.0 分，0 提交）；a3 deadline（30.1 分，0 提交）；a5 E1 解出（16.5 分，oracle_first），E2 deadline（30.1 分，0 提交）；a6 F1 deadline、F2 completed，均 0 提交、未派 Engineer；a7 F1 deadline（30.1 分，recon 未交回）、F2 completed（30.0 分，0 提交），輸出上限 32000、child length 0；a8 F1／F2 completed（25.4／25.8 分，0 提交），無 child 到 deadline 未交回 |
 | 2026-web-Bad_Traveling | web | medium | HTTP 就緒 | timu-env:9090 | 有 | |
 | 2026-web-Easy_Login | web | medium | HTTP 就緒 | app:3000 | 有 | 2 個服務（app＋mongo）；題面別名指向 mongo:27017 |
 | 2026-web-Fileury | web | medium | HTTP 就緒 | target:8081 | 有 | `primary_service` 不是 compose 服務，改用別名 |

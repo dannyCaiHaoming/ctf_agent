@@ -177,7 +177,7 @@ SDK 读取和导出非原子，exportedSourceMatches 只说明导出是否匹配
   - **派單模式未改變。** F2 的 Solver 交回 6 次，其中 5 次立刻續派同角色；每次交回時 `packaged=no`，remaining 由 975 秒降到 519 秒，全程沒派 Engineer。最後一次交回後 Coordinator 不再派單，run 以 `completed` 結束，0 提交，尚餘約 8.6 分鐘。F1 同樣沒進 Engineer，到 deadline 停止。
   - **對照題未退化。** K2 在 Recon 交回後直接派 Engineer，4.8 分鐘 accepted。
   - **限制。** 每設定一次、非配對 A/B；渲染文字不入審計，四個值按 host 口徑重算，不能證明模型讀到或用了。
-  - **判斷。** 沒有觀察到改善，但樣本不足以判定無效。四項事實只增加交回時的一行數字、不改行為規則，暫不撤回，作為後續對照的固定基線；不再為此疊加提示或新欄位。下一步改由 [團隊決策上下文](2026-11-07-design-v1-team-decision-context.md) §6.0 第 2 項的交回內容核對，區分「承接」與「Solver 探索」缺口。
+  - **判斷。** 沒有觀察到改善，但樣本不足以判定無效。四項事實只增加交回時的一行數字、不改行為規則，暫不撤回，作為後續對照的固定基線；不再為此疊加提示或新欄位。下一步改由 [團隊決策上下文](2026-11-07-design-v1-team-decision-context.md) §3.2 的交回內容核對，區分「承接」與「Solver 探索」缺口。
   - **另見。** 同批 F1 的 Recon、F1／F2 的 Solver 交回出現 `incomplete（length）`，F2 一個 Recon 回合約 10 分鐘以 `unknown` 交回。
 - **child 單次輸出上限（決定，2026-11-08）：**
   - **依據。** [交回內容核對](../analysis/2026-11-08-handoff-content-check.md)：a3–a6 有 8 次 child 交回因 `finish=length` 截斷，既沒回答問題也沒留線索，全部落在未產出候選的 6 個 run。Recon（未開思考）與 Solver（開思考）都有截斷，所以不只是思考佔用輸出。
