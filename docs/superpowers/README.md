@@ -40,7 +40,7 @@
 | 追溯旧 r4／r5 Verifier 拒绝原因 | [D 从证据到验证结论](specs/2026-10-26-design-v1-d-evidence-to-completion.md) | 历史问题与证据子文件；当前职责与提交策略以 D 最小版 §5–7 为准。 |
 | 修改 Recon 记录、上下文呈现、经验／lesson 或执行中时间事实 | [Recon 重设计](specs/2026-10-29-design-v1-recon-redesign.md) | 记录与学习链路已收口；时间事实已落地（`7c414e6e`），长 child 仍常拖到末段才交回；经验收益缺对照组，未证实。 |
 | 分析 run 墙钟时间、token、思考开关与上下文成本 | [解题延迟与上下文成本](specs/2026-11-04-design-v1-run-latency-and-context-cost.md) | §3.1、§3.2、§3.4 已采用；§3.3 并行与 §3.5 已试路线摘要延后；Coordinator 关闭思考与出处条件修订待配对 run（需另行授权预算）。 |
-| 评估题目图片能否交给模型观察 | [图像观察](specs/2026-10-29-design-v1-image-observation.md) | DRAFT，可行性待验证；不是实现或模型调用授权。 |
+| 评估题目图片能否交给模型观察 | [图像观察](specs/2026-10-29-design-v1-image-observation.md) | 候选 A（`workspace.view` 图像交付）已合入 main；模型能否借看图解题未证实，B／C／D 未做；不是模型调用授权。 |
 | 追溯旧架构取舍、迁移原因或已知教训 | [现状、教训与迁移记录](specs/2026-10-22-ctf-agent-current-state-and-migration.md) | 历史参考，部分状态已过期；优先核对当前实现与详细 design。旧待办、冻结轨迹和里程碑不自动继承。 |
 
 ## 当前能力边界

@@ -1,35 +1,18 @@
 # Recon 重設計：完整過程軌跡、可導航上下文與及時交回
 
-日期：2026-10-29；目前決策：2026-11-02（Asia/Tokyo）。
+**狀態（2026-11-10）：完整過程記錄、追加式上下文、Recon 及時交回與 episode／lesson 鏈路已落地，並在真實 runtime 走通（r17–r19）；執行中時間事實已落地（a8 單次驗證）。經驗能否提升解題沒有證據：沒有 B0 對照，B 也沒有主動查閱經驗。**
 
-**狀態：** [核心 design v1](2026-10-22-ctf-agent-design-v1.md) 的 Recon 現行子設計。本文已取代舊備份與舊正式稿中的累積式回補，是 Recon 記錄、上下文中呈現、交回、快照消費及 episode／lesson 的單一權威。它定義產品目標與契約，不代表目前工作樹已完整實現，也不代表真實模型已驗收。
+本文是[核心 design v1](2026-10-22-ctf-agent-design-v1.md) 的 Recon 子設計，也是 Recon 記錄、上下文呈現、交回、快照消費及 episode／lesson 的單一權威；它定義契約，不代表真實模型已驗收。改寫前的逐批記錄見 commit `268813d5` 中的本文。本文件不授權安裝、真實模型運行、commit 或 push。
 
-**目前停點：** 記錄與學習鏈路已收口。r16 暴露的問題（上下文重寫、Recon 未交回、episode 只看局部來源）已由 §3–§7 的實施處理；r17–r19 三個真實批次又找出並修正了參數丟失與三種學習失敗。到 r19，以下各環節都已在真實 OpenCode runtime 中走通（見 §8「真實批次的正反證據」）：
-- 四個角色逐步記錄、參數完整；
-- 追加式上下文；
-- Recon 在 closure 前主動交回；
-- A 的 episode 與 lesson 入庫，並自動呈現給 B。
+**下一階段候選（需另立切片與 plan）：**
 
-這一段**不能**推出經驗讓解題變好：模型沒有翻看舊步驟，B 沒有主動查閱經驗，也沒有對照組。下一階段需另立 design 切片與 plan，候選事項：
-
-- **經驗是否有用：** 同題、同模型、同預算的無經驗對照組（B0），以及成對的相似題；做之前先做經驗衛生：
-  - 同題防回聲：檢索目前不排除同一題自己的經驗；
-  - 入庫去敏：清理路徑、網址；
-  - 失敗局只提煉「避免什麼」。
+- **經驗是否有用：** 同題、同模型、同預算的無經驗對照組（B0），以及成對的相似題。做之前先做經驗衛生：檢索排除同一題自己的經驗、入庫時清理路徑與網址、失敗局只提煉「避免什麼」。
 - **讀取端使用審計（§6）：** `index_received`、同一消費者讀到 `done`，以及經驗的 `read`／`evaluated`／`adopted` 鏈。
-- **已試路線摘要：** 在上下文中呈現每族已試結果。r19 沒有任何角色用 `recon.read` 展開舊步驟，只有機械索引可能不夠。
+- **已試路線摘要：** 在上下文中呈現每族已試結果；r19 沒有任何角色用 `recon.read` 展開舊步驟，只有機械索引可能不夠。
 - **Input token 預留（§5）：** 可靠估算並預留 input token，在硬停前留出交回窗口。
 - **§3 未寫入的欄位：** `visible_intent`、`visible_observation`、`args_shape`。
 
-本文件不授權安裝、真實模型運行、commit 或 push。
-
-**依據：**
-
-- r12 能載入 Skill，卻出現 `skill/read=0`、`workspace.write=0`、`artifact.publish=0`；Recon 反覆 render、view、adjust。
-- R11 的 35 次 view 對應不同路徑與 hash，37 個 job 的 argv 也不同，但仍反覆處理同一瓶頸。
-- r16（`experience-real-20261031-r16-ab`）A 已完成 88 次工具，資料庫卻只有 0 條 decision、0 條 handoff，最後因全局預算耗盡停止；B 已導出 30 行、51,044 bytes 的快照，下游卻只讀索引與第一個 32,768-byte 正文頁且 `done=false`。
-
-**數據來源標註：** 本文的 r16 指 `experience-real-20261031-r16-ab`（A 88 次工具、0 decision、0 handoff；B 28 次工具、1 decision、1 handoff）。現有離線回放腳本默認讀 r15（`experience-real-20261030-r15-ab`：A 97 次工具＋1 handoff，B 57 次工具＋1 handoff）。兩者是不同的 run，步驟編號不能互相對照。
+**依據：** r12 能載入 Skill，卻沒有讀 Skill、寫 workspace 或發布 artifact，Recon 反覆 render、view、adjust；R11 的 35 次 view 與 37 個 job 參數各不相同，卻反覆處理同一瓶頸；r16（`experience-real-20261031-r16-ab`）A 做了 88 次工具，資料庫仍是 0 decision、0 handoff，最後因全局預算耗盡停止，B 導出 51 KB 的快照，下游卻只讀到第一頁且 `done=false`。離線回放腳本默認讀的是 r15（`experience-real-20261030-r15-ab`），與 r16 是不同的 run，步驟編號不能互相對照。
 
 因此，「模型看過」「資料庫有行」「artifact 已發布」都不能代表下一步已使用資訊，或交接已真正完成。
 
@@ -269,109 +252,43 @@ r16 A 是反例：Recon 准入 31 次、88 次工具，仍沒有 decision 或 ha
 - **尚未實施：** input token 的估算與預留；目前的准入只按模型調用次數計，在途回應仍可能越過 token 門檻。
 - **真實 run：** r18、r19 兩題都在 closure 前主動交回（r19 A 第 35 次准入、B 第 15 次，交回時仍在 exploration；r17 A 是被 60 次上限強制停止）。decision 只在交回前寫一兩條，沒有在重要結果或換路時寫。
 
-### 推廣到 Solver 等長執行角色（離線重算後暫不採用，2026-11-07）
+### 推廣到 Solver 等長執行角色
 
-**狀態：** 離線重算已完成（0 次模型調用），三種觸發條件都暫不採用，未實施；結論與去向見本節末。輸入是 [Alibaba a1–a4 harness 分析](../analysis/2026-11-06-alibaba-a1-a4-harness-findings.md) 的 P0-1（新資訊量計數觸發 closure）與 P0-2（按牆鐘分階段 closure）。「長執行內部停滯沒有觸發點」這個問題本身，以及候選 B（宿主停滯信號）、D（有界回合交回）的取捨，見[路線複核](2026-10-25-design-v1-negative-evidence-and-route-review.md) §5；本節只管「能否把本節的 closure 用到 Recon 以外的角色」。
+**狀態：離線重算後暫不採用（2026-11-07，0 次模型調用）。**
 
-**為什麼放在這裡：** 路線複核 §5.6 否定宿主信號的理由之一，是子任務執行中沒有通知路徑。本節的 closure 不需要喚醒 Coordinator：它在 child 自己的下一次工具調用上以拒絕消息出現，child 依本節的收尾工具交回，交回邊界再由 Coordinator 照既有停滯規則決定。所以推廣只需新增觸發條件，不需要新的通知路徑、monitor 或 scheduler。
+這裡評估能否把本節的 closure 用到 Recon 以外的角色；長執行內部停滯本身的取捨見[路線複核](2026-10-25-design-v1-negative-evidence-and-route-review.md) §4。放在這裡的原因是：closure 不需要喚醒 Coordinator，它在 child 自己的下一次工具調用上以拒絕消息出現，child 依收尾工具交回，再由 Coordinator 照既有停滯規則決定。所以推廣只需新增觸發條件，不需要通知路徑、monitor 或 scheduler。
 
-**證據核對（只取 `progress.jsonl` 的 role／op／tool／argFingerprint／elapsedMs、`state/jobs` 與 HTTP 捕獲檔的 sha256 計數，不讀內容）：**
+離線重算用 19 個 run（11 個已解出、8 個未解出），只讀 `progress.jsonl` 的結構化欄位與 `state/run.json`。腳本為 `tests/manual/closure-trigger-replay.py`，結果見 [closure-replay-20261107.json](../../gates/run-cost-20261104/closure-replay-20261107.json)。
 
-| 判定 | 內容 |
-| --- | --- |
-| 已證實 | a3 C1（bypassit2）Solver 兩個會話登記 204 次 `job.run`（訊息裡 206 個 tool part）；C3（ezoj）Solver 230 次 `http.request`。 |
-| 已證實 | **按參數重複計數不會觸發。** C1 Solver `job.run` 204 次中 203 種 argFingerprint，C2 148 次中 147 種，C3 `http.request` 230 次全部不同；任一 fingerprint 最多出現 2 次。prompt 的「相同工具／參數重複 3 次」與分析提出的「相同 argv 雜湊重複次數」都不會在這三題觸發。這與路線複核 §5.6 對 r7 的結論相同。 |
-| 已證實 | **按結果雜湊多樣性也不會觸發。** C3 Solver 230 份回應正文只有 72 種 sha256，但每 20 次中至少 4 種，最後一次請求仍是新正文；C1／C2 Solver 的 job 輸出（stdout＋stderr）幾乎每次都不同（159 次 158 種、148 次 143 種）。「最近 20 次只有 1 種結果」在三題都不成立。 |
-| 已證實 | **「N 次調用沒有新 artifact」會在解出的 run 裡誤觸發。** Solver 的 artifact 集中在交回前一次發布：a3 C1 首個 Solver 回合 200 次調用後才發布；但已解出的 a1 A1、A2 的 Solver 也是在 90、91 次無 artifact 的調用後才一次發布勝出材料。分析舉例的「30 次沒有新 artifact」會在這兩次成功 run 產生候選之前就收束 Solver。 |
-| 已證實 | a3 C3 的 Verifier 在 28.7 分鐘才派出（Engineer 25.8 分鐘派出，completion 在 28.5 分鐘被 `verification required` 拒絕），30.1 分鐘 deadline 前沒有結果。 |
-| 已證實 | **按時間階段收束只會影響有候選的題。** a3 C1、C2 到 deadline 都沒有進入 Engineer；只有 C3 有可打包的材料。對前兩題，時間階段 closure 只會更早停下無候選的 Solver，不會產生提交。 |
-| 推斷 | 收尾所需時間：Engineer 從派出到首次 completion 請求在 a1 A1／A2、a2 B3、a3 C3 為 97–161 秒；走 Verifier 回退時，被拒到被接受再加 148–191 秒。保留 6–8 分鐘覆蓋了 Verifier 路徑；若[解題延遲](2026-11-04-design-v1-run-latency-and-context-cost.md) §3.4 的出處條件修訂落地，直接提交路徑約 3 分鐘即可。 |
-| 待驗證 | Solver 的「候選已出現」目前沒有 host 可見的結構化事實（artifact 記錄沒有類型欄位，只有 Engineer 的 `package.publish` 是結構化的），所以「時間到時固定目前最佳候選」由誰判斷、host 如何知道有無候選，仍未定。 |
+| 候選 | 結論 | 原因 |
+| --- | --- | --- |
+| A. 按角色的調用額度與 closure 預留 | 暫不採用 | 成功 run 的 Solver 回合在發布材料前最多用 88 次調用，未解 run 有 94、101、204、252 次；約 100 次的上限在樣本內不誤傷，但餘量小、成功樣本只有 11 個。收益也沒證據：a4 的 Solver 回合都很短，Coordinator 仍反覆再派 Solver |
+| B. 牆鐘階段 closure | 不作為 child closure | 預留 4–8 分鐘在成功 run 中一次都不觸發；只在 a3 觸發。C1、C2 整個 run 沒有帶出材料，收束不會產生提交；C3 的延誤來自 Coordinator 在材料已發布後又派了 4 個短 Solver 回合與 1 次 Critic，不是長回合 |
+| C. 新資訊量計數 | 不實施 | 參數指紋幾乎每次都不同（C1 `job.run` 204 次 203 種），結果雜湊也持續出現新值；「N 次沒有新 artifact」會在 a1 的成功 run 產生候選前就收束 Solver |
 
-**候選做法與離線重算結論：**
+**去向：** 剩餘牆鐘改作 Coordinator 交回時可見的事實（[結果完整性](2026-10-25-design-v1-run-readiness-and-result-completeness.md) §5.2「交回時的決策事實」）；送驗回退造成的延誤由[解題延遲](2026-11-04-design-v1-run-latency-and-context-cost.md) §3.4 處理。運行中無法判斷 Solver 是否已有候選（artifact 記錄沒有類型，只有 Engineer 的 `package.publish` 是結構化的），所以交回事實只用「本題是否已有 package」。A 的調用分佈保留，配對 run 若需要止損上限時再取值。三者都不新增 judge 權。
 
-- **A. 按角色的調用額度與 closure 預留。** 把本節的 `B`／`R` 推廣到 domain-solver 每回合，沿用同一套收尾工具與交回要求。只計調用次數，不判斷語義，所以不會被「換著參數試」繞過。**結論：暫不採用。** 樣本內能分開，但餘量小，收益也沒有證據（見問題 1）。
-- **B. 牆鐘階段 closure。** 剩餘時間低於收尾預留時，host 讓仍在執行的 Solver／Recon 進入 closure。**結論：作為 child closure 不採用。** 它不傷成功 run，但 C3 的延誤不在長回合裡（見問題 2）。
-- **C. 新資訊量計數。** argv 重複、結果雜湊多樣性與 artifact 間隔都不能區分卡住回合與成功回合（見上表）。**結論：不實施。**
+### 執行中可見的時間事實
 
-三者都不新增 judge 權，換路仍由 Coordinator 決定、Critic 只建議。
+**狀態：已落地（`7c414e6e`）；a8 單次驗證：事實被模型使用，沒有 child 拖到 deadline，但模型不會主動縮短單回合。**
 
-**離線重算（2026-11-07）：**
-- **工具與證據：** 腳本 `tests/manual/closure-trigger-replay.py`；結果 [closure-replay-20261107.json](../../gates/run-cost-20261104/closure-replay-20261107.json)。
-- **只讀欄位：** `progress.jsonl` 的 role／op／kind／elapsedMs／tool／ref，`state/run.json` 的 deadlineMs／stopReason，以及 completion-results 的 solved。
-- **樣本：** 共 19 個 run。
-  - 已解出 11 個：a1 A1、A2，a2 B3，r20 C1／C2／T1／T2，r21 V1／V2／M1，r22 F1；
-  - 未解出 8 個：a1 A3，a2 B1／B2／B4，a3 C1–C3，a4 D1。
-- **回合的定義：** 從 Coordinator 派出或恢復某角色，到下一次派單為止。
-- **「帶出材料」的定義：** 這一回合發布的 artifact，之後被 Engineer 讀取。這只能事後判定，不等於候選正確。
+**為什麼不再調門檻：** 上面的候選與按題 Recon cap 都是把「何時停」交給 host 常數，每輪都要重新取值。角色規則早已要求自判交回（路線複核 §4 候選 D），缺的是判斷所需的事實：a7 放寬輸出上限後，F1 的 Recon 一次跑了約 30 分鐘未交回，F2 的 Solver 剩 23 秒才交回；而上下文只有絕對的 `expires_at`，沒有當前時間、本回合已用時間或調用數。
 
-1. **成功與卡住的 Solver 回合能否按調用數或時長分開？**
-   - **成功 run：** 11 個帶出材料的 Solver 回合，在發布那份材料前用了 4–88 次模型調用、0.2–6.2 分鐘。最多的是 a1 A1：88 次調用，只用 3.2 分鐘，因為 job 很快。
-   - **未解 run：** 24 個 Solver 回合，調用數 1–252 次，時長 0–12.4 分鐘。
-     - 超過 88 次調用的有 4 個：a3 C2 94、a2 B1 101、a3 C1 204、a2 B4 252；
-     - 超過 6.2 分鐘的有 6 個。其中 a3 C3 首回合在第 9.9 分鐘、第 76 次調用時才發布後來被 Engineer 讀取的材料。
-   - **判定：**
-     - 按時長設上限，會截斷 C3 首回合的材料，所以不可分。
-     - 按調用數，約 100 次的上限在樣本內不誤傷成功回合，但 88 與 94 之間的餘量很小，成功樣本只有 11 個。
-     - 收益也沒有證據：截斷長回合只是把控制權交回 Coordinator。a4 的 Solver 回合都很短（0.2–2.9 分鐘），Coordinator 仍只是反覆再派 Solver。
-   - **去向：** A 不實施，只記錄這份分佈。之後若配對 run 需要止損上限，從這份分佈取值再議。
-2. **牆鐘階段 closure 何時觸發？會不會截斷成功 run？**
-   - **不截斷成功 run：** 11 個已解出 run 最晚在 21.9 分鐘結束。預留 4／6／8 分鐘（觸發在 26／24／22 分鐘）在成功 run 中一次都不會觸發；a1／a2／a4 的未解 run 也都在觸發前自行結束。
-   - 只有 a3 三題會觸發：
-     - **C1、C2：** 觸發時 Solver 在途，但整個 run 都沒有帶出材料的回合，收束不會產生提交。
-     - **C3：** 首回合在 13.6 分鐘已發布 Engineer 之後讀取的材料。14.9–25.6 分鐘間，Coordinator 又派了 4 個 0.6–2.0 分鐘的短 Solver 回合和 1 次 Recovery Critic，才在 25.8 分鐘派 Engineer。預留 8 分鐘時（22.0 分鐘）沒有長角色在途，正好在兩次派單之間。
-   - **判定：** C3 的延誤來自 Coordinator 的派單選擇，不是長回合。對 child 進入 closure 解決不了它。
-   - **去向：** B 不作為 child closure 實施。剩餘牆鐘改作 Coordinator 交回時可見的事實，見[結果完整性](2026-10-25-design-v1-run-readiness-and-result-completeness.md) §5.2「交回時的決策事實」。C3 另一段延誤（送驗回退）由[解題延遲](2026-11-04-design-v1-run-latency-and-context-cost.md) §3.4 的出處條件修訂處理。
-3. **「已有候選」能否由現有結構化事實判定？**
-   - 不能在運行中判定。「Engineer 之後讀取」只能事後知道，artifact 記錄沒有類型；運行中結構化的只有 Engineer 的 `package.publish`。
-   - **去向：** 交回時可見的事實只用「本題是否已有 package」，不推斷 Solver 是否已有候選。
+**決定：** child 上下文的 `budget` 增加 host 計算的三個值：`remaining_min`（本題剩餘分鐘）、`turn_elapsed_min`（本回合已用分鐘）、`turn_model_calls`（本回合模型調用數）。每次原生 `task` 呼叫（含續接）都新建 execution 並重設起點，與交回時 decisionFacts 的 turnMs 同口徑；時間取整分鐘，避免上下文版本每次都變；找不到唯一的 running execution 時後兩欄為 `null`。只對 recon／domain-solver／engineer 呈現。`recon.md`、`domain-solver.md` 補一句：這些是 host 事實，據此套用既有交回條件，host 不會因此強制停止。不寫具體分鐘或次數。
 
-### 執行中可見的時間事實，由 child 自判交回（候選，2026-11-08）
+**不做：** 不設 host 停止門檻，不新增 judge，不改 closure 語義。deadline、全局 token 與按題 Recon cap 保留為硬安全網，不再作為調參手段。
 
-**狀態：** 已實施並合併（2026-11-09，`7c414e6e`）；a8 真實 run 已驗證（單次）。停止判斷歸 agent，host 只提供事實；不新增門檻。
+| 指標 | a7 | a8（[報告](../../../runs/alibaba-easy-20261109-a8/a8-report.md)） |
+| --- | --- | --- |
+| 最長 child execution | 1770.6 秒 | 1170.1 秒 |
+| execution 時長中位數 | 251.5 秒 | 108.5 秒 |
+| 到 deadline 未交回的 child | 1 | 0 |
+| 解出 | — | 1/3 |
+| 用量 | 1,631,227 | 1,417,365 |
 
-**為什麼不再調門檻。** 上面的 A／B／C 與按題 Recon cap 取值，都是把「何時停」交給 host 常數，且每輪都要重新取值。a7（[結果完整性](2026-10-25-design-v1-run-readiness-and-result-completeness.md) §5.2）放寬輸出上限後，F1 的 Recon 單次 execution 約 30 分鐘、52 次調用未交回；F2 的 Solver 單次 24 分鐘、剩 23 秒才交回。角色規則早已要求自判交回（[路線複核](2026-10-25-design-v1-negative-evidence-and-route-review.md) §5.7 候選 D），所以缺的不是規則，而是判斷所需的事實。
+**判斷：** 事實抵達並被使用，child 推理直接引用了這三個值，最長 execution 不再貼著 deadline。但長 child 仍跑到只剩 8–10 分鐘才交回，第一個長 child 佔全程約 2/3；中位數下降主要來自後段的短回合，`turn_elapsed_min` 與 `turn_model_calls` 沒有被當作單回合上限。12 次交回只有 2 次在理由中明確引用剩餘分鐘。這是單次、非配對的結果，不能排除題目與模型的波動。
 
-**現況（實作前，代碼核對）。**
-- child 的調查上下文 `budget` 已帶 run 全局的已准入調用、已觀測 token 與 `expires_at`（`control-service.ts` `contextState`），變化時以 delta 重送。
-- `expires_at` 是絕對時間；上下文沒有當前時間，剩餘時間要模型自己換算。
-- 沒有本回合已用時間或本回合調用數。
-- 這些相對值目前只在交回時以 decisionFacts（remainingMs、turnMs）給 Coordinator（[結果完整性](2026-10-25-design-v1-run-readiness-and-result-completeness.md) §5.2）。
-- 按題 Recon cap 已實施，但 a6／a7 設為 1000，等於關閉。
-
-**候選做法。**
-- 在同一 `budget` 狀態加入 host 計算的相對值：本題剩餘時間、本回合已用時間、本回合模型調用數。回合起點與 decisionFacts 的 turnMs 同口徑：每次原生 `task` 呼叫（含帶 `task_id` 的續接）都新建 execution 並重設起點。時間取整分鐘，避免上下文版本每次都變。
-- 沿用既有追加式 delta，不新增工具、喚醒路徑、monitor 或強制停止。
-- 角色規則只補一句：依這些事實套用既有交回條件。不寫具體分鐘或次數。
-
-**實施（2026-11-09，無模型）。**
-- `control-service.ts`：Execution 新增每回合模型調用計數，准入時只記入該 child 唯一的 running execution，零個或多個時不記。`contextState` 的 `budget` 新增 `remaining_min`、`turn_elapsed_min`、`turn_model_calls`，皆取整分鐘或整數；找不到唯一 running execution 時後兩欄為 `null`，不填 0。`expires_at` 與其他欄位不變。
-- `recon.md`、`domain-solver.md` 各補一句：這三個值是 host 事實，據此套用既有交回條件，host 不會因此強制停止。不含具體分鐘或次數。
-- 只對 recon／domain-solver／engineer 呈現（沿用 `prepareContext` 的角色範圍）；Verifier 與 Coordinator 不變。
-- **驗證：** `tests/contract/investigation-context.test.ts` 新增 2 項：同步與背景兩種派單的數值、准入後遞增、他 child 不計入、續接新回合從 0 起算且舊計數保留在舊 execution、無或多個 running execution 為 `null`、同一分鐘內版本不變。既有「准入後 delta 只含 budget」與端到端案例（實際附加到出站消息的文字含三欄）通過。typecheck、build、全量 833 項通過。
-- **限制：** 跨分鐘時版本會變，delta 會多送一次 budget，這是預期行為。fixture 通過只證明工程鏈路，不證明模型會依時間交回。
-
-**不做。** 不設 host 停止門檻，不新增 judge，不改 closure 語義。deadline、全局 token 與按題 Recon cap 保留為硬安全網，不再作為調參手段；Recon cap 維持現值。
-
-**風險。** a6 已把同類事實給 Coordinator，派單行為沒有改變。child 拿到時間事實後也可能照樣跑到 deadline。
-
-**驗證與去向。**
-- **無模型：** child 的實際出站請求帶上述相對值並隨調用更新；同步、背景與續接的回合起點正確；Verifier 不因此獲得求解上下文。
-- **真實 run（另行授權）：** 與 a7 同設定對照。判據是單次 execution 時長分佈、是否仍有 child 跑到 deadline 未交回、交回理由是否引用時間事實。
-
-**a8 結果（2026-11-09，`7c414e6e`，[報告](../../../runs/alibaba-easy-20261109-a8/a8-report.md)）：** 與 a7 同設定（輸出上限 32000、Solver thinking、每 run 3M／30 分鐘），三個 run 都在 deadline 前 completed，1/3 solved（K2）。
-
-- **事實抵達並被使用。** `context.presented` 分別 111／123／59 次，多為 delta；child 推理直接引用三個欄位：F1 Recon 記 `remaining_min 17, elapsed 11` 與 `12, 16`；F2 Solver 記 `remaining_min ~12, turn Model calls 25`，交回理由寫 `remaining_min`≈8；F2 Critic 記剩約 7 分鐘；K2 Solver 觀察 `turn_model_calls` 以 assistant turn 遞增。
-- **時長。** child execution 最長 1770.6→1170.1 秒，最長 solver 1446.9→979.9 秒，中位數 251.5→108.5 秒，>20 分鐘由 1 降為 0；run 牆鐘 25.39／25.77／7.15 分。
-- **deadline。** a7 有 1 個 child（F1 Recon）到 deadline 未交回；a8 為 0，全部完成。
-- **交回理由。** 12 次 child 交回只有 2 次明確引用剩餘分鐘（F2 Solver、F2 Critic），另 3 次只說「時間盒」／deadline 等泛稱，其餘未提及。事實進入推理，但多數最終理由不回述具體數值。
-- **收束方式：按剩餘時間預留，不按回合長度。** 長 child 都跑到剩約 8–10 分鐘才交回：F1 Recon 19.5 分鐘、剩 598 秒；F2 Solver 16.3 分鐘、剩 512 秒，剩約 12 分鐘時推理仍寫「還能跑幾批」。後續短回合（27–140 秒）是因為剩餘時間已少。第一個長 child 仍佔全程約 2/3；F1／F2 在剩約 4.5 分鐘時 completed，0 提交，餘時未用。`turn_elapsed_min`／`turn_model_calls` 未見被用作單回合上限。
-- **證據位置。** delta 隨 `ctf_*` 工具結果落盤在各 run 的 `opencode.db`（`part.data`），child 當時看到的三個值可以逐條核對，不只靠 `context.presented` 計數。
-- **用量。** 1,417,365（a7 1,631,227，-13.1%）。
-- **判斷。** 描述上支持「事實可用、模型會用來避免拖到 deadline」：最長 execution 不再貼 deadline，推理有實際引用。不支持「模型會主動縮短單回合」；execution 中位數下降主要來自後段的短回合。單次、非配對，不能排除題目與模型抖動；2/12 的最終理由引用率也還不足以宣稱可審計。前段長 child 佔用大半時間、尾段餘時未用，是否值得處理留待配對重跑後再判斷，不據此調門檻。
-
-- **若後續配對重跑仍見事實抵達而行為不變：** 記為「模型不會用時間做停止判斷」的能力證據，不回頭調門檻；是否由 Coordinator 層改用其他方式，另行設計。
-- 結論回寫本節。
+**下一步：** 配對重跑（[解題延遲](2026-11-04-design-v1-run-latency-and-context-cost.md) §4）後再判斷。若事實抵達而行為仍不變，記為「模型不會用時間做停止判斷」的能力證據，不回頭調門檻；是否改由 Coordinator 層處理，另行設計。
 
 ---
 
@@ -434,7 +351,7 @@ r16 B 正好證明「固定發布不等於消費」：30 行、51,044 bytes 的�
 
 ### Episode 的來源契約
 
-episode 只在一次嘗試真正結束後形成。成功、未解、超時、取消或因能力受阻結束都可形成經歷；Recon 單純交回或題目準備續做，不觸發題後收口。
+episode 只在一次嘗試真正結束後形成。成功、未解、超時、取消或因能力受阻結束都可形成經歷；Recon 單純交回或題目準備續做，不觸發題後整理。
 
 每份 episode 必須保存：
 
@@ -557,15 +474,9 @@ r16 B 曾搜尋經驗兩次但沒有調用 `ctf_experience_read`。這證明「s
 
 ### 驗收分層與停點
 
-源碼裝配、無模型接口、真實行為、真實解題結果與成本要分開報告。A 解出不能掩蓋 missing trace 或快照未消費；A 未解也不自動表示所有工程修復失敗；兩題成功不能替代同批有來源的語義閉環。
+源碼接線、無模型接口、真實行為、真實解題結果與成本要分開報告。A 解出不能掩蓋 missing trace 或快照未消費；A 未解也不自動表示所有工程修復失敗；兩題成功不能替代同批有來源的語義閉環。
 
 下一輪從本設計生成聚焦 plan。先驗證最小接口與資料契約，再實施；涉及真實模型時，還要重新明確模型、provider、求解／學習預算、預留與嘗試上限。舊 r16 資料及 r15 對照只讀，新增結果沿用既有 evidence／gate 位置。
-
-**真實批次的做法（r17–r19 沿用）：**
-- 複製上一批次目錄的 `scripts/` 與 `configs/`（起停靶場、`run-once.mts`、計數 relay、0 token 整鏈彩排、預檢），刪掉複製過來的 `runs/`，從空經驗庫開始。不沿用舊經驗庫：檢索目前不排除同一題自己的經驗。
-- 付費 run 前先跑 0 token 彩排，確認追加式上下文、四角色記錄與參數非空、relay 計數與准入一致。
-- A 的學習完成、經驗庫關閉後才啟動 B；每題一次，不重試、不換 provider。
-- 授權寫明目標、模型／provider、批次與 token 上限（r17–r19 為每題求解 1.2M、學習 100k，合計 2.6M）。學習失敗時，可先用重學習腳本在副本上定向驗證，不必重跑整批。
 
 ### 現有證據能支持到哪裡
 
@@ -587,40 +498,12 @@ r16 B 曾搜尋經驗兩次但沒有調用 `ctf_experience_read`。這證明「s
 
 ### 真實批次的正反證據
 
-**r17–r19（2026-11-04，`volcano-plan/deepseek-v4.1-flash`）：** 判定為「機制通過、行為不足」。
+| 批次 | 已接通 | 仍未閉環 |
+| --- | --- | --- |
+| r17–r19（2026-11-04，`volcano-plan/deepseek-v4.1-flash`） | 四個角色逐步記錄且參數完整；追加式上下文首次 full、之後 delta；Recon 在 closure 前主動交回；題後學習的三次失敗都已修正，r19 A 的 3 條 lesson 入庫並在 B 的 70 次上下文注入中出現 | 沒有角色用 `recon.read` 展開舊步驟，decision 只在交回前寫；B 沒有主動搜尋或讀取經驗；r19 兩題首次提交即解出，但沒有 B0 對照、A／B 不是相似題，不能歸因於經驗 |
+| r16（2026-10-31） | 經驗呈現入口存在；B 能導出固定快照；超長學習回應在解析前被拒絕 | A 0 decision、0 handoff 後因全局預算停止；episode 只覆蓋 16／89 條來源並錯誤泛化；B 下游未讀完快照；B 搜尋經驗兩次卻未讀取。前三項已在 r18／r19 解決，快照讀完與經驗採用仍未解決 |
 
-已接通：
-
-- 四個角色逐步記錄；r17 的參數全空由 R7 修正，r18／r19 只剩本來就不帶參數的調用。
-- 追加式上下文在真實 runtime 中首次 full、之後 delta，沒有重複版本。
-- Recon 在 closure 前主動交回（r18、r19 兩題都是）。
-- 題後學習三次失敗都已修正：r17 字數上限、r18 多餘欄位與輸出 token 上限、r19 JSON 前的說明文字。r19 A 的 3 條 lesson 入庫，B 的 70 次上下文注入都帶著它們。
-
-仍未閉環：
-
-- 沒有任何角色用 `recon.read` 展開舊步驟；decision 只在交回前寫。
-- B 沒有主動 search 或 read 經驗，沒有可觀察的採用鏈。lesson 只是被呈現，不能說被使用。
-- r19 兩題首次提交即解出，B 的准入從 r18 的 99 次降到 67 次；但每題只跑一次，A、B 不是相似題，也沒有 B0 對照，差異不能歸因於經驗。
-
-**r16（2026-10-31）：**
-
-已接通：
-
-- 主動經驗呈現入口存在。
-- B 能導出固定快照。
-- 超長學習 response 在解析前被拒絕。
-
-仍未閉環：
-
-- A 有 88 次工具、0 decision、0 handoff，31 次 Recon 准入後因全局預算停止。
-- A 的 episode 只覆蓋 16／89 條來源，遺失早期註冊與登入證據，並錯把晚期空表單 403 泛化為整題結論。
-- B 的完整快照為 30 行、51,044 bytes；Solver 未讀正文，Verifier 只讀首頁且 `done=false`。
-- B 搜尋經驗兩次卻未讀取或形成可觀察的採用鏈。
-- B 的 711 字元 learning response 被正確拒絕，但輸出品質尚未解決。
-
-其中交回、episode 來源覆蓋與學習輸出已在 r18／r19 解決；快照正文是否讀完、經驗是否被採用仍未解決。
-
-R1／R2 能證明失敗局部隔離，不能把兩題寫成整體能力通過。
+真實批次的做法：每批從空經驗庫開始（檢索目前不排除同一題自己的經驗），付費 run 前先跑 0 token 彩排，A 的學習完成後才啟動 B，每題一次、不重試；授權寫明目標、模型、批次與 token 上限。
 
 ### 仍未證明的事項
 
@@ -642,11 +525,4 @@ R1／R2 能證明失敗局部隔離，不能把兩題寫成整體能力通過。
 
 ## 9. 文檔維護
 
-**design 是當前決策快照，不是按時間累積的 run log。**
-
-- 新結論先替換或整合最接近的既有決策段落；不為每輪實作新增日期小節，也不建立第二份權威。
-- 改寫前核對仍影響判斷的契約、已否決方案、反例、適用條件、unknown 與驗證邊界；找到新位置後再刪舊內容。
-- 標題保持決策維度，不用 plan 編號、執行批次或日期描述進度；只有出現新的決策維度時才新增章節。
-- 詳細命令、hash、執行日誌與原始輸出留在既有 evidence／gate 位置；正文只保留影響設計的證據與 refs。
-- 回補後檢查語義遺失、重複、矛盾與章節銜接；必要時回查 evidence。
-- plan 的結論轉入本設計且檢查完成後刪除該 plan，避免設計與 plan 各說一套。
+按根目錄 [AGENTS.md](../../../AGENTS.md) 的 design 寫法維護：當前決策快照，不累積 run log；詳細命令、hash 與原始輸出留在 evidence／gate 位置。

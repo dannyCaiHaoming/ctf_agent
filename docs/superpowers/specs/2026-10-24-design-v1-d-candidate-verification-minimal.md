@@ -1,6 +1,8 @@
 # design v1 D：固定候选、独立验证与可信完成
 
-更新：2026-10-28。本文是[核心 design v1](2026-10-22-ctf-agent-design-v1.md) D 的接口契约子文件。**用户已确认三层 Verifier 与预算内自动尝试策略，见 §5–7；独立工作区已实现新行为并通过本地确定性验证，已核对整合主区，真实模型／裁判行为尚未验证（见 §8.1）。** 五个旧接口已有接入与历史验证证据，其中“必须 effective verified 才能提交”的旧准入不再是目标设计。r5 分析与实验保留在[证据到完成子文件](2026-10-26-design-v1-d-evidence-to-completion.md)，不能据新设计追补历史成功。
+**状态（2026-11-10）：已落地。五个接口与三层 Verifier、预算内自动尝试已实现并通过无模型验证（§8.1）；Verifier 已改为按条件触发（[解题延迟](2026-11-04-design-v1-run-latency-and-context-cost.md) §3.4），r21／r22 在真实 run 走通。「答错后团队继续」尚无真实样本，生产裁判部署与秘密隔离仍有缺口。**
+
+本文是[核心 design v1](2026-10-22-ctf-agent-design-v1.md) D 的接口契约子文件。旧的「必须 effective verified 才能提交」不再是目标设计；r5 的分析与实验保留在[证据到完成](2026-10-26-design-v1-d-evidence-to-completion.md)，不据新设计追补历史成功。
 
 ## 1. 目标与职责
 
@@ -19,7 +21,7 @@
 
 ## 3. 接口一：发布与交接固定证据
 
-来源角色从自己获准的 file、已结束 job 流或 HTTP resource 发布；host 核实 run/challenge/session/execution/source 并固定 bytes、范围及 hash。当前实现仍依赖后台执行来源。r6 后已选定支持获准同步角色的完整交付，execution 建立／绑定／结束／续接和最小无模型验证以[任务执行归属设计 §8](2026-10-25-design-v1-sync-resume-provenance.md#8-r6支持同步任务交付设计已选接线待验证)为准；尚未实现或验证，不删除发布校验，不扩大 Verifier 权限。原续接补参通过不代表同步发布已通过。
+来源角色从自己获准的 file、已结束 job 流或 HTTP resource 发布；host 核实 run/challenge/session/execution/source 并固定 bytes、范围及 hash。当前实现仍依赖后台执行来源。r6 后已选定支持获准同步角色的完整交付，execution 建立／绑定／结束／续接和最小无模型验证以[任务执行归属设计 §2](2026-10-25-design-v1-sync-resume-provenance.md#2-同步分派无法发布r6)为准；尚未实现或验证，不删除发布校验，不扩大 Verifier 权限。原续接补参通过不代表同步发布已通过。
 
 返回的 artifact ref 才是发布身份；resource 是来源操作句柄，不能当 ref。读、列、查复用同一授权 registry，Engineer 不读 sibling work，也不通过直接写 published 目录制造引用。普通文件仅在能匹配可信 workspace.write 时记录 producer，否则为 unknown/null；复制 HTTP/job 输出不继承原来源。
 

@@ -1,8 +1,8 @@
 # design v1 C／D 詳細 design：交接資訊保留與局部修正
 
-記錄日期：2026-10-24（Asia/Tokyo）。
+**狀態（2026-11-10）：Coordinator／Verifier 最小指令修改已落地（`77e40a5d`）；其餘交接建議仍為候選，效率改善未驗證。**
 
-**狀態：離線交接核對完成；Coordinator／Verifier 最小指令修改已實作並通過無模型定向回歸，效率改善仍未驗證。** 本文是 [核心設計 v1](2026-10-22-ctf-agent-design-v1.md) §1.2、§2 C／D 的子文件。承接已完成的產品指令契約清理，只研究如何利用既有原生 task、artifact、package、verification 與進度接口，保留下一角色實際需要的資訊，減少沒有證據理由的重新探索。
+本文是 [核心設計 v1](2026-10-22-ctf-agent-design-v1.md) §1.2、§2 C／D 的子文件。承接已完成的產品指令契約清理，只研究如何利用既有原生 task、artifact、package、verification 與進度接口，保留下一角色實際需要的資訊，減少沒有證據理由的重新探索。
 
 ## 1. 目標與範圍
 
@@ -108,7 +108,7 @@ Verifier 始終獨立於 Solver／Engineer；同一 Verifier 的續用只保留�
 
 可核對行為：分派內容能追到完整報告的實際 blocker；接手者只修已定位問題、保留未知與必要驗證；同版報告的 comparison 選區有獨立重算來源而非 candidate 回顯；跨 execution 重新 prepare；缺證據時仍可 inconclusive。上述是待實作與後續檢查的判據，**不是本次已驗證的新產品行為**。本次沒有證明節省 token 或提高成功率，後續真跑仍須另有明確預算授權。
 
-## 6. 本次核對收口
+## 6. 本次核對結論
 
 本次由獨立分析會話在 `/Users/caihaoming/.codex/worktrees/handoff-offline-audit/pentest-agent` 執行，主會話核對同版 comparison 的實際選區長度／相等性與兩次修正 task 的指示，再整合回主區。獨立復核另核對四份報告 metadata、四次發布、關鍵 task 指示、比較實作和 execution 綁定，未發現阻斷問題；未重新逐項審核 Engineer 全部分頁讀取或最後重算的語義充分性，不冒稱完整重放。
 
@@ -122,4 +122,4 @@ Verifier 始終獨立於 Solver／Engineer；同一 Verifier 的續用只保留�
 
 上述驗證確認指令與接口一致，不證明模型遵循、重算語義充分性、節省 token 或成功率提升。§6 保留為前次離線核對歷史；原始錯誤與未定稿一般交接建議不改寫為已驗證能力。一次性實作交接結論已轉入本節。
 
-收口：實作子會話 `01a16dbe-af95-7b41-83e6-8f313ea9af4f` 已歸檔，專用 `bf13` 工作樹在差量整合與副本核對後已移除；未使用會建立 Git 快照提交的歸檔工作樹操作。其他既有工作樹保留，一次性實作 plan 已刪除。
+完成記錄：實作子會話 `01a16dbe-af95-7b41-83e6-8f313ea9af4f` 已歸檔，專用 `bf13` 工作樹在差量整合與副本核對後已移除；未使用會建立 Git 快照提交的歸檔工作樹操作。其他既有工作樹保留，一次性實作 plan 已刪除。

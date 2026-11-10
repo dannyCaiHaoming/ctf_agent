@@ -1,6 +1,6 @@
 # Throwback上游与初始准备验证
 
-本轮修正旧readiness/R1报告的假设：固定上游自带初始DB，业务题目表为空不代表缺seed。最终结论见[报告](report.md)与[独立复核](review.md)，权威设计见[§5.1](../../../../../superpowers/specs/2026-10-25-design-v1-run-readiness-and-result-completeness.md#51-readiness以固定上游初始状态为依据)。
+本轮修正旧readiness/R1报告的假设：固定上游自带初始DB，业务题目表为空不代表缺seed。最终结论见[报告](report.md)与[独立复核](review.md)，权威设计见[§5.1](../../../../../superpowers/specs/2026-10-25-design-v1-run-readiness-and-result-completeness.md#51-readiness原诊断纠正不新增产品机制)。
 
 26项执行者发布文件见publish-manifest.json；review与上游元数据由主会话另补，不伪装为执行时快照。主会话独立核对了七阶段hash/隔离、三组HTTP、两实例及一次restart身份和15项判据结果。两次默认部署一致不证明可解或judge，也不推定历史调试run完整状态。
 

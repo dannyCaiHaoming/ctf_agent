@@ -1,6 +1,8 @@
 # design v1 D：从证据到可接受的验证结论
 
-更新：2026-10-28。本文是[核心 design v1](2026-10-22-ctf-agent-design-v1.md) D 的历史问题与证据子文件。**当前职责与提交策略以 [D 最小设计 §5–7](2026-10-24-design-v1-d-candidate-verification-minimal.md) 为准：直接核实 → LLM审阅 → 无法确定时按题目限制与预算自动尝试。** Verifier不补资料，确认错误flag不重复提交，unknown不当错误、不盲重发。策略已由用户确认；独立工作区已实现并通过确定性验证，已核对整合主区，实际状态与边界见 [D §8.1](2026-10-24-design-v1-d-candidate-verification-minimal.md#81-2026-10-28-三层与受限尝试无模型结果)。
+**状态（2026-11-10）：历史问题与证据记录。当前职责与提交策略以 [D 最小设计](2026-10-24-design-v1-d-candidate-verification-minimal.md) §5–7 为准，Verifier 按条件触发见[解题延迟](2026-11-04-design-v1-run-latency-and-context-cost.md) §3.4。**
+
+本文是[核心 design v1](2026-10-22-ctf-agent-design-v1.md) D 的子文件，解释旧实现为何拒绝提交：Verifier 不补资料，确认错误的 flag 不重复提交，unknown 不当错误、不盲目重发。
 
 以下 r4/r5 原报告、blocker与离线实验均保留原版本语境。它们解释旧实现如何拒绝，不再规定“必须充分证明才能请求裁判”。历史 r5 仍为 inconclusive、无completion，不因新设计追补成功。报告表达与旧页面实验是局部诊断，不作为三层方案的前置，不据此增加通用验证体系。
 
@@ -108,7 +110,7 @@ r5 当时的代码按旧规则降级是历史事实，不代表新策略仍应�
 
 2026-10-27 的离线组件核对基于同一产品版本 `6fa6c662…`，由 gpt-6.1-sol 开发子 session 在隔离区执行；没有产品模型调用。实际 Node26.3.0、tsx4.23.15、Zod3.25.76。直接 import 既有 reportSchema 与 VerificationResults.register/read，以固定历史 evidence、原候选和独立内存 context 核对；未运行 ControlService 身份／来源解析或当前有效性链路。
 
-原报告不变作负对照；分析副本仅整理文字和 I2，保留2 assumed/4 unknown、requirements、comparison、全部 source/association 与 necessary `[true,true,true,true,false]`。两者均无损序列化／分页，重现同五类 blocker，effectiveJudgment=inconclusive、candidateEqual=null。组件命令一次 exit0；14份原输入与123份产品／角色／测试／依赖文件 hash 未变，父 session 独立核对；实际依赖版本修正文档后只重做收口检查。
+原报告不变作负对照；分析副本仅整理文字和 I2，保留2 assumed/4 unknown、requirements、comparison、全部 source/association 与 necessary `[true,true,true,true,false]`。两者均无损序列化／分页，重现同五类 blocker，effectiveJudgment=inconclusive、candidateEqual=null。组件命令一次 exit0；14份原输入与123份产品／角色／测试／依赖文件 hash 未变，父 session 独立核对；实际依赖版本修正文档后只重做最终检查。
 
 **设计纠正：** 这回答了“缺口能否保存、现行拒绝能否重现”，没有构造由证据独立支持的可接受正例，也没有检测必要事实被移除后是否拒绝。因此原先“本例表达问题已完成／无需据此扩 schema”对接受能力的推论撤回；该次实验既不足以支持扩 schema，也不足以证明旧接口足够；后续三层实现的结果另见 D §8.1。问题在验证判据缺乏区分能力，不能归咎执行者未按 plan 做，也不能增加测试数量替代判据修正。
 

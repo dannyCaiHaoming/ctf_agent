@@ -38,3 +38,21 @@ Claude Code 會話開發 harness（host、控制層、OpenCode 接入、測試�
 - 失敗先判斷是規格、環境、接口還是能力原因；升級模型不代替診斷。
 - 獨立並行或會與已有修改衝突的任務才開新 worktree。新 worktree 不含未提交修改，交接時明確傳遞所需差異；不為交接擅自 commit、stash 或 reset。
 - 交接 brief 帶：目標與操作對象、設計依據與完成條件、工作區基線與修改歸屬、授權來源（涉及模型運行時帶目標、模型／provider、批次與剩餘預算）、證據定位、已知失敗與待驗證項。未經明確授權不 commit／push；跑完就停。
+
+<!-- handoff:learnings:begin -->
+## Session Learnings (auto-updated by handoff)
+
+### Implicit Rules
+- Replies to user in Traditional Chinese
+- Design docs mixed: ~10 simplified, ~12 traditional; core design-v1 mixes both
+- Design = current decision snapshot, not run log (AGENTS.md); evidence detail belongs in docs/gates or docs/superpowers/analysis
+- Commit/push only on explicit user request; stash@{0} entangled-0.2+C-quarantine-20261020 left untouched
+
+### Key Decisions
+- Decision: bounded read of existing run evidence = engineering mode; experiment mode only for contacting challenge services, running challenge scripts, real solves — Reason: old wording made models refuse offline review, looked like safety block
+- Decision: closed small sub-slices merge into parent design then delete, originals in git history — Reason: doc count only grew; AGENTS.md now states this
+- Decision: design-b §8 headings date-free (8 收敛子片 / 8.1 显式线索帐本 / 8.2 路线优先级的 Skill 内容增量) — Reason: stable GitHub anchors for inbound links
+- Decision: fix status lines only where contradicting facts, no mass reformat — Reason: most designs already state status in date line
+- Decision: no bulk simplified/traditional conversion; unify per rewritten paragraph — Reason: avoid huge diffs
+
+<!-- handoff:learnings:end -->

@@ -12,7 +12,7 @@
 | --- | --- | --- |
 | r4 约 22.5 分钟、317 次调用、reported observable tokens 1217922，最终 candidate_only；首包约 14.12 分钟，第二包 19.57 分钟，最终报告 21.98 分钟。[方法论 §1](../specs/2026-10-26-design-v1-b-method-generalization-and-efficiency.md#1-问题背景与证据) | 工具／模型交互和候选后处理有可观成本 | 317 不是纯 HTTP 数；后处理耗时不是单个 Solver 的全部浪费；candidate_only 不是 solved |
 | r6 约 24.8 分钟才首次发布，30 分钟 deadline；同步 execution 缺失导致 11 次发布拒绝，已另行修复。[迁移记录 §0.2](../specs/2026-10-22-ctf-agent-current-state-and-migration.md#02-真實運行的已知結果r6-修復與-r7-未解分開記錄) | 除同步发布缺陷外，首次有效交付仍存在效率问题 | 不把已修复的发布阻塞列作新的单 Agent 工具需求；文档未给出 r6 可比的完整工具往返细分 |
-| r7 全 run 108 次 HTTP，Domain Solver 其中 78 次，另有几十次搜索；Domain Solver 109 次模型准入，30 分钟 deadline。[方法论 §7](../specs/2026-10-26-design-v1-b-method-generalization-and-efficiency.md#7-方向与优先序20261028r7-驱动参考外部-ctf-agent-设计)、[B 方法论 §8](../specs/2026-10-26-design-v1-b-method-generalization-and-efficiency.md#8-收敛子片) | 往返成本值得优先调查；108 是全 run，不能写成单个 Solver 的 HTTP 数 | 调用数不直接等于浪费或可节省量；109 次准入不是 109 次 HTTP |
+| r7 全 run 108 次 HTTP，Domain Solver 其中 78 次，另有几十次搜索；Domain Solver 109 次模型准入，30 分钟 deadline。[方法论 §7](../specs/2026-10-26-design-v1-b-method-generalization-and-efficiency.md#7-方向与优先序2026-10-28r7-驱动参考外部-ctf-agent-设计)、[B 方法论 §8](../specs/2026-10-26-design-v1-b-method-generalization-and-efficiency.md#8-收敛子片) | 往返成本值得优先调查；108 是全 run，不能写成单个 Solver 的 HTTP 数 | 调用数不直接等于浪费或可节省量；109 次准入不是 109 次 HTTP |
 | r7 已有 Recon 路线线索和 RCE，却未请求 `/admin/chal/delete`，末段约 20 分钟搜索文件／env／DB；无 Engineer／Verifier／裁判链。[B 方法论 §8](../specs/2026-10-26-design-v1-b-method-generalization-and-efficiency.md#8-收敛子片) | 主失败是证据到行动的缺口，不是 Recon 完全没发现，也不是尚缺 RCE | 不证明新增路由工具就能纠正模型选择 |
 | 同一设计记录 r6 已观察到“登录→建 challenge→删 challenge，响应 26 bytes 即 flag”；flag 由动作产生，不是静态文件。[同上](../specs/2026-10-26-design-v1-b-method-generalization-and-efficiency.md#8-收敛子片) | 观察能力必须覆盖业务动作响应及状态变化，不能只优化找文件 | 动作得到候选不代表 r6 完成可信提交；不能把这条已知解法注入以后自主运行 |
 
@@ -20,11 +20,11 @@ r4 的细查是重要反例：同参数 GET 有时是在不同写入后观察结
 
 ### 1.2 A+D 已处理什么，尚未证明什么
 
-[B 方法论 §8.1](../specs/2026-10-26-design-v1-b-method-generalization-and-efficiency.md#81-显式线索帐本)的 A 已落地：Coordinator 在原生 task 分派／恢复文字中带入未测线索、来源 ref、低成本测法，Solver 回报 tested／untested／refuted。[路线复核 §5.7](../specs/2026-10-25-design-v1-negative-evidence-and-route-review.md#57-实现结果2026-10-28候选-d-已落地)的 D 已落地：按问题与停止条件有界交回，在原交回边界评估停滞。
+[B 方法论 §8.1](../specs/2026-10-26-design-v1-b-method-generalization-and-efficiency.md#81-显式线索帐本)的 A 已落地：Coordinator 在原生 task 分派／恢复文字中带入未测线索、来源 ref、低成本测法，Solver 回报 tested／untested／refuted。[路线复核 §4](../specs/2026-10-25-design-v1-negative-evidence-and-route-review.md#4-长执行内部的停滞)的 D 已落地：按问题与停止条件有界交回，在原交回边界评估停滞。
 
 这里 A、D 是收敛候选编号。两者均为 **prompt 改动**；没有结构化宿主线索库，没有每步自动注入或强制执行，也没有执行中唤醒父会话的机制。“自动注入”仍依赖 Coordinator 按提示生成 task 内容。当前四份角色文件与实现结果相符，文档开头的旧“待实施”状态不能覆盖后面的 §7／§5.7。
 
-因此，证据到行动问题已有针对性改动，**行为修复尚待 r8**。本分析不再把“加线索帐本”“多叫 Critic”“强制每步读计划”列为待新增单 Agent 能力。背景 task 不会在子任务执行中自动唤醒父会话；不得把背景分派当作监控能力，见[路线复核 §5.6](../specs/2026-10-25-design-v1-negative-evidence-and-route-review.md#56-只读可行性结论2026-10-28未改产品未运行模型)。
+因此，证据到行动问题已有针对性改动，**行为修复尚待 r8**。本分析不再把“加线索帐本”“多叫 Critic”“强制每步读计划”列为待新增单 Agent 能力。背景 task 不会在子任务执行中自动唤醒父会话；不得把背景分派当作监控能力，见[路线复核 §4](../specs/2026-10-25-design-v1-negative-evidence-and-route-review.md#4-长执行内部的停滞)。
 
 ## 2. 当前单个 Agent 能做什么
 
@@ -63,7 +63,7 @@ r4 的细查是重要反例：同参数 GET 有时是在不同写入后观察结
 
 ### 1）有界 HTTP 批量对照：减少已知实验的串行模型往返
 
-- **缺口与证据：** 当前只能单请求调用。r7 全 run 108 次、Solver 78 次 HTTP，[方法论 §7](../specs/2026-10-26-design-v1-b-method-generalization-and-efficiency.md#7-方向与优先序20261028r7-驱动参考外部-ctf-agent-设计)已指出强原语的研究价值。r4 的状态实验说明应保留必要的“写入→观察”，而不是一律删除重复 GET。尚不能从总数确定可批处理比例。
+- **缺口与证据：** 当前只能单请求调用。r7 全 run 108 次、Solver 78 次 HTTP，[方法论 §7](../specs/2026-10-26-design-v1-b-method-generalization-and-efficiency.md#7-方向与优先序2026-10-28r7-驱动参考外部-ctf-agent-设计)已指出强原语的研究价值。r4 的状态实验说明应保留必要的“写入→观察”，而不是一律删除重复 GET。尚不能从总数确定可批处理比例。
 - **候选新增能力：** 在现有 HTTP 面支持一个小规模、模型明确列出的请求组，返回按项关联的状态、耗时、响应 resource、截断与错误；对无依赖的对照请求有界并行，对同一会话的写入／观察明确顺序。初版不跨越需要模型理解新响应才能决定的边界：例如先读回新对象标识，再决定下一组，避免自建变量语言或通用工作流 DSL。遇到异常或副作用结果未知保留部分完成，不整组盲重试。
 - **约束适配：** 每项复用现有 origin／DNS／redirect／CookieJar、执行身份、审计、配额、取消和 deadline 检查；批次不是一次调用额度下的无限网络循环。模型仍在 OpenCode 内选择实验、解释结果。不能用 Python 直连绕过 host HTTP 的 scope 与证据记录来代替。
 - **成本：** host 工具＋插件 schema，中；不是再写一句“批量实验”即可。首片可只比较明确独立请求，不预建扫描器或 payload／wordlist 库。

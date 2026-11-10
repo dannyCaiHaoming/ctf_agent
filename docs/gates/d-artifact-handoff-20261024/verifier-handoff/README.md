@@ -6,7 +6,7 @@
 
 ## 讀取入口與結論
 
-- 最終判定：[子區 D design §5](../../../superpowers/specs/2026-10-24-design-v1-d-candidate-verification-minimal.md#5-接口三固定材料交給獨立-verifier)。V1 成立，V2 有條件成立，V3 部分成立，V4 最小鏈路成立。完整固定輸入執行證明未成立；模型能力、verified、solved 及主區接入均未證明。
+- 最終判定：[子區 D design §5](../../../superpowers/specs/2026-10-24-design-v1-d-candidate-verification-minimal.md#5-接口三三层-verifier)。V1 成立，V2 有條件成立，V3 部分成立，V4 最小鏈路成立。完整固定輸入執行證明未成立；模型能力、verified、solved 及主區接入均未證明。
 - 最終同源六案：`runtime-final-2/`。`verification-final.json` 是作者重新核對原 bytes、來源 hash、真實身份與准入順序後的摘要；可只讀復跑 `python3 docs/gates/d-artifact-handoff-20261024/verifier-handoff/audit-evidence.py`。
 - `delivery-manifest.json` 列產品／測試改動、最小必要證據及來源指紋；`evidence-hashes.json` 是全部保留文件的 hash（不包含該 hash 清單自身與 delivery manifest）。不是用 hash 證明執行期間內容未變。
 

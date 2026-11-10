@@ -1,12 +1,10 @@
 # design v1 C 詳細 design：控制服務、插件接線與會話綁定
 
-記錄日期：2026-10-23（Asia/Tokyo）。
+**狀態（2026-11-10）：已落地。前台與原生背景兩條綁定路徑、逐次准入、計量與停止已接入主區；拒絕原因對模型可見（§3.1、§3.2）已實施，模型是否據此改正調用待真實 run 觀察。§10.2 推遲。**
 
-**狀態：** [CTF Agent 核心設計 v1](2026-10-22-ctf-agent-design-v1.md)（下稱 design v1）第 2 節 C（含 C.1）與 H 的詳細 design 子文件；控制服務、插件接線、會話身份綁定、逐次預算准入與角色能力落地以本文為準。**既有前台綁定已定稿（2026-10-23）：採用原生 `task` 分支；G 異步生命週期採原生背景路徑，已完成聯合驗證、主 session 複核及主區接入（G §9.2）**。第 3 節既有前台綁定的證據見第 8 節；已定且驗證充分的部分可生成實現 plan，異步增量的固定映射與驗證邊界見 G §7.2.2。本文只定義設計，不構成執行授權；探針只驗證時序、權限與計量接線，不驗證多 Agent 協作效果或 provider 計費精度。
+本文是[核心設計 v1](2026-10-22-ctf-agent-design-v1.md)（下稱 design v1）第 2 節 C（含 C.1）與 H 的詳細子文件；控制服務、插件接線、會話身份綁定、逐次預算准入與角色能力以本文為準。前台綁定的探針證據見第 8 節，異步生命週期的固定映射見 [G §7.2.2](2026-10-23-design-v1-g-solver-minimal.md)。探針只驗證時序、權限與計量接線，不驗證多 Agent 協作效果或 provider 計費精度。改寫前的排查記錄見 commit `268813d5` 中的本文。
 
-**前提：** [入口與本地調試詳細 design](2026-10-22-design-v1-entry-local-debug.md)（下稱入口 design）已定：一次 run 由 `apps/launcher` 經 `startManagedOpenCode` 啟動 `opencode serve`，用 SDK 建立 Coordinator 根會話並送出一則啟動訊息；控制服務在 launcher 進程內，與 OpenCode 進程分開；權限不得使用 `ask`。[A／B 詳細 design](2026-10-22-design-v1-ab-product-assets.md) 已定：產品角色與 Skill 經配置目錄副本載入。
-
-**修補狀態（2026-10-23）：** 原生 `task` 與會話綁定的設計決策維持不變。第 10 節記錄首題流程測試前的必要修補與推遲項目；第 10.1 與 10.3 節修補已整合主工作區並通過無模型回歸；第 10.2 節仍推遲。第 8 節的既有探針結果不代表已覆蓋這些失敗路徑。
+**前提：** [入口與本地調試](2026-10-22-design-v1-entry-local-debug.md)已定：一次 run 由 `apps/launcher` 經 `startManagedOpenCode` 啟動 `opencode serve`，用 SDK 建立 Coordinator 根會話並送出啟動訊息；控制服務在 launcher 進程內，與 OpenCode 進程分開；權限不得使用 `ask`。[A／B 產品資產](2026-10-22-design-v1-ab-product-assets.md)已定：產品角色與 Skill 經配置目錄副本載入。
 
 ---
 
@@ -41,7 +39,7 @@
 
 ## 3. 會話身份綁定
 
-2026-10-25 第一优先级收窄为[创建方式保存与续接漏参补齐](2026-10-25-design-v1-sync-resume-provenance.md)，细节以该子设计为准：host 保存创建 background，续接漏写时经 plugin 补入实际调用；显式值保留，不新增模式锁定或报错永久禁用。旧强制后台补丁已撤回，最小补参代码及无模型验收已完成并合回主区；结果／错误／停止机制不在本次改造。
+續接時的 `background` 補參與同步交付身份以[任務參數繼承與同步交付身份](2026-10-25-design-v1-sync-resume-provenance.md)為準：host 保存創建時的 `background`，續接漏寫時經插件補入；同步與後台都建立本輪 execution。
 
 **可信事實的來源：**
 
@@ -69,80 +67,31 @@
 5. **審計關聯**：`task` 的 `tool.execute.after` 輸出 `metadata` 含 `sessionId` 與 `parentSessionId`，用來把 `callID` 與實際子會話對應並寫入證據。
 6. **`task_id` 恢復**：帶合法 `task_id`（同一父會話先前分派、同一角色、仍有效）時，OpenCode 恢復同一會話並以原角色運行，已綁定的會話不再消費待綁定分派（探針 S3c）。
 
-**历史G-V1题目绑定增量（当时为独立原型，主线尚未实现）：** 解題角色的 challengeId 來自 [G 詳細 design §2](2026-10-23-design-v1-g-solver-minimal.md)，不解析 task 自由文字。尚未消費的選題宣告跨模型輪保留，與本節的待綁定分派分開；當時原型「父會話下次准入清理」只清理已發出而未綁定的 pending；現已由上述異步釋放規則取代，舊驗證不證明新時序。恢復既有 task_id 不建立新 pending，宣告同題消費、異題拒絕且保留。G-V1 已以 14 項確定性回歸和 OpenCode 1.19.3＋loopback 替身的 T1／T5／T7／T8 驗證修訂協議；舊失敗與本輪 T5 首次失敗均保留。結論與證據已同步主工作區，見 [G-V1 報告](../../gates/g-solver-verification-20261023/cross-round-v1/REPORT.md)。這是獨立工作區原型結果，非 C 舊身份探針推論；產品代碼未合併，当时正式插件/launcher接线与工作目录建立仍未验证；本轮结果见第6.1节。
+**解題角色的題目綁定：** challengeId 來自 [G §2](2026-10-23-design-v1-g-solver-minimal.md) 的選題宣告，不解析 task 自由文字。未消費的宣告跨模型輪保留，與待綁定分派分開；恢復既有 `task_id` 不建立新 pending；宣告同題時消費，異題時拒絕並保留。驗證見 [G-V1 報告](../../gates/g-solver-verification-20261023/cross-round-v1/REPORT.md)。慢工具接線、取消與 RPC 時限以 G §7.2、§7.2.1 為準：SDK 與外部等待不佔狀態隊列，隊列只做存活複核與短暫登記；停止發生在異步等待中時，返回後再複核，不允許新啟動。
 
-G 的慢工具接线、取消与 RPC 时限以该子文件 §7.2、§7.2.1 为准。本轮独立工作区已完成产品 entry／launcher／C 的无模型接线：SDK 与外部等待不占状态队列，队列仅做存活复核、准入／分派／资源登记等短暂变更；保留第 10.1、10.3 节既有修补。绑定的私有目录在首次准入前准备，停止发生在任何异步等待中时，返回后再复核，不允许新启动。产品代码尚未合并主区。
+### 3.1 分派拒絕的原因對模型可見
 
-### 3.1 拒絕原因對模型可見（2026-11-05 決定並實施；真實 run 待觀察）
+**狀態：已實施（合併 `3868c2f7`）；Coordinator 是否據此改正調用待真實 run 觀察。**
 
-- **依據：** Alibaba a2 批次 B2（`runs/alibaba-easy-20261105-a2/runs/B2/`）中，Coordinator 發了 50 次 `task`，其中 41 次被拒。
-  - **審計中的原因：** 36 次是 `role not dispatchable`，實際是沒帶 `subagent_type`（含 3 次帶 `task_id` 續接時漏帶）；5 次是 `no challenge declared for role`，即未先 assign。
-  - **模型收到的訊息：** 只有 `denied: dispatch`。`ControlDenied` 只把 code 放進訊息，detail 只寫審計，所以模型無從修正，只能反覆重試。Solver 在這個 run 中實際沒有調用任何工具。
-- **決定：** 分派類拒絕（code `dispatch`）把固定的原因字串帶進模型可見的訊息，例如 `denied: dispatch: no challenge declared for role`，並附一句固定的修正提示：
-  - **缺 `subagent_type`：** 提示 `task` 必須帶 `subagent_type`，續接時也要帶。
-  - **未 assign：** 提示先調用 `ctf_challenge_assign`。
-  - **其他固定原因：** 原樣帶出即可。
-- **邊界：**
-  - 只帶出源碼中寫死的原因字串。含動態值的 detail（例如 `unbound session` 的 JSON、session ID、路徑）不帶出。
-  - 其他 code 的拒絕訊息不在本次改動範圍。
-  - 預算類拒絕仍沿用第 4 節的固定文字，避免觸發 OpenCode 的重試。
+- **依據：** a2 批次 B2 中，Coordinator 發出 50 次 `task`，41 次被拒：36 次缺 `subagent_type`（含 3 次續接時漏帶），5 次未先 assign。模型只收到 `denied: dispatch`，原因只寫在審計裡，所以無從修正、只能重試。
+- **決定：** code 為 `dispatch` 時，模型可見訊息為 `denied: dispatch: <原因>[. <提示>]`：缺 `subagent_type` 時提示必須帶上，續接也要帶；角色不可分派時列出可分派的角色；未宣告題目時提示先調用 `ctf_challenge_assign`。
+- **邊界：** 只帶出源碼裡寫死的原因字串；含動態值的 detail（session ID、JSON、路徑）不帶出。預算類拒絕仍沿用第 4 節的固定文字，避免觸發 OpenCode 重試。審計以 `auditMessage` 保存原本的 `denied: <code>`。
+- **後續：** a3–a8 的 `denied: dispatch` 只剩 1 次（a6）。
 
-- **實施（2026-11-05，離線）：**
-  - **代碼：** `ControlDenied` 新增可選的 `hint`。code 為 `dispatch` 且帶 detail 時，模型可見訊息為 `denied: dispatch: <原因>[. <提示>]`。
-  - **提示：**
-    - 缺 `subagent_type` 時，提示要帶 `subagent_type`，續接時也要帶；
-    - 角色不可分派時，列出可分派的角色名；
-    - 未宣告題目時，提示先調用 `ctf_challenge_assign`。
-  - **審計：** 審計以 `auditMessage` 保存原本的 `denied: <code>`，detail 照舊寫入。
-  - **其他拒絕：** 其他 code 與預算拒絕的訊息不變。
-  - **測試：** `tests/contract/control-service.test.ts` 新增原因與提示可見、動態 detail 不外洩的案例；`g-async-lifecycle.test.ts` 的一處舊訊息斷言已隨之更新。
-  - **合併與檢查：** 提交 `a7127665`，合併 `3868c2f7`；合併後全量測試通過（同上，826 項）。
-  - **未驗證：** Coordinator 看到原因後是否會改正調用，留待下一次授權 run 觀察。
+### 3.2 其餘四類拒絕：診斷與提示
 
-### 3.2 其餘四類控制層拒絕（2026-11-10 決定並實施，離線）
+**狀態：已實施（2026-11-10，離線）；不放寬任何限制。真實 run 中的效果待觀察。**
 
-**依據：** `runs/alibaba-easy-2026110[5-9]-a[2-8]` 全部批次的 `evidence/control-audit.json`，離線用 `jq` 按 `reason`、`detail.tool`、`detail.callID` 聚合並回查對應 `messages-<sessionID>.json` 的 `state.input`／`task-executions.json`／`publications.json`。四類共 80 次拒絕：`read path` 60、`artifact source` 15、`timeout`（非 `tool timeout`）4、`binding lapsed`（恰在 30 分鐘截止同一秒）1。分派類（`dispatch`，47 次）已由 §3.1 處理，a2 之後 a3–a8 只剩 1 次，不在本節範圍（見文末「已排除」）。
+依據為 a2–a8 全部批次的審計聚合，四類共 80 次拒絕。測試集中在 `tests/contract/c-denial-detail.test.ts`。
 
-#### 3.2.1 read path（60 次）
+| 拒絕 | 次數 | 實際原因 | 決定 |
+| --- | ---: | --- | --- |
+| `read path` | 60 | 全部來自原生 `read`。模型猜測一個與 `workspace.*` 同名、但原生 `read` 從未提供的目錄（如 `materials/statement.md`）。55 次來自沒有 `workspace.*` 的角色（intake 36、recovery-critic 9、reference 6、coordinator 4），5 次來自 recon 與 domain-solver | 審計加 `rootTag`（materials／work／published／skill／outside）與原始路徑；模型可見提示按角色分兩種：有 `workspace.*` 的角色提示改用 `workspace.read` 並以 `materials/`、`work/`、`published/` 開頭；沒有的角色提示其無檔案存取，需要時交給有權限的角色 |
+| `artifact source` | 15 | 全部來自 `artifact.read`，不是 `artifact.publish`。模型把自己在筆記裡寫的 UUID 樣式字串當成 ref 傳入，這些 ref 從未被發布過 | 加固定提示：ref 必須是本 run、本題一次真實發布返回的值；`artifact.read` 的工具說明補同樣的提醒。來源歸屬比對不變（這 15 次從未經過它） |
+| `timeout` | 4 | 全部是 `http.request` 在截止前沒拿到目標回應；參數都在合法範圍內，`tool timeout` 參數校驗 0 次命中 | 不改代碼，只記錄結論，避免把 `denied: timeout` 誤判為需要放寬上限的參數問題。目標是否仍會逾時待真實 run 觀察 |
+| `binding lapsed` | 1 | 恰在 30 分鐘截止的同一秒，下一次調用已超過 `expiresAt`，屬預期的 deadline 行為；全局停止與用量記錄都正確 | 審計 detail 記 `expiresAt` 與當下時間；錯誤碼與模型可見訊息不變，deadline 不延長 |
 
-- **分類：** 全部 60 次來自原生 `read`（不是 `workspace.read`），`detail.tool` 恆為 `read`。回查每次的 `filePath`／`path` 參數，按是否落在 `this.options.workdir`（OpenCode 沙箱 cwd，即 run 目錄的 `opencode/`，不是 `workspace/<challenge>/` 這個控制服務自己的宿主側根）下的 `materials/`、`work/`、`published/`、`config/opencode/skills/` 首段分類：36 次 `intake`（題目尚未 assign，無 `workspace.*` 可用）、9 次 `recovery-critic`、6 次 `reference`、4 次 `recon`、4 次 `coordinator`、1 次 `domain-solver`。多數目標路徑在 `opencode/` 沙箱裡其實不存在（例如 `opencode/materials/statement.md`——`ls` 確認該 run 的 `opencode/` 下只有 `cache/config/data/state`，沒有 `materials`），模型是在猜測一個與 `workspace.*` 根同名、但原生 `read` 從未提供的目錄結構。
-- **決定：** 不放寬根限制，不把 `materials` 併入 `read`（按用戶「禁止」要求）。只做兩件事：
-  1. **審計加 rootTag：** `checkReadPath` 新增 `readPathRootTag`，對被拒的路徑按上述規則分類為 `materials`／`work`／`published`／`skill`／`outside`，連同模型原始的 `path`（未經 realpath 正規化的原文，不含檔案內容）寫入 `ControlDenied` 的 `detail`，最終落在 `control-audit.json` 的 `detail.error`（審計私有欄位，不進模型可見訊息）。
-  2. **模型可見訊息加固定提示，按角色是否有 `workspace.*` 分兩種：** 原生 `read` 授予全部九個角色（`product/opencode/opencode.json` 每個角色都是 `read=allow`），但 `workspace.*` 只授予 `recon`／`domain-solver`／`engineer`／`verifier`（即 `CHALLENGE_ROLES`）；`coordinator`／`intake`／`reference`／`strategy`／`recovery-critic` 完全沒有 `workspace.*`。對沒有的角色提示「改用 `workspace.read`」是錯誤建議，所以 `checkReadPath` 按 `binding.role` 是否屬於 `CHALLENGE_ROLES` 選一句固定提示（與 §3.1 的 dispatch 依角色列可分派清單同一模式，透過 `ControlDenied` 既有的 `hint` 建構參數傳遞，不是新的動態內容）：有 `workspace.*` 的角色提示改用 `workspace.read`（或 `workspace.list`／`workspace.search`／`workspace.view`），path 要以 `materials/`、`work/` 或 `published/` 開頭；沒有的角色提示「你的角色沒有 `workspace.*`，也沒有其他讀取 materials/work/published 的方式」。`workspace path`（`workspace.*` 工具自己的路徑格式錯誤）維持單一固定提示，因為能走到這個 code 的角色一定已經通過 `checkSolver` 的 `workspace.*` 授權檢查。
-- **邊界：** rootTag 只是離線診斷分類，不是新的授權判斷——即使路徑被分類為 `materials`，原生 `read` 仍然拒絕，唯一允許根仍是 `skillRoot`。分類基於 `workdir`（沙箱側）而非 `workspace.*` 的宿主側根，兩者是兩套平行目錄，混淆會導致分類錯誤但不影響授權結果。
-- **驗收結論：** 60 次裡，36 次 `intake`（題目未 assign）、6 次 `reference`、9 次 `recovery-critic`、4 次 `coordinator`，合計 55 次來自完全沒有 `workspace.*` 的角色——即使模型改走 `workspace.read` 也用不上，正確引導是「你的角色沒有檔案存取，需要的話請交給有權限的角色」而不是指向一個該角色打不開的工具；只有 4 次 `recon`、1 次 `domain-solver`（合計 5 次）屬於確實有 `workspace.*` 但原生 `read` 猜錯沙箱路徑的角色，這 5 次改用 `workspace.read`／`workspace.list` 確實可行。`outside`（例如 `/etc/passwd`、host `python3.11/subprocess.py`、run 目錄本身）無論哪個角色、哪個工具都不該被滿足。
-- **測試：** `tests/contract/c-denial-detail.test.ts` 新增 `materials`／`work`／`published`／`skill`／`outside` 五種 rootTag 分類與固定提示訊息的斷言、Skill 根內真實檔案仍被允許的迴歸，以及 `reference`（無 `workspace.*`）收到不同提示、確認不會被誤導去呼叫 `workspace.read` 的案例。
-
-#### 3.2.2 artifact source（15 次）
-
-- **分類：** 回查全部 15 次的 `detail.tool`，無一例外是 **`artifact.read`**，不是 `artifact.publish`——用戶原始任務假設的「跨 session 來源／未登記的 job／http 輸出／路徑格式不符」三類都不成立，因為那三類只發生在 `control-service.ts` 的 `artifact.publish` 分支（§3.2 範圍外的那段固定來源比對）；這裡走的是 `ArtifactPublisher.bytes()` 的 `ref` 查找失敗（`artifact-tools.ts`）。進一步核對 15 個 `ref`：在對應 run 的 `publications.json` 裡登記數均為 0（從未被任何 `artifact.publish`／`package.publish` 產生過），但在同一 session（a3 批 C3）的敘述文字裡，這些 UUID 樣式字串被模型自己當作「evidence ref」寫進筆記／交接（例如 `fork_exec ret=42` → `3e374c14-707c-4c07-8efe-a39e535a1a16`），之後該角色（engineer）、甚至接手的 verifier 又把這些自造字串當成真的 `ref` 傳給 `artifact.read`。
-- **決定：** 這是純粹的「模型填錯」（按用戶給的二選一分支），不碰登記邏輯：
-  - 不放寬 `original.source.sessionID === binding.sessionID`（這段檢查在本次 15 例裡從未被觸發，維持不變）；
-  - 只加 `ControlDenied` 的 `artifact source` 固定提示：「`ref` 必須是本 run、本題目一次真實 `artifact.publish`（或 `package.publish`）呼叫返回的值；筆記、交接或自己推理裡寫的 UUID 樣式字串不是 `ref`」；
-  - 同步把 `apps/opencode-plugin/src/index.ts` 裡 `artifact.read` 的工具說明補一句同樣的告誡（`artifact.publish` 的說明本來就有「hand off the actual returned ref ... never ... invented identity」，但 `artifact.read` 自己的說明沒有對應提醒）。
-- **禁止：** 不放寬來源歸屬比對，不做全域共享來源——均未變更，因為這 15 次從未經過那段比對。
-- **驗收結論：** 既有 provenance 測試（`d-artifact-handoff.test.ts`、`slow-tools.test.ts`）不回退；新增 `tests/contract/c-denial-detail.test.ts` 的兩個案例覆蓋「自造 ref 被拒且訊息帶提示」與「真實 `artifact.publish` 的 ref 可以被同一 `artifact.read` 讀回」。
-
-#### 3.2.3 timeout（4 次，非 `tool timeout`）
-
-- **分類：** 用戶原始任務假設這 4 次是 `control-service.ts` 的 `waitLimit`／`bounded()` 把越界的 `timeout_ms` 拒絕（code 應為 `tool timeout`）。實際回查 `control-audit.json`：這 4 次的 `reason` 都是 **`denied: timeout`**，`detail.tool` 都是 `http.request`，整個資料集裡 `denied: tool timeout` 出現 **0 次**。追查來源：`timeout`（非 `tool timeout`）是 `http-tools.ts` 的 `HttpRefused('timeout')`，在 `request()` 內由 `stop('timeout')` 觸發——這不是參數校驗，是**真實發出的 HTTP 請求**在 `deadline = min(now+timeout_ms, operation.deadline)` 到期前沒有拿到回應。四次的實際參數分別是：a5/K1 未帶 `timeout_ms`（預設 15000ms）、a6/K2 未帶（預設 15000ms）、a7/K2 `timeout_ms:20000`、a8/K2 `timeout_ms:20000`，全部落在 `[1, MAX_TIMEOUT_MS=60000]` 合法區間；四次請求都打向同一題目端點，該端點在截止前沒有回應。另外確認 `http-tools.ts` 的 `parseTimeout` 本來就已經是「夾取」語義（`Math.min(value, MAX_TIMEOUT_MS)`），只有非正整數或非數字才會擲 `HttpRefused('timeout')`；`control-service.ts` 的 `waitLimit`／`bounded()`（code 為 `tool timeout`）則是另一段獨立校驗，本次資料集完全沒有命中。
-- **決定：** 這 4 次是預期的請求截止競態，不是參數越界，所以兩個選項（夾取 vs 寫明邊界）都不適用——真正越界的值早就被 `parseTimeout` 夾取，從未進入拒絕路徑。**不改動** `waitLimit`／`bounded()` 與 `parseTimeout`，只在本節記錄這個結論，避免下次把 `denied: timeout` 誤判為需要放寬上限的參數問題。
-- **禁止：** 不放寬 `http.request`／`job.run` 的最大等待——未變更，本來就沒有任何一次因上限被拒。
-- **驗收結論：** 把這 4 次記錄的 `timeout_ms`（未帶 `timeout_ms`、未帶、`20000`、`20000`）對一個即時回應的本地測試伺服器離線重放，全部通過（0 次校驗層拒絕，見下方測試），證明這 4 次的參數本身從未出過問題；真實截止競態（目標端點是否及時回應）無法離線重現，留待下一次授權 run 觀察目標是否仍會逾時。
-- **測試：** `tests/contract/c-denial-detail.test.ts` 用這 4 組 `timeout_ms` 值對本地即時伺服器送出合成請求（路徑與 body 為佔位，不含原記錄的請求內容），斷言全部 200 完成、零 `tool timeout`／`timeout` 拒絕。
-
-#### 3.2.4 binding lapsed 的截止競態（1 次）
-
-- **依據：** `runs/alibaba-easy-20261108-a6/runs/F1/.../progress.jsonl` 與對應 `control-audit.json`：`elapsedMs` 恰好跨過 30 分鐘（1,800,000ms）截止——seq522/523 的 `job.run` 在 `elapsedMs=1800026/1800028` 仍被放行並完成；seq524 `context.prepare`（`elapsedMs=1800029`）與 seq525 `model.call`（`elapsedMs=1800067`）被 `binding lapsed` 拒絕；seq526 `task.completion` 同時把該 child 的 `resultFacts` 正確記成 `completeness:"unknown", reason:"stopped"`；seq528 Coordinator 的 `chat.message` 被 `run stopped` 拒絕；seq529/530 的 `stop_marked`（`reason:"deadline"`）／`stop_enumerated` 在 `elapsedMs=1800352/1800369` 完成全局停止。`evidence/admissions.json` 顯示 denied 前最後一次 `model.call` 是 `admitNo:60`，用量沒有被抹掉。
-- **先判斷：** 這是預期的 deadline 行為，不是競態 bug。`live()` 的 `binding lapsed` 本來就是 `Date.now() >= binding.expiresAt` 專用的 code，與 `run stopped`／`session revoked` 是三個不同分支，碼本身已經能區分「到期」與其他終止原因；seq524/525 恰好是 domain-solver 的工具鏈在到期前一刻完成一次 `job.run` 後，下一步呼叫時鐘已經過了 `expiresAt`，`live()` 正確拒絕；全局停止（`stop_marked`／`stop_enumerated`）在denied 之後的同一秒內完成，Coordinator 侧同样拿到干净的终态（`task.completion` 的 `resultFacts.reason:"stopped"`），用量帳本未受影響。
-- **決定：** 按用戶給的分支——**只在 audit 中標明 deadline 原因，不改錯誤碼**。`live()` 擲出 `binding lapsed` 時附帶 `detail`（審計私有欄位）：`expiresAt=<binding.expiresAt> now=<Date.now()>`，讓審計一看就知道這是哪一次到期競態，不需要再回查 `expiresAt` 與呼叫時間的差。模型可見訊息維持原樣 `denied: binding lapsed`，不夾帶這個 detail。
-- **禁止：** 不延長 deadline，不讓 `expiresAt` 變成無限——未變更，`live()` 的到期比較邏輯本身一行未動。
-- **驗收結論：** `tests/contract/g-coordinator-stop.test.ts`、`tests/contract/slow-tools.test.ts` 裡原本斷言 `rejects.toThrow('binding lapsed')`／`toThrow('denied: binding lapsed')` 的用例只檢查訊息子字串，加 `detail` 不影響；`tests/contract/control-service.test.ts` 的 `expire` 分支斷言精確等於 `'denied: binding lapsed'` 的模型可見訊息同樣不受影響。新增 `tests/contract/c-denial-detail.test.ts` 的案例用假時鐘把 `expiresAt` 卡在拒絕的那一刻，斷言審計 `detail.error` 等於 `expiresAt=... now=...`，且模型可見訊息仍是裸碼。
-- **未驗證：** 真實 run 中這類到期競態是否因為這次的審計細節而更容易被離線辨認，留待下一批 run 觀察；新增 detail 不改變行為，無需額外模型驗證。
-
-#### 已排除：dispatch（role not dispatchable）
-
-用戶原始任務列出的「dispatch（role not dispatchable）」一項，核對後確認已由 §3.1（2026-11-05 決定並實施）處理：原因是模型沒帶 `subagent_type`，已讓模型看見拒絕原因與固定提示。離線重新統計 `denied: dispatch` 在全部批次的次數：a2 46 次（§3.1 依據的 B2 子批 41 次只是其中一部分），a6 1 次，a3／a4／a5／a7／a8 均 0 次；a2 之後只剩個位數且趨勢是下降，不再視為需要新增處理的一類，本節不重複改動。
+**邊界：** `rootTag` 只是離線診斷分類，不是授權判斷；原生 `read` 唯一允許的根仍是 Skill 根。`outside` 的路徑（如 `/etc/passwd`、run 目錄本身）不論角色與工具都不放行。分派類拒絕已由 §3.1 處理，不在本節。
 
 ## 4. 預算准入與計量
 
@@ -196,17 +145,17 @@ Reference、Strategy、Recovery Critic 只有知識讀取與狀態讀取（desig
 - **父 idle 不等於 run 完成**：存在活動 child、pending 或待交付結果時不得因父會話暫時 idle／assistant 訊息結束而全局停止。正常收束須可信確認任務處置、結果交付及資源結算；主動結束走全局停止。正常收束依 C 的 execution／pending／queued 交付與資源結算，固定公開接線證據見 §6.2。
 - **異步交付與准入**：首次分派回覆交付可信引用，後續完成訊息關聯同一邏輯任務及該次執行，不改寫首次工具回覆。進度／完成喚醒仍經共享預算准入；停止後只保存遲到結果，不重啟模型。只提供授權任務的必要狀態／摘要，不擴大私有工作區權限。
 
-### 6.1 G 慢工具与停止的本轮接口增量
+### 6.1 慢工具的時限與停止接線
 
-本节记录原型验证；后续 G 已定接线已整合主区，当前验收状态见 G §9.2。
+**狀態：已接入主區，驗收狀態見 [G §9.2](2026-10-23-design-v1-g-solver-minimal.md)。**
 
 真实产品插件仅使用公开 `tool.execute.before` 的 session/call 与 output.args 私有 Symbol，将 callID 和宿主核准时限带到 execute；ToolContext 公开类型没有 callID，不依赖非公开字段。Symbol 不进入模型 schema／JSON，单次消费；并发同会话同工具与 runtime 均已验证。RPC 断开 signal 传到 C 与适配器；普通 hook 15 秒，等待型调用使用 C 核准的 min(等待上限,绑定剩余)+5 秒。
 
 run/session/call 登记先于 HTTP／job 启动，旧短等待原型的 job 在句柄响应后保持登记直到程序组与输出结算；新契约同次等待终态，收尾 unknown 仍须保持登记；已停止或过期的会话不新增操作。stop/revoke 同时取消归属资源；HTTP 清理最多1000ms，C资源收尾最多4000ms，unknown保留状态和配额，不能写已释放。response 未 writableFinished 的断开取消并审计原call；旧短等待原型正常finish不取消已交付running job；新终态等待不正常提前交付running。finish不是客户端应用回执，交付未知不自动重发。
 
-真实 OpenCode 1.19.3、plugin/SDK 1.19.0、loopback确定性替身在同一产品入口完成绑定、文件、HTTP16004ms、job16054ms、增量输出与统一停止。C的短串行/配额/停止及交付屏障有无模型回归。该批长job超过wait_ms的直接promptAsync恢复不能更新已结束父task，失败仍保留。后续同次终态等待已验可行；现已选定Solver终态等待＋Coordinator异步交付／停止契约，该批尚未验证父层公开接线；后续联合结果见本节6.2及G §7.1–7.2.2；OS机制与部署限制另见G §5.4，不拼接为同一次验收。本批无真实模型或D/oracle验证。完整条件和失败：[G本轮报告](../../gates/g-solver-verification-20261023/g-c-rpc-slow-tools/REPORT.md)。
+驗證（OpenCode 1.19.3、loopback 確定性替身，無真實模型）：同一產品入口完成綁定、文件、HTTP、job、增量輸出與統一停止。完整條件與失敗見 [G 慢工具報告](../../gates/g-solver-verification-20261023/g-c-rpc-slow-tools/REPORT.md)；Solver 終態等待與 Coordinator 異步交付的接線見 6.2 與 G §7.1–7.2.2。
 
-### 6.2 原生異步生命週期的固定映射（隔離原型）
+### 6.2 原生異步生命週期的固定映射
 
 採 OpenCode 1.19.3 的公開 `OPENCODE_EXPERIMENTAL_BACKGROUND_SUBAGENTS=true` 與 `task(background=true)`。實際 flag false/true schema 對照已確認可用；不使用 SDK 備案。模型／工具內循環、child 執行與通知都由 OpenCode 完成，C 不增加調度／provider 循環。
 
@@ -215,7 +164,7 @@ run/session/call 登记先于 HTTP／job 启动，旧短等待原型的 job 在�
 - 早期 child 引用可在首個 child hook 前由父發 stop；C 先用 SDK 完成可信綁定，再撤銷與回收，遲到 hook 不得獲模型准入。停止後全局收尾復用同一停止 promise，不重發已確認或 unknown 的 SDK abort。完成先到則 task.stop 回報原終態；host revoke 仍撤銷會話。取消由 task.stop 關聯回覆交代，不依賴原生另發取消通知，亦不稱成功完成。
 - 正常父 idle 收尾必須沒有 starting／running execution、pending、queued 結果或未結算資源。各等待在短狀態隊列外；unknown 繼續保額。
 
-同一固定候選完成六個完整 runtime 情境及 86/86 定向、319/319 全套，typecheck/build 通過。原失敗與 runtime／確定性覆蓋界線見 [聯合報告](../../gates/g-solver-verification-20261023/joint-async-lifecycle/REPORT.md)。該批次當時尚未合併產品代碼，後續整合見 G §9.2；主 session 已獨立重跑六個 runtime 情境及 86 項定向測試，核對原始證據與來源 hash；見同目錄 parent-review.json。重複通知／啟動失敗／unknown 等故障為確定性覆蓋，不冒稱全部經 runtime 注入；跨重啟帳本、真實模型與 OS／網路隔離未驗。原型保留舊 direct-host 測試的顯式 wait/completion 內部路徑，模型工具 schema 只提供 job 同次終態等待；最終整合仍須按 G 固定外部契約。
+驗證：六個 runtime 情境與 86 項定向測試通過，主 session 獨立重跑核對；重複通知、啟動失敗、unknown 等故障只有確定性覆蓋。跨重啟帳本、真實模型與 OS／網路隔離未驗。見[聯合報告](../../gates/g-solver-verification-20261023/joint-async-lifecycle/REPORT.md)。
 
 ## 7. 公開接口不足時的去向
 
@@ -263,11 +212,13 @@ run/session/call 登记先于 HTTP／job 启动，旧短等待原型的 job 在�
 - `packages/supervisor` 的 `responsibilities`、`candidate-control`、`candidate-verification`、`long-job-watch` 等保留模組，按 design v1 D 接到控制服務；是否沿用其現有介面在 D 的實現時判斷，不以保留現有類別為前提。
 - 現行插件的 `experimental.chat.messages.transform`／`experimental.chat.system.transform` 轉發只服務已退場的單一 Solver 入口；本文機制不依賴實驗接口（V9），實作時移除這兩個轉發。
 
-## 10. 首題流程測試前的修補安排
+## 10. 首題前的修補與推遲項
 
 本節限定 C 的修補範圍，不是整個首題流程已可運行的判定。 G 的首題前置與延後項以 [G §10](2026-10-23-design-v1-g-solver-minimal.md) 為準：保留結果交付、pending／idle 與停止的必要接線；不因此提前實作完整進度系統、跨重啟恢復或精細資源帳本。先完成 10.1 與 10.3 的最低要求；10.2 不作為首題測試的前置條件。修補使用無模型回歸，不新增 provider 求解循環、配套 gate 或完整恢復系統。後續實現 plan 從本節生成，每份只覆蓋一個可獨立驗收的能力；本節不引用 plan，也不把待做項目記為已驗證。
 
-### 10.1 停止後仍可能放行模型請求——當前修補
+### 10.1 停止後仍可能放行模型請求
+
+**狀態：已修補並整合。**
 
 **問題：** `ControlService.decide()` 先檢查會話有效性，`admit()` 隨後等待用量查詢。若等待期間 run 停止、子會話被撤銷或綁定到期，查詢返回後目前仍可能扣減調用次數並放行。這違反第 6 節的停止要求。
 
@@ -277,13 +228,17 @@ run/session/call 登记先于 HTTP／job 启动，旧短等待原型的 job 在�
 
 **整合結果（2026-10-23）：** `admit()` 在用量查詢返回後重新檢查 run 停止狀態及會話有效性，再扣次數。停止、撤銷、到期的等待中競態均被拒且不增加准入；有效會話對照正常放行。原始三項失敗與修補後記錄保留於 [停止准入回歸記錄](../../gates/c-binding-probe-20261023/stop-admission-regression.log)。整合驗證與第 10.3 節同批執行，結果見該節。
 
-### 10.2 並行 token 預留、更精密的預算帳本——推遲
+### 10.2 並行 token 預留與更精密的預算帳本
+
+**狀態：推遲。**
 
 **目前承諾：** 共用模型調用次數與可觀察 token 門檻；已觀察用量達到門檻後不再准入，在途回應可能越過門檻。序列化准入不等於預留在途 token。
 
 **安排：** 首題前不加入 token 預留、預估成本或結算機制。若後續確實需要更嚴格的並行成本約束，再確認所需保證與 provider 可提供的計量資訊，另行設計；目前不指定候選方案為既定實作。已有用量不能因中止而被抹掉、缺失用量不能冒充完整，屬於 10.3 的最低記錄要求，不以本項推遲為由略過。
 
-### 10.3 異常退出的證據保存——當前只補最低限度
+### 10.3 異常退出的證據保存
+
+**狀態：已補最低限度並整合。**
 
 **問題：** launcher 的會話匯出位於正常執行路徑，SDK 查詢異常可能跳過後續匯出；關閉 OpenCode 若拋錯，也可能阻斷尾部記錄寫入。控制服務重新讀取訊息時，還可能用中止後的零值覆蓋已觀察用量。現有審計與狀態檔應繼續使用，不重建記錄系統。
 
@@ -297,20 +252,8 @@ run/session/call 登记先于 HTTP／job 启动，旧短等待原型的 job 在�
 
 **本次不做：** 進程被強制殺死後的崩潰恢復、完整事件重放、自動重跑、供應商帳單對帳或所有失敗路徑的完整會話匯出。最低回歸通過即可結束本項，不以完善這些能力阻擋首題測試。本項已與第 10.1 節整合並完成以下驗證。
 
+**結果（2026-10-23，已整合）：** 用量以 SDK session／message ID 保存，同訊息不重複累加，中止歸零或缺失不抹除已知消耗，缺失與讀取失敗標為不完整；launcher 正常與異常退出共用收尾，各項查詢、關閉與寫入分別捕獲錯誤；abort 逐會話記錄實際結果。定向與全套回歸通過，原始失敗記錄見[證據保存回歸記錄](../../gates/c-binding-probe-20261023/failure-evidence-regression.log)。
 
-**整合結果（2026-10-23）：** 已將兩份隔離工作區的修補整合回主工作區；保留主工作區最新指令與設計內容，未覆蓋為隔離工作區的舊副本。此處記錄整合驗證時的狀態。
+**限制：** 此次證明控制准入與異常記錄的確定性行為，不證明真實模型解題能力或真實 provider 的失敗路徑。從未取得的 usage 無法還原；磁碟不可寫時如實失敗，不保證保存成功。兩份實現 plan 的結論已轉入本文並移除；回歸測試源碼與最小失敗證據保留，臨時構建及調試產物清理。token 預留、完整恢復系統與 G 待驗證接口均不在此次修補內。
 
-- 控制服務以 SDK session/message ID 保存已觀察用量，同訊息不重複累加，中止歸零或缺失不抹除已知消耗；缺失、讀取失敗與身份異常標為不完整。預算觀察與已綁定會話匯出共用用量快照。SDK 列舉但未綁定的子會話只合計可取得的匯出用量，不授予角色或工具權限。
-- launcher 正常與異常退出共用收尾：各會話查詢、關閉及文件寫入分別捕獲錯誤，保留原始與後續錯誤；缺失資料不冒充空訊息或 idle，寫出的資料沿用憑據清理。abort 逐會話記錄實際結果，失敗不聲稱成功。
-- 原始失敗與隔離工作區定向修補記錄保留於 [證據保存回歸記錄](../../gates/c-binding-probe-20261023/failure-evidence-regression.log)，此歷史記錄不代替下面的主工作區整合驗證。
-
-| 主工作區整合驗證 | 實際結果 |
-| --- | --- |
-| 版本／條件 | 基線 `9fb3e01d1c72a25faf597e9546b0c9c032617af1` 加本次未提交修補；Node 26.3.0、npm 11.16.0、Vitest 2.1.9；SDK 替身、虛構憑據與本地 RPC，無真實模型／provider 呼叫 |
-| 定向回歸 | `npx --no-install vitest run tests/contract/control-service.test.ts tests/contract/launch-evidence.test.ts tests/contract/run-prep.test.ts`：3 個文件，42／42 通過 |
-| 類型與構建 | `npm run typecheck`、`npm run build` 均退出 0 |
-| 全套回歸 | `npm test`：33 個文件，223／223 通過 |
-
-**限制與收口：** 此次證明控制准入與異常記錄的確定性行為，不證明真實模型解題能力或真實 provider 的失敗路徑。從未取得的 usage 無法還原；磁碟不可寫時如實失敗，不保證保存成功。兩份實現 plan 的結論已轉入本文並移除；回歸測試源碼與最小失敗證據保留，臨時構建及調試產物清理。token 預留、完整恢復系統與 G 待驗證接口均不在此次修補內。
-
-D第三接口已接入：Verifier的package.prepare在本次work準備固定材料，job.run綁定本次preparation及execution。宿主記錄實際命令、端點hash及真實輸出；持續完整性與未聲明依賴保持unknown，不能提升為verified。具體決策、主區回歸與限制以D詳細design§5為準。
+具體決策、主區回歸與限制以D詳細design§5為準。

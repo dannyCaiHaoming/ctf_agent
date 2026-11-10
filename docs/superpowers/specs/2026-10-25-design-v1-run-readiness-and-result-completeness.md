@@ -1,10 +1,8 @@
 # design v1 C／E／H 详细 design：结果完整性与交接可见性
 
-记录日期：2026-10-25（Asia/Tokyo）。
+**状态（2026-11-10）：已落地。Root 与后台来源关联、父上下文展示、同步关联与多通知消费已接入并有无模型验收（`ee78e017`）；交回时的决策事实与 child 输出上限 32000 见 §5.2。报告质量、有效恢复与 Critic 的实际决策未验证。**
 
-**状态：本文限定的工程修复已实作、独立 review 通过并接入主区；Root／后台来源、父上下文展示、同步关联和多通知消费已有无模型验收。原调试中报告缺失／截断与 Critic 决策问题尚未解决；七次恢复并非均无效，不能将工程方案定稿写成原问题全部修复。** 本文是[核心设计 v1](2026-10-22-ctf-agent-design-v1.md) C／E／H 的子文件。文件路径保留以兼容既有引用。
-
-**当前进度补充（2026-10-26）：** 本文工程修复已随 `ee78e017` 提交，后续漏参补齐随 `b1afa29a` 收口。r4 已有真实运行观察：Root 最终消息完整并正常结束，但子角色仍出现 length／空正文，不能把本次 Root 完整外推为子任务恢复或 Critic 判断已解决。证据与尚未选定的生成／恢复策略见[空正文恢复子设计](2026-10-26-design-v1-c-empty-result-recovery.md)；该后续设计仅设计，本文原始目标及验收标准不变。
+本文是[核心设计 v1](2026-10-22-ctf-agent-design-v1.md) C／E／H 的子文件，文件路径保留以兼容既有引用。子角色 length／空正文的分类与恢复见[空正文恢复](2026-10-26-design-v1-c-empty-result-recovery.md)。改写前的逐批记录见 commit `268813d5` 中的本文。
 
 ## 1. 目标与范围
 
@@ -23,7 +21,7 @@
 
 ### 1.1 推进与验收边界
 
-沿用用户确认的流程：先将本设计范围内的未知接口验证并回补，再统一编写剩余工程实作 plan；不再逐项验证后立即实作。已有 Root／后台实现保留，不重复开发。原型通过不能代替正式实现的同源验收；完成后回补本文及 README，已转入的验证 plan 删除，原始证据保留。
+沿用用户确认的流程：先将本设计范围内的未知接口验证并写回，再统一编写剩余工程实作 plan；不再逐项验证后立即实作。已有 Root／后台实现保留，不重复开发。原型通过不能代替正式实现的同源验收；完成后写回本文及 README，已转入的验证 plan 删除，原始证据保留。
 
 当前工程实作已覆盖原始空／截断样例和必要错误边界，无需继续拆 readiness、压缩或重复关联验证 plan。无模型验证只证明来源关联、事实可见及生命周期行为，不证明模型理解或解题效果；本轮没有真实模型、commit 或 push。
 
@@ -132,82 +130,27 @@ SDK 读取和导出非原子，exportedSourceMatches 只说明导出是否匹配
 
 正式实现已核对实际父请求与持久化来源；缺 Part 身份字段的初版失败仍作为历史证据保留。host 检查与 plugin 保存之间仍非原子。早期证据见[父展示验证](../../gates/g-solver-verification-20261023/run-completeness-20261025/parent-display/README.md)与 §6 联合验证。
 
-**交回時的決策事實（待驗證，2026-11-06）：** 來自 [Alibaba a1–a4 harness 分析](../analysis/2026-11-06-alibaba-a1-a4-harness-findings.md) 的 P1-1。
+**交回时的决策事实**
 
-- **核對（a4 單題單次，只取 dispatch／completion 時間與工具計數）：**
-  - 原分析稱「Solver 約 5–6 分鐘就交回」，不準確。實際是兩個 Solver 會話、6 次交回，每回合 0.2–2.9 分鐘。
-  - Coordinator 每次都再派 Solver，沒有派 Critic 或 Engineer；20.2 分鐘自行結束時剩約 9.8 分鐘。
-  - Coordinator 共 27 次回覆，`ctf_progress_read` 4 次。
-  - 「開啟 Solver 思考使交回變快」只有這一次觀察，不作結論。
-- **現狀：**
-  - 交回時推送給 Coordinator 的只有上面的完整性欄位。
-  - 剩餘牆鐘（`completion.budget.deadline`）、已准入調用數和進度摘要，要 Coordinator 自己調 `ctf_progress_read` 才看得到；a3 C1 整個 run 只讀了 1 次。
-  - 「尚無候選／已有候選未打包」沒有 host 可見的結構化事實：Solver 發布的 artifact 沒有類型，只有 Engineer 的 `package.publish` 是結構化的。
-- **候選做法（未定）：** 在既有的交回事實旁追加少量 host 已有的數字：
-  - 剩餘牆鐘；
-  - 本回合調用數與時長；
-  - 本題是否已有 package。
+**状态：已实施（merge `2ed7054c`）；a6 首次观察未见派单改变，保留为后续对照的固定基线。**
 
-  只追加事實，不附建議動作，不改「Critic 只建議、Coordinator 決定」。
-- **要回答的問題與去向：**
-  1. a4 的 Coordinator 決策點上，這些數字能否從現有記錄算出？能就只改展示，不新增記錄。
-  2. 追加後 Coordinator 的派單是否改變（換路、派 Critic、派 Engineer 的比例）？只能由授權的配對 run 回答，方法見[解題延遲](2026-11-04-design-v1-run-latency-and-context-cost.md) §4。不變就撤回，不再疊加提示。
-  3. 「已有候選」若需要 Solver 標記，屬於接口變更，先回到 [Recon 重設計](2026-10-29-design-v1-recon-redesign.md) §5「推廣到 Solver 等長執行角色」的問題 3 一併決定，不在此單獨新增欄位。
-- **a5 E2 補充（2026-11-07，產品 `9e874d44`，只讀結構化欄位，見 [E2 生命週期分析](../analysis/2026-11-07-a5-e2-lifecycle.md)）：**
-  - 跑到 deadline 的原因不是收束規則：1714s 續派的背景 Solver 仍在跑，`hasOutstandingWork` 為真，符合設計。
-  - 預算未觸及，也沒有拒絕擋住 Engineer；Coordinator 7 次續派中 4 次是同一個 Solver，全程沒派 Engineer。recovery-critic 給出 `redirect` 後，仍續派同一個 Solver。
-  - `ctf_progress_read` 只給絕對 `deadline`，不給剩餘時間與各角色派出統計；705s→1560s 的單個 Solver 回合約 13 分鐘，期間 Coordinator 沒有回合。
-  - 問題 1 的答案：剩餘牆鐘、回合時長、各角色派出次數、本題是否已有 package，都能從現有 execution、budget 與 publication 記錄算出，不需新增記錄。
-- **決定（2026-11-07）：** 實作上面的候選做法，在交回事實旁追加這四項，各角色派出次數是 a5 E2 新增的一項。只追加事實，不附建議動作。保留或撤回由問題 2 的配對 run 決定。
-  - Solver 單回合時長上限屬於觸發層，不在本項；仍歸 [Recon 重設計](2026-10-29-design-v1-recon-redesign.md) §5 的牆鐘階段 closure 評估。
-- **實作（2026-11-08，merge `2ed7054c`，含 `9590bc0b`）：**
-  - **欄位：** 背景交回的 `completionDisplays`、同步交回的 `syncDisplay`（含 Recon 本地停止）都帶 `decisionFacts: {remainingMs, turnMs, dispatches, packaged}`。
-  - **來源：**
-    - `remainingMs` 為 `expiresAt` 減去當下時間，不小於 0；
-    - `turnMs` 取自 `Execution` 的記憶體欄位 `dispatchedAt`，續派是新的 execution，所以按回合計；
-    - `dispatches` 統計本 run、本題的 executions，含本次；
-    - `packaged` 看本題 publication 中有無 `package` 類。
-  - **不新增持久記錄。**
-  - **渲染：** plugin 在原完整性事實後追加一行 `decision facts: remaining=…, turn=…, dispatches=role×n…, packaged=yes|no`。原 JSON 事實不含這四項，避免重複。全文只有數字，沒有建議句。
-  - **驗證（無模型）：**
-    - 確定性測試覆蓋背景與同步交回、打包前後、unknown 結果、已過 deadline、跨題不混算；
-    - typecheck、build、全量 831 項通過。
-  - **沒有改動：** 角色 prompt、收束、預算與准入都未改。
-- **問題 2 的首次觀察（a6，2026-11-08，產品 `6c965475`，報告 `runs/alibaba-easy-20261108-a6/a6-report.md`）：** 設定同 a5：ezoj ×2、8a6ac7ff ×1，Solver thinking 開，每 run 3M／30 分鐘。
-  - **派單模式未改變。** F2 的 Solver 交回 6 次，其中 5 次立刻續派同角色；每次交回時 `packaged=no`，remaining 由 975 秒降到 519 秒，全程沒派 Engineer。最後一次交回後 Coordinator 不再派單，run 以 `completed` 結束，0 提交，尚餘約 8.6 分鐘。F1 同樣沒進 Engineer，到 deadline 停止。
-  - **對照題未退化。** K2 在 Recon 交回後直接派 Engineer，4.8 分鐘 accepted。
-  - **限制。** 每設定一次、非配對 A/B；渲染文字不入審計，四個值按 host 口徑重算，不能證明模型讀到或用了。
-  - **判斷。** 沒有觀察到改善，但樣本不足以判定無效。四項事實只增加交回時的一行數字、不改行為規則，暫不撤回，作為後續對照的固定基線；不再為此疊加提示或新欄位。下一步改由 [團隊決策上下文](2026-11-07-design-v1-team-decision-context.md) §3.2 的交回內容核對，區分「承接」與「Solver 探索」缺口。
-  - **另見。** 同批 F1 的 Recon、F1／F2 的 Solver 交回出現 `incomplete（length）`，F2 一個 Recon 回合約 10 分鐘以 `unknown` 交回。
-- **child 單次輸出上限（決定，2026-11-08）：**
-  - **依據。** [交回內容核對](../analysis/2026-11-08-handoff-content-check.md)：a3–a6 有 8 次 child 交回因 `finish=length` 截斷，既沒回答問題也沒留線索，全部落在未產出候選的 6 個 run。Recon（未開思考）與 Solver（開思考）都有截斷，所以不只是思考佔用輸出。
-  - **現況。** 所有角色共用模型 `limit.output=8000`。這是[配置說明](../../../config/README.md)沿用的保守值，網關實際上限未核實。§5.4 已確認 length 訊息的 output＋reasoning 恰為 8000。
-  - **下一批運行設定。**
-    - 把運行設定中模型的 `limit.output` 提高到 32000，只改 run 的 `configs/opencode.*.json`，不改產品代碼與範例配置。
-    - 開跑前用一次最小真實請求確認網關接受 32000；被拒時退到 16000，並記入報告。這次請求計入批次預算。
-    - 其餘設定同 a6，包括 decisionFacts 基線與 Solver 思考開啟。
-  - **判據。**
-    - child 交回的 `finish=length` 次數，與 a6 同口徑比較；
-    - Coordinator 的 `finish=length` 與 Root 續接次數；
-    - 單回合 output＋reasoning 的分佈，確認上限確實生效；
-    - 次要指標：牆鐘與 token 變化、是否產出候選。
-  - **歸因限制。** 截斷減少不等於解題能力提升。若截斷歸零而候選仍為 0，瓶頸確認在探索能力，轉 P2 失敗復盤。
-  - **a7 結果（2026-11-08，`6c965475`，[報告](../../../runs/alibaba-easy-20261108-a7/a7-report.md)）：**
-    - **設定。** 只把 run 的 `limit.output` 由 8000 改為 32000；開跑前最小真實請求 `max_tokens=32000` 回 HTTP 200（49 tokens，計入批次預算），未退 16000；其餘同 a6。[P2 復盤](../analysis/2026-11-06-alibaba-a1-a4-harness-findings.md)已於開跑前完成。
-    - **截斷。** child `finish=length` 由 3 次降為 0；Coordinator `finish=length` 與 Root 續接都是 0，與 a6 相同。
-    - **上限未成為約束。** 單次 call 的 output＋reasoning 最大 13,049，沒有任何 call 接近 32,000；a6 的 8,000 上限曾命中 3 次。
-    - **結果。** 仍是 1/3 solved（K2）。F1 的 recon 單一 execution 跑到 30 分鐘 deadline 未交回；F2 的 solver 單回合 24.1 分鐘、剩 23 秒才交回，0 提交；K2 9.54 分（a6 4.8 分）。
-    - **用量。** observable 1,631,227（a6 1,109,532，+47%）；牆鐘與單回合時長都上升。
-    - **判斷。**
-      - **截斷不是 F1／F2 無候選的主因。** 截斷歸零後兩題仍沒有可提交候選；32000 也未成為約束。不再調高上限。
-      - **a7 沒有測到 Solver 探索能力，不據此確認「瓶頸在探索能力」。** 上一條判據的前提是 Solver 有完整的探索與交回機會，本批不滿足：F1 從未派出 Solver；F2 只有一次 Solver 交回，且剩 23 秒，分不清能力不足還是時間不足。探索能力假設目前主要由 [P2 復盤](../analysis/2026-11-06-alibaba-a1-a4-harness-findings.md)的缺口分類支持。
-      - **新觀察：child 單次 execution 可吃掉整個 deadline。** a6 的 `length` 截斷實際上讓 child 提早交回、Coordinator 拿回控制；上限放寬後，失敗從「交回不完整」變成「沒有交回」（F1 recon 約 30 分鐘、52 次 call 被取消）。單次 call 的 output＋reasoning 中位數在 F1／F2 升為 a6 的 4.7／3.6 倍（K2 1.4 倍），是否因 `max_tokens` 增大而推理變多屬推測，未驗證。
-      - **上限（決定，2026-11-08）。** 後續批次維持 32000。8000 截斷產生的是 0 輸出的空交回，Coordinator 無法據以判斷；它順帶造成的提早交回只是副作用，不作時間控制手段。
-      - **單次 execution 長度。** 不再以 host 門檻限制；改由 child 依執行中可見的時間事實自判交回，候選見 [Recon 重設計](2026-10-29-design-v1-recon-redesign.md) §5「執行中可見的時間事實，由 child 自判交回」，不在本項。若不先處理，P2 指向的方法補強在下一批的效果可能被同類超時掩蓋。
+- **问题：** 交回时推给 Coordinator 的只有完整性字段；剩余时间、已准入调用数与进度摘要要它自己调 `ctf_progress_read` 才看得到（a3 C1 整个 run 只读 1 次）。a4、a5 E2 中 Coordinator 一再续派同一个 Solver、不派 Engineer，Recovery Critic 给出 `redirect` 后也一样（见 [E2 生命周期分析](../analysis/2026-11-07-a5-e2-lifecycle.md)）。
+- **决定：** 背景交回的 `completionDisplays` 与同步交回的 `syncDisplay` 都带 `decisionFacts: {remainingMs, turnMs, dispatches, packaged}`，即剩余时间、本回合时长、本题各角色派出次数、本题是否已有 package。全部由现有 execution、budget 与 publication 记录算出，不新增持久记录。plugin 在完整性事实后追加一行数字，不附建议句；角色 prompt、收束、预算与准入都不改。Critic 只建议、Coordinator 决定。
+- **a6 观察（单次、非配对）：** F2 的 Solver 交回 6 次，5 次立刻续派同角色，每次 `packaged=no`，全程没派 Engineer，最后剩约 8.6 分钟、0 提交结束；对照题 K2 在 Recon 交回后直接派 Engineer，4.8 分钟被接受。渲染文字不入审计，不能证明模型读到或用了。
+- **去向：** 不再为此叠加提示或新字段。是否保留由配对 run 决定（[解题延迟](2026-11-04-design-v1-run-latency-and-context-cost.md) §4）；承接与 Solver 探索的区分改由[团队决策上下文](2026-11-07-design-v1-team-decision-context.md) §3.2 核对。Solver 单回合时长属触发层，归 [Recon 重设计](2026-10-29-design-v1-recon-redesign.md) §5。
+
+**child 单次输出上限**
+
+**状态：后续批次维持 32000（2026-11-08 决定）。**
+
+- **依据：** a3–a6 有 8 次 child 交回因 `finish=length` 截断，既没回答问题也没留线索（[交回内容核对](../analysis/2026-11-08-handoff-content-check.md)）；Recon（未开思考）与 Solver（开思考）都有，所以不只是思考占用输出。原来所有角色共用 `limit.output=8000`，是[配置说明](../../../config/README.md)沿用的保守值。
+- **做法：** 只改 run 的 `configs/opencode.*.json`，不改产品代码与示例配置；开跑前用一次最小真实请求确认网关接受 32000。
+- **a7 结果（[报告](../../../runs/alibaba-easy-20261108-a7/a7-report.md)）：** child `finish=length` 由 3 次降为 0；单次 output＋reasoning 最大 13,049，上限没有成为约束；仍是 1/3 solved，用量 +47%。F1 的 Recon 一次跑到 30 分钟 deadline 未交回，F2 的 Solver 单回合 24.1 分钟、剩 23 秒才交回。
+- **判断：** 截断不是 F1、F2 没有候选的主因，不再调高上限。8000 的截断产生的是零输出的空交回，它顺带造成的提早交回只是副作用，不作时间控制手段。a7 没测到 Solver 探索能力（F1 从未派出 Solver，F2 只交回一次且时间耗尽），不据此确认瓶颈在探索能力。上限放宽后失败从「交回不完整」变成「没有交回」，单次 execution 长度改由 child 依执行中的时间事实自判，见 [Recon 重设计](2026-10-29-design-v1-recon-redesign.md) §5「执行中可见的时间事实」。
 
 ### 5.3 同步关联与多通知消费
 
-**后续调用政策（2026-10-25，收窄）：** [第一优先级子设计](2026-10-25-design-v1-sync-resume-provenance.md)仅要求创建时保存 background、续接漏写时补上，细节以该文件为准；显式值保留，不新增模式锁定或报错永久禁用。本节既有同步来源／展示规则不变；promotion、错误和停止改造移出本次。旧强制后台补丁已撤回，最小补参代码及无模型验收已完成并合回主区。
+续接时的 `background` 补参与同步交付身份见[任务参数继承与同步交付身份](2026-10-25-design-v1-sync-resume-provenance.md)；本节只管同步结果的来源与展示。
 
 **同步来源。** 在可信 dispatch 后以 `(parentSessionID, callID)` 区分每轮，可信 binding 后由 chat.message 冻结唯一 user，再按 assistant.parentID 分类。不得复用首轮 dispatchCallID、最新消息或旧后台 ref；同步不创建后台 execution/ref。同 call/user 幂等，不同 user 或多个活动候选持久 conflict/unknown；同 call 改参数拒绝，终态 call 不再派发。
 
@@ -246,6 +189,6 @@ consumed 表示可信通知出现在本轮获准上下文，不代表网络 ACK 
 
 本轮交付完成本设计范围内的关联、展示、消费修复及 Coordinator 条件澄清。有效交接内容、避免无效恢复、最终报告质量与 Critic 决策仍按 §1 明示未解决；本地替身不能证明这些行为。自然竞态、所有 adapter 及启用压缩后的兼容性也未完成验收，不扩成当前新增任务。
 
-实施中补齐了同 call 改参／终态重放、SDK 后身份重查、同步错误只释放本 call、active 同步阻止提前收束、缺快照不消费和空 prepared 分支。独立 review 无阻断；其要求的同 child 连续两次同步来源回归已补足。主区接入后 typecheck／build 及全套 49 文件、482 测试通过；主区与原生验收运行时代码 hash 一致，六案投影重放通过。正式六案使用 OpenCode 1.19.3 与本地确定性 provider，env-i／独立 HOME/XDG、外连 EPERM；部分／空报告、failed 通知及同步等待都在实际父请求中核对。实现、失败日志、版本与源码 hash 见[实施证据](../../gates/g-solver-verification-20261023/run-completeness-20261025/final-implementation/README.md)。
+独立 review 无阻断。主区接入后全套测试通过，六案在 OpenCode 1.19.3 与本地确定性 provider 的实际父请求中核对；实现、失败日志、版本与源码 hash 见[实施证据](../../gates/g-solver-verification-20261023/run-completeness-20261025/final-implementation/README.md)。
 
 历史探索、失败及细分验证留在原证据目录，正文不再重复执行日记；历史报告中的旧范围与章节号不作为当前待办或权威契约。

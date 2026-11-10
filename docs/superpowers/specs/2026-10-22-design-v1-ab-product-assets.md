@@ -1,8 +1,8 @@
 # design v1 A／B 詳細 design：產品運行資產包與原生 Skill
 
-記錄日期：2026-10-22（Asia/Tokyo）。
+**狀態（2026-11-10）：已落地。產品資產複製、metadata、版本記錄、角色准入與 Skill 根內受控 read 已接入；共用知識目錄按需推進。**
 
-**狀態：** [CTF Agent 核心設計 v1](2026-10-22-ctf-agent-design-v1.md)（下稱 design v1）第 2 節 A、B 的詳細 design 子文件；A、B 的細節以本文為準。本文只定義設計，不構成執行授權。
+**說明：** [CTF Agent 核心設計 v1](2026-10-22-ctf-agent-design-v1.md)（下稱 design v1）第 2 節 A、B 的詳細 design 子文件；A、B 的細節以本文為準。本文只定義設計，不構成執行授權。
 
 **依據：** 2026-10-22 兩次無模型實測：OpenCode 1.19.3（npm SDK／插件 1.19.0），經未修改的 `startManagedOpenCode` 與現行隔離旗標啟動，只用 loopback 替身 provider，token 0。第一步驗證產品資產的原生載入與題目同名文件（判據 J1–J8），第一步 b 驗證工作目錄 `.opencode/` 的插件／工具／命令與請求級 `directory`（判據 K1–K6）。兩份報告保存在 [`docs/gates/a0-assets-probe-20261022/`](../../gates/a0-assets-probe-20261022/REPORT.md)（[第一步](../../gates/a0-assets-probe-20261022/REPORT.md)、[第一步 b](../../gates/a0-assets-probe-20261022/REPORT-1b.md)）；報告內的 `evidence/` 原始證據未保留。下文以 J、K 編號引用；未經實測的推斷明確標註。
 

@@ -45,6 +45,13 @@
 - 每份 plan 都从一份 design（design v1 章节或其详细 design 子文件）生成并在开头写明依据；候选机制、角色规则等设计内容写在 design，不只写在 plan 里。
 - 详细 design 作为 design v1 对应章节的子文件，从该章节链接并写明细节以子文件为准，不另立平行的权威文档。design 不引用 plan：验证结论连同版本、条件与关键观察写进 design，需长期保留的最小原始证据放 `docs/gates/`；plan 的结论转入后即删除该 plan。一份 plan 只覆盖一个可独立验收的最小能力切片；不预排里程碑 roadmap，不为 plan 配套新增 gate。
 - design 是当前决策快照，不按时间累积成 run log。plan 结论回补到最接近的既有决策章节，替换或整合旧内容；标题按决策维度组织，不按 plan、批次或日期堆叠，正文保持结论先行和短段落。
+- design 写法：
+  - 开头一行状态：`状态（日期）：已落地／进行中／候选／暂缓／历史` 加一句尚未验证的内容，约 100 字内；不把多件事挤进一段状态。
+  - 每节先写结论或决定，再写依据；排查过程最多一句（「已排除 X，因为 Y」），不按「原假设 → 回查 → 发现」叙述。
+  - 多次 run 的结果压成一张表（run／条件／结果／能说明什么），只留支撑当前决定的行；被取代的批次删掉，指向改写前的 commit。
+  - message／session ID、SHA、worktree 绝对路径、代码行号与命令留在 `docs/gates/` 或 `docs/superpowers/analysis/`，design 只给链接和一句结论。
+  - 段落约 300 字内；粗体每节一两处；标题不带日期与状态；不用「收口、认账、门控、切片、装配、回补」这类内部词，写成普通说法。
+  - 简繁不整批转换，改写到的段落统一为该文件的主要写法。
 - 改写旧段前先核对并保留仍有效的背景、契约、已否决方案、反例、适用条件、unknown 与验收边界；详细证据留在既有 evidence／gate 位置。回补后检查语义遗失、重复、矛盾、过时行为与章节衔接，完成才删除 plan。
 - design 状态改变或新增、删除、改名时，同步 [文档索引](docs/superpowers/README.md) 对应行；已落地或已否决的小子片把仍有效的决策、否决方案、边界与待验证项并回上级 design 后删除，原文留在 git 历史。
 - 必要文档复用已有位置，不自动新建成套 spec、检查清单或审计报告。AGENTS.md 只维护长期约定和必要的阶段限制，不记录运行日记。
@@ -88,5 +95,19 @@ npm run build
 ```
 
 <!-- handoff:learnings:begin -->
-G 的設計選擇、驗證狀態與限制統一見 [G 詳細 design](docs/superpowers/specs/2026-10-23-design-v1-g-solver-minimal.md)。原 handoff 的 G-V6「已驗證」沒有可核對證據，不作為完成依據；臨時決策不在本檔維護副本。
+## Session Learnings (auto-updated by handoff)
+
+### Implicit Rules
+- Replies to user in Traditional Chinese
+- Design docs mixed: ~10 simplified, ~12 traditional; core design-v1 mixes both
+- Design = current decision snapshot, not run log (AGENTS.md); evidence detail belongs in docs/gates or docs/superpowers/analysis
+- Commit/push only on explicit user request; stash@{0} entangled-0.2+C-quarantine-20261020 left untouched
+
+### Key Decisions
+- Decision: bounded read of existing run evidence = engineering mode; experiment mode only for contacting challenge services, running challenge scripts, real solves — Reason: old wording made models refuse offline review, looked like safety block
+- Decision: closed small sub-slices merge into parent design then delete, originals in git history — Reason: doc count only grew; AGENTS.md now states this
+- Decision: design-b §8 headings date-free (8 收敛子片 / 8.1 显式线索帐本 / 8.2 路线优先级的 Skill 内容增量) — Reason: stable GitHub anchors for inbound links
+- Decision: fix status lines only where contradicting facts, no mass reformat — Reason: most designs already state status in date line
+- Decision: no bulk simplified/traditional conversion; unify per rewritten paragraph — Reason: avoid huge diffs
+
 <!-- handoff:learnings:end -->
