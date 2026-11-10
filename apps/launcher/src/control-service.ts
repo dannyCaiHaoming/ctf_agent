@@ -8,7 +8,7 @@ import {CompletionRequests,type CompletionJudge} from './completion-tools.js';
 // contain words OpenCode could classify as retryable.
 import { createHash, randomUUID } from 'node:crypto';
 import { mkdir, realpath, readFile, writeFile } from 'node:fs/promises';
-import { dirname, isAbsolute, join, resolve, sep } from 'node:path';
+import { dirname, isAbsolute, join, relative, resolve, sep } from 'node:path';
 import type { OpencodeClient } from '@opencode-ai/sdk/v2';
 import type { ToolResult } from '@opencode-ai/plugin/tool';
 import { INTAKE_TOOLS, IntakeRefused, checkMaterialPath, findChallenge, listChallenges, readMaterial } from './intake-tools.js';
@@ -37,12 +37,32 @@ const NATIVE_TOOL_ROLES: Record<string, readonly Role[]> = { skill: ROLES, read:
 /** Managed intake tools (E design section 4): OpenCode reports them under their plugin ids, the plugin executes them under their names. */
 const INTAKE_BY_ID = new Map(INTAKE_TOOLS.map(name => [`ctf_${name.replaceAll('.', '_')}`, name]));
 
+/** C design section 3.2: fixed, static hints for codes whose only audience already holds the matching capability
+ * (checkSolver gates `workspace.*`/`artifact.*` to CHALLENGE_ROLES before these codes can be thrown), so one
+ * role-independent sentence is always accurate. `read path` is native `read`, granted to every role including
+ * ones with no workspace access at all, so its hint is computed per role in `checkReadPath` instead (passed
+ * through the `hint` constructor argument, the same mechanism `dispatch` already uses for a role-dependent but
+ * still-safe, non-dynamic sentence). */
+const FIXED_HINTS: Record<string, string> = {
+  'workspace path': 'path must be root-qualified: materials/..., work/... or published/<ref>.bin; omit path to list the three roots.',
+  'artifact source': 'ref must be a value actually returned by a prior artifact.publish (or package.publish) call in this run and challenge; a ref-looking string written in a note, handoff or your own reasoning is not one.',
+};
+/** Model-visible, per-role `read path` hints (C design section 3.2 item 1). Roles outside this set have no
+ * `workspace.*` grant at all (see `product/opencode/opencode.json`): pointing them at `workspace.read` would be
+ * wrong advice, so they get a different fixed sentence instead. */
+const READ_PATH_HINT_WORKSPACE = 'read is limited to the Skill directory; for materials/work/published use workspace.read (or workspace.list/workspace.search/workspace.view) with a path rooted at materials/, work/ or published/.';
+const READ_PATH_HINT_NO_WORKSPACE = 'read is limited to the Skill directory; your role has no workspace.* grant and no other file access to materials/work/published.';
+
 export class ControlDenied extends Error {
-  /** Model-visible message; `dispatch` denials carry only their hard-coded reason (+ fixed hint), never dynamic detail. Audit keeps the bare form in `auditMessage`. */
+  /** Model-visible message; `dispatch` and `read path` denials carry only their hard-coded reason (+ fixed hint),
+   * never dynamic detail. Audit keeps the bare form in `auditMessage`. */
   readonly auditMessage: string;
   constructor(code: string, readonly detail?: string, hint?: string) {
     const bare = code === 'budget' ? 'budget denied' : `denied: ${code}`;
-    super(code === 'dispatch' && detail ? `${bare}: ${detail}${hint ? `. ${hint}` : ''}` : bare);
+    const fixedHint = FIXED_HINTS[code];
+    super(code === 'dispatch' && detail ? `${bare}: ${detail}${hint ? `. ${hint}` : ''}`
+      : code === 'read path' && hint ? `${bare}. ${hint}`
+      : fixedHint ? `${bare}. ${fixedHint}` : bare);
     this.auditMessage = bare;
   }
 }
@@ -258,7 +278,7 @@ export class ControlService {
         if (operation === 'tool.before' && body.tool === 'read') {
           // Reject closure before path I/O as well as again in the serialized tool precheck.
           await this.serial(() => { this.live(binding!); this.checkReconTool(binding!, 'read'); });
-          await this.checkReadPath((body.args ?? {}) as Record<string, unknown>);
+          await this.checkReadPath((body.args ?? {}) as Record<string, unknown>, binding!.role);
         }
       }
       await this.recordProcess(binding, operation, body, 'running');
@@ -740,9 +760,13 @@ export class ControlService {
   }
 
   private live(binding: Binding): void {
-    if (binding.state !== 'active' || Date.now() >= binding.expiresAt) this.clearDispatchState(binding.sessionID);
+    const now = Date.now();
+    if (binding.state !== 'active' || now >= binding.expiresAt) this.clearDispatchState(binding.sessionID);
     if (binding.state !== 'active') throw new ControlDenied(binding.state === 'stopped' ? 'run stopped' : 'session revoked');
-    if (Date.now() >= binding.expiresAt) throw new ControlDenied('binding lapsed');
+    // C design section 3.2 item 4: this is the run deadline being reached while a call was in flight, not a
+    // distinct failure; the detail (audit-only, never model-visible) records the race so it reads as deadline,
+    // not an opaque lapse. Code and model-visible message are unchanged.
+    if (now >= binding.expiresAt) throw new ControlDenied('binding lapsed', `expiresAt=${binding.expiresAt} now=${now}`);
   }
 
   /** C design section 3.2: first hook of an unknown session; facts come only from the launcher's own SDK queries. */
@@ -1375,16 +1399,32 @@ export class ControlService {
     return { role, challenge,version:version as string|undefined };
   }
 
-  private async checkReadPath(args: Record<string, unknown>): Promise<void> {
+  /** C design section 3.2 item 1: diagnostic-only classification of a denied `read` path; never widens access.
+   * Matched lexically against `workdir` (the sandbox cwd `read` resolves relative paths against), not against
+   * the host-side workspace roots used by `workspace.*` — those are different directories (see design §3.2). */
+  private readPathRootTag(target: string): 'materials' | 'work' | 'published' | 'skill' | 'outside' {
+    const rel = relative(this.options.workdir, target);
+    if (rel.startsWith('..') || isAbsolute(rel)) return 'outside';
+    const segments = rel.split(sep);
+    if (segments[0] === 'materials') return 'materials';
+    if (segments[0] === 'work') return 'work';
+    if (segments[0] === 'published') return 'published';
+    if (segments[0] === 'config' && segments.includes('skills')) return 'skill';
+    return 'outside';
+  }
+
+  private async checkReadPath(args: Record<string, unknown>, role: Role): Promise<void> {
+    const hint = CHALLENGE_ROLES.includes(role) ? READ_PATH_HINT_WORKSPACE : READ_PATH_HINT_NO_WORKSPACE;
     const raw = typeof args.filePath === 'string' ? args.filePath : typeof args.path === 'string' ? args.path : '';
-    if (!raw) throw new ControlDenied('read path');
-    let target: string;
+    if (!raw) throw new ControlDenied('read path', 'rootTag=outside path=<missing>', hint);
+    const target = isAbsolute(raw) ? raw : resolve(this.options.workdir, raw);
+    let real: string;
     let root: string;
     try {
-      target = await realpath(isAbsolute(raw) ? raw : resolve(this.options.workdir, raw));
+      real = await realpath(target);
       root = await realpath(this.options.skillRoot);
-    } catch { throw new ControlDenied('read path'); }
-    if (target !== root && !target.startsWith(root + sep)) throw new ControlDenied('read path');
+    } catch { throw new ControlDenied('read path', `rootTag=${this.readPathRootTag(target)} path=${raw}`, hint); }
+    if (real !== root && !real.startsWith(root + sep)) throw new ControlDenied('read path', `rootTag=${this.readPathRootTag(real)} path=${raw}`, hint);
   }
 
   /** C design section 3.1: dispatch table, task_id ownership, one pending dispatch per parent and role. */
