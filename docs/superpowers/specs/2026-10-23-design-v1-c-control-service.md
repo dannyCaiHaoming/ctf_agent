@@ -98,6 +98,52 @@ G 的慢工具接线、取消与 RPC 时限以该子文件 §7.2、§7.2.1 为�
   - **測試：** `tests/contract/control-service.test.ts` 新增原因與提示可見、動態 detail 不外洩的案例；`g-async-lifecycle.test.ts` 的一處舊訊息斷言已隨之更新。
   - **合併與檢查：** 提交 `a7127665`，合併 `3868c2f7`；合併後全量測試通過（同上，826 項）。
   - **未驗證：** Coordinator 看到原因後是否會改正調用，留待下一次授權 run 觀察。
+
+### 3.2 其餘四類控制層拒絕（2026-11-10 決定並實施，離線）
+
+**依據：** `runs/alibaba-easy-2026110[5-9]-a[2-8]` 全部批次的 `evidence/control-audit.json`，離線用 `jq` 按 `reason`、`detail.tool`、`detail.callID` 聚合並回查對應 `messages-<sessionID>.json` 的 `state.input`／`task-executions.json`／`publications.json`。四類共 80 次拒絕：`read path` 60、`artifact source` 15、`timeout`（非 `tool timeout`）4、`binding lapsed`（恰在 30 分鐘截止同一秒）1。分派類（`dispatch`，47 次）已由 §3.1 處理，a2 之後 a3–a8 只剩 1 次，不在本節範圍（見文末「已排除」）。
+
+#### 3.2.1 read path（60 次）
+
+- **分類：** 全部 60 次來自原生 `read`（不是 `workspace.read`），`detail.tool` 恆為 `read`。回查每次的 `filePath`／`path` 參數，按是否落在 `this.options.workdir`（OpenCode 沙箱 cwd，即 run 目錄的 `opencode/`，不是 `workspace/<challenge>/` 這個控制服務自己的宿主側根）下的 `materials/`、`work/`、`published/`、`config/opencode/skills/` 首段分類：36 次 `intake`（題目尚未 assign，無 `workspace.*` 可用）、9 次 `recovery-critic`、6 次 `reference`、4 次 `recon`、4 次 `coordinator`、1 次 `domain-solver`。多數目標路徑在 `opencode/` 沙箱裡其實不存在（例如 `opencode/materials/statement.md`——`ls` 確認該 run 的 `opencode/` 下只有 `cache/config/data/state`，沒有 `materials`），模型是在猜測一個與 `workspace.*` 根同名、但原生 `read` 從未提供的目錄結構。
+- **決定：** 不放寬根限制，不把 `materials` 併入 `read`（按用戶「禁止」要求）。只做兩件事：
+  1. **審計加 rootTag：** `checkReadPath` 新增 `readPathRootTag`，對被拒的路徑按上述規則分類為 `materials`／`work`／`published`／`skill`／`outside`，連同模型原始的 `path`（未經 realpath 正規化的原文，不含檔案內容）寫入 `ControlDenied` 的 `detail`，最終落在 `control-audit.json` 的 `detail.error`（審計私有欄位，不進模型可見訊息）。
+  2. **模型可見訊息加固定提示，按角色是否有 `workspace.*` 分兩種：** 原生 `read` 授予全部九個角色（`product/opencode/opencode.json` 每個角色都是 `read=allow`），但 `workspace.*` 只授予 `recon`／`domain-solver`／`engineer`／`verifier`（即 `CHALLENGE_ROLES`）；`coordinator`／`intake`／`reference`／`strategy`／`recovery-critic` 完全沒有 `workspace.*`。對沒有的角色提示「改用 `workspace.read`」是錯誤建議，所以 `checkReadPath` 按 `binding.role` 是否屬於 `CHALLENGE_ROLES` 選一句固定提示（與 §3.1 的 dispatch 依角色列可分派清單同一模式，透過 `ControlDenied` 既有的 `hint` 建構參數傳遞，不是新的動態內容）：有 `workspace.*` 的角色提示改用 `workspace.read`（或 `workspace.list`／`workspace.search`／`workspace.view`），path 要以 `materials/`、`work/` 或 `published/` 開頭；沒有的角色提示「你的角色沒有 `workspace.*`，也沒有其他讀取 materials/work/published 的方式」。`workspace path`（`workspace.*` 工具自己的路徑格式錯誤）維持單一固定提示，因為能走到這個 code 的角色一定已經通過 `checkSolver` 的 `workspace.*` 授權檢查。
+- **邊界：** rootTag 只是離線診斷分類，不是新的授權判斷——即使路徑被分類為 `materials`，原生 `read` 仍然拒絕，唯一允許根仍是 `skillRoot`。分類基於 `workdir`（沙箱側）而非 `workspace.*` 的宿主側根，兩者是兩套平行目錄，混淆會導致分類錯誤但不影響授權結果。
+- **驗收結論：** 60 次裡，36 次 `intake`（題目未 assign）、6 次 `reference`、9 次 `recovery-critic`、4 次 `coordinator`，合計 55 次來自完全沒有 `workspace.*` 的角色——即使模型改走 `workspace.read` 也用不上，正確引導是「你的角色沒有檔案存取，需要的話請交給有權限的角色」而不是指向一個該角色打不開的工具；只有 4 次 `recon`、1 次 `domain-solver`（合計 5 次）屬於確實有 `workspace.*` 但原生 `read` 猜錯沙箱路徑的角色，這 5 次改用 `workspace.read`／`workspace.list` 確實可行。`outside`（例如 `/etc/passwd`、host `python3.11/subprocess.py`、run 目錄本身）無論哪個角色、哪個工具都不該被滿足。
+- **測試：** `tests/contract/c-denial-detail.test.ts` 新增 `materials`／`work`／`published`／`skill`／`outside` 五種 rootTag 分類與固定提示訊息的斷言、Skill 根內真實檔案仍被允許的迴歸，以及 `reference`（無 `workspace.*`）收到不同提示、確認不會被誤導去呼叫 `workspace.read` 的案例。
+
+#### 3.2.2 artifact source（15 次）
+
+- **分類：** 回查全部 15 次的 `detail.tool`，無一例外是 **`artifact.read`**，不是 `artifact.publish`——用戶原始任務假設的「跨 session 來源／未登記的 job／http 輸出／路徑格式不符」三類都不成立，因為那三類只發生在 `control-service.ts` 的 `artifact.publish` 分支（§3.2 範圍外的那段固定來源比對）；這裡走的是 `ArtifactPublisher.bytes()` 的 `ref` 查找失敗（`artifact-tools.ts`）。進一步核對 15 個 `ref`：在對應 run 的 `publications.json` 裡登記數均為 0（從未被任何 `artifact.publish`／`package.publish` 產生過），但在同一 session（a3 批 C3）的敘述文字裡，這些 UUID 樣式字串被模型自己當作「evidence ref」寫進筆記／交接（例如 `fork_exec ret=42` → `3e374c14-707c-4c07-8efe-a39e535a1a16`），之後該角色（engineer）、甚至接手的 verifier 又把這些自造字串當成真的 `ref` 傳給 `artifact.read`。
+- **決定：** 這是純粹的「模型填錯」（按用戶給的二選一分支），不碰登記邏輯：
+  - 不放寬 `original.source.sessionID === binding.sessionID`（這段檢查在本次 15 例裡從未被觸發，維持不變）；
+  - 只加 `ControlDenied` 的 `artifact source` 固定提示：「`ref` 必須是本 run、本題目一次真實 `artifact.publish`（或 `package.publish`）呼叫返回的值；筆記、交接或自己推理裡寫的 UUID 樣式字串不是 `ref`」；
+  - 同步把 `apps/opencode-plugin/src/index.ts` 裡 `artifact.read` 的工具說明補一句同樣的告誡（`artifact.publish` 的說明本來就有「hand off the actual returned ref ... never ... invented identity」，但 `artifact.read` 自己的說明沒有對應提醒）。
+- **禁止：** 不放寬來源歸屬比對，不做全域共享來源——均未變更，因為這 15 次從未經過那段比對。
+- **驗收結論：** 既有 provenance 測試（`d-artifact-handoff.test.ts`、`slow-tools.test.ts`）不回退；新增 `tests/contract/c-denial-detail.test.ts` 的兩個案例覆蓋「自造 ref 被拒且訊息帶提示」與「真實 `artifact.publish` 的 ref 可以被同一 `artifact.read` 讀回」。
+
+#### 3.2.3 timeout（4 次，非 `tool timeout`）
+
+- **分類：** 用戶原始任務假設這 4 次是 `control-service.ts` 的 `waitLimit`／`bounded()` 把越界的 `timeout_ms` 拒絕（code 應為 `tool timeout`）。實際回查 `control-audit.json`：這 4 次的 `reason` 都是 **`denied: timeout`**，`detail.tool` 都是 `http.request`，整個資料集裡 `denied: tool timeout` 出現 **0 次**。追查來源：`timeout`（非 `tool timeout`）是 `http-tools.ts` 的 `HttpRefused('timeout')`，在 `request()` 內由 `stop('timeout')` 觸發——這不是參數校驗，是**真實發出的 HTTP 請求**在 `deadline = min(now+timeout_ms, operation.deadline)` 到期前沒有拿到回應。四次的實際參數分別是：a5/K1 未帶 `timeout_ms`（預設 15000ms）、a6/K2 未帶（預設 15000ms）、a7/K2 `timeout_ms:20000`、a8/K2 `timeout_ms:20000`，全部落在 `[1, MAX_TIMEOUT_MS=60000]` 合法區間；四次請求都打向同一題目端點，該端點在截止前沒有回應。另外確認 `http-tools.ts` 的 `parseTimeout` 本來就已經是「夾取」語義（`Math.min(value, MAX_TIMEOUT_MS)`），只有非正整數或非數字才會擲 `HttpRefused('timeout')`；`control-service.ts` 的 `waitLimit`／`bounded()`（code 為 `tool timeout`）則是另一段獨立校驗，本次資料集完全沒有命中。
+- **決定：** 這 4 次是預期的請求截止競態，不是參數越界，所以兩個選項（夾取 vs 寫明邊界）都不適用——真正越界的值早就被 `parseTimeout` 夾取，從未進入拒絕路徑。**不改動** `waitLimit`／`bounded()` 與 `parseTimeout`，只在本節記錄這個結論，避免下次把 `denied: timeout` 誤判為需要放寬上限的參數問題。
+- **禁止：** 不放寬 `http.request`／`job.run` 的最大等待——未變更，本來就沒有任何一次因上限被拒。
+- **驗收結論：** 把這 4 次記錄的 `timeout_ms`（未帶 `timeout_ms`、未帶、`20000`、`20000`）對一個即時回應的本地測試伺服器離線重放，全部通過（0 次校驗層拒絕，見下方測試），證明這 4 次的參數本身從未出過問題；真實截止競態（目標端點是否及時回應）無法離線重現，留待下一次授權 run 觀察目標是否仍會逾時。
+- **測試：** `tests/contract/c-denial-detail.test.ts` 用這 4 組 `timeout_ms` 值對本地即時伺服器送出合成請求（路徑與 body 為佔位，不含原記錄的請求內容），斷言全部 200 完成、零 `tool timeout`／`timeout` 拒絕。
+
+#### 3.2.4 binding lapsed 的截止競態（1 次）
+
+- **依據：** `runs/alibaba-easy-20261108-a6/runs/F1/.../progress.jsonl` 與對應 `control-audit.json`：`elapsedMs` 恰好跨過 30 分鐘（1,800,000ms）截止——seq522/523 的 `job.run` 在 `elapsedMs=1800026/1800028` 仍被放行並完成；seq524 `context.prepare`（`elapsedMs=1800029`）與 seq525 `model.call`（`elapsedMs=1800067`）被 `binding lapsed` 拒絕；seq526 `task.completion` 同時把該 child 的 `resultFacts` 正確記成 `completeness:"unknown", reason:"stopped"`；seq528 Coordinator 的 `chat.message` 被 `run stopped` 拒絕；seq529/530 的 `stop_marked`（`reason:"deadline"`）／`stop_enumerated` 在 `elapsedMs=1800352/1800369` 完成全局停止。`evidence/admissions.json` 顯示 denied 前最後一次 `model.call` 是 `admitNo:60`，用量沒有被抹掉。
+- **先判斷：** 這是預期的 deadline 行為，不是競態 bug。`live()` 的 `binding lapsed` 本來就是 `Date.now() >= binding.expiresAt` 專用的 code，與 `run stopped`／`session revoked` 是三個不同分支，碼本身已經能區分「到期」與其他終止原因；seq524/525 恰好是 domain-solver 的工具鏈在到期前一刻完成一次 `job.run` 後，下一步呼叫時鐘已經過了 `expiresAt`，`live()` 正確拒絕；全局停止（`stop_marked`／`stop_enumerated`）在denied 之後的同一秒內完成，Coordinator 侧同样拿到干净的终态（`task.completion` 的 `resultFacts.reason:"stopped"`），用量帳本未受影響。
+- **決定：** 按用戶給的分支——**只在 audit 中標明 deadline 原因，不改錯誤碼**。`live()` 擲出 `binding lapsed` 時附帶 `detail`（審計私有欄位）：`expiresAt=<binding.expiresAt> now=<Date.now()>`，讓審計一看就知道這是哪一次到期競態，不需要再回查 `expiresAt` 與呼叫時間的差。模型可見訊息維持原樣 `denied: binding lapsed`，不夾帶這個 detail。
+- **禁止：** 不延長 deadline，不讓 `expiresAt` 變成無限——未變更，`live()` 的到期比較邏輯本身一行未動。
+- **驗收結論：** `tests/contract/g-coordinator-stop.test.ts`、`tests/contract/slow-tools.test.ts` 裡原本斷言 `rejects.toThrow('binding lapsed')`／`toThrow('denied: binding lapsed')` 的用例只檢查訊息子字串，加 `detail` 不影響；`tests/contract/control-service.test.ts` 的 `expire` 分支斷言精確等於 `'denied: binding lapsed'` 的模型可見訊息同樣不受影響。新增 `tests/contract/c-denial-detail.test.ts` 的案例用假時鐘把 `expiresAt` 卡在拒絕的那一刻，斷言審計 `detail.error` 等於 `expiresAt=... now=...`，且模型可見訊息仍是裸碼。
+- **未驗證：** 真實 run 中這類到期競態是否因為這次的審計細節而更容易被離線辨認，留待下一批 run 觀察；新增 detail 不改變行為，無需額外模型驗證。
+
+#### 已排除：dispatch（role not dispatchable）
+
+用戶原始任務列出的「dispatch（role not dispatchable）」一項，核對後確認已由 §3.1（2026-11-05 決定並實施）處理：原因是模型沒帶 `subagent_type`，已讓模型看見拒絕原因與固定提示。離線重新統計 `denied: dispatch` 在全部批次的次數：a2 46 次（§3.1 依據的 B2 子批 41 次只是其中一部分），a6 1 次，a3／a4／a5／a7／a8 均 0 次；a2 之後只剩個位數且趨勢是下降，不再視為需要新增處理的一類，本節不重複改動。
+
 ## 4. 預算准入與計量
 
 | 項目 | 做法 |
