@@ -148,7 +148,7 @@ Coordinator 脚本从实际 provider 请求里收到的原生完成通知提取�
 
 ## 5. r7：停滞检测的触发时机，与常驻决策骨架（聚焦子设计，2026-10-28）
 
-**状态：聚焦设计，待计划与真实 run 验证；未改产品、未运行模型。** 由 r7 `throwback-debug-20261028-r7-1` 驱动，与 [B 路线优先级增量](2026-10-28-design-v1-b-evidence-to-action-route-priority.md) 的 L1 判定互补：那份管「方法为何无人载入／内容」，本节管「停滞时换路判断为何没被触发」。
+**状态（2026-11-10 更新）：候选 D（有界回合交回）已实现并合入 main，见 §5.7；停滞→Critic 机制在 r8-2 未被行使，r10 有首个 `redirect` 正向证据，行为收益仍待真实 run 验证。** 由 r7 `throwback-debug-20261028-r7-1` 驱动，与 [B 方法论 §8.2](2026-10-26-design-v1-b-method-generalization-and-efficiency.md#82-路线优先级的-skill-内容增量) 的 L1 判定互补：那份管「方法为何无人载入／内容」，本节管「停滞时换路判断为何没被触发」。
 
 > 投资优先序见 [B 方法论 §7](2026-10-26-design-v1-b-method-generalization-and-efficiency.md#7-方向与优先序20261028r7-驱动参考外部-ctf-agent-设计)：本节的候选 D 为**节拍**、B 为**兜底**，均位于「显式线索帐本（强制消费）＋强工具」这一主方向之下，不作主力。
 
@@ -182,7 +182,7 @@ L1 已证 on-demand skill 调用不可靠（r7 全 run 0 次）。因此「固�
 
 - 无模型只能验「装配」：角色 prompt／骨架合法、`progress_read` 暴露面含所需停滞信号、Critic 触发路径可达。**是否真改变行为只能由真实 run（r8，另行授权 model／provider／批次／token）认账**：判据是行为性的——长执行中停滞被检测、Critic 被叫起并给出 redirect、未测的 specific 路线在 deadline 前被实际请求。不拿「规则已写」或「Critic 被叫起次数」冒充收益。
 - 禁做：不新增 judge 权；Critic 只建议、Coordinator 决定。不忙轮询、不新建 monitor／scheduler／readiness／框架。不把骨架膨胀成通用 playbook／漏洞百科，不强制每题载入 skill。不改候选验证标准、身份／scope／预算／停止校验。未经授权不运行真实模型、不 commit／push。
-- 完成含义：判明长执行停滞的触发归属与最小接法，并明确行为收益只能由真实 run 认账；不证明 throwback 可解或泛化。结论定稿后，触发措辞落 `coordinator.md`／`recovery-critic.md`／solver 角色，内容增量仍走 [路线优先级增量](2026-10-28-design-v1-b-evidence-to-action-route-priority.md)，据此生成的一次性 plan 完成后删除。
+- 完成含义：判明长执行停滞的触发归属与最小接法，并明确行为收益只能由真实 run 认账；不证明 throwback 可解或泛化。结论定稿后，触发措辞落 `coordinator.md`／`recovery-critic.md`／solver 角色，内容增量仍走 [B 方法论 §8.2](2026-10-26-design-v1-b-method-generalization-and-efficiency.md#82-路线优先级的-skill-内容增量)，据此生成的一次性 plan 完成后删除。
 
 ### 5.6 只读可行性结论（2026-10-28，未改产品、未运行模型）
 
@@ -197,7 +197,7 @@ L1 已证 on-demand skill 调用不可靠（r7 全 run 0 次）。因此「固�
 
 选定并实现**候选 D（有界回合交回，无新 host 机制）**，仅改角色 prompt。`coordinator.md` 新增 `## 有界回合分派`：优先以有界回合分派 recon／domain-solver（明列本轮问题与停止条件），并明写「背景分派不会在子执行中重新唤醒 Coordinator，故停滞评估放在每回合交回边界，不忙轮询、不新增唤醒/monitor/scheduler/readiness」；§进度的停滞规则改为「每次回合交回都套用既有停滞规则决定继续/换路/派 Critic，不自动续接深挖」。`recon.md`／`domain-solver.md` 新增 `## 有界回合與交回`：每回合先定问题与停止条件，无进展或有未测线索却欲转向时交回、不拖到 deadline，剩余未测项沿用 §未測具體線索 交接。候选 A（周期评估）判为不可行、B（宿主信号）需新接口暂不做（见 §5.6）。`recovery-critic.md` 职责未改。
 
-实现由 GPT-6.1-sol（high reasoning effort，经 codex）完成、主助手复核，`tsc`／`build`／`test:deterministic`（555）全绿，已合入 main（merge `3ad11f48`，含 `6e282fd5`），与 [线索帐本 A](2026-10-28-design-v1-b-lead-ledger-convergence.md#7-实现结果20261028候选-a-已落地) 同批合入、组合干净。
+实现由 GPT-6.1-sol（high reasoning effort，经 codex）完成、主助手复核，`tsc`／`build`／`test:deterministic`（555）全绿，已合入 main（merge `3ad11f48`，含 `6e282fd5`），与 [B 方法论 §8.1 线索帐本 A](2026-10-26-design-v1-b-method-generalization-and-efficiency.md#81-显式线索帐本) 同批合入、组合干净。
 
 **r8-2（2026-10-29）对 D 的意义有限：D 仍未验证。** 该 run 解出 throwback，但 **Recovery Critic 准入为 0**——没有停滞、没有触发交回边界换路；解题靠 Domain Solver 直接测对路线（属 A 的作用域），不是「停滞后被 redirect 救回」（D 的作用域）。因此 D 的停滞→Critic 机制在此 run **未被行使，仍未验证**；要验 D 需要一个真会停滞、需换路的 run。详见 [现状 §0.2](2026-10-22-ctf-agent-current-state-and-migration.md#02-真實運行的已知結果r6-修復與-r7-未解分開記錄)。
 

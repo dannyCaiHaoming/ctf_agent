@@ -12,15 +12,15 @@
 | --- | --- | --- |
 | r4 约 22.5 分钟、317 次调用、reported observable tokens 1217922，最终 candidate_only；首包约 14.12 分钟，第二包 19.57 分钟，最终报告 21.98 分钟。[方法论 §1](../specs/2026-10-26-design-v1-b-method-generalization-and-efficiency.md#1-问题背景与证据) | 工具／模型交互和候选后处理有可观成本 | 317 不是纯 HTTP 数；后处理耗时不是单个 Solver 的全部浪费；candidate_only 不是 solved |
 | r6 约 24.8 分钟才首次发布，30 分钟 deadline；同步 execution 缺失导致 11 次发布拒绝，已另行修复。[迁移记录 §0.2](../specs/2026-10-22-ctf-agent-current-state-and-migration.md#02-真實運行的已知結果r6-修復與-r7-未解分開記錄) | 除同步发布缺陷外，首次有效交付仍存在效率问题 | 不把已修复的发布阻塞列作新的单 Agent 工具需求；文档未给出 r6 可比的完整工具往返细分 |
-| r7 全 run 108 次 HTTP，Domain Solver 其中 78 次，另有几十次搜索；Domain Solver 109 次模型准入，30 分钟 deadline。[方法论 §7](../specs/2026-10-26-design-v1-b-method-generalization-and-efficiency.md#7-方向与优先序20261028r7-驱动参考外部-ctf-agent-设计)、[路线优先级 §1](../specs/2026-10-28-design-v1-b-evidence-to-action-route-priority.md#1-唯一目标与原始问题) | 往返成本值得优先调查；108 是全 run，不能写成单个 Solver 的 HTTP 数 | 调用数不直接等于浪费或可节省量；109 次准入不是 109 次 HTTP |
-| r7 已有 Recon 路线线索和 RCE，却未请求 `/admin/chal/delete`，末段约 20 分钟搜索文件／env／DB；无 Engineer／Verifier／裁判链。[路线优先级 §1](../specs/2026-10-28-design-v1-b-evidence-to-action-route-priority.md#1-唯一目标与原始问题) | 主失败是证据到行动的缺口，不是 Recon 完全没发现，也不是尚缺 RCE | 不证明新增路由工具就能纠正模型选择 |
-| 同一设计记录 r6 已观察到“登录→建 challenge→删 challenge，响应 26 bytes 即 flag”；flag 由动作产生，不是静态文件。[同上](../specs/2026-10-28-design-v1-b-evidence-to-action-route-priority.md#1-唯一目标与原始问题) | 观察能力必须覆盖业务动作响应及状态变化，不能只优化找文件 | 动作得到候选不代表 r6 完成可信提交；不能把这条已知解法注入以后自主运行 |
+| r7 全 run 108 次 HTTP，Domain Solver 其中 78 次，另有几十次搜索；Domain Solver 109 次模型准入，30 分钟 deadline。[方法论 §7](../specs/2026-10-26-design-v1-b-method-generalization-and-efficiency.md#7-方向与优先序20261028r7-驱动参考外部-ctf-agent-设计)、[B 方法论 §8](../specs/2026-10-26-design-v1-b-method-generalization-and-efficiency.md#8-收敛子片) | 往返成本值得优先调查；108 是全 run，不能写成单个 Solver 的 HTTP 数 | 调用数不直接等于浪费或可节省量；109 次准入不是 109 次 HTTP |
+| r7 已有 Recon 路线线索和 RCE，却未请求 `/admin/chal/delete`，末段约 20 分钟搜索文件／env／DB；无 Engineer／Verifier／裁判链。[B 方法论 §8](../specs/2026-10-26-design-v1-b-method-generalization-and-efficiency.md#8-收敛子片) | 主失败是证据到行动的缺口，不是 Recon 完全没发现，也不是尚缺 RCE | 不证明新增路由工具就能纠正模型选择 |
+| 同一设计记录 r6 已观察到“登录→建 challenge→删 challenge，响应 26 bytes 即 flag”；flag 由动作产生，不是静态文件。[同上](../specs/2026-10-26-design-v1-b-method-generalization-and-efficiency.md#8-收敛子片) | 观察能力必须覆盖业务动作响应及状态变化，不能只优化找文件 | 动作得到候选不代表 r6 完成可信提交；不能把这条已知解法注入以后自主运行 |
 
 r4 的细查是重要反例：同参数 GET 有时是在不同写入后观察结果，有时页面壳相同而业务列表 POST 才有新事实。不能按相同 fingerprint 自动去重，更不能直接删除状态检查。见[方法论 §1.2](../specs/2026-10-26-design-v1-b-method-generalization-and-efficiency.md#12-2026-10-27-有界观察链与归因结果已复核)。
 
 ### 1.2 A+D 已处理什么，尚未证明什么
 
-[线索帐本 §7](../specs/2026-10-28-design-v1-b-lead-ledger-convergence.md#7-实现结果20261028候选-a-已落地)的 A 已落地：Coordinator 在原生 task 分派／恢复文字中带入未测线索、来源 ref、低成本测法，Solver 回报 tested／untested／refuted。[路线复核 §5.7](../specs/2026-10-25-design-v1-negative-evidence-and-route-review.md#57-实现结果2026-10-28候选-d-已落地)的 D 已落地：按问题与停止条件有界交回，在原交回边界评估停滞。
+[B 方法论 §8.1](../specs/2026-10-26-design-v1-b-method-generalization-and-efficiency.md#81-显式线索帐本)的 A 已落地：Coordinator 在原生 task 分派／恢复文字中带入未测线索、来源 ref、低成本测法，Solver 回报 tested／untested／refuted。[路线复核 §5.7](../specs/2026-10-25-design-v1-negative-evidence-and-route-review.md#57-实现结果2026-10-28候选-d-已落地)的 D 已落地：按问题与停止条件有界交回，在原交回边界评估停滞。
 
 这里 A、D 是收敛候选编号。两者均为 **prompt 改动**；没有结构化宿主线索库，没有每步自动注入或强制执行，也没有执行中唤醒父会话的机制。“自动注入”仍依赖 Coordinator 按提示生成 task 内容。当前四份角色文件与实现结果相符，文档开头的旧“待实施”状态不能覆盖后面的 §7／§5.7。
 
@@ -79,7 +79,7 @@ r4 的细查是重要反例：同参数 GET 有时是在不同写入后观察结
 
 ### 3）源码／页面到请求动作的定位辅助：让线索更容易执行
 
-- **缺口与证据：** workspace.search 是文本匹配，没有 action、method、参数、handler 和来源位置的关联视图。r7 未测 Recon 已发现的路由，且 flag 是动作响应产生，见[路线优先级 §1](../specs/2026-10-28-design-v1-b-evidence-to-action-route-priority.md#1-唯一目标与原始问题)。**r7 的路由发现本身已成功；本项是减少消费线索的成本，不是认定当时缺少路由发现工具。**
+- **缺口与证据：** workspace.search 是文本匹配，没有 action、method、参数、handler 和来源位置的关联视图。r7 未测 Recon 已发现的路由，且 flag 是动作响应产生，见[B 方法论 §8](../specs/2026-10-26-design-v1-b-method-generalization-and-efficiency.md#8-收敛子片)。**r7 的路由发现本身已成功；本项是减少消费线索的成本，不是认定当时缺少路由发现工具。**
 - **候选新增能力：** 对本题已取得的 HTML／脚本／源码做一次有界提取，列出可见表单 action、请求 method、字段名、调用位置和附近 handler 候选；每项附来源路径／ref／行或 byte 范围，动态构造或缺字段标 unknown。可将已观察的请求与源码引用并排展示，供 Solver 选择最低成本实验；动作返回的短响应和业务后置条件应成为可读取对象，不只生成“待找 flag 文件”清单。
 - **约束适配：** 仅处理已有授权材料，不联网取框架源码，不猜路由字典、不自动执行动作。初片可复用 job 跑已审核的静态提取器；host 只返回机械匹配及来源，模型判断语义。结果进入 A 已有线索交接，不另建图数据库、知识库、planner 或强制行动 gate。发布 HTTP 事实当前省略 path，辅助视图不能冒充 host 已认证的 endpoint 身份。
 - **成本：** 固定辅助程序＋现有 job 可先覆盖，低至中；若重复使用价值足够，再考虑轻量 host 工具，中。复杂多框架静态分析成本高，不在候选最小范围。
@@ -111,7 +111,7 @@ r4 的细查是重要反例：同参数 GET 有时是在不同写入后观察结
 
 ### 7）精准的方法入口：小幅改善可发现性，不扩知识量
 
-- **缺口与证据：** r4 Solver／Critic 曾成功加载 Skill，r7 全 run 0 次；已有方法中也已有可证伪实验和业务后置条件。见[路线优先级 §2](../specs/2026-10-28-design-v1-b-evidence-to-action-route-priority.md#2-分层缺口与一个硬张力关键未知先判层再修)。这是“何时使用”的候选缺口，不证明缺知识，也不能说多写 Skill 必然有用。
+- **缺口与证据：** r4 Solver／Critic 曾成功加载 Skill，r7 全 run 0 次；已有方法中也已有可证伪实验和业务后置条件。见[B 方法论 §8.2](../specs/2026-10-26-design-v1-b-method-generalization-and-efficiency.md#82-路线优先级的-skill-内容增量)。这是“何时使用”的候选缺口，不证明缺知识，也不能说多写 Skill 必然有用。
 - **候选新增能力：** 仅在确认现有 description 无法表达适用情境时，补短触发描述或指向现有 Reference 的入口，例如需要解释输入到业务效果时。保留按需读取；不把 Throwback 路由、字段、payload 或答案变成产品提示，不再重复 A+D 已加入的先测线索／有界交回。
 - **约束适配：** 沿用原生 skill/read 和固定离线资产，不增角色、检索服务、漏洞百科或默认全文预载；知识正确性在 run 外核实。
 - **成本：** prompt／metadata，低；若 r8 没有相关缺口，新增成本应为零。

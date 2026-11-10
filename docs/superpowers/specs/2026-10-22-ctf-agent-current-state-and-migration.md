@@ -2,6 +2,8 @@
 
 記錄日期：2026-10-28（Asia/Tokyo）。
 
+**狀態（2026-11-10）：歷史記錄，不再隨進展更新。** 當前各能力狀態以 [文檔索引](../README.md) 與對應詳細 design 為準。
+
 本文是 [CTF Agent 核心設計 v1](2026-10-22-ctf-agent-design-v1.md) 的配套工程記錄：記錄 design v1 寫成時的程式現狀、與設計的偏離、已有成果與教訓、清理方向及開發指令的收斂對照。它不是設計依據；設計以 design v1 為準，本文只說明「從哪裡來、離目標多遠、清理時怎麼判斷」。本文不構成任何執行授權。
 
 所列程式位置與行為是撰寫時的靜態觀察，其他會話仍可能修改未提交程式；正式實施前需重新核對基線。
@@ -19,7 +21,7 @@
 | G 解題工具與生命週期 | 題目 assign／unassign、三根工作區、HTTP、受管 job、RPC 等待／取消、原生背景交付及收束已合入；主區 typecheck／build、323 項全套與同入口無模型複跑通過 | 證明工具及控制接線；OS／作業網路隔離、持久總配額及跨重啟恢復仍有限制，見 [G §9.2／§10](2026-10-23-design-v1-g-solver-minimal.md) |
 | D 候選 → 獨立驗證 → 可信完成 | 發布、固定包、獨立 Verifier、固定報告與可信完成五接口已接入合併；三層 Verifier 與受限自動嘗試亦已接入，定向 131 項、全套 591 項及 typecheck／build 通過 | 直接核實 → LLM 審閱 → 無法確定時依可信限制嘗試；保留 inconclusive，不把模型意見當裁判。新策略的自然交接與真實裁判接入未驗證，見 [D §5–8.1](2026-10-24-design-v1-d-candidate-verification-minimal.md)、[歷史問題與限制](2026-10-26-design-v1-d-evidence-to-completion.md) |
 | 同步分派的可信執行身份 | 同步／背景共用本輪 execution；同步結算、同 child 續接、來源與 artifact／package 發布已修復並合入 main（merge `c120e143`）；原生 scripted 鏈覆蓋 r6 原失敗點，合併後全套 597 項通過 | 不更改顯式 background 值，不開放同步 Verifier，不擴工具／網路權限；Q5 promotion 未實作，見 [執行歸屬 §8](2026-10-25-design-v1-sync-resume-provenance.md#8-r6支持同步任务交付已实现并通过无模型验证promotion-为已知缺口) |
-| A+D 收斂：未測線索注入＋有界交回 | 這裡 A、D 是收斂候選編號，並非核心設計 A／D 章節。Coordinator 分派／恢復帶入未測具體線索，Recon／Domain Solver 回報狀態，Critic 對照被忽略線索；角色 prompt 加入有界問題、停止條件及交回後停滯評估。兩片同批合入 main（merge `3ad11f48`，含 `862b85ee`／`6e282fd5`），tsc／build／555 項確定性檢查通過 | 僅角色 prompt，無新工具、接口、schema 或 host 喚醒機制；不忙輪詢，Critic 只建議、Coordinator 決定。裝配通過不證明先測線索或及時交回，見 [線索帳本 §7](2026-10-28-design-v1-b-lead-ledger-convergence.md#7-实现结果20261028候选-a-已落地)、[路線復核 §5.7](2026-10-25-design-v1-negative-evidence-and-route-review.md#57-实现结果20261028候选-d-已落地) |
+| A+D 收斂：未測線索注入＋有界交回 | 這裡 A、D 是收斂候選編號，並非核心設計 A／D 章節。Coordinator 分派／恢復帶入未測具體線索，Recon／Domain Solver 回報狀態，Critic 對照被忽略線索；角色 prompt 加入有界問題、停止條件及交回後停滯評估。兩片同批合入 main（merge `3ad11f48`，含 `862b85ee`／`6e282fd5`），tsc／build／555 項確定性檢查通過 | 僅角色 prompt，無新工具、接口、schema 或 host 喚醒機制；不忙輪詢，Critic 只建議、Coordinator 決定。裝配通過不證明先測線索或及時交回，見 [B 方法論 §8.1](2026-10-26-design-v1-b-method-generalization-and-efficiency.md#81-显式线索帐本)、[路線復核 §5.7](2026-10-25-design-v1-negative-evidence-and-route-review.md#57-实现结果20261028候选-d-已落地) |
 
 上述檢查屬不同版本、不同批次的既有結果，不拼接為同一次全鏈驗收，也不是本次重跑結果。不能由「已合併、無模型綠燈」推定真實模型行為改善、完整產品發布或 solved。
 
@@ -28,7 +30,7 @@
 - **既有成功證據不抹除：** 2026-10-24 本地 Docker mfw 第二批曾在同批完成獨立 recompute、可信 local judge accepted 並保存 solved；這只證明該次本地單題鏈路。首批因預算停止，不能與第二批拼接；亦不能替 r5、r6、r7 或 2026-10-28 新策略背書，見 [D §7.2](2026-10-24-design-v1-d-candidate-verification-minimal.md#72-真模型本地整链证据与限制)。
 - **r5 保持歷史 inconclusive、無 completion。** 原件直引與 HTTP 來源交接已修復，三層策略不再讓證明不足一律禁止預算內嘗試；五類歷史 blocker 與原報告仍保留，不能追補 verified／solved，見 [D 證據到完成](2026-10-26-design-v1-d-evidence-to-completion.md)。
 - **r6 的 artifact.publish 阻塞已修復；r6 本身仍未解出。** 原同步 Recon／Engineer 已綁定卻沒有 execution，11 次發布被拒；缺角色參數的兩次分派是另項正確拒絕。修復前後的原生無模型鏈已覆蓋同步發布、精確 bytes、Engineer 固定包與同 child 續接。原 run 另有 Recon 遲至約 24.8 分鐘才首次發布、30 分鐘 deadline 的效率問題，不被發布修復掩蓋，見 [執行歸屬 §8.1–8.4](2026-10-25-design-v1-sync-resume-provenance.md)。
-- **r7 仍未解出，缺口是證據到行動與長程發散。** Recon 已發布具體路線線索，Domain Solver 已有相應操作能力，卻在 78 次 HTTP 中未測該線索，末段約 20 分鐘持續通用搜索；30 分鐘 deadline 到時仍無 Engineer／Verifier／裁判鏈。Recovery Critic 准入 0 次，長子任務未交回使 Coordinator 無 turn 評估停滯。這不能歸成靶場缺答案或 Recon 完全沒給線索；A+D 是此後的收斂修改，未經新真實 run 驗收，見 [路線優先級 §1–2](2026-10-28-design-v1-b-evidence-to-action-route-priority.md)、[路線復核 §5.1／§5.6–5.7](2026-10-25-design-v1-negative-evidence-and-route-review.md)。
+- **r7 仍未解出，缺口是證據到行動與長程發散。** Recon 已發布具體路線線索，Domain Solver 已有相應操作能力，卻在 78 次 HTTP 中未測該線索，末段約 20 分鐘持續通用搜索；30 分鐘 deadline 到時仍無 Engineer／Verifier／裁判鏈。Recovery Critic 准入 0 次，長子任務未交回使 Coordinator 無 turn 評估停滯。這不能歸成靶場缺答案或 Recon 完全沒給線索；A+D 是此後的收斂修改，未經新真實 run 驗收，見 [B 方法論 §8](2026-10-26-design-v1-b-method-generalization-and-efficiency.md#82-路线优先级的-skill-内容增量)、[路線復核 §5.1／§5.6–5.7](2026-10-25-design-v1-negative-evidence-and-route-review.md)。
 - **r8-2（2026-10-29，含 A+D 的 main `60654f0d`）解出 throwback，r7 的失敗未重現。** 約 12 分鐘 `completed`：Domain Solver 確認 Pages SSTI 後**直接** POST `/admin/chal/new`→`/admin/chal/delete`（r7 從未請求的那條路線），回應 200、26-byte flag；完整鏈 Recon→Engineer→Verifier→Coordinator `completion.request`→本機 exact judge `accepted`，host `solved=true`。證據核對：delete 為真實 `ctf_http_request` 工具調用、「未測線索」詞彙在交接中在場。**但這是單題、單次、非受控樣本**——A+D 之外同批還有同步執行身份修復，加上 LLM 跑間方差，不能把解出單獨歸因到 A+D；**D 的 Recovery Critic 准入仍為 0、未觸發換路，故 D 尚未驗證**；Verifier 自身 `inconclusive`，`solved` 由 host exact judge 判定，非 Verifier verified。另 r8（2026-10-28）因 provider 連線錯誤在首次模型回應前中止，無效、不計。見 [路線復核 §5.7](2026-10-25-design-v1-negative-evidence-and-route-review.md#57-实现结果2026-10-28候选-d-已落地)。
 - **r9／r10（2026-10-29，seizurecipher，產品版本 `cddcbb25`）：皆未解出,核心卡點是「看圖」能力缺口。** 此題解法是客戶端 canvas 幾何視覺解碼(226 座標→渲染手寫文字=flag);角色能重繪 PNG/ASCII/筆畫,但**無法以影像通道直接檢視**,系統 Vision OCR 對低解析手寫亂碼。r9 被 provider 配額 429 中止(對能力不下結論);r10 跑滿 30 分 deadline、縮到約 27 字結構與兩個 `_` 但字元判讀仍歧義。**r10 首次觀察到 D 的 Recovery Critic `redirect` 真跑觸發(約 13 分),但未解題** —— D 機制得到首個正向證據,見 [路線復核 §5.7](2026-10-25-design-v1-negative-evidence-and-route-review.md#57-实现结果2026-10-28候选-d-已落地)。影像能力聚焦 design(DRAFT、可行性待驗)見 [圖像觀察](2026-10-29-design-v1-image-observation.md)。兩輪皆早於本月 search/diff/job 能力改動(`1dde2b8a` 合入),不含它們。
 
