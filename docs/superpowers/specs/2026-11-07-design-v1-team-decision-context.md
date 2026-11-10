@@ -74,7 +74,7 @@ Engineer、Verifier 與裁判的權限不合併，「Solver 宣稱候選」不�
 
 **交回時的四項決策事實（a6，2026-11-08）。** `remainingMs`、`turnMs`、`dispatches`、`packaged` 已於 `2ed7054c` 實作，權威 design 是[結果完整性 §5.2](2026-10-25-design-v1-run-readiness-and-result-completeness.md)。a6 沒有觀察到派單改變：ezoj 兩次都沒進 Engineer，F2 有 5 次 Solver→Solver 續派；對照題 K2 正常解出。單次、非配對，不判定無效，保留為所有對照的固定基線。
 
-**交回內容核對（2026-11-08，[記錄](../analysis/2026-11-08-handoff-content-check.md)，a3–a6 共 10 個 run、43 次交回）。** 在授權實驗 session 中逐次分類，工程 session 只接收分類結果。
+**交回內容核對（2026-11-08，[記錄](../analysis/2026-11-08-handoff-content-check.md)，a3–a6 共 10 個 run、43 次交回）。** 當時在實驗 session 中逐次分類並只交回分類結果；按現行 [AGENTS.md](../../../AGENTS.md) 工作模式，這類有界讀取既有 run 的分類屬於工程 session 的離線分析。
 - 提出候選材料的 4 次交回，下一派單都是 Engineer，候選被忽略 0 次。
 - 6 個 run（a3 C1、C2，a4 D1，a5 E2，a6 F1、F2）從未提出候選。
 - 8 次交回因 `finish=length` 截斷，既沒回答問題也沒留線索，全部落在這 6 個 run。
@@ -97,7 +97,7 @@ Engineer、Verifier 與裁判的權限不合併，「Solver 宣稱候選」不�
 ### 問題 1：沒有候選時，Coordinator 續派 Solver 是否合理
 
 - **為什麼要問。** 在無候選的 run 中，Solver→Solver 續派是最常見的模式：a6 F2 續派 5 次後提前結束；a5 E2 的 Critic 給出 `redirect` 後仍續派同一個 Solver；a8 F2 在 Critic 交回後又派 2 次。§3.2 的核對確認交回含「下一問題」，但沒有判斷那個問題是否新、是否能區分假設。
-- **方法。** 不跑模型、不訪問目標，在授權實驗 session 中讀 a3–a8 已有 run，對每個「無候選交回 → 下一派單」決策點分類，工程 session 只接收計數：
+- **方法。** 不跑模型、不訪問目標，在工程 session 中按摘要優先、只取必要字段或行的方式讀 a3–a8 已有 run，對每個「無候選交回 → 下一派單」決策點分類，記錄計數：
   - (a) 續派的問題與上輪不同，且能區分剩餘假設；
   - (b) 重複上輪問題，或沒有新前提；
   - (c) 有 Critic 建議或交回明示要換路，仍續派原路線；
@@ -118,7 +118,7 @@ Engineer、Verifier 與裁判的權限不合併，「Solver 宣稱候選」不�
 ### 問題 2：Recon 何時算完成、是否每題都要派
 
 - **為什麼要問。** 所有 run 都是 intake→recon 開場。Recon 總時長：ezoj 為 136–1170 秒，a7 F1 的 Recon 跑滿 30 分鐘未交回；8a6ac7ff 為 133–224 秒。按題 Recon cap 設 1000，等於關閉。Recon 佔掉的時間直接壓縮 Solver 的探索時間。
-- **方法。** 同樣在授權實驗 session 中，讀每次 Recon 的軌跡與交回，判斷「可開工基線」（入口、材料、環境前提）最早在何時已經具備，與實際交回時間比較，工程 session 只接收時間差與分類。
+- **方法。** 同樣在工程 session 中有界讀取每次 Recon 的軌跡與交回，判斷「可開工基線」（入口、材料、環境前提）最早在何時已經具備，與實際交回時間比較，記錄時間差與分類。
 - **結果去向。**
   - 基線早已具備、Recon 仍繼續深入：屬職責邊界問題，在本文定 Recon 的完成條件，並評估讓 Coordinator 在 Intake 材料足夠時跳過 Recon。改角色規則前先審閱。
   - 基線本身就需要長時間：不屬協作問題，回 [Recon 重設計 §5](2026-10-29-design-v1-recon-redesign.md)看預算分層。
