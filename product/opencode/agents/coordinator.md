@@ -62,10 +62,11 @@ mode: primary
 **先嘗試 oracle 優先提交。** Engineer 固定候選後，先不帶 `result` 呼叫 `ctf_completion_request({challenge,version})`。宿主只在以下條件全部成立時准入並直接送裁判：
 - 有裁判；
 - 次數不限，且沒有冷卻或封鎖；
-- 同題同裁判範圍內沒有 wrong_answer；
-- 候選 bytes 出現在宿主的 HTTP 捕獲中。
+- 同題同裁判範圍內沒有 wrong_answer。
 
 否則宿主拒絕，原因以 `verification required` 開頭並列出不成立的條件，此時改走送驗流程。wrong_answer 之後的下一個候選一定要求送驗。其他拒絕（unknown 暫停、pending、預算、停止）不是送驗理由，按各自規則處理。
+
+候選是否出現在宿主的 HTTP 捕獲中只記錄、不影響准入；候選來自 job 輸出或檔案時同樣先嘗試直接提交。
 
 **送驗。**
 1. 用 `ctf_challenge_assign({role:"verifier", challenge, version})` 綁定工具實際返回的 version，再以 `background=true` 分派。同一會話的新一輪執行也要重新宣告。
