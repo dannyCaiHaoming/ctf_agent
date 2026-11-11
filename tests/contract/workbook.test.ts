@@ -16,7 +16,8 @@ function fixture() {
   mkdirSync(materials, {recursive: true});
   const store = new ExperienceStore(join(root, 'experience.sqlite'), [SECRET]);
   const client = {session: {get: async ({sessionID}: any) => ({data: {id: sessionID, parentID: 'root'}}), messages: async () => ({data: []}), children: async () => ({data: []}), abort: async () => ({data: true})}};
-  const service = new ControlService({client: client as never, runId: 'A', experienceStore: store, workdir: join(root, 'opencode'), skillRoot: join(root, 'skills'), expiresAt: Date.now() + 60000,
+  // Half a minute off a whole minute: remaining_min (part of the Coordinator view version) cannot change during a test.
+  const service = new ControlService({client: client as never, runId: 'A', experienceStore: store, workdir: join(root, 'opencode'), skillRoot: join(root, 'skills'), expiresAt: Date.now() + 30 * 60000 + 30000,
     budget: {maxModelCalls: 50, maxObservableTokens: 10000, maxToolJobs: 3}, redactions: [RUN_SECRET],
     challenges: [{id: 'X', title: null, target: null, reachability: null, materials: [], materialsDir: materials}, {id: 'Y', title: null, target: null, reachability: null, materials: [], materialsDir: materials}]});
   service.bindRoot('root');
@@ -56,6 +57,13 @@ describe('challenge workbook entries (team-decision §6.1)', () => {
     await expect(note('recon', {slot: 'facts', text: 'fact with status', status: 'open'})).rejects.toThrow('take no status');
     await expect(note('recon', {kind: 'handoff', slot: 'facts', text: 'handoff entry'})).rejects.toThrow('must be a decision');
     await expect(note('recon', {text: 'text without slot'})).rejects.toThrow('require slot');
+    store.close();
+  });
+
+  it('refuses unbound related_ids and evidence_refs with actionable messages', async () => {
+    const {store, note} = fixture();
+    await expect(note('solver-a', {slot: 'facts', text: 'fact with a shortened ref', evidence_refs: ['b962d132']})).rejects.toThrow('evidence_refs must be complete refs');
+    await expect(note('recon', {observation: 'decision with a foreign record', related_ids: [999]})).rejects.toThrow('related_ids 999 is not a record of this challenge');
     store.close();
   });
 
@@ -181,7 +189,11 @@ describe('workbook injection', () => {
     const added = await note('solver-a', {slot: 'facts', text: 'second fact'});
     const changed = body((await prepare(service, 'solver-a', {messageID: 'u1', placement: 'tool.execute.after', callID: 'c2', visibleVersion: toolOnly.version})).text);
     expect(changed.mode).toBe('delta');
-    expect(texts(changed.workbook, 'facts')).toEqual(['first fact', 'second fact']);
+    // Entry-level delta: only the new entry and the changed coverage, not the whole workbook again.
+    expect(changed.workbook).toMatchObject({mode: 'entries', removed: []});
+    expect(changed.workbook.upserted.map((e: any) => [e.slot, e.text])).toEqual([['facts', 'second fact']]);
+    expect(changed.workbook).not.toHaveProperty('slots');
+    expect(changed.workbook).not.toHaveProperty('goal');
     await note('solver-a', {slot: 'facts', text: 'second fact, narrowed', supersedes: added.id});
     const compacted = body((await prepare(service, 'solver-a', {placement: 'compacting'})).text);
     expect(compacted.mode).toBe('full');
@@ -198,7 +210,7 @@ describe('workbook injection', () => {
     const solver = await prepare(service, 'solver-a', {messageID: 's1', placement: 'chat.message'});
     await service.handle('solver-a', 'model.call', {agent: 'domain-solver', provider: 'stub', model: 'scripted', messageID: 's1', contextDeliveries: [{version: solver.version, placement: 'chat.message', messageID: 's1'}]});
     const presented = service.audit.filter(a => a.op === 'context.presented' && a.sessionID === 'solver-a').at(-1)!.detail as any;
-    expect(presented.workbook).toMatchObject({sent: true, included_ids: [fact.id], omitted_ids: []});
+    expect(presented.workbook).toMatchObject({sent: 'full', included_ids: [fact.id], omitted_ids: []});
     // Verifier receives no projection at all.
     await expect(prepare(service, 'verifier', {messageID: 'v1', placement: 'chat.message'})).resolves.toEqual({});
     store.db.exec('ALTER TABLE recon_turns RENAME TO recon_turns_hidden');
@@ -401,5 +413,54 @@ describe('Coordinator workbook injection', () => {
       await h['chat.message']!({sessionID: 'solver-b', agent: 'domain-solver', messageID: 'su9'} as never, output);
       expect(body(output.parts.at(-1).text).workbook.slots.questions).toEqual([]);
     } finally { mocked.mockRestore(); store.close(); }
+  });
+});
+
+describe('workbook entry-level delta', () => {
+  it('merging entry deltas onto the first full view rebuilds every later full view', async () => {
+    const {store, service, note} = fixture();
+    const merge = (view: any, d: any) => {
+      const next = structuredClone(view);
+      for (const id of d.removed) for (const slot of Object.keys(next.slots)) next.slots[slot] = next.slots[slot].filter((e: any) => e.id !== id);
+      for (const e of d.upserted) {
+        for (const slot of Object.keys(next.slots)) next.slots[slot] = next.slots[slot].filter((x: any) => x.id !== e.id);
+        next.slots[e.slot] = [...next.slots[e.slot], e].sort((a: any, b: any) => a.id - b.id);
+      }
+      for (const k of Object.keys(d)) if (!['mode', 'upserted', 'removed'].includes(k)) next[k] = d[k];
+      return next;
+    };
+    const sortSlots = (view: any) => ({...view, slots: Object.fromEntries(Object.entries(view.slots).map(([k, v]: any) => [k, [...v].sort((a: any, b: any) => a.id - b.id)]))});
+    const first = await prepare(service, 'solver-a', {messageID: 'u1', placement: 'chat.message'});
+    let view = body(first.text).workbook, visible = first.version, step = 0;
+    const h = await note('recon', {slot: 'hypotheses', text: 'guess', status: 'open'});
+    const q = await note('recon', {slot: 'questions', text: 'question'});
+    for (const write of [
+      () => note('solver-a', {slot: 'facts', text: 'fact one'}),
+      () => note('recon', {slot: 'refuted', text: 'guess refuted', supersedes: h.id}),
+      () => coordinatorNote(service, {challenge: 'X', slot: 'questions', text: 'answered', status: 'answered', supersedes: q.id}),
+      () => note('solver-a', {slot: 'candidate', text: 'candidate in a ref'}),
+    ]) {
+      await write();
+      const next = await prepare(service, 'solver-a', {placement: 'tool.execute.after', callID: `d${++step}`, visibleVersion: visible});
+      const d = body(next.text);
+      expect(d.mode).toBe('delta');
+      view = merge(view, d.workbook);
+      const full = body((await prepare(service, 'solver-a', {placement: 'compacting'})).text).workbook;
+      expect(sortSlots(view)).toEqual(sortSlots(full));
+      visible = next.version;
+    }
+    store.close();
+  });
+
+  it('sends far less than the whole workbook per change once the workbook is large', async () => {
+    const {store, service, note} = fixture();
+    for (let i = 0; i < 15; i++) await note('recon', {slot: 'facts', text: `${i}:` + 'f'.repeat(250)});
+    const first = await prepare(service, 'solver-a', {messageID: 'u1', placement: 'chat.message'});
+    const fullChars = JSON.stringify(body(first.text).workbook).length;
+    await note('solver-a', {slot: 'facts', text: 'one more fact'});
+    const d = body((await prepare(service, 'solver-a', {placement: 'tool.execute.after', callID: 'x', visibleVersion: first.version})).text).workbook;
+    expect(d.upserted).toHaveLength(1);
+    expect(JSON.stringify(d).length).toBeLessThan(fullChars / 5);
+    store.close();
   });
 });

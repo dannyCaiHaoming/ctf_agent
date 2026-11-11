@@ -1,0 +1,21 @@
+{
+  "run": "wb-20261112-ac5a1bc0-1",
+  "source": "pentest-agent-run-data/workbook-runtime-20261112 (outside repo)",
+  "product_revision": "05af1de2",
+  "model": "volcano-plan/deepseek-v4.1-flash",
+  "agent_options": {"domain-solver": {"thinking": "enabled"}},
+  "budget": {"wall_clock_ms": 1200000, "max_model_calls": 80},
+  "outcome": {"status": "budget_exceeded", "stop_reason": "budget", "solved": false, "engineer_dispatched": false},
+  "assistant_messages": {"coordinator": 9, "intake": 4, "recon": 34, "domain-solver#1": 27, "domain-solver#2": 9},
+  "workbook_writes": {
+    "coordinator": {"questions": 6, "supersedes": 3},
+    "recon": {"facts": 3, "hypotheses": 1, "questions": 1, "plain_decision": 1, "handoff": 1, "supersedes": 0},
+    "domain-solver": {"facts": 4, "hypotheses": 1, "questions": 1, "refuted": 1, "supersedes": 0, "refused": 1, "refused_reason": "shortened evidence ref; surfaced as generic control error"}
+  },
+  "continuity": {"second_solver_first_full_view_entries": 12, "cross_session_repeated_tool_fingerprints": 4, "tool_steps_per_session": {"recon": 42, "domain-solver#1": 34, "domain-solver#2": 10}},
+  "coordinator_dispatch": {"recon_solver_dispatches": 6, "with_entry_id_reference": 5, "with_tested_untested_list": 0, "prompt_chars_range": [696, 1483]},
+  "coordinator_view": {"presented": 10, "max_bytes": 4520, "last_included": 12, "truncated": 8, "failed": 0},
+  "workbook_resend_chars_cumulative": {"coordinator": 22205, "recon": 66878, "domain-solver#1": 52983, "domain-solver#2": 11673},
+  "workbook_resend_count": {"coordinator": 10, "recon": 18, "domain-solver#1": 17, "domain-solver#2": 2},
+  "projection_failures": {"count": 1, "cause": "after budget stop_marked; run stopped by design"}
+}

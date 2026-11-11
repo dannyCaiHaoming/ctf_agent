@@ -23,23 +23,23 @@ export const WORKBOOK_SLOTS=['facts','hypotheses','refuted','questions','candida
 export type WorkbookSlot=typeof WORKBOOK_SLOTS[number];
 export const WORKBOOK_STATUS:Partial<Record<WorkbookSlot,{values:readonly string[];default?:string}>>={hypotheses:{values:['open','supported','refuted']},questions:{values:['open','answered','dropped'],default:'open'},candidate:{values:['proposed','withdrawn'],default:'proposed'}};
 export const WORKBOOK_TEXT_MAX=300,WORKBOOK_SCOPE_MAX=160;
-/** Model-actionable workbook refusal: fixed text plus entry ids and slot names only, never note content. */
-export class WorkbookRefused extends Error {}
+/** Model-actionable note refusal (workbook entries, related_ids, evidence_refs): fixed text plus record ids and slot names only, never note content. */
+export class NoteRefused extends Error {}
 /** Validates the workbook fields of a note; returns the slot and effective status, or null for a plain decision/handoff. */
 export function checkWorkbookEntry(a:{kind:string;slot?:WorkbookSlot;text?:string;status?:string;scope?:string;supersedes?:number}):{slot:WorkbookSlot;status?:string}|null {
   if(a.slot===undefined) {
-    if(a.text!==undefined||a.status!==undefined||a.scope!==undefined||a.supersedes!==undefined)throw new WorkbookRefused('text, status, scope and supersedes require slot');
+    if(a.text!==undefined||a.status!==undefined||a.scope!==undefined||a.supersedes!==undefined)throw new NoteRefused('text, status, scope and supersedes require slot');
     return null;
   }
-  if(a.kind!=='decision')throw new WorkbookRefused('a workbook entry must be a decision, not a handoff');
-  if(!a.text?.trim())throw new WorkbookRefused('a workbook entry requires text');
-  if(a.text.length>WORKBOOK_TEXT_MAX)throw new WorkbookRefused(`workbook text exceeds ${WORKBOOK_TEXT_MAX} characters; split or shorten it`);
-  if(a.scope!==undefined&&a.scope.length>WORKBOOK_SCOPE_MAX)throw new WorkbookRefused(`workbook scope exceeds ${WORKBOOK_SCOPE_MAX} characters`);
+  if(a.kind!=='decision')throw new NoteRefused('a workbook entry must be a decision, not a handoff');
+  if(!a.text?.trim())throw new NoteRefused('a workbook entry requires text');
+  if(a.text.length>WORKBOOK_TEXT_MAX)throw new NoteRefused(`workbook text exceeds ${WORKBOOK_TEXT_MAX} characters; split or shorten it`);
+  if(a.scope!==undefined&&a.scope.length>WORKBOOK_SCOPE_MAX)throw new NoteRefused(`workbook scope exceeds ${WORKBOOK_SCOPE_MAX} characters`);
   const rule=WORKBOOK_STATUS[a.slot];
-  if(!rule){if(a.status!==undefined)throw new WorkbookRefused(`${a.slot} entries take no status`);return {slot:a.slot};}
+  if(!rule){if(a.status!==undefined)throw new NoteRefused(`${a.slot} entries take no status`);return {slot:a.slot};}
   const status=a.status??rule.default;
-  if(status===undefined)throw new WorkbookRefused(`${a.slot} entries require status (${rule.values.join('|')})`);
-  if(!rule.values.includes(status))throw new WorkbookRefused(`${a.slot} status must be one of ${rule.values.join('|')}`);
+  if(status===undefined)throw new NoteRefused(`${a.slot} entries require status (${rule.values.join('|')})`);
+  if(!rule.values.includes(status))throw new NoteRefused(`${a.slot} status must be one of ${rule.values.join('|')}`);
   return {slot:a.slot,status};
 }
 const bodyNames=(body:unknown):string[]=> {
@@ -217,8 +217,8 @@ export class ExperienceStore {
     const args=z.object({kind:z.enum(['decision','handoff']).default('decision'),related_ids:z.array(z.number().int().positive()).max(40).default([]),evidence_refs:z.array(z.string().min(1).max(160)).max(32).default([]),observation:text.optional(),assessment:text.optional(),next_action:text.optional(),next_reason:text.optional(),
       slot:z.enum(WORKBOOK_SLOTS).optional(),text:text.optional(),status:z.string().max(40).optional(),scope:text.optional(),supersedes:z.number().int().positive().optional()}).strict().parse(input);
     const entry=checkWorkbookEntry(args);
-    for(const id of args.related_ids)if(!this.db.prepare('SELECT id FROM recon_turns WHERE id=? AND run_id=? AND challenge_id=?').get(id,s.run,s.challenge))throw new Error('unbound related record');
-    if(args.evidence_refs.some(r=>!validEvidence(r)))throw new Error('unbound evidence');
+    for(const id of args.related_ids)if(!this.db.prepare('SELECT id FROM recon_turns WHERE id=? AND run_id=? AND challenge_id=?').get(id,s.run,s.challenge))throw new NoteRefused(`related_ids ${id} is not a record of this challenge`);
+    if(args.evidence_refs.some(r=>!validEvidence(r)))throw new NoteRefused('evidence_refs must be complete refs returned by a publish call of this challenge, or episode:id@version / lesson:id@version; shortened or copied-looking refs are not accepted');
     // Check-and-insert in one transaction: only a still-active entry can be superseded, so concurrent writers cannot fork it.
     return this.transaction(()=>{
       if(entry&&args.supersedes!==undefined)this.checkSupersede(s,entry.slot,args.supersedes);
@@ -231,13 +231,13 @@ export class ExperienceStore {
   private checkSupersede(s:ProcessScope,slot:WorkbookSlot,id:number) {
     const target=this.db.prepare("SELECT id,role,note_json FROM recon_turns WHERE id=? AND run_id=? AND challenge_id=? AND kind='decision'").get(id,s.run,s.challenge) as {id:number;role:string;note_json?:string}|undefined;
     const note=target?this.parsedJson(target.note_json):null;
-    if(!target||!note||typeof note.slot!=='string')throw new WorkbookRefused('supersedes must name a workbook entry of this challenge');
+    if(!target||!note||typeof note.slot!=='string')throw new NoteRefused('supersedes must name a workbook entry of this challenge');
     const active=this.activeEntryId(s.run,s.challenge,id);
-    if(active!==id)throw new WorkbookRefused(`entry ${id} is already superseded; active entry is ${active}`);
+    if(active!==id)throw new NoteRefused(`entry ${id} is already superseded; active entry is ${active}`);
     // Question ordering is the Coordinator's: it may supersede any role's question; nobody else crosses roles.
     const coordinatorQuestion=s.role==='coordinator'&&slot==='questions'&&note.slot==='questions';
-    if(!coordinatorQuestion&&target.role!==(s.role??'recon'))throw new WorkbookRefused('an entry can only be superseded by its own role');
-    if(note.slot!==slot&&!(note.slot==='hypotheses'&&slot==='refuted'))throw new WorkbookRefused(`cannot supersede a ${note.slot} entry with a ${slot} entry`);
+    if(!coordinatorQuestion&&target.role!==(s.role??'recon'))throw new NoteRefused('an entry can only be superseded by its own role');
+    if(note.slot!==slot&&!(note.slot==='hypotheses'&&slot==='refuted'))throw new NoteRefused(`cannot supersede a ${note.slot} entry with a ${slot} entry`);
   }
   /** Follows the supersede chain from an entry to the entry that is currently active. */
   private activeEntryId(run:string,challenge:string,id:number):number {
@@ -246,7 +246,7 @@ export class ExperienceStore {
       const next=this.db.prepare("SELECT id FROM recon_turns WHERE run_id=? AND challenge_id=? AND kind='decision' AND json_extract(note_json,'$.supersedes')=? ORDER BY id LIMIT 1").get(run,challenge,current) as {id:number}|undefined;
       if(!next)return current;current=Number(next.id);
     }
-    throw new WorkbookRefused('supersede chain too long');
+    throw new NoteRefused('supersede chain too long');
   }
   records(run:string,challenge:string,args:unknown={}) {
     const cursor=z.string().regex(/^[1-9]\d{0,9}:[1-9]\d{0,9}$/).optional();

@@ -53,7 +53,7 @@ export function workbookView(rows:any[],role:WorkbookRole,host:WorkbookHost) {
       omitted_ids:[...omitted.keys()].sort((a,b)=>a-b),omitted_reasons:Object.fromEntries([...omitted].map(([id,r])=>[id,r])),
       max_chars:view.maxChars,complete:omitted.size===0&&(!view.host.includes('materials')||host.materials.length<=MATERIALS_CAP),
     },
-    guidance:'Current state of this challenge as written by Recon/Solver, not tool facts. Supersede your own role\'s entry to update it; read omitted ids with recon.read.',
+    guidance:'Current state of this challenge as written by Recon/Solver, not tool facts. Supersede your own role\'s entry to update it; read omitted ids with recon.read. Later context blocks carry workbook changes by entry id: upserted entries replace or add (each names its slot), removed ids leave the view, and only changed parts (goal, materials, candidate_host, coverage) are repeated.',
   });
   let result=build();
   // Total cap: drop the oldest presented entry (by sequence, any slot) until the view fits; never by content.
@@ -122,4 +122,24 @@ export function coordinatorView(challenges:CoordinatorChallenge[],remainingMin:n
   }
   const included=sections.filter(s=>!s.collapsed).flatMap(s=>[...s.shown.values()].flat().map(e=>e.id)).sort((a,b)=>a-b);
   return {view:result,included_ids:included,chars:JSON.stringify(result).length};
+}
+
+/** Per-entry and per-part hashes of a presented role view: the base for entry-level deltas. */
+export interface WorkbookBase {hash:string;entries:Map<number,string>;parts:Record<string,string>}
+export function workbookBase(view:Record<string,any>,hash:(v:unknown)=>string):WorkbookBase {
+  const entries=new Map<number,string>();
+  for(const list of Object.values(view.slots??{}) as any[][])for(const e of list)entries.set(Number(e.id),hash(e));
+  const parts=Object.fromEntries(Object.keys(view).filter(k=>k!=='slots'&&k!=='guidance').map(k=>[k,hash(view[k])]));
+  return {hash:hash(view),entries,parts};
+}
+/**
+ * Entry-level delta against a visible base: changed or new entries (each carries its slot), ids no longer presented,
+ * and only the host parts that changed. Applying it to the base view rebuilds the current view.
+ */
+export function workbookDelta(view:Record<string,any>,current:WorkbookBase,base:WorkbookBase) {
+  if(current.hash===base.hash)return null;
+  const upserted=(Object.values(view.slots??{}) as any[][]).flat().filter(e=>base.entries.get(Number(e.id))!==current.entries.get(Number(e.id)));
+  const removed=[...base.entries.keys()].filter(id=>!current.entries.has(id)).sort((a,b)=>a-b);
+  const parts=Object.fromEntries(Object.keys(current.parts).filter(k=>base.parts[k]!==current.parts[k]).map(k=>[k,view[k]]));
+  return {mode:'entries',upserted,removed,...parts};
 }
