@@ -1,6 +1,6 @@
 # Coordinator／Recon／Solver：決策上下文與責任調整
 
-**狀態（2026-11-11）：** 候選設計，未實作。§4 問題 1、2 已回答（續派大致合理；Recon 時長大致合理，每題仍需派 Recon）。第一片改為 §6.1 題目工作簿，待接口驗證 plan；欄位與總量上限已離線估算出候選數值。
+**狀態（2026-11-11）：** 候選設計，未實作。§4 問題 1、2 已回答（續派大致合理；Recon 時長大致合理，每題仍需派 Recon）。§6.1 題目工作簿的 host 接口（含 Coordinator 寫入與去敏視圖）已實作並通過無模型契約測試；角色檔未改，模型是否會用未經真實 run 驗證。
 
 本文是[核心 design v1](2026-10-22-ctf-agent-design-v1.md) C 的子設計，負責三角色之間的問題歸屬、決策交接與驗證方法，此範圍的細節以本文為準。既有產品行為仍以實作及原子設計為準，本文的候選不是已生效契約。
 
@@ -157,7 +157,7 @@ Engineer、Verifier 與裁判的權限不合併，「Solver 宣稱候選」不�
 **要解決的缺口。** 現有視圖給的是步驟日誌（最近 200 條索引加本 session 最後 6 步），不是「目前對這道題的理解」：新 Solver 看不出已知什麼、在懷疑什麼；Coordinator 看不到調查記錄，只能從交回文字手工維護線索並轉抄 refs，§3.3 的 3 次無出處前提就出在這一步。§4 問題 3 的核對只確認交回有內容，沒有核對下一角色是否接上，因此不作為暫緩本片的理由。
 
 **主本與折疊。**
-- 條目仍是追加到同題調查記錄的 note，在既有 observation／assessment／next_action／related_ids／evidence_refs 之外增加 `slot`（所屬欄）與 `supersedes`（被取代的條目 id）。
+- 條目仍是追加到同題調查記錄的 note，格式見下方「寫入接口」。
 - 目前的工作簿 = 各欄中仍有效、未被取代的條目。被取代的條目留在記錄中，可按 id 追溯；工作簿是狀態，記錄是證據。
 - host 只做機械折疊、上限截取與身份綁定，不判斷哪條重要，不從自然語言解析可信狀態。
 
@@ -171,13 +171,23 @@ Engineer、Verifier 與裁判的權限不合併，「Solver 宣稱候選」不�
 | 已排除路線 | Recon／Solver | 一行一條，帶排除範圍 |
 | 未決問題 | Coordinator 為主；Recon／Solver 可提出 | 下一個要回答的問題，即派單單位 |
 | 材料目錄 | host（發布時） | artifact ref＋用途＋缺口 |
-| 候選狀態 | Solver 提出；Engineer 與 host 更新 | 有無候選材料、是否已打包、提交結果 |
+| 候選狀態 | Solver 提出或撤回；已打包與提交結果由 host 從 package 與 completion 記錄計算 | 有無候選材料、是否已打包、提交結果 |
 | host 事實 | host | 剩餘時間、派單次數、回合時長 |
 
 - 事實與假設由實際做實驗的角色寫，問題排序由 Coordinator 寫；Coordinator 不改寫事實欄。
-- 條目是作者判斷，不是工具事實。一個角色不能取代其他角色的條目；發現衝突時追加反證並以 related_ids 關聯，host 不自動裁定。
+- 條目是作者判斷，不是工具事實。取代權按角色而非 session：新 Solver session 可以取代先前 Solver 的條目，這正是承接所需；Recon 與 Solver 不能互相取代，發現衝突時追加反證並以 related_ids 關聯，host 不自動裁定。唯一例外是 Coordinator 可取代任何角色的未決問題條目，因為問題排序歸它。
 - 寫入只能在 host 綁定的同題、當前 execution 下進行；Verifier 不讀、不寫工作簿，保持獨立。
 - Solver 提出的假設與問題直接進入工作簿，不再只經 Coordinator 轉述。
+
+**寫入接口（2026-11-11 定）。**
+- **沿用 `decision` kind，加欄位。** 帶 `slot` 的 decision 就是工作簿條目；新增欄位為 `slot`、`text`（≤ 300 字元，超過即拒絕並說明上限）、選填的 `status`、`scope`、`supersedes`，既有 related_ids／evidence_refs 照用。不帶 `slot` 的 decision 與 handoff 語義不變，不進工作簿。理由：寫入時去敏、episode 來源與快照鏈都已處理 decision，不另開新 kind 和新路徑。
+- **狀態取值。** 工作假設為 open／supported／refuted；未決問題為 open／answered／dropped；候選為 proposed／withdrawn；事實與已排除路線不帶狀態。answered、dropped、withdrawn 的條目仍有效、可再被取代，但不進視圖。
+- **狀態變化即取代。** 假設由 open 變 supported 或 refuted，寫新條目取代舊條目；被否定的假設可直接以「已排除路線」欄的條目跨欄取代，其他跨欄取代一律拒絕。
+- **只能取代仍有效的條目。** 目標已被取代時拒絕，並回傳目前有效條目的 id，避免分叉；並行寫入以先寫入者為準。
+- **被取代的標示。** 工作簿視圖只呈現有效條目；`recon.read` 讀到被取代的條目時，在讀取時附上 `superseded_by`，不改寫原記錄。
+- **host 欄不是條目。** 目標與約束、材料目錄、host 事實由 host 從既有 challenge、publication 與預算狀態即時計算；候選的已打包與提交結果取自既有 package 與 completion 記錄。模型不能寫這些欄，Engineer 也不需要寫入權。
+- **Solver 的寫入範圍。** Solver 只能寫帶欄位的條目，不能寫不帶欄位的 decision 或 handoff；handoff 會觸發 Recon 的快照發布，不在本設計內。
+- **Coordinator 的寫入入口。** Coordinator 的 binding 沒有 `challengeId`（它是跨題角色），所以開放 `recon.note` 給 Coordinator 時必須顯式帶 `challenge`，host 核對該題屬於本 run；Coordinator 只能寫 `slot=未決問題`，其他欄與不帶 slot 的 note 一律拒絕；其他角色帶 `challenge` 也拒絕，題目由 binding 決定。Coordinator 可以取代任何角色的問題（例如標為 answered），Recon／Solver 不能取代 Coordinator 寫的問題。全局的繼續／換路／停止決策仍寫既有 `ctf_progress_note`，不併入工作簿。不採用「把 progress note 折疊進工作簿」：progress note 記在另一份審計記錄、沒有題目欄位，折疊要跨兩份主本。也不採用「從派單文字解析問題」：違反 host 不解析自然語言的原則。
 
 **角色視圖。** 同一份折疊結果，按角色過濾與排序：
 
@@ -189,7 +199,17 @@ Engineer、Verifier 與裁判的權限不合併，「Solver 宣稱候選」不�
 | Engineer | 候選條目與材料目錄 | 父端摘要不當候選來源，仍自讀固定 bytes |
 
 - 經既有 `prepareContext` 追加式 hook 注入：新 session 給 full，工作簿版本變化時給 delta；不改寫已完成消息，不破壞 tool-call/result 配對。
-- Coordinator 視圖是它第一次讀到調查內容，觸及「控制憑據與私有資料不進模型上下文」的底線：只呈現狀態與問題欄，經受限去敏；無法安全呈現的條目報缺口，不用原文補齊。
+- 目前 `prepareContext` 對沒有 `challengeId` 的 binding 直接返回空，Coordinator 從未收到注入；plugin 端的追加路徑對所有 session 都已接通，只需 host 端放行。
+
+**Coordinator 視圖與去敏（2026-11-11 定）。**
+- **定位。** 底線保護的是控制憑據、oracle 私有資料與候選 bytes。Coordinator 現在本來就會收到 Solver／Recon 交回的全文（原生 task 結果，未過濾），而工作簿條目在寫入時已經去敏、單條 300 字元；所以 Coordinator 視圖不比現狀更敏感，去敏要做的是不讓它成為新的洩漏通道。
+- **寫入時。** 所有條目經既有 `ExperienceStore` 寫入清理：控制秘密清單替換、flag 樣式、Authorization／Cookie 類樣式與敏感欄位名。這已在現有 note 寫入路徑上，不新增機制。
+- **呈現時欄位白名單。** Coordinator 視圖只組出 id、題目、欄、作者角色、`status`、`text`、證據 ref id；不帶工具參數、結果、`scope` 以外的作者自由欄，也不帶步驟索引。已確認事實與已排除路線截成一行（≤ 120 字元）加 ref；候選狀態只給狀態與 ref，不給條目文字。
+- **呈現時再清理一次。** 每條 `text` 再經 progress ledger 既有的 `redactProgressText`（run 的秘密清單＋flag 樣式），覆蓋寫入後才加入的秘密。
+- **失敗即省略。** 單條組裝或清理失敗時省略該條並在 coverage 裡標 id 與原因，不退回原文；整份視圖組不出來時報缺口，Coordinator 仍按現狀只看交回文字。
+- **呈現內容。** 未決問題與工作假設給全文（≤ 300 字元）；事實與已排除路線截成一行；候選只給狀態與 ref；每題附提交狀態、已打包 version、completion 狀態與各角色 execution 次數，全局附剩餘分鐘。不給 scope、related_ids、步驟索引與任何工具參數或結果。
+- **多題。** Coordinator 視圖按題分段，只列本 run 中有 execution 或有有效條目的題（派單前的指派聲明在派單後即被消費，不能作依據）；總量 8K 字元內，超界時最久未更新的題先折成一行狀態。截取按更新時間，不按內容。
+
 
 **防止膨脹。**
 1. **狀態取代日誌。** 新條目以 `supersedes` 取代舊條目，工作簿大小跟目前的理解有關，跟步驟數無關。
@@ -221,13 +241,28 @@ Engineer、Verifier 與裁判的權限不合併，「Solver 宣稱候選」不�
 - 歷史經驗檢索與題後 episode 必須核對條目的作者角色，不把 Solver 條目當已驗證 lesson。
 
 **無模型接口驗證**（沿實際 launcher／plugin／固定 OpenCode 公開接口，用合成事件和固定回應）：
-1. 條目能按欄寫入並被取代；被取代條目仍可按 id 讀回；越權取代他人條目、異題或非當前 execution 寫入被拒。
+1. 條目能按欄寫入並被取代；被取代條目仍可按 id 讀回並帶 `superseded_by`；越權取代他人條目、取代已失效條目、異題或非當前 execution 寫入、Coordinator 寫非問題欄或未帶題目，都被拒。
 2. 超出欄位與總量上限時，視圖按時間截取並標明省略數與展開入口，記錄不丟失。
 3. 上游條目不在最近 6 步、歷史超過 200 條、新 Solver 無本 session 歷史時，實際出站請求仍帶有工作簿正文。
-4. 含合成敏感欄位的條目不進 Coordinator 視圖；Verifier 請求中沒有工作簿。
+4. 含合成控制秘密、flag 樣式、Cookie 樣式與候選文字的條目，在 Coordinator 實際出站請求中都不出現原文；寫入後才加入秘密清單的值也被清理；單條清理失敗時省略並標 coverage。Verifier 請求中沒有工作簿。
 5. compaction、重啟、同 child 多次續接與同步／背景交回後，工作簿版本與 full／delta 正確；partial／empty／unknown 保留原語義。
 
 只有 schema 通過、hook 有輸出而實際請求沒有正文，判失敗。
+
+**host 接口的實作結果（2026-11-11）。** 寫入、取代、折疊、上限截取，以及 Recon／Solver／Engineer 與 Coordinator 的注入已實作；`tests/contract/workbook.test.ts` 21 項覆蓋上面驗證第 1–5 項，全量 862 項通過。實作中定下的細節：
+- 工作簿相關的拒絕（超長、狀態不合法、取代失效條目等）以具體訊息返回模型，訊息只含固定文字、條目 id 與欄位名；其他 note 錯誤仍是通用拒絕。
+- 材料目錄屬於工作簿 hash，所以新增 publication 時 delta 會重送整份工作簿；既有 `state.publications` 暫時保留，兩者重複的部分待索引按需化時一併處理。
+- episode 來源中，Solver 寫的條目保留 `role: domain-solver`，不被標成 recon。
+- Coordinator 視圖按記錄的更新時間決定折疊順序：各題的 sequence 各自編號、不能跨題比較。最近更新的那題永遠不折疊，只有一題時超出部分改為省略最舊條目，避免單題 run 整題被折成一行。
+- Coordinator 視圖不做欄內 delta，有變化就送完整視圖（≤ 8K 字元）。
+- 已知限制：Coordinator 寫入時若 SQLite 出錯，只拒絕該次寫入，不會像題目角色那樣暫停該題的探索，因為 Coordinator 沒有綁定的題目。
+
+**plan 切分。** 本片按依賴拆成三份 plan，各自驗收：
+1. **host 工作簿接口：** 寫入接口、折疊、上限截取，以及 Recon／Solver／Engineer 視圖的注入；驗證第 1、2、3、5 項（Coordinator 相關部分除外）。保留既有 200 條索引注入，讓變量只有「有沒有工作簿」。
+2. **Coordinator 寫入與視圖：** `recon.note` 對 Coordinator 的受限開放、`prepareContext` 放行與去敏組裝；驗證第 1 項的 Coordinator 部分與第 4 項。依賴第 1 份。
+3. **角色檔：** Recon／Solver 按欄寫入與交回整理、Coordinator 停止手抄線索、取消「先測 Recon 線索」的順序。產品資產，先由用戶審閱草稿；依賴前兩份的接口驗證通過。
+
+真實配對對照在三份之後，另行授權。
 
 ### 6.2 派單與交回的內容契約
 

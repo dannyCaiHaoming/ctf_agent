@@ -65,7 +65,7 @@ describe('step recording for every challenge-bound solving role (design §3)',()
     }
   });
 
-  it('opens recon.read to Domain Solver and Engineer (read-only), not to Verifier or Coordinator; recon.note stays Recon-only',async()=>{
+  it('opens recon.read to Domain Solver and Engineer (read-only), not to Verifier or Coordinator; recon.note is Recon\'s, the Solver writes only workbook entries',async()=>{
     const {store,service}=fixture();
     await service.handle('recon','process.event',event('recon','r1',{status:'completed',input:{command:'echo r'},output:{stdout:'recon result'}}));
     await service.handle('domain-solver','process.event',event('domain-solver','s1',{status:'completed',input:{command:'echo s'},output:{stdout:'solver result'}}));
@@ -73,7 +73,7 @@ describe('step recording for every challenge-bound solving role (design §3)',()
       const page=await service.handle(role,'tool.execute',{tool:'recon.read',callID:'read-'+role,args:{}}) as any;
       expect(page.records.map((r:any)=>r.role)).toEqual(['recon','domain-solver']);
       await expect(service.handle(role,'tool.before',{tool:'ctf_recon_read',callID:'b-'+role,args:{}})).resolves.toMatchObject({allowed:true});
-      await expect(service.handle(role,'tool.execute',{tool:'recon.note',callID:'n-'+role,args:{kind:'decision'}})).rejects.toThrow('tool not permitted');
+      await expect(service.handle(role,'tool.execute',{tool:'recon.note',callID:'n-'+role,args:{kind:'decision'}})).rejects.toThrow(role==='domain-solver'?'solver notes must be workbook entries with slot':'tool not permitted');
     }
     for(const role of ['verifier','coordinator'])
       await expect(service.handle(role,'tool.execute',{tool:'recon.read',callID:'read-'+role,args:{}})).rejects.toThrow('tool not permitted');

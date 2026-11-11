@@ -1,0 +1,405 @@
+import {describe, expect, it} from 'vitest';
+import {mkdtempSync, mkdirSync} from 'node:fs';
+import {join} from 'node:path';
+import {tmpdir} from 'node:os';
+import {ExperienceStore} from '../../apps/launcher/src/experience-store.js';
+import {ControlService} from '../../apps/launcher/src/control-service.js';
+import {workbookView} from '../../apps/launcher/src/workbook.js';
+
+// Team-decision design §6.1: workbook entries, supersede rules, fold, caps and injection. Synthetic data only.
+const HEADER = '[CTF investigation context]\n';
+const SECRET = 'synthetic-control-secret-0123456789';
+const RUN_SECRET = 'synthetic-run-redaction-9876543210';
+const ROLES: Record<string, string> = {recon: 'recon', 'solver-a': 'domain-solver', 'solver-b': 'domain-solver', engineer: 'engineer', verifier: 'verifier'};
+function fixture() {
+  const root = mkdtempSync(join(tmpdir(), 'workbook-')), materials = join(root, 'workspace/X/materials');
+  mkdirSync(materials, {recursive: true});
+  const store = new ExperienceStore(join(root, 'experience.sqlite'), [SECRET]);
+  const client = {session: {get: async ({sessionID}: any) => ({data: {id: sessionID, parentID: 'root'}}), messages: async () => ({data: []}), children: async () => ({data: []}), abort: async () => ({data: true})}};
+  const service = new ControlService({client: client as never, runId: 'A', experienceStore: store, workdir: join(root, 'opencode'), skillRoot: join(root, 'skills'), expiresAt: Date.now() + 60000,
+    budget: {maxModelCalls: 50, maxObservableTokens: 10000, maxToolJobs: 3}, redactions: [RUN_SECRET],
+    challenges: [{id: 'X', title: null, target: null, reachability: null, materials: [], materialsDir: materials}, {id: 'Y', title: null, target: null, reachability: null, materials: [], materialsDir: materials}]});
+  service.bindRoot('root');
+  for (const [id, role] of Object.entries(ROLES)) {
+    service.bindings.set(id, {sessionID: id, role: role as never, parentID: 'root', via: 'dispatch', scope: 'run', expiresAt: Date.now() + 60000, state: 'active', boundAt: Date.now(), challengeId: 'X'});
+    (service as any).executions.set(`ex-${id}`, {ref: `ex-${id}`, childID: id, role, state: 'running', run: 'A', parent: 'root', challengeId: 'X', delivered: true, source: {status: 'conflict'}});
+  }
+  service.bindings.set('recon-y', {sessionID: 'recon-y', role: 'recon', parentID: 'root', via: 'dispatch', scope: 'run', expiresAt: Date.now() + 60000, state: 'active', boundAt: Date.now(), challengeId: 'Y'});
+  let n = 0;
+  const note = (session: string, args: Record<string, unknown>) => service.handle(session, 'tool.execute', {tool: 'recon.note', callID: `n${++n}`, messageID: `m${n}`, args}) as Promise<any>;
+  return {root, store, service, note};
+}
+function seed(store: ExperienceStore, count: number, session = 'recon') {
+  for (let i = 0; i < count; i++) {
+    const scope = {run: 'A', challenge: 'X', session, call: `${session}-c${i}`, message: `${session}-m${i}`};
+    store.start(scope, 'workspace.read', {path: `materials/f${i}`});
+    store.finish(scope, 'completed', {data: `r${i}`});
+  }
+}
+const body = (text: string) => { expect(text.startsWith(HEADER)).toBe(true); return JSON.parse(text.slice(HEADER.length)); };
+const prepare = (service: ControlService, session: string, input: Record<string, unknown>) => service.handle(session, 'context.prepare', input) as Promise<any>;
+const texts = (view: any, slot: string) => view.slots[slot].map((e: any) => e.text);
+
+describe('challenge workbook entries (team-decision §6.1)', () => {
+  it('accepts every slot and rejects malformed entries', async () => {
+    const {store, note} = fixture();
+    await note('recon', {slot: 'facts', text: 'service answers on the documented entry', scope: 'staging only'});
+    await note('recon', {slot: 'hypotheses', text: 'input reaches the parser unchanged', status: 'open'});
+    await note('recon', {slot: 'refuted', text: 'default credentials do not apply'});
+    await note('recon', {slot: 'questions', text: 'which component handles uploads?'});
+    await note('solver-a', {slot: 'candidate', text: 'candidate material in a published artifact'});
+    const stored = store.allRecords('A', 'X').map(r => r.note_json);
+    expect(stored.map(n => [n.slot, n.status ?? null])).toEqual([['facts', null], ['hypotheses', 'open'], ['refuted', null], ['questions', 'open'], ['candidate', 'proposed']]);
+    await expect(note('recon', {slot: 'facts', text: 'x'.repeat(301)})).rejects.toThrow('exceeds 300 characters');
+    await expect(note('recon', {slot: 'hypotheses', text: 'missing status'})).rejects.toThrow('require status');
+    await expect(note('recon', {slot: 'hypotheses', text: 'bad status', status: 'maybe'})).rejects.toThrow('status must be one of');
+    await expect(note('recon', {slot: 'facts', text: 'fact with status', status: 'open'})).rejects.toThrow('take no status');
+    await expect(note('recon', {kind: 'handoff', slot: 'facts', text: 'handoff entry'})).rejects.toThrow('must be a decision');
+    await expect(note('recon', {text: 'text without slot'})).rejects.toThrow('require slot');
+    store.close();
+  });
+
+  it('cleans secrets and flag forms from entry text on write', async () => {
+    const {store, note} = fixture();
+    await note('recon', {slot: 'facts', text: `token ${SECRET} and flag{synthetic} seen at https://a.example.test`});
+    const text = store.allRecords('A', 'X')[0].note_json.text as string;
+    expect(text).not.toContain(SECRET);
+    expect(text).not.toContain('flag{synthetic}');
+    store.close();
+  });
+
+  it('supersedes by role across sessions, never across roles, slots or challenges, and only an active entry', async () => {
+    const {store, note} = fixture();
+    const s1 = await note('solver-a', {slot: 'hypotheses', text: 'first guess', status: 'open'});
+    const s2 = await note('solver-b', {slot: 'hypotheses', text: 'first guess supported', status: 'supported', supersedes: s1.id});
+    await expect(note('solver-b', {slot: 'hypotheses', text: 'fork', status: 'open', supersedes: s1.id})).rejects.toThrow(`active entry is ${s2.id}`);
+    const r1 = await note('recon', {slot: 'facts', text: 'recon fact'});
+    await expect(note('solver-a', {slot: 'facts', text: 'solver rewrites recon', supersedes: r1.id})).rejects.toThrow('its own role');
+    await expect(note('recon', {slot: 'hypotheses', text: 'recon rewrites solver', status: 'open', supersedes: s2.id})).rejects.toThrow('its own role');
+    // hypotheses -> refuted is the only cross-slot supersede.
+    const s3 = await note('solver-a', {slot: 'refuted', text: 'guess refuted by the second experiment', supersedes: s2.id});
+    const f1 = await note('solver-a', {slot: 'facts', text: 'solver fact'});
+    await expect(note('solver-a', {slot: 'questions', text: 'fact turned into question', supersedes: f1.id})).rejects.toThrow('cannot supersede a facts entry');
+    const y = await note('recon-y', {slot: 'facts', text: 'other challenge'});
+    await expect(note('recon', {slot: 'facts', text: 'cross challenge', supersedes: y.id})).rejects.toThrow('workbook entry of this challenge');
+    // Read-time annotation; stored rows unchanged.
+    const page = store.records('A', 'X', {kind: 'decision', limit: 40});
+    const by = Object.fromEntries(page.records.map((r: any) => [r.id, r.superseded_by]));
+    expect([by[s1.id], by[s2.id], by[s3.id]]).toEqual([s2.id, s3.id, null]);
+    expect(store.allRecords('A', 'X').some((r: any) => 'superseded_by' in r)).toBe(false);
+    store.close();
+  });
+
+  it('admits the Solver for workbook entries only; Engineer and Verifier cannot write; Recon decisions and handoffs unchanged', async () => {
+    const {store, note} = fixture();
+    await expect(note('solver-a', {observation: 'plain decision'})).rejects.toThrow('solver notes must be workbook entries');
+    await expect(note('solver-a', {kind: 'handoff', observation: 'handoff'})).rejects.toThrow('solver notes must be workbook entries');
+    await expect(note('engineer', {slot: 'candidate', text: 'engineer entry'})).rejects.toThrow('tool not permitted');
+    await expect(note('verifier', {slot: 'facts', text: 'verifier entry'})).rejects.toThrow('tool not permitted');
+    await expect(note('recon', {observation: 'plain recon decision'})).resolves.toHaveProperty('id');
+    store.close();
+  });
+});
+
+describe('workbook fold and caps', () => {
+  it('keeps the newest entries per slot, hides closed entries and names every omission', async () => {
+    const {store, note} = fixture();
+    const facts = [];
+    for (let i = 0; i < 21; i++) facts.push(await note('recon', {slot: 'facts', text: `fact ${i}`}));
+    const q = await note('recon', {slot: 'questions', text: 'open question'});
+    await note('recon', {slot: 'questions', text: 'answered question', status: 'answered', supersedes: q.id});
+    const c = await note('solver-a', {slot: 'candidate', text: 'candidate'});
+    await note('solver-a', {slot: 'candidate', text: 'withdrawn candidate', status: 'withdrawn', supersedes: c.id});
+    const host = {goal: {challenge: 'X', materials: [], submission: null}, materials: [], candidate_host: {packages: [], completions: []}};
+    const {view, omitted_ids} = workbookView(store.allRecords('A', 'X'), 'domain-solver', host);
+    expect(texts(view, 'facts')).toHaveLength(20);
+    expect(texts(view, 'facts')[0]).toBe('fact 1');
+    expect(omitted_ids).toEqual([facts[0].id]);
+    expect(view.coverage.omitted_reasons[facts[0].id]).toBe('slot_cap');
+    expect(view.slots.questions).toEqual([]);
+    expect(view.slots.candidate).toEqual([]);
+    expect(view.coverage.complete).toBe(false);
+    // An omitted entry stays readable by id.
+    expect(store.records('A', 'X', {ids: [facts[0].id]}).records[0].note_json.text).toBe('fact 0');
+    store.close();
+  });
+
+  it('drops the oldest presented entries when the total cap is exceeded', async () => {
+    const {store, note} = fixture();
+    const ids = [];
+    for (let i = 0; i < 20; i++) ids.push((await note('recon', {slot: 'facts', text: `${i}:` + 'f'.repeat(280)})).id);
+    for (let i = 0; i < 20; i++) ids.push((await note('recon', {slot: 'refuted', text: `${i}:` + 'r'.repeat(280)})).id);
+    const host = {goal: {challenge: 'X', materials: [], submission: null}, materials: [], candidate_host: {packages: [], completions: []}};
+    const result = workbookView(store.allRecords('A', 'X'), 'recon', host);
+    expect(result.chars).toBeLessThanOrEqual(12000);
+    expect(result.omitted_ids.length).toBeGreaterThan(0);
+    // Omission is by age only: the omitted ids are exactly the oldest ones.
+    expect(result.omitted_ids).toEqual(ids.slice(0, result.omitted_ids.length));
+    expect(new Set(Object.values(result.view.coverage.omitted_reasons))).toEqual(new Set(['total_cap']));
+    store.close();
+  });
+
+  it('builds role views: Engineer sees only candidates and materials; Recon sees no candidate slot', async () => {
+    const {store, note} = fixture();
+    await note('recon', {slot: 'facts', text: 'fact'});
+    await note('solver-a', {slot: 'candidate', text: 'candidate'});
+    const host = {goal: {challenge: 'X', materials: ['statement.md'], submission: null}, materials: [{ref: 'r1', kind: 'file', size: 1}], candidate_host: {packages: ['p1'], completions: []}};
+    const engineer = workbookView(store.allRecords('A', 'X'), 'engineer', host).view as any;
+    expect(Object.keys(engineer.slots)).toEqual(['candidate']);
+    expect(engineer).toHaveProperty('candidate_host');
+    expect(engineer).not.toHaveProperty('goal');
+    const recon = workbookView(store.allRecords('A', 'X'), 'recon', host).view as any;
+    expect(Object.keys(recon.slots)).toEqual(['facts', 'hypotheses', 'refuted', 'questions']);
+    expect(recon).not.toHaveProperty('candidate_host');
+    store.close();
+  });
+});
+
+describe('workbook injection', () => {
+  it('a new Solver session sees upstream entries beyond recent steps and a 200-entry index', async () => {
+    const {store, service, note} = fixture();
+    await note('recon', {slot: 'facts', text: 'upstream fact from recon'});
+    await note('solver-a', {slot: 'questions', text: 'question left by the previous solver'});
+    seed(store, 205, 'recon');
+    const payload = body((await prepare(service, 'solver-b', {messageID: 'u1', placement: 'chat.message'})).text);
+    expect(payload.mode).toBe('full');
+    expect(payload.recent).toEqual([]);
+    expect(payload.index.coverage.complete).toBe(false);
+    expect(texts(payload.workbook, 'facts')).toEqual(['upstream fact from recon']);
+    expect(texts(payload.workbook, 'questions')).toEqual(['question left by the previous solver']);
+    expect(payload.workbook.goal.challenge).toBe('X');
+    store.close();
+  });
+
+  it('delta carries the workbook only when it changed; compaction and unknown versions return the full workbook', async () => {
+    const {store, service, note} = fixture();
+    await note('recon', {slot: 'facts', text: 'first fact'});
+    const first = await prepare(service, 'solver-a', {messageID: 'u1', placement: 'chat.message'});
+    seed(store, 2, 'solver-a');
+    const toolOnly = await prepare(service, 'solver-a', {messageID: 'u1', placement: 'tool.execute.after', callID: 'c1', visibleVersion: first.version});
+    expect(body(toolOnly.text)).not.toHaveProperty('workbook');
+    const added = await note('solver-a', {slot: 'facts', text: 'second fact'});
+    const changed = body((await prepare(service, 'solver-a', {messageID: 'u1', placement: 'tool.execute.after', callID: 'c2', visibleVersion: toolOnly.version})).text);
+    expect(changed.mode).toBe('delta');
+    expect(texts(changed.workbook, 'facts')).toEqual(['first fact', 'second fact']);
+    await note('solver-a', {slot: 'facts', text: 'second fact, narrowed', supersedes: added.id});
+    const compacted = body((await prepare(service, 'solver-a', {placement: 'compacting'})).text);
+    expect(compacted.mode).toBe('full');
+    expect(texts(compacted.workbook, 'facts')).toEqual(['first fact', 'second fact, narrowed']);
+    expect(body((await prepare(service, 'solver-a', {messageID: 'u2', placement: 'chat.message', visibleVersion: 'unknown'})).text).workbook).toBeDefined();
+    store.close();
+  });
+
+  it('audits the presented workbook ids and fails closed when the fold cannot be built', async () => {
+    const {store, service, note} = fixture();
+    const fact = await note('recon', {slot: 'facts', text: 'audited fact'});
+    const projection = await prepare(service, 'engineer', {messageID: 'u1', placement: 'chat.message'});
+    expect(body(projection.text).workbook.slots).toEqual({candidate: []});
+    const solver = await prepare(service, 'solver-a', {messageID: 's1', placement: 'chat.message'});
+    await service.handle('solver-a', 'model.call', {agent: 'domain-solver', provider: 'stub', model: 'scripted', messageID: 's1', contextDeliveries: [{version: solver.version, placement: 'chat.message', messageID: 's1'}]});
+    const presented = service.audit.filter(a => a.op === 'context.presented' && a.sessionID === 'solver-a').at(-1)!.detail as any;
+    expect(presented.workbook).toMatchObject({sent: true, included_ids: [fact.id], omitted_ids: []});
+    // Verifier receives no projection at all.
+    await expect(prepare(service, 'verifier', {messageID: 'v1', placement: 'chat.message'})).resolves.toEqual({});
+    store.db.exec('ALTER TABLE recon_turns RENAME TO recon_turns_hidden');
+    await expect(prepare(service, 'solver-a', {messageID: 's2', placement: 'chat.message'})).rejects.toThrow();
+    await expect(service.handle('solver-a', 'model.call', {agent: 'domain-solver', provider: 'stub', model: 'scripted', messageID: 's2', contextDeliveries: []})).rejects.toThrow(/context projection/);
+    store.db.exec('ALTER TABLE recon_turns_hidden RENAME TO recon_turns');
+    store.close();
+  });
+
+  it('end to end through the product plugin: a Recon entry reaches the next Solver request', async () => {
+    const {vi} = await import('vitest');
+    const {createCtfAgentHooks} = await import('../../apps/opencode-plugin/src/index.js');
+    const {store, service} = fixture();
+    const mocked = vi.spyOn(globalThis, 'fetch').mockImplementation(async (_url, init) => {
+      const b = JSON.parse(String(init?.body));
+      try { return new Response(JSON.stringify({result: await service.handle(b.sessionID, b.operation, b.input)}), {status: 200}); }
+      catch (error) { return new Response(JSON.stringify({error: String((error as Error).message)}), {status: 403}); }
+    });
+    try {
+      const h = createCtfAgentHooks({controlUrl: 'http://127.0.0.1:12345', controlToken: 'x'.repeat(40), tools: ['recon.note', 'recon.read']});
+      const entry = await service.handle('recon', 'tool.execute', {tool: 'recon.note', callID: 'e1', messageID: 'rm1', args: {slot: 'hypotheses', text: 'hypothesis handed to the solver', status: 'open'}}) as any;
+      const output: any = {message: {id: 'su1'}, parts: [{id: 'p', type: 'text', text: 'dispatch'}]};
+      await h['chat.message']!({sessionID: 'solver-a', agent: 'domain-solver', messageID: 'su1'} as never, output);
+      const appended = body(output.parts.at(-1).text);
+      expect(appended.workbook.slots.hypotheses).toEqual([expect.objectContaining({id: entry.id, role: 'recon', status: 'open', text: 'hypothesis handed to the solver'})]);
+      await h['chat.params']!({sessionID: 'solver-a', agent: 'domain-solver', message: {id: 'su1'}, model: {providerID: 'stub', id: 'scripted'}} as never, {} as never);
+      const presented = service.audit.filter(a => a.op === 'context.presented' && a.sessionID === 'solver-a').map(a => a.detail as any);
+      expect(presented.at(-1).workbook.included_ids).toEqual([entry.id]);
+    } finally { mocked.mockRestore(); store.close(); }
+  });
+
+  it('episode sources keep the Solver as author of its entries', async () => {
+    const {store, service, note} = fixture();
+    const entry = await note('solver-a', {slot: 'facts', text: 'solver authored fact'});
+    const inputs = await service.learningInputs();
+    const sources = inputs.flatMap((e: any) => e.input?.sources ?? []);
+    const source = sources.find((s: any) => s.ref === `recon:${entry.id}`);
+    expect(source?.content?.role).toBe('domain-solver');
+    store.close();
+  });
+});
+
+/** Inserts a raw slotted decision without write-time cleaning, to test presentation-time cleaning and per-entry failure. */
+function rawEntry(store: ExperienceStore, challenge: string, note: unknown, role = 'recon', updatedAt = Date.now()) {
+  const sequence = Number((store.db.prepare('SELECT COALESCE(MAX(sequence),0)+1 AS n FROM recon_turns WHERE run_id=? AND challenge_id=?').get('A', challenge) as any).n);
+  store.db.prepare(`INSERT INTO recon_turns(step_id,run_id,challenge_id,session_id,role,sequence,kind,note_json,status,original_complete,created_at,updated_at) VALUES(?,?,?,?,?,?,'decision',?,'completed',1,?,?)`)
+    .run(`raw-${challenge}-${sequence}`, 'A', challenge, `raw-${role}`, role, sequence, JSON.stringify(note), updatedAt, updatedAt);
+  return Number((store.db.prepare('SELECT MAX(id) AS id FROM recon_turns').get() as any).id);
+}
+const coordinatorNote = (service: ControlService, args: Record<string, unknown>, call = `c${Math.random()}`) =>
+  service.handle('root', 'tool.execute', {tool: 'recon.note', callID: call, messageID: `m-${call}`, args}) as Promise<any>;
+const coordinatorView = async (service: ControlService, input: Record<string, unknown> = {messageID: 'cu1', placement: 'chat.message'}) => {
+  const projection = await prepare(service, 'root', input);
+  return {projection, payload: projection.text ? body(projection.text) : undefined};
+};
+const section = (payload: any, challenge: string) => payload.workbook.challenges.find((c: any) => c.challenge === challenge);
+
+describe('Coordinator workbook writes', () => {
+  it('writes questions for a named challenge of this run and nothing else', async () => {
+    const {store, service, note} = fixture();
+    const q = await coordinatorNote(service, {challenge: 'X', slot: 'questions', text: 'which input path is still untested?'});
+    const row = store.allRecords('A', 'X').find(r => Number(r.id) === q.id)!;
+    expect([row.role, row.challenge_id, row.note_json.slot, row.note_json.challenge]).toEqual(['coordinator', 'X', 'questions', undefined]);
+    await expect(coordinatorNote(service, {slot: 'questions', text: 'no challenge'})).rejects.toThrow('must name a challenge of this run');
+    await expect(coordinatorNote(service, {challenge: 'Z', slot: 'questions', text: 'unknown challenge'})).rejects.toThrow('must name a challenge of this run');
+    for (const args of [{slot: 'facts', text: 'fact'}, {slot: 'hypotheses', text: 'h', status: 'open'}, {slot: 'refuted', text: 'r'}, {slot: 'candidate', text: 'c'}, {observation: 'plain'}, {kind: 'handoff', slot: 'questions', text: 'handoff'}])
+      await expect(coordinatorNote(service, {challenge: 'X', ...args})).rejects.toThrow('can only write questions');
+    await expect(note('recon', {challenge: 'X', slot: 'facts', text: 'recon names a challenge'})).rejects.toThrow('challenge is bound by the host');
+    await expect(note('solver-a', {challenge: 'X', slot: 'facts', text: 'solver names a challenge'})).rejects.toThrow('challenge is bound by the host');
+    store.close();
+  });
+
+  it('supersedes any role\'s question; nobody else crosses roles; never across challenges or slots', async () => {
+    const {store, service, note} = fixture();
+    const rq = await note('recon', {slot: 'questions', text: 'recon question'});
+    const sq = await note('solver-a', {slot: 'questions', text: 'solver question'});
+    await expect(coordinatorNote(service, {challenge: 'X', slot: 'questions', text: 'recon question answered', status: 'answered', supersedes: rq.id})).resolves.toHaveProperty('id');
+    const cq = await coordinatorNote(service, {challenge: 'X', slot: 'questions', text: 'solver question reordered', supersedes: sq.id});
+    await expect(note('recon', {slot: 'questions', text: 'recon rewrites coordinator', supersedes: cq.id})).rejects.toThrow('its own role');
+    await expect(note('solver-a', {slot: 'questions', text: 'solver rewrites coordinator', supersedes: cq.id})).rejects.toThrow('its own role');
+    const fact = await note('recon', {slot: 'facts', text: 'recon fact'});
+    await expect(coordinatorNote(service, {challenge: 'X', slot: 'questions', text: 'fact as question', supersedes: fact.id})).rejects.toThrow();
+    await expect(coordinatorNote(service, {challenge: 'Y', slot: 'questions', text: 'cross challenge', supersedes: cq.id})).rejects.toThrow('workbook entry of this challenge');
+    store.close();
+  });
+});
+
+describe('Coordinator workbook view', () => {
+  it('cleans text again at presentation: run redactions, flag forms and values added after the write', async () => {
+    const {store, service, note} = fixture();
+    rawEntry(store, 'X', {kind: 'decision', slot: 'questions', text: `raw ${RUN_SECRET} flag{synthetic} Cookie: session=abc Authorization: Bearer tok123`, status: 'open'});
+    await note('recon', {slot: 'hypotheses', text: 'later-secret-value-4455 flows into the template', status: 'open'});
+    store.addRedactions(['later-secret-value-4455']);
+    const {projection} = await coordinatorView(service);
+    for (const leaked of [RUN_SECRET, 'flag{synthetic}', 'later-secret-value-4455', 'session=abc', 'tok123']) expect(projection.text).not.toContain(leaked);
+    store.close();
+  });
+
+  it('presents whitelisted fields only: one-line facts, no candidate text, no scope, index or state', async () => {
+    const {store, service, note} = fixture();
+    const fact = await note('recon', {slot: 'facts', text: 'f'.repeat(200), scope: 'scope stays out'});
+    await note('recon', {slot: 'hypotheses', text: 'h'.repeat(250), status: 'open'});
+    await note('solver-a', {slot: 'candidate', text: 'candidate text must not reach the coordinator'});
+    await note('solver-a', {slot: 'questions', text: 'q'.repeat(250)});
+    const {projection, payload} = await coordinatorView(service);
+    const x = section(payload, 'X');
+    expect(x.slots.facts[0].text).toHaveLength(120);
+    expect(payload.workbook.coverage.truncated_ids).toEqual([fact.id]);
+    expect(x.slots.hypotheses[0].text).toHaveLength(250);
+    expect(x.slots.questions[0].text).toHaveLength(250);
+    expect(x.slots.candidate[0]).toEqual({id: expect.any(Number), role: 'domain-solver', status: 'proposed', evidence_refs: []});
+    expect(projection.text).not.toContain('candidate text must not reach');
+    expect(projection.text).not.toContain('scope stays out');
+    expect(projection.text).not.toContain('related_ids');
+    for (const key of ['index', 'recent', 'state', 'experience']) expect(payload).not.toHaveProperty(key);
+    expect(x).toMatchObject({submission: expect.any(Object), packages: [], completions: [], executions: expect.objectContaining({'domain-solver': {total: 2, running: 2}})});
+    expect(payload.workbook.remaining_min).toEqual(expect.any(Number));
+    store.close();
+  });
+
+  it('omits an entry that cannot be assembled and keeps the others', async () => {
+    const {store, service, note} = fixture();
+    const good = await note('recon', {slot: 'facts', text: 'good fact'});
+    const bad = rawEntry(store, 'X', {kind: 'decision', slot: 'facts', text: {not: 'a string'}});
+    const {payload} = await coordinatorView(service);
+    expect(section(payload, 'X').slots.facts.map((e: any) => e.id)).toEqual([good.id]);
+    expect(payload.workbook.coverage.failed_ids).toEqual([bad]);
+    expect(payload.workbook.coverage.failed_reasons[bad]).toBe('assembly_failed');
+    store.close();
+  });
+
+  it('lists only challenges with executions or entries and collapses the least recently updated challenge over the cap', async () => {
+    const {store, service} = fixture();
+    let {payload} = await coordinatorView(service);
+    expect(payload.workbook.challenges.map((c: any) => c.challenge)).toEqual(['X']);
+    const t = Date.now();
+    for (let i = 0; i < 20; i++) rawEntry(store, 'X', {kind: 'decision', slot: 'questions', text: `${i}:` + 'x'.repeat(280)}, 'recon', t - 10000);
+    for (let i = 0; i < 20; i++) rawEntry(store, 'Y', {kind: 'decision', slot: 'questions', text: `${i}:` + 'y'.repeat(280)}, 'recon', t);
+    for (const [c, at] of [['X', t - 10000], ['Y', t]] as const) for (let i = 0; i < 8; i++) rawEntry(store, c, {kind: 'decision', slot: 'hypotheses', text: `${i}:` + 'h'.repeat(280), status: 'open'}, 'recon', at);
+    ({payload} = await coordinatorView(service, {messageID: 'cu2', placement: 'chat.message'}));
+    expect(payload.workbook.challenges.map((c: any) => c.challenge)).toEqual(['X', 'Y']);
+    expect(section(payload, 'X')).toMatchObject({collapsed: true, active: expect.objectContaining({questions: 8})});
+    expect(payload.workbook.coverage.collapsed).toEqual(['X']);
+    expect(JSON.stringify(payload.workbook).length).toBeLessThanOrEqual(8000);
+    store.close();
+  });
+
+  it('a single challenge over the cap is never collapsed; its oldest entries are omitted instead', async () => {
+    const {store, service} = fixture();
+    const ids = [];
+    for (let i = 0; i < 20; i++) ids.push(rawEntry(store, 'X', {kind: 'decision', slot: 'questions', text: `${i}:` + 'q'.repeat(280)}));
+    for (let i = 0; i < 8; i++) ids.push(rawEntry(store, 'X', {kind: 'decision', slot: 'hypotheses', text: `${i}:` + 'h'.repeat(280), status: 'open'}));
+    for (let i = 0; i < 20; i++) ids.push(rawEntry(store, 'X', {kind: 'decision', slot: 'facts', text: `${i}:` + 'f'.repeat(280)}));
+    const {payload} = await coordinatorView(service);
+    expect(section(payload, 'X').collapsed).toBeUndefined();
+    expect(payload.workbook.coverage.omitted_ids.length).toBeGreaterThan(0);
+    expect(JSON.stringify(payload.workbook).length).toBeLessThanOrEqual(8000);
+    store.close();
+  });
+});
+
+describe('Coordinator workbook injection', () => {
+  it('sends the whole view on change, unchanged otherwise, full on compaction; failures block only the Coordinator', async () => {
+    const {store, service, note} = fixture();
+    const first = await prepare(service, 'root', {messageID: 'cu1', placement: 'chat.message'});
+    expect(body(first.text).mode).toBe('full');
+    expect(await prepare(service, 'root', {placement: 'tool.execute.after', callID: 't1', visibleVersion: first.version})).toEqual({version: first.version, unchanged: true});
+    const q = await note('solver-a', {slot: 'questions', text: 'new solver question'});
+    const changed = await prepare(service, 'root', {placement: 'tool.execute.after', callID: 't2', visibleVersion: first.version});
+    expect(section(body(changed.text), 'X').slots.questions.map((e: any) => e.id)).toEqual([q.id]);
+    await prepare(service, 'root', {placement: 'compacting'});
+    expect(service.audit.filter(a => a.op === 'context.presented' && a.sessionID === 'root').at(-1)).toMatchObject({detail: {challenge: null, mode: 'full', delivery: 'compaction_context', workbook: {included_ids: [q.id]}}});
+    await service.handle('root', 'model.call', {agent: 'coordinator', provider: 'stub', model: 'scripted', messageID: 'cu1', contextDeliveries: [{version: first.version, placement: 'chat.message', messageID: 'cu1'}]});
+    expect(service.audit.filter(a => a.op === 'context.presented' && a.sessionID === 'root' && (a.detail as any).placement === 'chat.message')).toHaveLength(1);
+    store.db.exec('ALTER TABLE recon_turns RENAME TO recon_turns_hidden');
+    await expect(prepare(service, 'root', {messageID: 'cu2', placement: 'chat.message'})).rejects.toThrow();
+    await expect(service.handle('root', 'model.call', {agent: 'coordinator', provider: 'stub', model: 'scripted', messageID: 'cu2', contextDeliveries: []})).rejects.toThrow(/context projection/);
+    store.db.exec('ALTER TABLE recon_turns_hidden RENAME TO recon_turns');
+    store.close();
+  });
+
+  it('end to end through the product plugin: a Solver question reaches the Coordinator, is answered, and leaves the next Solver view', async () => {
+    const {vi} = await import('vitest');
+    const {createCtfAgentHooks} = await import('../../apps/opencode-plugin/src/index.js');
+    const {store, service} = fixture();
+    const mocked = vi.spyOn(globalThis, 'fetch').mockImplementation(async (_url, init) => {
+      const b = JSON.parse(String(init?.body));
+      try { return new Response(JSON.stringify({result: await service.handle(b.sessionID, b.operation, b.input)}), {status: 200}); }
+      catch (error) { return new Response(JSON.stringify({error: String((error as Error).message)}), {status: 403}); }
+    });
+    try {
+      const h = createCtfAgentHooks({controlUrl: 'http://127.0.0.1:12345', controlToken: 'x'.repeat(40), tools: ['recon.note', 'recon.read']});
+      const q = await service.handle('solver-a', 'tool.execute', {tool: 'recon.note', callID: 'sq', messageID: 'sm', args: {slot: 'questions', text: 'does the parser accept nested input?'}}) as any;
+      const toolOutput = {title: 't', output: 'native', metadata: {}};
+      await h['tool.execute.after']!({sessionID: 'root', tool: 'task', callID: 'task1', args: {}}, toolOutput);
+      const coordinator = body(toolOutput.output.slice('native\n'.length));
+      expect(section(coordinator, 'X').slots.questions).toEqual([expect.objectContaining({id: q.id, role: 'domain-solver', text: 'does the parser accept nested input?'})]);
+      await coordinatorNote(service, {challenge: 'X', slot: 'questions', text: 'answered by the last solver round', status: 'answered', supersedes: q.id});
+      const output: any = {message: {id: 'su9'}, parts: [{id: 'p', type: 'text', text: 'dispatch'}]};
+      await h['chat.message']!({sessionID: 'solver-b', agent: 'domain-solver', messageID: 'su9'} as never, output);
+      expect(body(output.parts.at(-1).text).workbook.slots.questions).toEqual([]);
+    } finally { mocked.mockRestore(); store.close(); }
+  });
+});
