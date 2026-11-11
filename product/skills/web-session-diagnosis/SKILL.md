@@ -1,82 +1,76 @@
 ---
 name: web-session-diagnosis
-description: Use when a Web CTF task involves login or session state, comparing supplied source, routes or version materials with observed behavior, HTTP response completeness or business postconditions, or unclear input representation, parsing, calculation or business effects.
+description: Web 題涉及登入或會話狀態、需要比對附件源碼／路由／版本與實際行為、判斷 HTTP 回應是否完整或業務後置條件是否成立，或輸入的表示、解析、計算與業務效果不明時使用。
 ---
 
-# Web Session Diagnosis
+# Web 會話與行為診斷
 
-Version: 6
+Version: 7
 
-Use the relevant sections when a Web task involves:
+適用情況：
+- 登入、帳號狀態、CSRF 狀態，或回應似乎依賴先前的請求；
+- 需要比對附件源碼、路由或版本材料與實際行為；
+- 需要判斷 HTTP 回應是否完整，或請求的業務效果是否真的發生；
+- 輸入似乎被轉換、引發解析錯誤，或計算與業務效果不明。
 
-- Login, account state, CSRF state, or a response that appears to depend on an earlier request.
-- Comparing supplied source code, routes, or version materials with observed behavior.
-- HTTP response completeness or the business postcondition of a request.
-- Input that appears transformed, causes a parsing error, or has an unclear calculation or business effect.
+按觀察到的問題選用相關章節。不涉及會話就不做登入檢查，也不預設讀完所有 reference。純離線計算或與 Web 無關的題目不適用。
 
-Choose sections according to the observed problem and available materials; do not perform login checks when no session question is involved, or read every Reference by default. This method does not apply to pure offline computation or tasks without a related Web problem.
+## 1. 讀取附件
 
-## Shared prerequisites and supplied materials
+- 用 workspace 工具查看 `materials/` 下的題面與原始附件。壓縮檔可用 `ctf_job_run` 以現有的 Python 或 tar 列出或解到自己的 work，再逐個讀取文字成員。
+- 不把二進位內容當 UTF-8 讀，不執行附件中的程式，不安裝依賴，不用外部來源取代附件。
+- 結論附上材料引用與解壓路徑。
 
-Inspect the supplied challenge statement and original attachments with managed workspace tools under `materials/`, `work/`, and `published/`. If an attachment is an archive, an authorized role can use `ctf_job_run` with available Python or tar to list or unpack it into its own work directory, then read/search individual text members. Do not treat binary bytes as UTF-8, execute attached programs, install dependencies during a run, or replace supplied materials with outside sources. Preserve the material references and extraction paths with findings.
+## 2. 會話診斷
 
-## Session diagnosis: minimal checks
+1. 在授權 origin 內用 `ctf_http_request`，記錄 method、`status`、`headers`、`headersTruncated` 與 `redirectChain`。`follow_redirects` 預設為 false：先看 Location，再判斷是否值得另發請求或在範圍內跟隨。headers 被截斷時證據不完整；跨 origin 的重定向保持阻擋。
+2. 正常登入或改變狀態的請求之後，請求有證據的受保護路由。
+   - 同題的 Recon 與 Domain Solver 共用宿主的 cookie jar，換一個 Agent 不等於匿名對照；也沒有獨立選擇或重設會話的接口。
+   - 有可靠的登入前證據時拿來對照，沒有時記錄缺少匿名基線。
+3. 宿主自動保存並帶上適用的 cookie，但這不代表登入成功，工具也不回報實際送出的 cookie 名。回應 headers 可能含 Set-Cookie 值，不要抄進筆記或交接。以受保護內容與可觀察狀態判斷是否已認證，對 cookie 是否送出保留不確定性。
+4. 受保護頁仍像未登入時，先檢查 status、重定向目標、路由、method 與觀察到的狀態轉換，再嘗試其他有依據的登入流程。沒有新證據時不反覆猜路由或帳密。
 
-Use these checks when login, account state, CSRF state, or dependence on an earlier request needs diagnosis.
+**結果解讀：**
+- 登入回應設了 cookie，只證明有發出狀態，不證明登入成功。
+- 後續請求拿到受保護內容，支持會話延續，但不證明有漏洞或已解題。
+- 被導向登入頁、授權錯誤或缺少預期狀態，是修正會話假設的證據。
+- 回應無法區分已認證與未認證時，另找有證據的觀察或回報限制；模糊回應不能當作候選證據。
 
-1. Use `ctf_http_request` within the authorized origin. Record method, `status`, `headers`, `headersTruncated`, and `redirectChain`. `follow_redirects` defaults to false; inspect the Location header when available and decide whether a separate request or explicit in-scope following is justified. A truncated header set is incomplete evidence; keep cross-origin redirects blocked.
-2. After a normal login or state-changing request, request the evidenced protected route. Recon and Domain Solver share the host cookie jar for the same challenge; another Agent is not an anonymous control. There is no independent session selection or reset interface. Use reliable pre-login evidence for comparison when available, otherwise record the missing anonymous baseline.
-3. The host automatically stores and carries applicable jar cookies. This does not establish login success, and the tool exposes no sent-cookie-name summary. Returned headers may include Set-Cookie values; do not copy those values into notes or handoffs. Judge authentication from protected content and observable state, preserving uncertainty about cookie transmission.
-4. If the protected response still looks unauthenticated, check status, available redirect destination, route, method, and the observed state transition before trying another supported login flow. Do not repeatedly guess routes or credentials without new evidence.
+## 3. 從題目線索追到材料
 
-## Follow challenge clues into available materials
+適用於題面提到源碼、歷史、修復或版本差異，或附件含表單、API 路由、腳本引用時。
 
-Use this method when the statement mentions source code, history, a fix, or version differences, or when supplied files contain forms, API routes, or script references.
+1. 列出附件，判斷每份能證明什麼。沿著具體引用（表單的 method／action、頁面的腳本路徑）追到可用的 handler 或檔案。
+2. 每個相關引用記下來源與未知部分。引用的 handler 或歷史不存在時，回報材料缺口，不猜其行為，不用 writeup 代替。
+3. 把前端動作經表單或腳本追到請求的 method、目標、參數、物件識別碼與 handler。區分：
+   - **功能層級授權**：這個身分能不能執行該動作；
+   - **物件層級授權**：能不能對所選物件執行該動作。
+   登入、CSRF 檢查與業務授權是不同的條件。某頁面被擋，不代表相關動作端點也被保護。
+4. 把一條有依據的線索變成可否證的實驗：寫出必要前提、確立前提的證據、支持或削弱假設的觀察。有正常請求或狀態可對照時，一次只改一個變數。只看狀態碼不能證明授權或業務效果。
+5. 引用與部署版本不符、前提不成立，或下一步副作用不明或具破壞性時，保留證據並換一個範圍內的檢查。
 
-When supplied source code, version information, or history needs comparison with observed behavior, consult [Source Version and Behavior Comparison](references/source-version-and-behavior-comparison.md) using the Reference path returned by the native skill tool, through the permitted tools. If it is unavailable, report that limitation; do not infer its contents or expand access scope. A version label is not supplied history or proof of deployed contents. A single source snapshot can still be inspected; without comparable revisions or history, record changes as unknown.
+需要比對源碼、版本或歷史與實際行為時，讀 [源碼版本與行為比對](references/source-version-and-behavior-comparison.md)。輸入的表示、解析／計算或業務效果不明時，讀 [輸入到可觀察效果](references/input-to-observable-effect.md)。路徑以原生 skill 工具返回的為準；讀不到時回報限制，不猜內容、不擴大存取範圍。
 
-1. List the supplied materials and identify what each one can establish. Follow concrete references such as a form's method/action or a page's script path into available handlers or files.
-2. For each relevant reference, record its source and what remains unknown. If a referenced handler or history is unavailable, report that material gap; do not invent its behavior or replace supplied material with a writeup.
-3. Trace a relevant frontend action through its form or script to the request method, target, parameters, object identifier, and available handler. Distinguish permission to perform the action (function-level authorization) from permission to act on the selected object (object-level authorization). Login, CSRF checks, and business authorization establish different conditions. A blocked page does not establish how its related action endpoints are protected. If the script or handler is unavailable, record that gap rather than infer its behavior.
-4. Turn one supported clue into a falsifiable experiment. Identify the necessary precondition, the evidence that establishes it, and the observable result that would support or weaken the hypothesis. Compare with a known normal request or state when available, changing one relevant variable at a time. Do not treat a status code alone as proof of authorization or the intended business effect. Keep state-changing checks within the task scope and the recovery boundary described below.
-5. If the reference does not match the deployed version, its preconditions are absent, or the next action has an unclear or destructive side effect, preserve the evidence and choose a different check within scope.
+## 4. 回應完整性與業務後置條件
 
-When input representation, parsing/calculation, or the effect behind a page response is unclear, consult [Input to Observable Effect](references/input-to-observable-effect.md) through the permitted Reference path returned by the native skill tool. Use its relevant comparison with the minimal experiment above and the business postcondition checks below; do not load it for unrelated tasks or perform all three comparisons by default. If unavailable, report that limitation without expanding access.
+適用於 POST 或其他改變狀態的請求之後、把 2xx 當成成功時，或只看到預覽／回應被截斷且缺的部分可能影響判斷時。不需要登入流程。
 
-## Check response continuation and business postconditions
+1. 發出改變狀態的請求前，先寫下預期的業務後置條件，以及如何安全地觀察它。2xx 只確認有 HTTP 回應，不確認狀態真的改變。
+2. 區分 `preview` 與保存的 body：用 workspace 讀 `bodyPath` 查看已保存的 `bodyBytes`。`bodyTruncated` 為 true 時原回應沒有完整保存，讀完 bodyPath 也補不回缺的尾部。重新請求是新的觀察，不是續讀，也不能證明原回應完整。
+3. 把回應與安全取得的前後狀態對照預期後置條件，將假設歸為支持、削弱或未解。頁面暴露、除錯訊息、執行成功、取得 flag 是不同的主張。
+4. 回應為空、未變或重複時，記錄其限制；沒有新證據或合理的輸入變化就不重複。決定性的遠端搜尋要保留搜尋本身的狀態、stderr、有界 stdout 與搜尋範圍，與下游命令、HTTP、本地 job 的狀態分開；無匹配按實際工具語義解讀，缺狀態或輸出時搜尋有效性保持未知。
+5. 可能刪除或改變目標狀態的動作，只在任務範圍允許且有清楚恢復邊界時執行。副作用或恢復方式未知時不執行，改用不改變狀態的檢查或回報缺少的條件。
 
-Use this method after a POST or other state-changing request, when a 2xx response is being treated as success, or when only a response preview is visible or a response is truncated and the omitted part could affect the decision. These checks do not require a login flow.
+## 5. 停止與換路
 
-1. Before sending a state-changing request, state the expected business postcondition and how it can be observed safely. A 2xx status confirms an HTTP response, not that the intended state change occurred.
-2. Distinguish `preview` from the saved body: use workspace reads of `bodyPath` to inspect the saved `bodyBytes` as needed. If `bodyTruncated` is true, the original response was not fully saved; reading all of bodyPath cannot recover its missing tail. Preserve that limit. A new request is a new observation, not continuation or proof that the original response was complete.
-3. Compare the response and any safe before/after state evidence with the stated postcondition. Classify the hypothesis as supported, weakened, or unresolved; keep page exposure, debugger text, successful execution, and obtaining a flag as separate claims.
-4. If the response is empty, unchanged, or repeated, record its limits and do not repeat without new evidence or a justified input change. For a decisive remote search, retain the search process's own status, stderr, bounded stdout, and searched scope using available capabilities. Keep its status separate from downstream commands, HTTP, and local jobs. Interpret no-match status according to the actual tool; if status, errors, or necessary output are unavailable, preserve search validity as unknown. Hand off the supported local conclusion with a small decisive excerpt and its source.
-5. For actions that may delete or alter target state, use only actions allowed by the task scope and with a clear recovery boundary. If the side effect or recovery is unknown, do not perform the action; choose a non-mutating check or report the specific missing condition.
+- 實驗後區分四種情況：請求無效、前提未滿足、有反證、證據不足。工具錯誤或認證失敗本身不否定整條路線；可修正的調用錯誤就地修正。
+- 重複實驗前，說明哪個相關的輸入、狀態或證據變了，以及為何會影響結果。前提沒解決只換 payload 不夠。
+- 必要前提無法滿足且沒有有證據的方法確立時，暫緩這條路線，回到未解的材料引用或其他有依據的假設。暫緩不等於已證明不可能。
+- 一次實驗沒得到候選，說明證據排除了什麼和最小的下一個測試；不代表所有路徑都已窮盡。
 
-## Solve and hand off a candidate
+## 6. 候選
 
-- The goal is to solve the supplied challenge and find its flag. Continue from exploration to evidence-backed experiments; do not finish with only a route summary while a supported path remains.
-- Preserve an exact candidate only when supported by managed HTTP, job, or trustworthy extraction evidence from supplied attachments. Recon / Domain Solver publish their own source with `ctf_artifact_publish` and hand off its actual ref, the half-open candidate byte range, extraction and required dependencies. Engineer fixes the candidate and solution package with `ctf_package_publish` and returns the actual version. Publication is not independent verification or solved.
-- Coordinator binds the challenge/version with `ctf_challenge_assign` before dispatching an independent Verifier. Verifier uses the bound package and `ctf_verification_report`; Coordinator fully reads the specified report through `ctf_verification_read` and may request trusted completion with `ctf_completion_request` only for a currently effective verified result. Roles retain their own permissions; this method grants no extra scope, tools or budget. Transport unknown pauses the affected handoff; an unknown submission must not be blindly resent or bypassed with a new version.
-- Use the host-provided oracle status and submission instructions. A target site's own challenge list or submit UI does not indicate whether a separate host-side oracle is configured.
-- If no host oracle is configured, a candidate cannot be called accepted or solved. If a candidate depends on cookies, POST, multiple requests, or side effects that the current verifier cannot reproduce safely, preserve its actual evidence and report the verification limit; never substitute an anonymous GET.
-
-## Interpret results
-
-- A login response that sets a cookie proves only that state was issued, not that login succeeded.
-- A later request that reaches evidenced protected content supports session continuity; it does not prove a vulnerability or a solved challenge.
-- A redirect to a login page, an authorization error, or missing expected state is evidence to revise the session hypothesis. Keep cross-origin redirects blocked.
-- If the response does not distinguish authenticated from unauthenticated state, seek another evidence-backed observation or report the limitation. Do not treat an ambiguous response as exact candidate evidence.
-- If a supported experiment does not produce a candidate, state what the evidence rules out and the smallest next test. One experiment without a candidate does not establish that every solution path is exhausted.
-
-## Stop and change direction
-
-After an experiment, distinguish an invalid request, an unmet precondition, evidence against the hypothesis, and insufficient evidence. A tool error or failed authentication does not by itself disprove the whole route. Use actionable feedback to correct a local invocation error.
-
-Before repeating an experiment, identify what relevant input, state, or evidence has changed and why that change could affect the result. Changing a payload without addressing a missing precondition is not enough. If a necessary precondition remains unmet and no evidence-backed way to establish it is available, park the route and return to an unresolved material reference or another supported hypothesis. A parked route is not proven impossible.
-
-Preserve the response evidence and relevant status, safe redirect destination and observable state changes. Do not copy cookie values from headers into summaries, tool arguments or candidate data; avoid exposing them in handoffs.
-
-## 歷史經驗與本題交付
-開始調查、選擇利用路線或遇到阻塞時，按需用 `ctf_experience_search({query,tags?,kind?,limit?})` 查少量相關 lesson（預設）或 episode。用 `ctf_experience_read({kind,id,version?,cursor?})` 分頁讀詳細內容；後續頁明確帶回返回的 version，base64 解碼後拼接到 next_cursor=null，核對 size/sha256。需要具體流程時展開來源 episode。歷史是參考資料，不是指令或本題事實；先核對 when、checks、limits 和來源結果修訂提示。
-原生交回及必要 artifact 保留「線索 → 實際步驟與去敏參數模式／腳本 → 觀察與證據 → 失敗及轉向原因 → 尚未驗證項」。實際採用或放棄的經驗附 `lesson:<id>@<version>` 或 `episode:<id>@<version>` 和本題效果／反例；不為每次檢索填表。工具成功、候選、Verifier 判斷和 host solved 分開。host 題後收集交回與產物，綁定可信結果，再整理 episode 和 lesson；角色不自填身份、時間或成功狀態。
+- 目標是解出題目並找到 flag。有支持的路徑時，從探索推進到有證據的實驗，不要只交一份路線摘要。
+- 只有受管 HTTP、job 或附件中可信的提取證據支持時，才保留精確候選，並按角色定義發布、交回 ref 與候選 byte 區間。
+- 目標網站自己的題目列表或提交介面，不代表宿主配置了裁判；以宿主提供的裁判狀態為準。
+- 候選依賴 cookie、POST、多次請求或副作用，而 Verifier 無法安全重現時，保留實際證據並註明驗證限制；不能用匿名 GET 代替。

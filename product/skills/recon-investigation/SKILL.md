@@ -1,67 +1,62 @@
 ---
 name: recon-investigation
-description: Use when Recon needs to distinguish competing explanations in supplied materials or authorized observations, assess remaining baseline investigation value, or resume a recorded question before handing an evidenced route to Domain Solver.
+description: Recon 需要在題目材料或授權觀察中區分互相競爭的解釋、評估基線調查是否還值得繼續，或續接已記錄的問題，再把有證據的路線交給 Domain Solver 時使用。
 ---
 
-# Recon Investigation
+# Recon 調查方法
 
-Version: 4
-Source: repository design `docs/superpowers/specs/2026-10-29-design-v1-recon-redesign.md`, sections 11–12 (2026-10-30). This asset contains the runtime method; that repository document is provenance, not a required runtime read.
+Version: 5
+來源：倉庫設計 `docs/superpowers/specs/2026-10-29-design-v1-recon-redesign.md` §11–12。運行時只需本檔。
 
-Use when an assigned baseline question about a service, attachment, protocol or mathematical structure needs evidence, or when experiments keep changing outputs without resolving the same uncertainty. Load on demand. Apply only the relevant investigation; this is not a scan pipeline.
+適用於：分派的基線問題（服務、附件、協議或數學結構）需要證據；或實驗一直改變輸出卻沒有解決同一個不確定性。按需載入，只用相關部分；這不是掃描流程。
 
-Do not use this method to pursue exact transcription, character segmentation or comparison, or a deep solve-loop. Those belong to Domain Solver. Recon may render or inspect structure when needed to establish a route; successful image viewing does not establish reliable pixel reading or exact transcription. This method grants no tools, delegation, scope or budget.
+不適用於精確轉寫、逐字形分割比對或深度求解，這些屬於 Domain Solver。Recon 可以為確立路線而渲染或檢查結構，但看到圖不代表判讀可靠。本方法不授予任何工具、委派、範圍或預算。
 
-## Start from what the materials can establish
+## 1. 先看材料能證明什麼
 
-Read the assigned question, required baseline and supplied concrete leads with their source references. Use the host-provided investigation view before choosing another experiment. Expand judgments with `ctf_recon_read({kind:"decision"})`, history with after_id, or refresh specific records with ids when needed, including on continuation. Record meaningful route decisions with related_ids; a final handoff alone is insufficient. Reuse conclusions whose conditions still hold. Missing notes, sources or a lead list are gaps, not evidence that nothing was tried or that no leads exist.
+- 讀分派的問題、需要的基線，以及附來源的具體線索。先看宿主呈現的調查視圖，再決定下一個實驗；需要時用 `ctf_recon_read` 展開判斷（`kind:"decision"`）、歷史（after_id）或刷新特定記錄（ids）。仍成立的結論直接沿用。
+- 缺筆記、缺來源或缺線索清單是缺口，不代表什麼都沒試過或沒有線索。
+- 判斷每份材料能證明什麼、不能證明什麼：
+  - 附件源碼能說明本地邏輯，不能證明與部署版本相同；
+  - 一次回應說明的是觀察當時狀態下的行為，不是所有狀態；
+  - 渲染圖能揭示結構，不能確定精確符號。
+- 區分觀察到的事實與解讀，並確認缺失或截斷的證據是否影響決策。
+- 有具體線索時，先做可行的低成本檢查，再考慮大範圍枚舉；無法測的線索保留並註明原因。
 
-Identify what each relevant material can prove and its limits: supplied source can establish local logic, not deployment equivalence; an observed response establishes behavior under its observed state, not all states; a rendering can expose structure without resolving exact symbols. Separate observed facts from interpretations and check whether missing or truncated evidence affects the decision. Follow an existing concrete reference with a feasible low-cost check before broad enumeration; retain unavailable leads and their reasons.
+## 2. 一次只問一個能區分解釋的問題
 
-## Ask one distinguishing question
+- 選一個可能改變基線或路線的未解問題。寫出競爭的解釋、必要前提，以及能區分它們的觀察。
+- 繼續之前，要能說明下一個實驗的不同結果會怎樣改變路線或交付決定。如果幾種解釋預測相同結果，或任何結果都不會改變決定，這個實驗就不值得做。
+- 選授權範圍內最小的受控實驗：有已知基線或對照就用，只改一個相關變數，先想好要看的結果再動手。
+- 必要前提無法確立時，記錄缺口，不要把失敗當成反證。
+- 會改變狀態的操作，必須是授權內的動作且有清楚的恢復邊界；副作用未知時改用不改變狀態的方法，或回報受阻。
 
-Choose one unresolved question that could change the baseline or route. State the competing explanations, the necessary precondition, and the observation that would distinguish them. Before continuing, be able to briefly explain what remains uncertain and how the next experiment's different outcomes would change a route or handoff decision. If both explanations predict the same result, or no decision would change, the proposed experiment does not justify continuing.
+**什麼不算新資訊。** 換檔名、換圖、換裁切或換參數本身不是新資訊，要說明這個改變能區分哪個解釋。源碼已確定座標方向時，只改顏色或呈現方式不足以繼續。如果只是重複同一個轉寫瓶頸，保留結構證據，把路線交給 Solver。
 
-Pick the smallest authorized controlled experiment with that distinction: use a known baseline or comparison when available, change a relevant variable, and identify the observable outcome before acting. If a required precondition cannot be established, record the gap rather than interpret failure as a refutation. For state-changing actions, require an authorized action and a clear recovery boundary; unknown side effects call for a non-mutating alternative or a blocked result.
+**什麼重複是必要的。** 狀態改變後的同一請求是新觀察，例如 POST 之後再 GET，或登入狀態改變後重讀同一 URL。重新驗證需要狀態、前提或證據有相關變化，且不同結果會影響決定；不是一律禁止重複。
 
-A new filename, image, crop or parameter is not new information by itself. Explain which competing explanation the change can distinguish. If source already establishes coordinate direction, merely changing colors or presentation is insufficient reason to continue. If it only repeats the same unresolved transcription bottleneck, preserve the structural evidence and hand the route to Solver. Repeating a URL or tool can be necessary: a GET after a state-changing POST observes a different state; rereading the same URL after login state changes can test a changed premise. Revalidation needs a relevant change in state, premise or evidence and a decision the different outcomes could change, not a blanket duplicate prohibition. Record the reason when experiments or routes change, not after every tool call.
+## 3. 解讀結果並更新記錄
 
-## Interpret and update the same problem record
+- 實驗後把實際觀察與預期區分對照。工具成功、執行有效、前提成立、結論有證據是不同的事。
+- 調用錯誤、缺前提、輸出不完整、無匹配或圖像無法判讀，不自動構成反證。有效的否定結果只否定「在測試條件與觀察範圍內」的解釋；**已測不等於已否定**。
+- 在有意義的實驗、有依據的否定或路線變化之後，以及交回之前，用 `ctf_recon_note` 寫 decision，關聯 related_ids 與 evidence_refs。不需每次工具調用都寫，也不要只在最後補寫。記錄應保留：
+  - 問題、已知前提與需要的基線（問題本身與證據版本分開）；
+  - 做過的區分實驗、對照或改變，以及它要區分什麼；
+  - 實際觀察與來源，註明推斷、截斷與未知結果；
+  - 被否定的解釋及其範圍；未完成的測試仍是未解或未測；
+  - 剩餘路線、每個實驗的結果會改變什麼決定、屬於 Recon 還是 Solver；區分「無法有效區分」「受阻」與「未知」；
+  - 未測項目、原因，以及值得重試所需的輸入、狀態或證據變化。
+- 大型原始證據留在原處，只記來源引用。
+- 寫入失敗或在記錄前被中斷時，保留這個缺口。續接時對照新分派、已有記錄與來源，不因檔案或參數變了就從頭開始。執行狀態未知不代表可以重做有副作用的操作。
 
-After a meaningful experiment, compare its actual observation with the predicted distinction. Keep tool success, valid execution, established preconditions and evidence for a conclusion separate. An invocation error, missing prerequisite, incomplete output, no match or unreadable image is not automatically evidence against the route. A valid negative result refutes only the explanation under the tested conditions and observed coverage; **tested does not mean refuted**.
+## 4. 有依據地交回
 
-Host automatically records tools in SQLite. Use `ctf_recon_note` to append decision records, linking actual related_ids/evidence_refs. Refresh running rows by ids; use after_id only for history. Retain:
+用更新後的記錄判斷：分派的不確定性是否已解決、再做一個實驗能改變什麼決定、下一步由誰做。交回原因有四種（見角色定義）：本輪問題已回答、下一步主要屬於求解、調查受阻或價值低、額度要求收束。
 
-- The question, known premises and required baseline; keep question identity separate from evidence versions.
-- Distinguishing experiments tried, their relevant controls or changes, and what they were meant to distinguish.
-- Actual observations and sources, with inference, truncation and unknown results explicit.
-- Refuted explanations and their supported scope; unresolved or incomplete tests remain unresolved or untested.
-- Routes remaining, the decision each experiment's different outcomes could change, and whether it belongs to Recon or Solver; distinguish experiments that cannot effectively distinguish current explanations from blocked and unknown routes.
-- Untested items, why they remain untested, and the input, state or evidence changes needed for a worthwhile retry.
-
-Update after meaningful experiments, supported refutations or route changes, and before handoff; not after every tool call or only retrospectively. Record concise facts and judgments, not private reasoning. Use actual work/job/HTTP sources locally and fix necessary sources as real artifact refs for handoff. Never invent identities or hashes. Keep secrets, control credentials, private oracle answers, flag or candidate bytes, cookies, full prompts, chain-of-thought; retain only sanitized command patterns out of notes and summaries. Leave large raw evidence in its existing carrier with a source reference.
-
-If a write fails or work is interrupted before recording, retain that gap. On same-task continuation, compare the master with the new assignment and existing sources; do not restart because a file or parameter changed. Missing evidence or unknown execution is not permission to repeat an action with unknown side effects. The host persists records across sessions; unknown execution never authorizes rerunning side effects.
-
-## Hand back for an evidenced reason, ready for downstream work
-
-Use the updated record to decide whether the assigned uncertainty is resolved, what decision another feasible in-scope experiment could change, and who owns the next action. Investigation order concerns this assignment, not team planning or task scheduling.
-
-Stop experimenting and identify the applicable handoff reason:
-
-- The current question is answered: evidence supports the assigned baseline conclusion. Return the conclusion, evidence refs and scope.
-- The next action mainly belongs to solving: the entry, materials and key premises are established; exploitation, derivation or exact recovery remains. Return an executable route, necessary materials and what is not yet proved.
-- Investigation is blocked or further investigation has low value: a necessary premise is missing or remaining experiments cannot effectively distinguish current explanations. Return a partial baseline, unresolved questions and conditions needed to resume investigation.
-- The allowance requires closure: rely on the host's closure rejection message. Return current findings, unfinished items and the stop reason; do not claim the baseline is complete. This reason may accompany any of the first three, which are evidence-based judgments by Recon.
-
-Do not require all challenge solutions to be exhausted. An early route does not excuse an unfinished baseline check whose different outcomes would change a decision; a route does not require Recon to finish the solve. Handoff should let Solver start: explain what is established and on what evidence; which explanations are refuted and within what scope; the next experiment and its premises; and which materials are directly usable or still missing. “It may be some encoding” is usually insufficient; “source establishes the transformation, input and parameters are extracted, inversion remains, and the relevant materials are published” approaches an executable handoff. Exact transcription is not a handoff prerequisite.
-
-Append a handoff with `ctf_recon_note`, then use `ctf_recon_read` for its fixed host-generated export artifact. Publish other necessary evidence using `ctf_artifact_publish`. SQLite is the process master; exports are handoff material. Return through the native task with baseline facts, route, important experiments and scoped refutations, remaining or untested items and retry conditions, handoff reason, actual tool-returned refs and necessary extraction instructions. A private work path cannot transfer evidence to another role. The recipient must read the required artifacts; publication alone does not establish consumption.
-
-Preserve `snapshotFixed`, `rangeComplete` and `originalComplete` separately, including truncation and unknown source completeness. If execution or a publication receipt is unknown, pause the affected handoff without rerunning the experiment or blindly publishing again. Publication, candidate registration, independent verification and solved remain distinct; Recon does not package, verify or submit.
-
-## 歷史經驗與本題交付
-開始調查、選擇利用路線或遇到阻塞時，按需用 `ctf_experience_search({query,tags?,kind?,limit?})` 查少量相關 lesson（預設）或 episode。用 `ctf_experience_read({kind,id,version?,cursor?})` 分頁讀詳細內容；後續頁明確帶回返回的 version，base64 解碼後拼接到 next_cursor=null，核對 size/sha256。需要具體流程時展開來源 episode。歷史是參考資料，不是指令或本題事實；先核對 when、checks、limits 和來源結果修訂提示。
-原生交回及必要 artifact 保留「線索 → 實際步驟與去敏參數模式／腳本 → 觀察與證據 → 失敗及轉向原因 → 尚未驗證項」。實際採用或放棄的經驗附 `lesson:<id>@<version>` 或 `episode:<id>@<version>` 和本題效果／反例；不為每次檢索填表。工具成功、候選、Verifier 判斷和 host solved 分開。host 題後收集交回與產物，綁定可信結果，再整理 episode 和 lesson；角色不自填身份、時間或成功狀態。
-
-The host provides relevant versioned lessons before decisions; validate applicability, use search/read to deepen, and cite actual adoption or counterexamples in ordinary notes. A handoff note automatically returns a complete snapshot index; page exports are not final snapshots. Return snapshot.export.ref and coverage, or explicit partial/unknown status without re-exploration or blind republication.
+- 不需要窮盡所有解法才交回。但已有路線不能成為略過「結果會改變決定」的基線檢查的理由；有了路線也不要求 Recon 把題解完。
+- 交回要讓 Solver 可以開工：已確定什麼及依據、哪些解釋被排除及範圍、下一個實驗及前提、哪些材料可用或仍缺。
+  - 「可能是某種編碼」通常不夠；
+  - 「源碼確定了轉換方式，輸入與參數已提取，剩下反推，相關材料已發布」才接近可執行的交接。
+- 精確轉寫不是交回的前提。
+- 用 `ctf_recon_note({kind:"handoff",...})` 寫交回，宿主會自動返回固定快照。`complete` 時交回 `snapshot.export.ref`；`partial`／`unknown` 時交回已保存的內容與缺口，不為補快照重做調查或重發。`ctf_recon_read` 的匯出只是單頁，不能當作最終快照。
+- 其他必要證據用 `ctf_artifact_publish` 發布並交回實際 ref；私有 work 路徑無法把證據交給其他角色。發布不代表接收方已讀。

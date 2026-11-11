@@ -1,64 +1,63 @@
-# Source Version and Behavior Comparison
+# 源碼版本與行為比對
 
-Use this reference when supplied source code, version information, or history may help explain an observed application behavior. It does not supply missing challenge source or establish that a historical issue applies to the current target.
+當附件源碼、版本資訊或歷史可能解釋觀察到的應用行為時使用。本文不提供缺少的題目源碼，也不能證明某個歷史問題適用於目前目標。
 
-## 1. What version evidence establishes
+## 1. 版本證據能證明什麼
 
-- A commit identifies a repository revision; it does not prove that the target runs that revision.
-- A tag or release label names a version. Prefer its recorded revision when available, since labels alone do not establish exact contents.
-- A dependency lockfile records intended resolved dependencies, not necessarily the dependencies installed on the target.
-- Page labels, response headers, and static resources can provide version clues. They may be stale, modified, or shared across releases.
-- A source snapshot supports inspection of that snapshot. Without another revision or supplied history, it does not support claims about what changed.
+- commit 標識一個倉庫版本，不證明目標運行的就是它。
+- tag 或 release 標籤只是名稱；有記錄的對應 commit 時以 commit 為準，標籤本身不確定內容。
+- 依賴鎖定檔記錄的是預期解析的依賴，不一定是目標實際安裝的依賴。
+- 頁面標籤、回應 headers 與靜態資源可以提供版本線索，但可能過時、被改過或跨版本共用。
+- 單一源碼快照只支持檢查該快照；沒有其他版本或歷史，就不能主張「改了什麼」。
 
-Keep the source revision, dependency information, and observed target behavior distinct. If their relationship is unknown, state that limitation.
+源碼版本、依賴資訊與目標實際行為三者分開記錄；它們的對應關係未知時，寫明這個限制。
 
-## 2. How a request reaches a handler
+## 2. 請求如何到達 handler
 
-A request may pass through route selection, method restrictions, middleware or decorators, session handling, parameter parsing, object lookup, authorization, business operations, and exception handling. Their order and responsibilities depend on the implementation.
+請求可能依序經過路由選擇、method 限制、中介層或裝飾器、會話處理、參數解析、物件查找、授權、業務操作與例外處理；順序與分工取決於實作。
 
-Inspect the available path around a handler, not only its function body:
+檢查 handler 周圍的完整路徑，不只看函式本體：
+- 認證確定請求者是誰。
+- 功能層級授權決定這個身分能否執行該動作。
+- 物件層級授權決定能否對所選物件執行該動作。
+- CSRF 檢查處理的是另一種條件，不構成業務授權。
+- 找得到物件不代表有權操作它。
+- 頁面請求被拒，不代表相關動作端點也受同樣保護。
 
-- Authentication establishes who the requester is.
-- Function-level authorization determines whether that identity may perform the action.
-- Object-level authorization determines whether the action is permitted on the selected object.
-- CSRF checks address a different condition and do not establish business authorization.
-- Finding an object does not establish permission to act on it.
-- A rejected page request does not establish how a related action endpoint is protected.
+拿不到的路由或中介層代碼記為缺口。不能只因某段摘錄沒看到檢查，就推斷檢查不存在。
 
-Record unavailable routing or middleware code as a gap. Do not infer missing checks solely because they are absent from one excerpt.
+## 3. 源碼差異的意義
 
-## 3. What a source difference means
+比較修改前後的條件與效果：
+- 哪些輸入、身分或物件狀態會到達該操作？
+- 檢查發生在操作之前還是之後？
+- 物件選擇或其允許範圍是否改變？
+- 被拒、拋出例外或部分失敗時會怎樣？
+- 什麼回應或狀態變化能區分兩種行為？
 
-Compare the conditions and effects before and after a change:
+例如，檢查若放在操作之後，可能拒絕了回應卻沒有阻止操作；但要斷定效果是否保留，還需檢查交易回滾等周邊行為。
 
-- Which inputs, identities, or object states reach the operation?
-- Where do checks occur relative to the operation?
-- Does object selection or its permitted scope change?
-- What happens on rejection, exception, or partial failure?
-- Which response or state change would distinguish the two behaviors?
+commit 訊息描述的是意圖，實際行為由控制流程與相關依賴決定。檢查有改動本身不證明可利用；摘錄沒改動也不證明沒有問題。
 
-For example, a permission check after an operation may reject the response without preventing the operation; transaction rollback or other surrounding behavior must also be inspected before concluding that an effect persists.
+有用的比對應寫成條件式假設：在所述前提下，兩種實作會產生不同的可觀察結果。現有材料無法確立前提時，假設保持未解。
 
-Commit messages describe intent. Actual control flow and relevant dependencies determine behavior. A changed check does not by itself prove exploitability, and an unchanged excerpt does not prove the absence of a vulnerability.
+## 4. 源碼與運行中目標的關係
 
-Express a useful comparison as a conditional hypothesis: under stated preconditions, the implementations predict different observable results. If the available material cannot establish those preconditions, keep the hypothesis unresolved.
+用已有的正常回應、可取得的資源內容與允許的非破壞性觀察，把目標與源碼推出的預期相比。
 
-## 4. How source relates to the running target
+區分三種主張：
+- **源碼中存在**：所檢查的版本包含該行為。
+- **與目標一致**：觀察符合該行為，但也可能有其他解釋。
+- **有實驗支持**：在測試條件下，觀察結果支持所述假設。
 
-Use existing normal responses, available resource contents, and permitted non-destructive observations to compare the target with source-derived expectations.
+一個回應或資源相符，不能證明整個部署版本相符。不相符可能來自其他版本、設定、中介層、依賴或運行狀態；沒有證據時不要選定其中一種。
 
-Distinguish these claims:
+只看 HTTP 狀態碼可能無法區分成功、拒絕或已處理的錯誤，要比較相關回應內容與可安全觀察的狀態。沒有任何允許的觀察能區分各種可能時，記錄不確定性，不聲稱已確認。
 
-- **Present in source:** the inspected revision contains the behavior.
-- **Consistent with the target:** observations match that behavior, but may also have other explanations.
-- **Supported by an experiment:** an observed result supports the stated hypothesis under the tested conditions.
+## 證據限制
 
-Matching one response or resource does not establish the entire deployed revision. A mismatch may reflect another revision, configuration, middleware, dependencies, or runtime state; do not select one explanation without evidence.
+- 沒有 handler 源碼，handler 層級的比對就不完整。
+- 沒有可比較的版本，就無法做歷史比對。
+- 與部署目標之間沒有有依據的連結時，結論只能是條件式的。
 
-An HTTP status alone may not distinguish success, rejection, or a handled error. Compare relevant response content and safely observable state. When no permitted observation can distinguish the alternatives, record the uncertainty rather than claim confirmation.
-
-## Evidence limits
-
-Without handler source, handler-level comparison remains incomplete. Without comparable revisions, historical comparison remains unavailable. Without a supported link to the deployed target, conclusions remain conditional.
-
-For any framework-specific or version-sensitive additions, include an authoritative source, the applicable version or revision, and known limits. Do not generalize behavior from an unversioned example.
+增補框架或版本相關的內容時，須附權威來源、適用版本與已知限制；不從沒有版本的範例推廣行為。

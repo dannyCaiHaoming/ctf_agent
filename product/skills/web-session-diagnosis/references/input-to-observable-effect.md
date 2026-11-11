@@ -1,73 +1,87 @@
-# Input to Observable Effect
+# 輸入到可觀察效果
 
-Version: 1 — reviewed 2026-10-27.
+Version: 2（2026-11-11 改寫為繁體中文；內容沿用 2026-10-27 審閱版）
 
-Use this reference for a Web input whose representation, parsing, calculation, or business effect is unclear. Select the relevant section; pure offline computation does not need it. These invented examples explain comparisons, not target routes or permission to perform them.
+用於 Web 輸入的表示、解析、計算或業務效果不明時。只選相關章節；純離線計算不需要本文。文中範例是虛構的，用來說明比對方法，不代表目標路由，也不授權執行。
 
-## 1. Select an observation
+## 1. 選擇觀察
 
-Start with the supplied materials and saved responses. Identify the input location and two plausible explanations, then ask which available observation would differ between them. Prefer one low-cost observation that separates several explanations. Do not perform all three mechanisms as a checklist.
+- 從附件與已保存的回應開始。確定輸入位置與兩個可能的解釋，再問：哪個現有觀察會因解釋不同而不同？優先選一個能區分多個解釋的低成本觀察。不要把三種機制當清單逐一做完。
+- 配合 SKILL.md 第 3 節的最小實驗方法與第 4 節的回應完整性檢查。有權限的角色可在範圍內發 `ctf_http_request`，用 workspace 工具查看保存的回應。
+- `preview` 只是摘錄：重新請求前，先讀 `bodyPath` 中需要的部分。`bodyBytes` 描述已保存的 body；`bodyTruncated` 為 true 時，缺的尾部讀不回來。新請求是新觀察。
 
-Use the existing [minimal experiment method](../SKILL.md#follow-challenge-clues-into-available-materials) and [response continuation checks](../SKILL.md#check-response-continuation-and-business-postconditions). An authorized role can make an in-scope `ctf_http_request`; inspect saved responses through managed workspace tools. `preview` is only an excerpt: read the necessary saved `bodyPath` bytes before requesting again. `bodyBytes` describes the saved body; if `bodyTruncated` is true, further reads cannot recover the missing tail. A new request is a new observation.
+## 2. 表示還是轉換？
 
-## 2. Representation or transformation?
+**前提：** 有證據的輸入位置，以及能追蹤一個普通、非秘密標記的回應區域。先確定送出的值及其請求表示；不要對證據反覆解碼。
 
-**Prerequisite:** an evidenced input location and a response region where an ordinary, non-secret marker can be traced. Establish the submitted value and its request representation; do not silently decode evidence repeatedly.
+**競爭解釋：** 應用原樣返回輸入；為 HTML 做了編碼；轉換了值；或觀察層改變了外觀。
 
-**Competing explanations:** the application returns the input literally; it encodes it for HTML; it transforms the value; or an observation layer changes its appearance.
+**最小比對：** 只在該輸入獲授權處使用無害標記 `amber&17`。比對保存的回應 bytes、回應類型與字元編碼，以及實際觀察的是哪一層。
+- 在已知的普通 HTML 文字上下文中，原樣文字 `amber&17` 與編碼後的 `amber&amp;17` 是不同的 byte 序列；按 HTML 字元引用的處理規則，後者會顯示為 `&`。這是條件式的解析預測，不是對目標 DOM 或畫面的觀察。
+- 同樣的 bytes 出現在純文字、屬性或腳本上下文時，需各自解讀（見下方 HTML 來源）。
 
-**Minimal comparison:** use the harmless marker `amber&17` only where that input is authorized. Compare the saved response bytes, response type and character encoding, and the exact layer actually observed. In a known ordinary HTML text context, literal response text `amber&17` and encoded text `amber&amp;17` are different byte sequences. HTML character-reference processing predicts an ampersand for the latter. This is a conditional parsing prediction, not an observation of the target DOM or display. The same bytes in plain text, an attribute, or a script context require their own interpretation. See the HTML source below.
+必要時只把首字母改成 `Amber&17`，查看對應的保存區域。原樣複製與 HTML 編碼都會保留大寫，只有 `&` 是否被編碼不同。若改了之後仍一律變小寫，表示觀察路徑上某處做了轉換，但無法確定是哪個組件；有附件中的請求處理或源碼時再查。
 
-If necessary, change only the initial letter to `Amber&17` and inspect the corresponding saved region. Literal copying predicts case preservation; HTML encoding also preserves the letter while encoding the ampersand. Consistent lowercasing despite that change supports a transformation somewhere on the observed path, but does not identify the responsible component. Check supplied request handling or source when available.
+**反例與下一步：**
+- 標記被轉義，支持「表示有變化」，不代表能執行代碼。
+- 預覽中沒有標記不代表被過濾，先讀保存的相關區域。完整 body 也沒有時，檢查路由、輸入位置、回應類型與狀態，再考慮其他比對。
+- 只有原始 HTML 時，只報告 byte 層級的發現與條件式解析預期。不虛構瀏覽器觀察，也不為此安裝瀏覽器。
 
-**Counterexamples and next step:** an escaped marker supports a representation change, not code execution. A preview omitting the marker does not establish filtering; read the relevant saved region first. If the complete saved body lacks it, check the evidenced route, input location, response type and state before proposing another comparison. If only raw HTML is available, report only byte-level findings and conditional parsing expectations. Do not invent browser observations or install a browser to close the gap.
+## 3. 資料、解析還是計算？
 
-## 3. Data, parsing, or calculation?
+**前提：** 附件源碼、文件化的輸入格式或已有的解析錯誤，使語法假設成立。錯誤可以引出測試，但不能確定是哪個引擎。使用範例前先核實前提。
 
-**Prerequisite:** supplied source, a documented input format, or an existing parser-related error makes a syntax hypothesis relevant. An error can motivate a test without establishing a particular engine. Verify the actual preconditions before using the example.
+**競爭解釋：** 原樣複製資料；解析器拒絕語法；表達式被計算；應用自行算出某個值；或靜態／快取回應恰好含預期的數字。
 
-**Competing explanations:** literal data is copied; a parser rejects syntax; an expression is calculated; an application computes a value independently; or a static/cached response happens to contain the expected number.
+**最小比對：** 以下預測只適用於 Jinja 3.1.x、預設表達式定界符，且輸入確實進入模板源碼的情況。把字串當模板變數傳入，不代表它會被再次解析。保持入口、觀察區域與其他相關狀態不變。
 
-**Minimal comparison:** the following predictions apply to Jinja 3.1.x with default expression delimiters, only if the input actually enters template source. Passing a string as a template variable does not itself establish that it will be parsed again. Keep the entry point, observable output region and other relevant state fixed.
-
-| Input | Literal-data prediction | Jinja expression prediction |
+| 輸入 | 原樣資料的預測 | Jinja 表達式的預測 |
 | --- | --- | --- |
-| `amber17` | `amber17` | `amber17` (ordinary-text baseline) |
-| `{{ 5 + 8 }}` | The expression remains text | `13` |
-| `{{ 5 + 9 }}` | The changed expression remains text | `14` |
-| `5 + 8` | `5 + 8` | `5 + 8` (no expression delimiters) |
+| `amber17` | `amber17` | `amber17`（普通文字基線） |
+| `{{ 5 + 8 }}` | 表達式保持為文字 | `13` |
+| `{{ 5 + 9 }}` | 改變後的表達式保持為文字 | `14` |
+| `5 + 8` | `5 + 8` | `5 + 8`（沒有定界符） |
 
-Read the corresponding saved output, not an unrelated occurrence of `13`. Changing one operand tests whether the result tracks the expression. The final row is a literal negative control when needed; under the stated template hypothesis its ordinary text stays unchanged. If both wrapped and unwrapped expressions produce numbers, application-level calculation is a competing explanation. Delimiters are configurable, and HTML escaping is a separate output concern; do not assume target configuration from this example. See the Jinja source below.
+- 讀對應的保存輸出，不要找到無關位置的 `13` 就下結論。
+- 改一個運算元，是為了測結果是否跟著表達式變。
+- 最後一列是原樣的負面對照：在模板假設下它保持不變。若連沒有定界符的 `5 + 8` 也產生數字，應用層計算是競爭解釋。
+- 定界符可以設定，HTML 轉義是另一個輸出問題；不要從範例推定目標設定（見下方 Jinja 來源）。
 
-**Counterexamples and next step:** one 500 or parser error supports only a possible parsing-related path, not a confirmed engine or evaluation. A constant result across changed operands leaves static output, caching, wrong input placement or an unmet precondition open. Recheck saved request/response evidence and available materials instead of blindly replacing expressions. Tracking results with an unchanged literal control supports calculation on the tested path; engine identity and execution location remain conditional without further evidence. This does not establish arbitrary code execution. Do not escalate this example into command execution, file reading, object traversal or payload enumeration.
+**反例與下一步：**
+- 一次 500 或解析錯誤只支持「可能與解析有關」，不確定引擎或已求值。
+- 改了運算元結果仍不變，靜態輸出、快取、輸入位置錯誤或前提未滿足都還可能；重新檢查保存的請求／回應與附件，不要盲目換表達式。
+- 結果隨表達式變化且原樣對照不變，支持在測試路徑上有計算；但沒有進一步證據時，引擎身分與執行位置仍是條件式的，也不證明能執行任意代碼。
+- 不要把這個範例延伸為命令執行、檔案讀取、物件遍歷或 payload 枚舉。
 
-## 4. Response or business effect?
+## 4. 回應還是業務效果？
 
-**Prerequisite:** supplied forms, scripts or responses identify an action request and an independent observation request for the same object/session. Define the expected field and initial value before changing anything; a fixed page shell may not contain that field.
+**前提：** 附件中的表單、腳本或回應指出了某個動作請求，以及針對同一物件／會話的獨立讀回請求。改動前先確定要看的欄位與初始值；固定的頁面外殼可能根本不含該欄位。
 
-**Competing explanations:** an action changed state; it was rejected or had no effect; the response only returned the page shell; or the observation used a different identity, stale data or unrelated object.
+**競爭解釋：** 動作改變了狀態；被拒絕或無效果；回應只返回頁面外殼；或讀回用了不同身分、過期資料或無關物件。
 
-**Minimal comparison:** suppose supplied materials explicitly describe a temporary, session-only display preference that never enters persistent storage. The authorized session has an independently observed `layout` of `compact`; both changing and restoring it are allowed, and the readback and recovery conditions are known. Only under those conditions:
+**最小比對：** 假設附件明確說明某個顯示偏好只存在於當前會話、不寫入持久儲存；授權會話中獨立觀察到 `layout` 為 `compact`；修改與還原都被允許，讀回與恢復條件已知。只在這些條件下：
 
-1. Preserve the initial `layout: compact` observation and the evidenced action/readback relationship.
-2. Change the preference to `spacious` using the evidenced action.
-3. Independently read `layout` for that same session. A transition to `spacious` supports the intended effect; an unchanged shell or a redirect alone cannot decide it.
-4. Restore `compact` through the same allowed action and independently read it back. An unconfirmed restoration remains unresolved; do not describe it as recovered.
+1. 保存初始 `layout: compact` 的觀察，以及有證據的動作／讀回關係。
+2. 用有證據的動作把偏好改成 `spacious`。
+3. 對同一會話獨立讀回 `layout`。變成 `spacious` 支持預期效果；只有外殼不變或一次重定向無法判斷。
+4. 用同一個允許的動作還原為 `compact` 並獨立讀回。未確認還原時保持未解，不寫成已恢復。
 
-**Counterexamples and next step:** a 2xx or redirect is not proof of the postcondition. A reliable unchanged field weakens the immediate-effect hypothesis; an uncertain identity, initial value, cache or readback leaves it unresolved. Reuse the evidenced field observation rather than repeatedly fetching a shell that cannot distinguish outcomes. Conversely, a relevant state change can justify the same GET again and yield new evidence; matching parameters or fingerprints do not make it redundant. If session continuity or recovery is unknown, use existing non-mutating evidence or report the missing condition. Do not assume real targets provide the example's temporary storage guarantees.
+**反例與下一步：**
+- 2xx 或重定向不能證明後置條件。
+- 可靠讀回的欄位未變，削弱「立即生效」的假設；身分、初始值、快取或讀回不確定時保持未解。
+- 沿用有證據的欄位觀察，不要反覆抓一個無法區分結果的外殼。反過來，相關狀態變化後同一個 GET 可以是新證據；參數或 fingerprint 相同不代表多餘。
+- 會話延續或恢復方式未知時，用已有的非變更證據，或回報缺少的條件。不要假定真實目標也提供範例中的暫存保證。
 
-## 5. Boundaries and results
+## 5. 邊界與結果
 
-Use only existing tools, role permissions, challenge scope and budget. Shared cookie jars do not provide independent anonymous controls; switching roles does not create one. HTTP method names alone do not guarantee absence of implementation side effects (RFC 9110 below). Do not use deletion or persistent modification to manufacture a control, or retrieve target secrets for these examples. Jobs may parse saved data or support experiments already allowed by the task.
+- 只用現有工具、角色權限、題目範圍與預算。共用的 cookie jar 無法提供獨立的匿名對照，換角色也不會。HTTP method 名稱本身不保證實作沒有副作用（見 RFC 9110）。不要用刪除或持久修改來製造對照，也不為這些範例取得目標秘密。job 可用來解析已保存的資料，或支援任務已允許的實驗。
+- 比對後區分：調用無效、前提缺失、有反證、證據不足。只在相關輸入或狀態變化、明確對照或必要復核時才重複。沒有允許的觀察能區分各種解釋時，保留具體的未知並換方向。不要從缺失的 bytes、身分或基線製造決定性事實。
+- 機制上的發現本身不構成漏洞、flag 或已解題。候選的交接、驗證與完成依角色定義處理；不手動認證宿主身分、hash 或狀態。
 
-After the selected comparison, distinguish an invalid invocation, missing preconditions, contrary evidence and insufficient evidence. Repeat only for a relevant input/state change, an explicit control or necessary recheck. When no permitted observation can separate the explanations, preserve the specific unknown and change direction. Do not manufacture decisive facts from missing bytes, identities or baselines.
+## 來源與適用性
 
-Keep candidate provenance, independent verification and trusted completion under the existing [handoff method](../SKILL.md#solve-and-hand-off-a-candidate). A mechanism finding alone establishes neither a vulnerability nor a flag or solved state. Do not manually certify host identities, hashes or statuses.
+以下三個來源於 2026-10-27 撰寫審閱時查閱。運行時使用本地審閱過的內容；這些連結不授權公開瀏覽。
 
-## Sources and applicability
-
-Authoring review accessed all three sources on **2026-10-27**. During a run, use this reviewed local reference; these links do not authorize public browsing.
-
-- [RFC 9110 §9.2.1, Safe Methods](https://www.rfc-editor.org/rfc/rfc9110.html#section-9.2.1), June 2022: read-only method semantics do not exclude implementation side effects.
-- [WHATWG HTML §13.2, Parsing HTML documents](https://html.spec.whatwg.org/multipage/parsing.html#parsing), Living Standard page dated 26 October 2026; overview and character-reference states: response bytes and parsed representations are distinct; context matters. This does not establish a target's browser behavior.
-- [Jinja Template Designer Documentation 3.1.x](https://jinja.palletsprojects.com/en/stable/templates/), Synopsis, Math and HTML Escaping: the example assumes default expression syntax; escaping depends on application configuration. These examples cannot identify a target engine.
+- [RFC 9110 §9.2.1, Safe Methods](https://www.rfc-editor.org/rfc/rfc9110.html#section-9.2.1)（2022 年 6 月）：唯讀 method 的語義不排除實作上的副作用。
+- [WHATWG HTML §13.2, Parsing HTML documents](https://html.spec.whatwg.org/multipage/parsing.html#parsing)（Living Standard，頁面日期 2026-10-26），概述與字元引用狀態：回應 bytes 與解析後的表示不同，上下文很重要。不能據此確定目標瀏覽器的行為。
+- [Jinja Template Designer Documentation 3.1.x](https://jinja.palletsprojects.com/en/stable/templates/)，Synopsis、Math 與 HTML Escaping：範例假設預設表達式語法；是否轉義取決於應用設定。這些範例無法識別目標引擎。
