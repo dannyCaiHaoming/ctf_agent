@@ -1,6 +1,6 @@
 # design v1 B／G：通用解题方法与耗时优化
 
-**状态（2026-11-10）：Reference v1 与 Skill v6 短入口已交付；§8.1 线索帐本 A 已落地，§8.2 Skill 内容增量未做；§7 未解题组的缺口复盘已完成（2026-11-08），工具或方法增量待定。模型遵循、泛化与提速未验证。**
+**状态（2026-11-12）：Reference v1 与 Skill v6 短入口已交付；§8.1 线索帐本改由题目工作簿承载（2026-11-12），§8.2 Skill 内容增量未做；§7 未解题组的缺口复盘已完成（2026-11-08），工具或方法增量待定。模型遵循、泛化与提速未验证。**
 
 本文是[核心 design v1](2026-10-22-ctf-agent-design-v1.md) B／G 的详细子文件，细节以本文为准。沿用 [A／B 资产设计](2026-10-22-design-v1-ab-product-assets.md)的原生 Skill、固定副本和受控 Reference，不另建知识平台。
 
@@ -222,17 +222,17 @@ r7（[路线优先级 §8.2](#82-路线优先级的-skill-内容增量)、[路�
 
 ### 8.1 显式线索帐本
 
-**状态：候选 A 已落地（§7 优先序 #1），行为收益未证实。**
+**状态：由团队决策上下文的题目工作簿取代（2026-11-12），宿主接口与角色文案已落地，行为收益未证实。**
 
-**目标：** 已浮现但未测的具体线索始终在 solver 上下文中可见，在通用枚举／深挖之前被低成本测试。
+**目标（不变）：** 已浮现但未测的具体线索始终在 solver 上下文中可见，在通用枚举／深挖之前被检验。
 
-**落地约束（2026-10-28 只读核实）：** progress 帐本经 `checkProgress` 仅限 `coordinator`／`recovery-critic`；`validateProgressNote` 是路线决策结构，不是逐条线索清单；宿主可从 `publications` 与 http 审计推算「发布过未请求的路线」，但从自由文字抽路线属启发式；「强制消费」对 LLM 本质是遵循问题，最稳的形式是把线索状态自动带入上下文，而非依赖模型主动调工具读。
+**现行做法：** 采用原列为候选 B 的方向——线索改为宿主侧的结构化条目。Recon／Solver 用 `ctf_recon_note` 写工作簿条目（事实、假设、已排除路线、未决问题、候选），宿主折叠后按角色注入；Coordinator 只写和关闭问题，不再在 task 文字里手工维护 tested／untested／refuted 清单。Solver 按本轮问题与假设选择实验，取消「先逐条测完 Recon 线索再转向」的顺序。接口、上限、去敏与验证见[团队决策上下文 §6.1](2026-11-07-design-v1-team-decision-context.md#61-題目工作簿第一片)，共同规则写在 `product/AGENTS.md`「題目工作簿」。
 
-**已选定并实现 A（自动注入）：** 只改角色 prompt，无新工具／接口／schema。`coordinator.md` 的「未測具體線索交接」在每次原生 `task` 分派／恢复时带入未测线索（去敏描述、来源 ref、低成本测法），空清单明写、缺来源记为缺口，交回后按证据更新 tested／untested／refuted；`domain-solver.md` 要求深挖通用枚举／档案搜索／RCE 前先测未测线索并逐条回报（tested≠refuted）；`recovery-critic.md` 对被忽略且有来源的未测线索给 redirect 建议。判断仍归 Critic、只建议，Coordinator 决定。实现合入 main（merge `3ad11f48`，含 `862b85ee`），无模型回归通过。
+**为何取代 A：** A（只改 prompt，由 Coordinator 经 task 文字转交清单）依赖 Coordinator 手抄与转述；a3–a8 中派单出现过 3 次找不到出处的前提，Solver 自己提出的线索也不在清单来源内。工作簿让写入者直接留下判断，接手方读同一份状态。
 
-**未采用：** B（扩 progress 帐本为结构化 lead 条目并开放 solver 受限读写）——涉权限与 schema 改动，A 已能靠现有交接落地；C（solver-local `work/leads.md`）——纯遵循、宿主不可见、不跨角色共享；D（宿主派生「发布过未请求」提示）——抽取不可靠前不作依据。若 A 的真实 run 证据显示需要宿主侧状态，再评估 B。
+**仍不采用：** C（solver-local `work/leads.md`）——宿主不可见、不跨角色共享；D（宿主从自由文字或「发布过未请求」推导线索）——抽取不可靠，宿主不解析自然语言。
 
-**行为证据与边界：** r8-2（main `60654f0d`）解出 throwback，Domain Solver 直接测了 `/admin/chal/delete`，与 A 的意图一致；但为单题单次、同批另有同步执行身份修复，不能单独归因到 A，收益需重复跑与换题才算证实。帐本与注入面不放候选原文、flag、cookie、控制秘密、完整 prompt、chain-of-thought、job argv；不建通用 planner／任务编排系统；不强制「每步必调工具」。
+**行为证据与边界：** A 的唯一正向样本 r8-2（main `60654f0d`，throwback 解出，Solver 直接测了已列线索）为单题单次且同批有其他修复，不能单独归因。工作簿的收益同样需要同题配对的真实 run。条目不放候选原文、flag、cookie、控制秘密、完整 prompt、chain-of-thought、job argv；不建通用 planner；不强制每步写条目。
 
 ### 8.2 路线优先级的 Skill 内容增量
 
