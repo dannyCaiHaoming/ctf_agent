@@ -1,0 +1,144 @@
+{
+ "run": "wb-20261112-ac5a1bc0-1",
+ "revision": "05af1de2",
+ "status": "budget_exceeded",
+ "stop_reason": "budget",
+ "model_calls": 80,
+ "agent_options": {
+  "domain-solver": {
+   "thinking": {
+    "type": "enabled"
+   }
+  }
+ },
+ "assistant_messages": {
+  "coordinator": 9,
+  "intake": 4,
+  "recon": 34,
+  "domain-solver#1": 27,
+  "domain-solver#2": 9
+ },
+ "executions": {
+  "intake:completed": 1,
+  "recon:completed": 1,
+  "domain-solver:completed": 2,
+  "recon:cancelled": 1,
+  "domain-solver:cancelled": 1
+ },
+ "completions": [],
+ "workbook_writes": {
+  "coordinator:questions": 3,
+  "coordinator:questions:supersedes": 3,
+  "domain-solver#1:facts": 5,
+  "domain-solver#1:hypotheses": 1,
+  "domain-solver#1:questions": 1,
+  "domain-solver#1:refuted": 1,
+  "recon:facts": 3,
+  "recon:hypotheses": 1,
+  "recon:kind:decision": 1,
+  "recon:kind:handoff": 1,
+  "recon:questions": 1
+ },
+ "refused": {
+  "domain-solver#1:denied: control error": 1
+ },
+ "dispatch": [
+  {
+   "to": "intake",
+   "chars": 491,
+   "tested_list": false,
+   "entry_id_refs": 2
+  },
+  {
+   "to": "recon",
+   "chars": 812,
+   "tested_list": false,
+   "entry_id_refs": 3
+  },
+  {
+   "to": "domain-solver",
+   "chars": 696,
+   "tested_list": false,
+   "entry_id_refs": 1
+  },
+  {
+   "to": "domain-solver",
+   "chars": 1406,
+   "tested_list": false,
+   "entry_id_refs": 2
+  },
+  {
+   "to": "domain-solver",
+   "chars": 1166,
+   "tested_list": false,
+   "entry_id_refs": 3
+  },
+  {
+   "to": "recon",
+   "chars": 1184,
+   "tested_list": false,
+   "entry_id_refs": 4
+  },
+  {
+   "to": "domain-solver",
+   "chars": 1483,
+   "tested_list": false,
+   "entry_id_refs": 1
+  }
+ ],
+ "presentation": {
+  "coordinator": {
+   "presented": 10,
+   "workbook_sent": 10,
+   "workbook_chars_sent": 22205,
+   "max_bytes": 4520,
+   "first_full_entries": 0,
+   "sent_kinds": {
+    "True": 10
+   }
+  },
+  "recon": {
+   "presented": 49,
+   "workbook_sent": 18,
+   "workbook_chars_sent": 66878,
+   "max_bytes": 15188,
+   "first_full_entries": 3,
+   "sent_kinds": {
+    "True": 18
+   }
+  },
+  "domain-solver#1": {
+   "presented": 46,
+   "workbook_sent": 17,
+   "workbook_chars_sent": 52983,
+   "max_bytes": 14971,
+   "first_full_entries": 3,
+   "sent_kinds": {
+    "True": 17
+   }
+  },
+  "domain-solver#2": {
+   "presented": 11,
+   "workbook_sent": 2,
+   "workbook_chars_sent": 11673,
+   "max_bytes": 45408,
+   "first_full_entries": 12,
+   "sent_kinds": {
+    "True": 2
+   }
+  }
+ },
+ "prepare_failures": 1,
+ "tool_steps": {
+  "recon": 42,
+  "domain-solver#1": 34,
+  "domain-solver#2": 10
+ },
+ "cross_session_repeats": {
+  "domain-solver#1<-recon:workspace.read": 1,
+  "recon<-domain-solver#1:http.request": 1,
+  "domain-solver#1<-recon:http.request": 1,
+  "domain-solver#2<-domain-solver#1:artifact.read": 1
+ },
+ "active_entries_end": 15
+}

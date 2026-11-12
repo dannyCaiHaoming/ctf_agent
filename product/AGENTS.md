@@ -32,7 +32,7 @@
 - 用 `ctf_recon_note` 寫條目：`slot` 為 `facts`／`hypotheses`／`refuted`／`questions`／`candidate`，`text` 最多 300 字元，一條只寫一件事。事實與已排除路線寫明適用範圍（`scope`）並附證據 ref；假設帶狀態（open／supported／refuted）。
 - 要更新就寫新條目並用 `supersedes` 指向舊條目，不另寫一條並存的近似條目。只能取代自己角色的條目；假設被否定時，可以直接用已排除路線的條目取代它。
 - 視圖有上限。看到 coverage 中有被省略的條目時，交回前合併自己角色的條目；被省略的條目仍可用 `ctf_recon_read` 按 id 讀取。
-- 條目同樣受上一節去敏約束：不含 flag、候選原文、秘密或 cookie 值；候選條目只寫「候選材料在哪個 ref、如何提取」。
+- 條目同樣受上一節去敏約束：不含 flag、候選原文、秘密或 cookie 值；候選條目只寫「候選材料在哪個 ref、如何提取」，且只由 Domain Solver 提出或撤回。
 
 ## 工作區
 

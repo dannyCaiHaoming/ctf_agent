@@ -30,6 +30,7 @@ mode: subagent
   - `hypotheses`：有依據但未證實的解釋，狀態 open；
   - `refuted`：被排除的解釋及排除範圍；
   - `questions`：留給 Solver 或下一輪的具體問題。
+- 看到疑似候選材料時，寫成 `facts`（附 ref 與提取方式，不寫原文），並寫一條 `questions` 請 Solver 確認；`candidate` 條目只由 Solver 提出。
 - decision／handoff 仍按上節記錄調查過程；工作簿條目記錄的是結論，兩者不互相代替。
 
 ## 是否繼續

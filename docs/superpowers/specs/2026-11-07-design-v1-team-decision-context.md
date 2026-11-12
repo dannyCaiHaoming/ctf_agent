@@ -249,21 +249,29 @@ Engineer、Verifier 與裁判的權限不合併，「Solver 宣稱候選」不�
 
 只有 schema 通過、hook 有輸出而實際請求沒有正文，判失敗。
 
-**host 接口的實作結果（2026-11-11）。** 寫入、取代、折疊、上限截取，以及 Recon／Solver／Engineer 與 Coordinator 的注入已實作；`tests/contract/workbook.test.ts` 24 項覆蓋上面驗證第 1–5 項與條目級 delta 的合併還原，全量 865 項通過。實作中定下的細節：
+**host 接口的實作結果（2026-11-11）。** 寫入、取代、折疊、上限截取，以及 Recon／Solver／Engineer 與 Coordinator 的注入已實作；`tests/contract/workbook.test.ts` 26 項覆蓋上面驗證第 1–5 項與兩種視圖條目級 delta 的合併還原，全量 867 項通過。實作中定下的細節：
 - 工作簿相關的拒絕（超長、狀態不合法、取代失效條目等）以具體訊息返回模型，訊息只含固定文字、條目 id 與欄位名；其他 note 錯誤仍是通用拒絕。
 - Recon／Solver／Engineer 的工作簿在 delta 中按條目傳送：只帶新增或改變的條目（各帶所屬欄）、不再呈現的 id，以及有變化的 host 部分；按 id 合併即還原完整視圖。原先整份重送在首次真實 run 中讓單一 session 累計多收 5–7 萬字元（見下）。既有 `state.publications` 與材料目錄仍有重複，待索引按需化時一併處理。
 - episode 來源中，Solver 寫的條目保留 `role: domain-solver`，不被標成 recon。
 - Coordinator 視圖按記錄的更新時間決定折疊順序：各題的 sequence 各自編號、不能跨題比較。最近更新的那題永遠不折疊，只有一題時超出部分改為省略最舊條目，避免單題 run 整題被折成一行。
-- Coordinator 視圖不做條目級 delta，有變化就送完整視圖（≤ 8K 字元）；首次真實 run 中 10 次共約 2.2 萬字元。視圖含剩餘分鐘，所以每跨一分鐘也會觸發一次重送。
+- Coordinator 視圖同樣按條目傳送 delta：變動的條目（帶題目與欄）、移除的 id、有變化的題目標頭（host 事實或折疊狀態），剩餘分鐘與 coverage 只在變化時重複。原先整份重送在 45 分鐘的 run 中累計 8.1 萬字元，其中剩餘分鐘每跨一分鐘就觸發一次。
 - related_ids 或 evidence_refs 無法綁定時，返回具體的拒絕訊息（例如 ref 被截短），不再是通用拒絕。
+- 候選條目由 host 限定只有 Domain Solver 能寫。Recon 看到疑似候選材料時寫成附 ref 的事實，並提出問題請 Solver 確認。Coordinator 在工作簿有 proposed 候選時不以 stop_and_report 結束該題，須先派 Engineer 或請 Solver 撤回，做不到時在 progress note 寫明條目 id 與原因。
 - 已知限制：Coordinator 寫入時若 SQLite 出錯，只拒絕該次寫入，不會像題目角色那樣暫停該題的探索，因為 Coordinator 沒有綁定的題目。
 
-**首次真實 run（2026-11-12，[摘要](../../gates/workbook-runtime-20261112/summary.json)）。** 單題單次，deepseek-v4.1-flash，Solver 開思考，80 次調用預算用完未解出，未派 Engineer。只說明接口在 runtime 中的表現，不是收益證據：
-- **寫入：** Coordinator 寫 6 條問題並取代 3 次；Recon 寫 5 條；Solver 寫 7 條，1 條因截短的 ref 被拒，下一次重試成功。Recon／Solver 從未取代自己的條目，假設到結束仍是 open；條目總數 18，未觸及上限。
-- **承接：** 第二個 Solver session 首個完整投影即帶 12 條上游條目；三個 session 共 86 步，跨 session 重複的工具指紋只有 4 次。
-- **派單：** 6 次 Recon／Solver 派單中 5 次引用條目 id，0 次手抄已測／未測清單，長度 0.7K–1.5K 字元。
-- **據此修正：** 引用拒絕改為具體訊息；Recon／Solver／Engineer 的工作簿改為條目級 delta。
-- **未能判斷：** 預算只讓第二個 Solver 跑了 9 次調用，工作簿對解題的影響需要更大預算的同題配對。
+**真實 run（2026-11-12，[檢查結果](../../gates/workbook-runtime-20261112/)）。** 都是同一題單次、deepseek-v4.1-flash、Solver 開思考，只說明接口在 runtime 中的表現，不是收益證據；計數由 `tests/manual/workbook-run-check.py` 從 run 證據離線算出。
+
+| run | 條件 | 結果 | 能說明什麼 |
+| --- | --- | --- | --- |
+| r1（`05af1de2`） | 80 次調用 | 預算用完未解出，未派 Engineer；寫入 29 次（1 次因截短的 ref 被拒）；第 2 個 Solver 開場接到 12 條；派單 6 次中 5 次引用條目 id、0 次手抄清單 | 寫入、承接與派單改變都在 runtime 成立；整份重送讓 Recon／Solver 單一 session 累計多收 5–7 萬字元 |
+| r2（`825bc343`） | 45 分鐘、調用不限 | Coordinator 自行結束未解出，108 次調用、4 個 Solver session；Solver 開場依序接到 14／17／22／26 條；跨 session 重複的工具指紋 9 次，8 次是讀取；派單全部引用條目 id | 條目級 delta 生效（Recon 18 次 delta 合計約 2.6 萬 bytes）；Coordinator 整份重送 21 次、8.1 萬字元；Recon 寫的候選無人處理，未派 Engineer 即結束 |
+
+據此修正：引用拒絕改為具體訊息；Recon／Solver／Engineer 與 Coordinator 的工作簿都改為條目級 delta；候選限定由 Solver 寫，Coordinator 不得在有 proposed 候選時直接結束。
+
+**仍待觀察：**
+- Recon／Solver 幾乎不取代自己的條目，r2 結束時有 33 條有效條目，facts 已到 17 條，接近 20 條上限；合併規則是否會在觸及上限時被遵循，還沒有樣本。
+- 第 4 個 Solver 的首個完整投影約 79KB，大部分是 200 條步驟索引，工作簿約 1.1 萬字元。上下文成本的大頭已轉到索引，支持評估索引按需化。
+- 兩次都沒有走到候選與提交，工作簿對解題的影響仍需同題配對。
 
 **plan 切分。** 本片按依賴拆成三份 plan，各自驗收：
 1. **host 工作簿接口：** 寫入接口、折疊、上限截取，以及 Recon／Solver／Engineer 視圖的注入；驗證第 1、2、3、5 項（Coordinator 相關部分除外）。保留既有 200 條索引注入，讓變量只有「有沒有工作簿」。

@@ -60,6 +60,14 @@ describe('challenge workbook entries (team-decision §6.1)', () => {
     store.close();
   });
 
+  it('lets only the Domain Solver write candidate entries', async () => {
+    const {store, service, note} = fixture();
+    await expect(note('recon', {slot: 'candidate', text: 'recon candidate'})).rejects.toThrow('candidate entries are written by the Domain Solver only');
+    await expect(coordinatorNote(service, {challenge: 'X', slot: 'candidate', text: 'coordinator candidate'})).rejects.toThrow('can only write questions');
+    await expect(note('solver-a', {slot: 'candidate', text: 'solver candidate'})).resolves.toHaveProperty('id');
+    store.close();
+  });
+
   it('refuses unbound related_ids and evidence_refs with actionable messages', async () => {
     const {store, note} = fixture();
     await expect(note('solver-a', {slot: 'facts', text: 'fact with a shortened ref', evidence_refs: ['b962d132']})).rejects.toThrow('evidence_refs must be complete refs');
@@ -373,14 +381,16 @@ describe('Coordinator workbook view', () => {
 });
 
 describe('Coordinator workbook injection', () => {
-  it('sends the whole view on change, unchanged otherwise, full on compaction; failures block only the Coordinator', async () => {
+  it('sends entry deltas on change, unchanged otherwise, full on compaction; failures block only the Coordinator', async () => {
     const {store, service, note} = fixture();
     const first = await prepare(service, 'root', {messageID: 'cu1', placement: 'chat.message'});
     expect(body(first.text).mode).toBe('full');
     expect(await prepare(service, 'root', {placement: 'tool.execute.after', callID: 't1', visibleVersion: first.version})).toEqual({version: first.version, unchanged: true});
     const q = await note('solver-a', {slot: 'questions', text: 'new solver question'});
-    const changed = await prepare(service, 'root', {placement: 'tool.execute.after', callID: 't2', visibleVersion: first.version});
-    expect(section(body(changed.text), 'X').slots.questions.map((e: any) => e.id)).toEqual([q.id]);
+    const changed = body((await prepare(service, 'root', {placement: 'tool.execute.after', callID: 't2', visibleVersion: first.version})).text);
+    expect(changed).toMatchObject({mode: 'delta', base_version: first.version, workbook: {mode: 'entries', removed: []}});
+    expect(changed.workbook.upserted).toEqual([expect.objectContaining({id: q.id, challenge: 'X', slot: 'questions', text: 'new solver question'})]);
+    expect(changed.workbook).not.toHaveProperty('remaining_min');
     await prepare(service, 'root', {placement: 'compacting'});
     expect(service.audit.filter(a => a.op === 'context.presented' && a.sessionID === 'root').at(-1)).toMatchObject({detail: {challenge: null, mode: 'full', delivery: 'compaction_context', workbook: {included_ids: [q.id]}}});
     await service.handle('root', 'model.call', {agent: 'coordinator', provider: 'stub', model: 'scripted', messageID: 'cu1', contextDeliveries: [{version: first.version, placement: 'chat.message', messageID: 'cu1'}]});
@@ -461,6 +471,53 @@ describe('workbook entry-level delta', () => {
     const d = body((await prepare(service, 'solver-a', {placement: 'tool.execute.after', callID: 'x', visibleVersion: first.version})).text).workbook;
     expect(d.upserted).toHaveLength(1);
     expect(JSON.stringify(d).length).toBeLessThan(fullChars / 5);
+    store.close();
+  });
+});
+
+describe('Coordinator entry-level delta', () => {
+  it('merging Coordinator deltas onto the first full view rebuilds every later full view', async () => {
+    const {store, service, note} = fixture();
+    const merge = (view: any, d: any) => {
+      const next = structuredClone(view);
+      const drop = (id: number) => { for (const c of next.challenges) if (c.slots) for (const k of Object.keys(c.slots)) c.slots[k] = c.slots[k].filter((e: any) => e.id !== id); };
+      for (const id of d.removed) drop(id);
+      next.challenges = next.challenges.filter((c: any) => !(d.removed_challenges ?? []).includes(c.challenge));
+      for (const h of d.challenges ?? []) {
+        const i = next.challenges.findIndex((c: any) => c.challenge === h.challenge);
+        const slots = h.collapsed ? undefined : (i >= 0 && next.challenges[i].slots) || {facts: [], hypotheses: [], refuted: [], questions: [], candidate: []};
+        const merged = slots ? {...h, slots} : h;
+        if (i >= 0) next.challenges[i] = merged; else next.challenges.push(merged);
+      }
+      for (const {challenge, slot, ...e} of d.upserted) {
+        drop(e.id);
+        const c = next.challenges.find((x: any) => x.challenge === challenge);
+        c.slots[slot] = [...c.slots[slot], e].sort((a: any, b: any) => a.id - b.id);
+      }
+      for (const k of ['remaining_min', 'coverage']) if (k in d) next[k] = d[k];
+      return next;
+    };
+    const norm = (view: any) => ({...view, challenges: [...view.challenges].sort((a: any, b: any) => a.challenge.localeCompare(b.challenge)).map((c: any) => c.slots ? {...c, slots: Object.fromEntries(Object.entries(c.slots).map(([k, v]: any) => [k, [...v].sort((a: any, b: any) => a.id - b.id)]))} : c)});
+    const first = await prepare(service, 'root', {messageID: 'cu1', placement: 'chat.message'});
+    let view = body(first.text).workbook, visible = first.version, step = 0;
+    const h = await note('recon', {slot: 'hypotheses', text: 'guess', status: 'open'});
+    const q = await note('solver-a', {slot: 'questions', text: 'question'});
+    for (const write of [
+      () => note('recon', {slot: 'facts', text: 'f'.repeat(200)}),
+      () => note('recon', {slot: 'refuted', text: 'guess refuted', supersedes: h.id}),
+      () => coordinatorNote(service, {challenge: 'X', slot: 'questions', text: 'answered', status: 'answered', supersedes: q.id}),
+      () => note('solver-a', {slot: 'candidate', text: 'candidate in a ref'}),
+      () => note('recon-y', {slot: 'facts', text: 'second challenge appears'}),
+    ]) {
+      await write();
+      const next = await prepare(service, 'root', {placement: 'tool.execute.after', callID: `cd${++step}`, visibleVersion: visible});
+      const d = body(next.text);
+      expect(d.mode).toBe('delta');
+      view = merge(view, d.workbook);
+      const full = body((await prepare(service, 'root', {placement: 'compacting'})).text).workbook;
+      expect(norm(view)).toEqual(norm(full));
+      visible = next.version;
+    }
     store.close();
   });
 });

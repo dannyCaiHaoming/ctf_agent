@@ -1,0 +1,182 @@
+{
+ "run": "wb2-20261112-ac5a1bc0-1",
+ "revision": "825bc343",
+ "status": "completed",
+ "stop_reason": "completed",
+ "model_calls": 108,
+ "agent_options": {
+  "domain-solver": {
+   "thinking": {
+    "type": "enabled"
+   }
+  }
+ },
+ "assistant_messages": {
+  "coordinator": 20,
+  "intake": 4,
+  "recon": 27,
+  "domain-solver#1": 19,
+  "domain-solver#2": 15,
+  "domain-solver#3": 16,
+  "domain-solver#4": 7
+ },
+ "executions": {
+  "intake:completed": 1,
+  "recon:completed": 1,
+  "domain-solver:completed": 4
+ },
+ "completions": [],
+ "workbook_writes": {
+  "coordinator:questions": 3,
+  "coordinator:questions:supersedes": 7,
+  "domain-solver#1:facts": 2,
+  "domain-solver#1:questions": 1,
+  "domain-solver#1:refuted": 1,
+  "domain-solver#2:facts": 2,
+  "domain-solver#2:questions": 1,
+  "domain-solver#2:refuted": 2,
+  "domain-solver#3:facts": 2,
+  "domain-solver#3:questions": 1,
+  "domain-solver#3:refuted": 1,
+  "domain-solver#4:facts": 1,
+  "domain-solver#4:questions:supersedes": 1,
+  "domain-solver#4:refuted": 1,
+  "recon:candidate": 1,
+  "recon:facts": 8,
+  "recon:hypotheses": 2,
+  "recon:kind:decision": 1,
+  "recon:kind:handoff": 1,
+  "recon:questions": 2,
+  "recon:refuted": 2
+ },
+ "refused": {},
+ "dispatch": [
+  {
+   "to": "intake",
+   "chars": 363,
+   "tested_list": false,
+   "entry_id_refs": 0
+  },
+  {
+   "to": "recon",
+   "chars": 1243,
+   "tested_list": false,
+   "entry_id_refs": 4
+  },
+  {
+   "to": "domain-solver",
+   "chars": 1862,
+   "tested_list": false,
+   "entry_id_refs": 5
+  },
+  {
+   "to": "domain-solver",
+   "chars": 1436,
+   "tested_list": false,
+   "entry_id_refs": 7
+  },
+  {
+   "to": "domain-solver",
+   "chars": 1186,
+   "tested_list": false,
+   "entry_id_refs": 7
+  },
+  {
+   "to": "domain-solver",
+   "chars": 825,
+   "tested_list": false,
+   "entry_id_refs": 2
+  }
+ ],
+ "presentation": {
+  "coordinator": {
+   "presented": 21,
+   "workbook_sent": 21,
+   "workbook_chars_sent": 81238,
+   "max_bytes": 7902,
+   "first_full_entries": 0,
+   "sent_kinds": {
+    "True": 21
+   }
+  },
+  "recon": {
+   "presented": 45,
+   "workbook_sent": 19,
+   "workbook_chars_sent": 1283,
+   "max_bytes": 4305,
+   "first_full_entries": 2,
+   "sent_kinds": {
+    "full": 1,
+    "entries": 18
+   },
+   "delta_bytes_with_workbook": 26267
+  },
+  "domain-solver#1": {
+   "presented": 40,
+   "workbook_sent": 6,
+   "workbook_chars_sent": 5571,
+   "max_bytes": 28474,
+   "first_full_entries": 14,
+   "sent_kinds": {
+    "full": 1,
+    "entries": 5
+   },
+   "delta_bytes_with_workbook": 8561
+  },
+  "domain-solver#2": {
+   "presented": 38,
+   "workbook_sent": 8,
+   "workbook_chars_sent": 6786,
+   "max_bytes": 47051,
+   "first_full_entries": 17,
+   "sent_kinds": {
+    "full": 1,
+    "entries": 7
+   },
+   "delta_bytes_with_workbook": 11895
+  },
+  "domain-solver#3": {
+   "presented": 32,
+   "workbook_sent": 6,
+   "workbook_chars_sent": 9086,
+   "max_bytes": 64754,
+   "first_full_entries": 22,
+   "sent_kinds": {
+    "full": 1,
+    "entries": 5
+   },
+   "delta_bytes_with_workbook": 9288
+  },
+  "domain-solver#4": {
+   "presented": 13,
+   "workbook_sent": 5,
+   "workbook_chars_sent": 10820,
+   "max_bytes": 79650,
+   "first_full_entries": 26,
+   "sent_kinds": {
+    "full": 1,
+    "entries": 4
+   },
+   "delta_bytes_with_workbook": 7012
+  }
+ },
+ "prepare_failures": 0,
+ "tool_steps": {
+  "recon": 27,
+  "domain-solver#1": 35,
+  "domain-solver#2": 31,
+  "domain-solver#3": 27,
+  "domain-solver#4": 9
+ },
+ "cross_session_repeats": {
+  "domain-solver#1<-recon:workspace.read": 1,
+  "domain-solver#1<-recon:workspace.list": 1,
+  "domain-solver#2<-domain-solver#1:artifact.read": 2,
+  "domain-solver#2<-recon:workspace.read": 1,
+  "domain-solver#3<-recon:workspace.list": 1,
+  "domain-solver#3<-domain-solver#1:artifact.read": 1,
+  "domain-solver#3<-recon:workspace.read": 1,
+  "domain-solver#3<-domain-solver#1:http.request": 1
+ },
+ "active_entries_end": 33
+}

@@ -1,5 +1,5 @@
 import {investigationView,retrievalSignals,digest} from './investigation-context.js';
-import {workbookView,coordinatorView,activeEntries,workbookBase,workbookDelta,type WorkbookBase,type WorkbookHost,type WorkbookRole} from './workbook.js';
+import {workbookView,coordinatorView,activeEntries,workbookBase,workbookDelta,coordinatorBase,coordinatorDelta,type WorkbookBase,type WorkbookHost,type WorkbookRole} from './workbook.js';
 import { ExperienceStore, NoteRefused, describeSource, type PreparedPayload, type ProcessScope } from './experience-store.js';
 import { classifyChildResult, unknownChildResult, type ChildSource, type ChildResult } from './child-result.js';
 import {CompletionRequests,type CompletionJudge} from './completion-tools.js';
@@ -488,6 +488,7 @@ export class ControlService {
    * Coordinator projection: only the restricted workbook view of active challenges (no index, steps, state or experience).
    * Any change sends the whole view; text is cleaned again at presentation so later-added secrets are covered.
    */
+  private readonly coordinatorBases=new Map<string,Map<string,WorkbookBase>>();
   private prepareCoordinatorContext(binding:Binding,body:Record<string,unknown>,store:ExperienceStore) {
     const run=this.options.runId??'run',placement=body.placement,executions=this.executionSnapshot();
     const clean=(text:string)=>redactProgressText(String(store.clean(text)),this.options.redactions);
@@ -499,13 +500,18 @@ export class ControlService {
         host:{submission:host.goal.submission,packages:host.candidate_host.packages,completions:host.candidate_host.completions,executions:byRole}};
     }).filter(c=>c.active).map(({active:_a,...c})=>c);
     const workbook=coordinatorView(challenges,Math.floor(Math.max(0,this.options.expiresAt-Date.now())/60000),clean);
-    const version=digest(workbook.view),visible=typeof body.visibleVersion==='string'?body.visibleVersion:undefined;
+    const current=coordinatorBase(workbook.view,digest),version=current.hash,visible=typeof body.visibleVersion==='string'?body.visibleVersion:undefined;
     this.live(binding);if(this.stopReason)throw new ControlDenied('run stopped');
+    ControlService.remember(this.coordinatorBases,binding.sessionID,version,current,16);
     this.projectionFailures.delete(binding.sessionID);
     if(placement!=='compacting'&&visible===version)return {version,unchanged:true};
-    const text='[CTF investigation context]\n'+JSON.stringify({mode:'full',version,workbook:workbook.view});
-    const detail={session:binding.sessionID,messageID:typeof body.messageID==='string'?body.messageID:null,callID:typeof body.callID==='string'?body.callID:null,challenge:null,version,mode:'full',placement,
-      workbook:{challenges:challenges.map(c=>c.id),included_ids:workbook.included_ids,omitted_ids:workbook.view.coverage.omitted_ids,failed_ids:workbook.view.coverage.failed_ids,truncated_ids:workbook.view.coverage.truncated_ids,collapsed:workbook.view.coverage.collapsed,chars:workbook.chars},
+    // Append-only: against a visible base only the changed entries/headers are sent; first, compaction and unknown bases get the full view.
+    const base=placement==='compacting'||!visible?undefined:this.coordinatorBases.get(binding.sessionID)?.get(visible);
+    const delta=base?coordinatorDelta(workbook.view,current,base):null;
+    const mode=delta?'delta':'full';
+    const text='[CTF investigation context]\n'+JSON.stringify(delta?{mode,version,base_version:visible,workbook:delta}:{mode,version,workbook:workbook.view});
+    const detail={session:binding.sessionID,messageID:typeof body.messageID==='string'?body.messageID:null,callID:typeof body.callID==='string'?body.callID:null,challenge:null,version,mode,...(delta?{base_version:visible}:{}),placement,
+      workbook:{sent:delta?'entries':'full',challenges:challenges.map(c=>c.id),included_ids:workbook.included_ids,omitted_ids:workbook.view.coverage.omitted_ids,failed_ids:workbook.view.coverage.failed_ids,truncated_ids:workbook.view.coverage.truncated_ids,collapsed:workbook.view.coverage.collapsed,chars:workbook.chars},
       sha256:createHash('sha256').update(text).digest('hex'),bytes:Buffer.byteLength(text,'utf8')};
     if(placement==='compacting')this.record(binding.sessionID,'context.presented',true,undefined,{...detail,delivery:'compaction_context'});
     else ControlService.remember(this.contextPrepared,binding.sessionID,ControlService.deliveryKey({version,placement,messageID:body.messageID,callID:body.callID}),detail,64);
@@ -1051,6 +1057,8 @@ export class ControlService {
       if(memoryName==='recon.note') {
         if(args&&typeof args==='object'&&Object.hasOwn(args,'challenge'))throw new ControlDenied('challenge is bound by the host; only the Coordinator names it');
         if(binding.role==='domain-solver'&&!(args&&typeof args==='object'&&typeof (args as any).slot==='string'))throw new ControlDenied('solver notes must be workbook entries with slot');
+        // Candidate material comes from solving: only the Solver proposes or withdraws candidate entries (team-decision §6.1).
+        if(binding.role!=='domain-solver'&&args&&typeof args==='object'&&(args as any).slot==='candidate')throw new ControlDenied('candidate entries are written by the Domain Solver only');
         try{const note=store.note(scope,args,ref=>this.publicationSnapshot().some(p=>p.ref===ref&&p.source.run===scope.run&&p.source.challenge===scope.challenge)||store.hasRef(ref));return (args as any).kind==='handoff'?{execute:()=>this.freezeHandoff(binding,note,scope)}:note;}
         catch(error){if(error instanceof NoteRefused)throw new ControlDenied(error.message);if((error as {code?:string}).code?.startsWith('ERR_SQLITE'))this.pauseProcess(binding,scope.call);throw error;}
       }

@@ -38,6 +38,7 @@ mode: primary
 - 問題排序歸你。用 `ctf_recon_note({challenge, slot:"questions", text})` 寫下一個要回答的問題；問題已答或放棄時，以 `status: answered` 或 `dropped` 的新條目取代原條目（`supersedes`）。Recon／Solver 提出的問題也由你關閉。你只能寫 questions，不寫也不改事實、假設與已排除路線。
 - 不在 task 文字中手工維護已測／未測／已否定清單，也不轉抄工作簿已有的條目與 ref；下游角色看到的是同一份工作簿。派單只寫本輪特有的部分（見「有界回合」）。
 - 每次交回後先看工作簿的變化再決定下一步：假設被否定、問題已答或出現候選，都應改變派單。沒有新條目也沒有新事實時，不用「繼續嘗試」續派同一問題。
+- 工作簿中有狀態為 proposed 的候選時，不以 `stop_and_report` 結束該題。先派 Engineer 整理它；若已有證據表明它不成立，派 Solver 確認並以 withdrawn 撤回。預算或時間不足以處理時，在 `ctf_progress_note` 中寫明未處理的候選條目 id 與原因。
 
 ## 停滯與 Recovery Critic
 - 出現以下情況時，應明確評估是否分派 Recovery Critic：

@@ -106,7 +106,7 @@ export function coordinatorView(challenges:CoordinatorChallenge[],remainingMin:n
       :{challenge:s.id,slots:Object.fromEntries(WORKBOOK_SLOTS.map(k=>[k,s.shown.get(k)!.map(({sequence:_q,slot:_s,...e})=>e)])),...s.host}),
     coverage:{failed_ids:Object.keys(failed).map(Number).sort((a,b)=>a-b),failed_reasons:failed,truncated_ids:[...truncated].sort((a,b)=>a-b),
       omitted_ids:[...omitted.keys()].sort((a,b)=>a-b),omitted_reasons:Object.fromEntries(omitted),collapsed:sections.filter(s=>s.collapsed).map(s=>s.id),max_chars:maxChars},
-    guidance:'Workbook entries written by Recon/Solver/Coordinator, cleaned and restricted for coordination; not tool facts. Write or close questions with recon.note (challenge, slot=questions, supersedes).',
+    guidance:'Workbook entries written by Recon/Solver/Coordinator, cleaned and restricted for coordination; not tool facts. Write or close questions with recon.note (challenge, slot=questions, supersedes). Later context blocks carry changes by entry id: upserted entries (with challenge and slot) replace or add, removed ids leave the view, changed challenge headers (host facts or collapsed state) replace the header, and remaining_min/coverage are repeated only when they change.',
   });
   let result=build();
   // Over the cap: collapse the least recently updated challenges first (never the most recent one), then drop the oldest
@@ -142,4 +142,30 @@ export function workbookDelta(view:Record<string,any>,current:WorkbookBase,base:
   const removed=[...base.entries.keys()].filter(id=>!current.entries.has(id)).sort((a,b)=>a-b);
   const parts=Object.fromEntries(Object.keys(current.parts).filter(k=>base.parts[k]!==current.parts[k]).map(k=>[k,view[k]]));
   return {mode:'entries',upserted,removed,...parts};
+}
+
+/** Coordinator view base: entries keyed by id (with challenge and slot), each challenge header, and the top-level parts. */
+export function coordinatorBase(view:Record<string,any>,hash:(v:unknown)=>string):WorkbookBase {
+  const entries=new Map<number,string>(),parts:Record<string,string>={};
+  for(const c of view.challenges??[]) {
+    const {slots,...header}=c;parts[`challenge:${c.challenge}`]=hash(header);
+    for(const [slot,list] of Object.entries(slots??{}) as [string,any[]][])for(const e of list)entries.set(Number(e.id),hash({challenge:c.challenge,slot,...e}));
+  }
+  for(const k of ['remaining_min','coverage'])parts[k]=hash(view[k]);
+  return {hash:hash(view),entries,parts};
+}
+/**
+ * Coordinator delta: upserted entries (each names challenge and slot), removed ids, changed challenge headers
+ * (host facts or collapsed state), removed challenges, and remaining_min/coverage when they changed.
+ */
+export function coordinatorDelta(view:Record<string,any>,current:WorkbookBase,base:WorkbookBase) {
+  if(current.hash===base.hash)return null;
+  const upserted:any[]=[];
+  for(const c of view.challenges??[])for(const [slot,list] of Object.entries(c.slots??{}) as [string,any[]][])
+    for(const e of list)if(base.entries.get(Number(e.id))!==current.entries.get(Number(e.id)))upserted.push({challenge:c.challenge,slot,...e});
+  const removed=[...base.entries.keys()].filter(id=>!current.entries.has(id)).sort((a,b)=>a-b);
+  const headers=(view.challenges??[]).filter((c:any)=>base.parts[`challenge:${c.challenge}`]!==current.parts[`challenge:${c.challenge}`]).map(({slots:_s,...h}:any)=>h);
+  const removedChallenges=Object.keys(base.parts).filter(k=>k.startsWith('challenge:')&&!(k in current.parts)).map(k=>k.slice('challenge:'.length));
+  const top=Object.fromEntries(['remaining_min','coverage'].filter(k=>base.parts[k]!==current.parts[k]).map(k=>[k,view[k]]));
+  return {mode:'entries',upserted,removed,...(headers.length?{challenges:headers}:{}),...(removedChallenges.length?{removed_challenges:removedChallenges}:{}),...top};
 }
