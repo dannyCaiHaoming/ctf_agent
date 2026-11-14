@@ -265,13 +265,15 @@ Engineer、Verifier 與裁判的權限不合併，「Solver 宣稱候選」不�
 | --- | --- | --- | --- |
 | r1（`05af1de2`） | 80 次調用 | 預算用完未解出，未派 Engineer；寫入 29 次（1 次因截短的 ref 被拒）；第 2 個 Solver 開場接到 12 條；派單 6 次中 5 次引用條目 id、0 次手抄清單 | 寫入、承接與派單改變都在 runtime 成立；整份重送讓 Recon／Solver 單一 session 累計多收 5–7 萬字元 |
 | r2（`825bc343`） | 45 分鐘、調用不限 | Coordinator 自行結束未解出，108 次調用、4 個 Solver session；Solver 開場依序接到 14／17／22／26 條；跨 session 重複的工具指紋 9 次，8 次是讀取；派單全部引用條目 id | 條目級 delta 生效（Recon 18 次 delta 合計約 2.6 萬 bytes）；Coordinator 整份重送 21 次、8.1 萬字元；Recon 寫的候選無人處理，未派 Engineer 即結束 |
+| r3（`2d22283d`） | 同 r2 | Coordinator 自行結束未解出，95 次調用、3 個 Solver session（23／10／7 次調用）；沒有出現候選條目；跨 session 重複 3 次，全是讀取；派單 4 次引用條目 id | Coordinator 條目級 delta 生效（17 次合計約 1.4 萬 bytes，r2 為 8.1 萬字元）；候選處理與條目合併兩項修正都沒被觸發，仍待驗證 |
 
 據此修正：引用拒絕改為具體訊息；Recon／Solver／Engineer 與 Coordinator 的工作簿都改為條目級 delta；候選限定由 Solver 寫，Coordinator 不得在有 proposed 候選時直接結束。
 
 **仍待觀察：**
-- Recon／Solver 幾乎不取代自己的條目，r2 結束時有 33 條有效條目，facts 已到 17 條，接近 20 條上限；合併規則是否會在觸及上限時被遵循，還沒有樣本。
-- 第 4 個 Solver 的首個完整投影約 79KB，大部分是 200 條步驟索引，工作簿約 1.1 萬字元。上下文成本的大頭已轉到索引，支持評估索引按需化。
-- 兩次都沒有走到候選與提交，工作簿對解題的影響仍需同題配對。
+- Recon／Solver 三次都沒有取代自己的條目；r2 結束時有 33 條有效條目、facts 17 條，r3 為 21 條。合併規則是否會在觸及上限時被遵循，還沒有樣本。
+- Solver 回合仍短：r3 三個 Solver 只有 23／10／7 次調用，與 §6.4 放寬交回門檻的動機一致。
+- 第 4 個 Solver 的首個完整投影約 79KB，大部分是 200 條步驟索引，工作簿約 1.1 萬字元。索引按需讀取已在 [Recon 重設計 §4](2026-10-29-design-v1-recon-redesign.md) 實作（預設 summary），同一組運行設定 `context.workbook` 補上了關閉工作簿的開關。
+- 三次都沒有走到候選與提交，工作簿對解題的影響仍需同題配對；關閉工作簿的開關已由運行設定 `context.workbook` 提供，角色檔不隨之切換。
 
 **plan 切分。** 本片按依賴拆成三份 plan，各自驗收：
 1. **host 工作簿接口：** 寫入接口、折疊、上限截取，以及 Recon／Solver／Engineer 視圖的注入；驗證第 1、2、3、5 項（Coordinator 相關部分除外）。保留既有 200 條索引注入，讓變量只有「有沒有工作簿」。
@@ -345,7 +347,7 @@ Engineer、Verifier 與裁判的權限不合併，「Solver 宣稱候選」不�
 - **child 輸出上限、執行中時間事實、Recon cap 與 closure：** 歸[結果完整性 §5.2](2026-10-25-design-v1-run-readiness-and-result-completeness.md)與 [Recon 重設計 §5](2026-10-29-design-v1-recon-redesign.md)。本文不調這些數值，只在分工與決策受其影響時引用。
 - **Solver 方法缺口：** 歸 [P2 復盤](../analysis/2026-11-06-alibaba-a1-a4-harness-findings.md)及其後續，不在本文。
 - **保留的底線：** Recon 記錄、追加式穩定歷史、完整 artifact 消費、失敗與 unknown、Critic 只建議、Engineer 整理、Verifier 獨立、oracle 規則與總預算。
-- **延後：** 強制 Solver closure、角色合併、模型更換、額外工具和摘要服務。全索引按需化隨 §6.1 驗證有效後再做。沒有證據不預排下一里程碑。
+- **延後：** 強制 Solver closure、角色合併、模型更換、額外工具和摘要服務。全索引按需化已在 Recon 重設計 §4 實作，待真實 run 驗證。沒有證據不預排下一里程碑。
 
 ## 附錄：參考系統
 

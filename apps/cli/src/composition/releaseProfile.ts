@@ -1,6 +1,11 @@
 import { readFile } from 'node:fs/promises';
 import { dirname, resolve } from 'node:path';
 
+export interface ContextSettings { index: 'summary' | 'full'; workbook: boolean }
+export const DEFAULT_CONTEXT: ContextSettings = { index: 'summary', workbook: true };
+/** Effective projection settings: omitted keys take the defaults. */
+export function effectiveContext(value: Partial<ContextSettings> | undefined): ContextSettings { return { ...DEFAULT_CONTEXT, ...(value ?? {}) }; }
+
 export interface ReleaseProfile {
   profileId: string;
   solverMode?: 'm1';
@@ -9,6 +14,8 @@ export interface ReleaseProfile {
   challenges?: string;
   reference: { enabled: boolean };
   learning?: { enabled?: boolean; maxObservableTokens: number; wallClockMs: number };
+  /** Projection content (Recon redesign §4): step index as a summary (default) or in full, and the challenge workbook on (default) or off. */
+  context?: Partial<ContextSettings>;
   budget: { wallClockMs: number; maxSteps: number; maxToolJobs: number; maxObservableTokens: number;
     /** Explicit pathological recon ceiling B per run/challenge, selected by the run owner before launch; not a natural handoff target. Absent pair means OFF/unavailable, with global budgets unchanged. */
     reconMaxModelCalls?: number;
@@ -30,7 +37,7 @@ export async function loadReleaseProfile(path: string): Promise<ReleaseProfile> 
 function assertReleaseProfile(value: unknown): asserts value is ReleaseProfile {
   if (!value || typeof value !== 'object') throw new Error('invalid release profile');
   const profile = value as Record<string, unknown>;
-  const allowed = new Set(['profileId', 'solverMode', 'solverProfile', 'opencode', 'challenges', 'reference', 'budget', 'os', 'learning']);
+  const allowed = new Set(['profileId', 'solverMode', 'solverProfile', 'opencode', 'challenges', 'reference', 'budget', 'os', 'learning', 'context']);
   if (Object.keys(profile).some(key => !allowed.has(key) && key !== 'model')) throw new Error('release profile contains unknown fields');
   if (profile.model !== undefined || profile.solverMode === 'm0') throw new Error('direct-provider profiles are retired; use an OpenCode release profile');
   if (profile.opencode === undefined) throw new Error('OpenCode opencode.configPath is required');
@@ -54,6 +61,12 @@ function assertReleaseProfile(value: unknown): asserts value is ReleaseProfile {
     if(!learning||typeof learning!=='object'||Object.keys(learning).some(k=>!['enabled','maxObservableTokens','wallClockMs'].includes(k))||
       learning.enabled!==undefined&&typeof learning.enabled!=='boolean'||
       !Number.isSafeInteger(learning.maxObservableTokens)||Number(learning.maxObservableTokens)<=0||!Number.isSafeInteger(learning.wallClockMs)||Number(learning.wallClockMs)<=0)throw new Error('invalid learning budget');
+  }
+  if (profile.context !== undefined) {
+    const context = profile.context as Record<string, unknown>;
+    if (!context || typeof context !== 'object' || Array.isArray(context) || Object.keys(context).some(k => !['index', 'workbook'].includes(k)) ||
+      (context.index !== undefined && context.index !== 'summary' && context.index !== 'full') ||
+      (context.workbook !== undefined && typeof context.workbook !== 'boolean')) throw new Error('invalid context settings');
   }
   const budget = profile.budget as Record<string, unknown>;
   for (const key of ['wallClockMs', 'maxSteps', 'maxToolJobs', 'maxObservableTokens']) {

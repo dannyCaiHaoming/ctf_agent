@@ -1,0 +1,155 @@
+{
+ "run": "wb3-20261112-ac5a1bc0-1",
+ "revision": "2d22283d",
+ "status": "completed",
+ "stop_reason": "completed",
+ "model_calls": 95,
+ "agent_options": {
+  "domain-solver": {
+   "thinking": {
+    "type": "enabled"
+   }
+  }
+ },
+ "assistant_messages": {
+  "coordinator": 16,
+  "intake": 5,
+  "recon": 34,
+  "domain-solver#1": 23,
+  "domain-solver#2": 10,
+  "domain-solver#3": 7
+ },
+ "executions": {
+  "intake:completed": 1,
+  "recon:completed": 1,
+  "domain-solver:completed": 3
+ },
+ "completions": [],
+ "workbook_writes": {
+  "coordinator:questions": 3,
+  "coordinator:questions:supersedes": 6,
+  "domain-solver#1:facts": 2,
+  "domain-solver#1:hypotheses": 1,
+  "domain-solver#1:questions": 1,
+  "domain-solver#1:refuted": 1,
+  "domain-solver#2:facts": 1,
+  "domain-solver#2:questions": 1,
+  "domain-solver#2:refuted": 1,
+  "domain-solver#3:facts": 1,
+  "domain-solver#3:refuted": 1,
+  "recon:facts": 4,
+  "recon:hypotheses": 1,
+  "recon:kind:decision": 1,
+  "recon:kind:handoff": 1,
+  "recon:questions": 1,
+  "recon:refuted": 2
+ },
+ "refused": {},
+ "dispatch": [
+  {
+   "to": "intake",
+   "chars": 241,
+   "tested_list": false,
+   "entry_id_refs": 0
+  },
+  {
+   "to": "recon",
+   "chars": 918,
+   "tested_list": false,
+   "entry_id_refs": 1
+  },
+  {
+   "to": "domain-solver",
+   "chars": 1837,
+   "tested_list": true,
+   "entry_id_refs": 7
+  },
+  {
+   "to": "domain-solver",
+   "chars": 1433,
+   "tested_list": false,
+   "entry_id_refs": 3
+  },
+  {
+   "to": "domain-solver",
+   "chars": 797,
+   "tested_list": false,
+   "entry_id_refs": 4
+  }
+ ],
+ "presentation": {
+  "coordinator": {
+   "presented": 18,
+   "workbook_sent": 18,
+   "workbook_chars_sent": 656,
+   "max_bytes": 3049,
+   "first_full_entries": 0,
+   "sent_kinds": {
+    "full": 1,
+    "entries": 17
+   },
+   "delta_bytes_with_workbook": 13587
+  },
+  "recon": {
+   "presented": 50,
+   "workbook_sent": 12,
+   "workbook_chars_sent": 1084,
+   "max_bytes": 3567,
+   "first_full_entries": 1,
+   "sent_kinds": {
+    "full": 1,
+    "entries": 11
+   },
+   "delta_bytes_with_workbook": 17965
+  },
+  "domain-solver#1": {
+   "presented": 36,
+   "workbook_sent": 7,
+   "workbook_chars_sent": 3981,
+   "max_bytes": 27589,
+   "first_full_entries": 8,
+   "sent_kinds": {
+    "full": 1,
+    "entries": 6
+   },
+   "delta_bytes_with_workbook": 9703
+  },
+  "domain-solver#2": {
+   "presented": 20,
+   "workbook_sent": 5,
+   "workbook_chars_sent": 5485,
+   "max_bytes": 45581,
+   "first_full_entries": 12,
+   "sent_kinds": {
+    "full": 1,
+    "entries": 4
+   },
+   "delta_bytes_with_workbook": 7394
+  },
+  "domain-solver#3": {
+   "presented": 8,
+   "workbook_sent": 4,
+   "workbook_chars_sent": 6797,
+   "max_bytes": 56050,
+   "first_full_entries": 15,
+   "sent_kinds": {
+    "full": 1,
+    "entries": 3
+   },
+   "delta_bytes_with_workbook": 5404
+  }
+ },
+ "prepare_failures": 0,
+ "tool_steps": {
+  "recon": 40,
+  "domain-solver#1": 32,
+  "domain-solver#2": 16,
+  "domain-solver#3": 5
+ },
+ "cross_session_repeats": {
+  "domain-solver#1<-recon:workspace.list": 1,
+  "domain-solver#1<-recon:workspace.read": 1,
+  "domain-solver#2<-domain-solver#1:artifact.read": 1
+ },
+ "active_entries_end": 21
+}

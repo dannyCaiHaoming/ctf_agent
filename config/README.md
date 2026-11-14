@@ -30,6 +30,19 @@ launcher 除了 `provider`、`model`、`enabled_providers`，還會讀取 profil
 }
 ```
 
+## 投影內容（運行設定的 `context` 欄位）
+
+release profile 可選的 `context` 欄位決定 host 注入給角色的上下文內容，依據見 [Recon 重設計](../docs/superpowers/specs/2026-10-29-design-v1-recon-redesign.md) §4「索引按需讀取」：
+
+- `index`：`summary`（預設）只帶索引摘要與重複提示（`repeat_of`），完整步驟由 `ctf_recon_read` 讀取；`full` 帶完整步驟索引，與之前的行為相同。
+- `workbook`：`true`（預設）注入題目工作簿；`false` 不注入，帶 `slot` 的 `ctf_recon_note` 一律拒絕，Recon 的普通 decision／handoff 不受影響。角色檔不隨設定切換。
+
+生效值寫入 `state/run.json` 的 `context`，可據此區分配對對照的兩組 run。省略整個欄位等於 `{"index": "summary", "workbook": true}`：
+
+```json
+"context": { "index": "full", "workbook": false }
+```
+
 ## DeepSeek 官方 API
 
 在倉庫根目錄的 `.env` 設置 `DEEPSEEK_API_KEY`（欄位範例見 `.env.example`）。launcher 從當前目錄讀取 `.env`，已有進程環境變量優先；密鑰只注入受管 OpenCode 進程，不寫入產品資產或 JSON 配置。`.env` 已被 Git 忽略。

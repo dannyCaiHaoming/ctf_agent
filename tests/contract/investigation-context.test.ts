@@ -13,7 +13,7 @@ function fixture() {
   mkdirSync(materials, {recursive: true});
   const store = new ExperienceStore(join(root, 'experience.sqlite'));
   const client = {session: {get: async ({sessionID}: any) => ({data: {id: sessionID, parentID: 'root'}}), messages: async () => ({data: []}), children: async () => ({data: []}), abort: async () => ({data: true})}};
-  const service = new ControlService({client: client as never, runId: 'A', experienceStore: store, workdir: join(root, 'opencode'), skillRoot: join(root, 'skills'), expiresAt: Date.now() + 60000,
+  const service = new ControlService({context: {index: 'full', workbook: true}, client: client as never, runId: 'A', experienceStore: store, workdir: join(root, 'opencode'), skillRoot: join(root, 'skills'), expiresAt: Date.now() + 60000,
     budget: {maxModelCalls: 50, maxObservableTokens: 10000, maxToolJobs: 3}, challenges: [{id: 'X', title: null, target: null, reachability: null, materials: [], materialsDir: materials}]});
   service.bindRoot('root');
   for (const id of ['recon', 'recon-b']) {

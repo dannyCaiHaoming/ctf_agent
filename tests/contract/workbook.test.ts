@@ -180,7 +180,9 @@ describe('workbook injection', () => {
     const payload = body((await prepare(service, 'solver-b', {messageID: 'u1', placement: 'chat.message'})).text);
     expect(payload.mode).toBe('full');
     expect(payload.recent).toEqual([]);
-    expect(payload.index.coverage.complete).toBe(false);
+    // Default index mode is summary: the 200-entry index is not inlined, the summary counts every step.
+    expect(payload).not.toHaveProperty('index');
+    expect(payload.index_summary.total).toBe(207);
     expect(texts(payload.workbook, 'facts')).toEqual(['upstream fact from recon']);
     expect(texts(payload.workbook, 'questions')).toEqual(['question left by the previous solver']);
     expect(payload.workbook.goal.challenge).toBe('X');

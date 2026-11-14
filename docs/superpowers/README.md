@@ -38,7 +38,7 @@
 | 修改同步任务交付身份、续接参数继承 | [任务参数继承与同步交付身份](specs/2026-10-25-design-v1-sync-resume-provenance.md) | 同步交付已实现并合入（merge `c120e143`），无模型验证通过；Q5 promotion 按可达性判定记录为限制、未实现。 |
 | 排查 finish=length、空正文或结果分类 | [生成到上限后的空正文与结果恢复](specs/2026-10-26-design-v1-c-empty-result-recovery.md) | 普通完成入口的多轮分类修复已合入；转后台、错误与不支持链的边界保留；实际额度接线与生成改善待验证。 |
 | 追溯旧 r4／r5 Verifier 拒绝原因 | [D 从证据到验证结论](specs/2026-10-26-design-v1-d-evidence-to-completion.md) | 历史问题与证据子文件；当前职责与提交策略以 D 最小版 §5–7 为准。 |
-| 修改 Recon 记录、上下文呈现、经验／lesson 或执行中时间事实 | [Recon 重设计](specs/2026-10-29-design-v1-recon-redesign.md) | 记录与学习链路已收口；时间事实已落地（`7c414e6e`），长 child 仍常拖到末段才交回；经验收益缺对照组，未证实。 |
+| 修改 Recon 记录、上下文呈现、经验／lesson 或执行中时间事实 | [Recon 重设计](specs/2026-10-29-design-v1-recon-redesign.md) | 记录与学习链路已收口；时间事实已落地（`7c414e6e`），长 child 仍常拖到末段才交回；经验收益缺对照组，未证实。2026-11-14 §4 索引按需读取已实作（默认索引摘要＋`repeat_of` 提示，运行设定 `context.index`／`context.workbook` 可退回与配对），无模型契约测试通过，真实 run 待验证。 |
 | 分析 run 墙钟时间、token、思考开关与上下文成本 | [解题延迟与上下文成本](specs/2026-11-04-design-v1-run-latency-and-context-cost.md) | §3.1、§3.2、§3.4 已采用；§3.3 并行与 §3.5 已试路线摘要延后；Coordinator 关闭思考与出处条件修订待配对 run（需另行授权预算）。 |
 | 评估题目图片能否交给模型观察 | [图像观察](specs/2026-10-29-design-v1-image-observation.md) | 候选 A（`workspace.view` 图像交付）已合入 main；模型能否借看图解题未证实，B／C／D 未做；不是模型调用授权。 |
 | 追溯旧架构取舍、迁移原因或已知教训 | [现状、教训与迁移记录](specs/2026-10-22-ctf-agent-current-state-and-migration.md) | 历史参考，部分状态已过期；优先核对当前实现与详细 design。旧待办、冻结轨迹和里程碑不自动继承。 |

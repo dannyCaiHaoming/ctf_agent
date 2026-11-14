@@ -53,3 +53,22 @@ export function retrievalSignals(store:ExperienceStore,statement:string,material
   }
   return {signals,query:words.join(' ')};
 }
+
+type IndexEntry=ReturnType<typeof indexEntry>;
+/**
+ * Index summary (Recon redesign §4): mechanical counts and entry points only. No step's tool, arguments or result;
+ * every step stays reachable through recon.read.
+ */
+export function indexSummary(view:{all:IndexEntry[];in_flight_ids:number[];gaps:string[]}) {
+  const sessions=new Map<string,{session_id:string;role:string;steps:number;last_sequence:number}>();
+  for(const e of view.all){const s=sessions.get(e.session_id)??{session_id:e.session_id,role:e.role??'recon',steps:0,last_sequence:0};s.steps++;s.last_sequence=Math.max(s.last_sequence,e.sequence);sessions.set(e.session_id,s);}
+  return {total:view.all.length,sessions:[...sessions.values()],in_flight_ids:view.in_flight_ids,gaps:view.gaps,
+    first_cursor:view.all[0]?.cursor??null,last_cursor:view.all.at(-1)?.cursor??null,
+    read:'Every step of this challenge (all roles) is in the record. Read it with recon.read: cursor (page from first_cursor), ids, kind, step_id or start_sequence/end_sequence. The workbook holds the current state; this summary is only navigation.'};
+}
+export const REPEAT_LIMIT=5;
+/** Mechanical repeat hint: earlier tool steps with the same tool and argument fingerprint. Notes never count; never a block. */
+export function repeatsOf(all:IndexEntry[],steps:IndexEntry[]) {
+  return steps.filter(e=>e.kind==='tool').map(e=>({id:e.id,repeat_of:all.filter(p=>p.kind==='tool'&&p.id!==e.id&&p.tool===e.tool&&p.fingerprint===e.fingerprint&&(p.sequence<e.sequence||(p.sequence===e.sequence&&p.id<e.id)))
+    .slice(0,REPEAT_LIMIT).map(p=>({id:p.id,role:p.role,status:p.status}))})).filter(r=>r.repeat_of.length>0);
+}

@@ -25,7 +25,7 @@ import { classifyRootResult, canSettleRoot, trailingLengthTurns, type RootResult
 import { ProgressLedger } from './progress-ledger.js';
 import { startControlRpc } from './control-rpc.js';
 import { loadLocalEnv } from '../../cli/src/composition/localEnv.js';
-import { loadReleaseProfile } from '../../cli/src/composition/releaseProfile.js';
+import { loadReleaseProfile, effectiveContext } from '../../cli/src/composition/releaseProfile.js';
 
 export const ROOT_CONTINUATION_MESSAGE = '上一回合因單次輸出上限中斷，沒有產生可用正文。請依目前進度直接決定下一步：派單、提交，或給出最終報告；不要重複長篇分析。';
 const MAX_ROOT_CONTINUATIONS = 2; // consecutive, reset once Root produces a non-length turn
@@ -258,7 +258,8 @@ async function runLaunch(options: LaunchOptions, rpc: { url: string; token: stri
   };
   const sessionIds = new Set<string>();
   const deadlineAt = Date.now() + deadlineMs; // one deadline for the launcher loop and for every binding's expiry
-  const control = new ControlService({ experienceStore:experience, completionJudges:options.completionJudges, client, runId, budget: { maxModelCalls: profile.budget.maxSteps, maxObservableTokens: profile.budget.maxObservableTokens, maxToolJobs: profile.budget.maxToolJobs,
+  const context = effectiveContext(profile.context);
+  const control = new ControlService({ context, experienceStore:experience, completionJudges:options.completionJudges, client, runId, budget: { maxModelCalls: profile.budget.maxSteps, maxObservableTokens: profile.budget.maxObservableTokens, maxToolJobs: profile.budget.maxToolJobs,
     reconMaxModelCalls: profile.budget.reconMaxModelCalls, reconClosureReserve: profile.budget.reconClosureReserve },
     expiresAt: deadlineAt, workdir: real.opencode, skillRoot: join(configDirectory, 'skills'), challenges: prepared, redactions: secrets, onAudit: record => progress.append(record) });
   attach(control);
@@ -458,7 +459,7 @@ async function runLaunch(options: LaunchOptions, rpc: { url: string; token: stri
   await save(join(real.evidence, 'assets.json'), { productRevision, copies });
   await save(join(real.state, 'run.json'), { runId, status, rootResult, rootSessionId: rootId || null, sessions: [...sessionIds], rootContinuations,
     deadlineMs, agentOptions: merged.effective, opencodeVersion: engine.version, model: loaded.config.model, configSha256: sha256(JSON.stringify({ ...config, plugin: undefined })), productRevision,
-    learning:learningSummary,budget: profile.budget, admittedModelCalls: control.admitted, stopReason: control.stopReason ?? null, usageTotal,
+    learning:learningSummary,context,budget: profile.budget, admittedModelCalls: control.admitted, stopReason: control.stopReason ?? null, usageTotal,
     paths: real, timeline });
   return { code: status === 'completed' ? 0 : 1, status, runDir };
 }
