@@ -236,12 +236,14 @@ Engineer、Verifier 與裁判的權限不合併，「Solver 宣稱候選」不�
 - **每次交回會新增多少。** Solver 交回 3–26 行清單，Recon 交回 8–36 行；Recon 現有 note 把 1.3K–3.7K 字元塞進一條，改按欄位後會拆成多條。單條 300 字元按現有清單行長度定。
 - **對照現有注入。** 新 Solver session 收到的完整調查投影為 8.4K–86.9K 字元（中位數 15.1K），主要是步驟索引，之後每次增量約 450 字元。12K 上限只有在各欄同時接近滿額時才會觸發。
 - **限制。** 「一行清單 ≈ 一條條目」是代理，沒有讀交回內容逐條核對；ezoj 佔 9 個 run。接口驗證後用真實寫入的條目數重估，數值不是產品門檻前的定案。
+- **用 r1–r3 重估（2026-11-16，只取 `experience.sqlite` 的計數與字數）。** 結束時視圖中的條目：r2 有 25 條，正文 4.7K、條目 JSON 9.0K；r3 有 15 條，正文 3.0K、條目 JSON 5.5K。每條約 360 字元，是正文的兩倍左右，多出的部分是 evidence_refs（約 42）、scope（約 30）與欄位名（約 100）。加上目標、材料、coverage 與 guidance 約 1.8K，Recon／Solver 視圖約在 28 條時觸及 12K，遠早於各欄上限合計的 59 條，因此實際起作用的是總量上限。r2 末尾第 4 個 Solver 的視圖約 10.8K，已用掉約 90%。超界時按 sequence 先省略最舊條目，最先被省略的往往是 Recon 的基線事實（列在 `omitted_ids`，不靜默丟失）。原估算按「單條 300 字元」計總量，低估了每條條目的實際大小。
+- **決定：數值暫不改，改設觸發條件。** 三次 run 都未觸頂，模型也從未合併自己的條目，此時調高上限只是把問題延後。首次出現 `total_cap` 省略時核對兩點：模型是否按角色檔合併條目；被省略的舊條目之後是否被需要（被 `recon.read` 展開或被派單引用）。據此在調高總量、強制合併與縮減每條額外欄位三者中選一。不採用現在就調到約 20K：理由是索引摘要化後工作簿已是 Solver 收到的主要內容，但目前沒有樣本觸頂。
 
 **取代的現有做法。**
 - Coordinator 在派單文字中手工維護 tested／untested／refuted 線索清單並轉抄 refs（[design-b §8.1](2026-10-26-design-v1-b-method-generalization-and-efficiency.md)）；角色檔相應精簡。
 - 「只有 Recon 能寫 note」的准入；改為 Recon／Solver 按欄位寫入。
 - Solver「先測 Recon 線索清單才能轉向」的順序；改為按工作簿中的未決問題與假設選擇實驗。
-- 歷史經驗檢索與題後 episode 必須核對條目的作者角色，不把 Solver 條目當已驗證 lesson。
+- 歷史經驗檢索與題後 episode 必須核對條目的作者角色，不把 Solver 條目當已驗證 lesson。**已由現有機制滿足（2026-11-16 核對）：** episode 輸入的每條記錄帶 host 綁定的 `role`，step_list 也標明角色（`episode-learning.ts`）；outcome 由 host 從 completion 記錄計算；lesson 提示要求保留未驗證限制、不輸出成功聲明，呈現時標 `reference_only`，lesson 本來就沒有「已驗證」狀態。剩下的缺口是 episode 提示沒有說明帶欄位的 decision 是作者判斷而非工具事實，移到 §6.4「恢復與經驗庫」。r1–r3 的 episode 都是 pending、lesson 為 0，沒有混入的證據。
 
 **無模型接口驗證**（沿實際 launcher／plugin／固定 OpenCode 公開接口，用合成事件和固定回應）：
 1. 條目能按欄寫入並被取代；被取代條目仍可按 id 讀回並帶 `superseded_by`；越權取代他人條目、取代已失效條目、異題或非當前 execution 寫入、Coordinator 寫非問題欄或未帶題目，都被拒。
@@ -313,7 +315,7 @@ Engineer、Verifier 與裁判的權限不合併，「Solver 宣稱候選」不�
 每片各自一份 plan，不合併成一次大改。
 - **Solver 交回門檻放寬：** 工作簿能承接狀態後，評估讓 Solver 同問題在同一 session 持續，只在問題答完、需要外部前提或時間不足時交回。
 - **衝突呈現：** 同一條觀察被 Recon 和 Solver 不同解釋時，各視圖能看到衝突與支持範圍；沒有額外證據時 host 不自動裁定。
-- **恢復與經驗庫：** compaction、重啟、長交回及缺分頁時保留來源和缺口；經驗檢索／episode 保留作者與來源，不把 Solver 自述當成功。
+- **恢復與經驗庫：** compaction、重啟、長交回及缺分頁時保留來源和缺口；經驗檢索／episode 保留作者與來源，不把 Solver 自述當成功。角色綁定與 host outcome 已具備（§6.1「取代的現有做法」）；待真實產生 lesson 後，評估是否在 episode 提示中說明帶欄位的 decision 是作者判斷，不先改提示。
 
 ## 7. 驗證方法
 
@@ -341,7 +343,7 @@ Engineer、Verifier 與裁判的權限不合併，「Solver 宣稱候選」不�
   - **關閉組：** `context.workbook=false`，以 `--product` 指向改動前的角色檔：`6adf73fa~1` 的 `product/`，加上 `05af1de2` 的改動（oracle-first 提交，與工作簿無關）；排除 `6adf73fa` 與 `2d22283d` 的工作簿規則。只關 host 而保留現行角色檔不採用：模型會按工作簿規則行事卻沒有工作簿（Solver 寫 note 全被拒，Coordinator 引用看不到的條目 id），量到的是規則與環境不一致的損失。用歷史 run 作基線也不採用：索引預設與提交規則已變，不是同期配對。
   - **兩臂共同：** summary 索引、四項決策事實、同一份 host 代碼。關閉組中，舊 Solver 不寫 note 與 host 拒絕一致；舊 Recon 的不帶欄位 decision／handoff 照常放行；舊 Coordinator 不寫 `recon.note`。
   - **關閉組產品目錄：** 批次執行時從 git 生成到 run 目錄外的批次目錄，不在倉庫另存一份角色檔；生成方法、來源 commit 組合與各資產 sha256 寫進批次記錄。外部目錄的 metadata `productDirty` 會顯示為未知，以複製清單的 sha256 核對兩臂實際用了哪份角色檔。
-  - **lesson 隔離：** `experience.sqlite` 位於 runs-root、同 root 的 run 共用（`launch.ts`），開啟組 episode 帶工作簿條目會被關閉組檢索到。每個 run 用獨立 runs-root，或從同一份凍結的庫複製起步。
+  - **lesson 隔離：** `experience.sqlite` 位於 runs-root、同 root 的 run 共用（`launch.ts`），開啟組 episode 帶工作簿條目會被關閉組檢索到。每個 run 用獨立 runs-root，或從同一份凍結的庫複製起步。r1–r3 沒有跑 learning（episode 都是 pending），兩臂從同一份凍結的庫起步即可。
   - 本條只定對照組成，不授權運行；題目、模型／provider、批次與 token 上限仍按上文另行授權。
 - **記錄：** 首次可開工交接、實際承接的來源、錯輪／缺資料次數、無新前提的重做、首次候選聲稱／固定 package／提交時點、accepted／solved、用量和停止原因。人工復核保留判斷依據與不確定性，不以 hash 當「新資訊」。所有失敗計入，usage 缺失記 unavailable。
 
