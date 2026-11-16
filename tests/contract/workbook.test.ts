@@ -90,12 +90,18 @@ describe('challenge workbook entries (team-decision §6.1)', () => {
     const s2 = await note('solver-b', {slot: 'hypotheses', text: 'first guess supported', status: 'supported', supersedes: s1.id});
     await expect(note('solver-b', {slot: 'hypotheses', text: 'fork', status: 'open', supersedes: s1.id})).rejects.toThrow(`active entry is ${s2.id}`);
     const r1 = await note('recon', {slot: 'facts', text: 'recon fact'});
-    await expect(note('solver-a', {slot: 'facts', text: 'solver rewrites recon', supersedes: r1.id})).rejects.toThrow('its own role');
+    await expect(note('solver-a', {slot: 'facts', text: 'solver rewrites recon', supersedes: r1.id})).rejects.toThrow(`related_ids [${r1.id}]`);
+    await expect(note('solver-a', {slot: 'refuted', text: 'solver retires recon fact', supersedes: r1.id})).rejects.toThrow('its own role');
     await expect(note('recon', {slot: 'hypotheses', text: 'recon rewrites solver', status: 'open', supersedes: s2.id})).rejects.toThrow('its own role');
-    // hypotheses -> refuted is the only cross-slot supersede.
+    // hypotheses -> refuted and facts -> refuted (same role, any session) are the only cross-slot supersedes.
     const s3 = await note('solver-a', {slot: 'refuted', text: 'guess refuted by the second experiment', supersedes: s2.id});
     const f1 = await note('solver-a', {slot: 'facts', text: 'solver fact'});
-    await expect(note('solver-a', {slot: 'questions', text: 'fact turned into question', supersedes: f1.id})).rejects.toThrow('cannot supersede a facts entry');
+    await expect(note('solver-a', {slot: 'questions', text: 'fact turned into question', supersedes: f1.id})).rejects.toThrow('only hypotheses and facts may be superseded by a refuted entry');
+    await expect(note('solver-b', {slot: 'refuted', text: 'fact retired', status: 'refuted', supersedes: f1.id})).rejects.toThrow('take no status; omit it');
+    const f2 = await note('solver-b', {slot: 'refuted', text: 'earlier solver fact did not hold', supersedes: f1.id});
+    const after = workbookView(store.allRecords('A', 'X'), 'domain-solver', {goal: {challenge: 'X', materials: [], submission: null}, candidate_host: {packages: [], completions: []}}).view as any;
+    expect(after.slots.facts.map((e: any) => e.id)).not.toContain(f1.id);
+    expect(after.slots.refuted.map((e: any) => e.id)).toContain(f2.id);
     const y = await note('recon-y', {slot: 'facts', text: 'other challenge'});
     await expect(note('recon', {slot: 'facts', text: 'cross challenge', supersedes: y.id})).rejects.toThrow('workbook entry of this challenge');
     // Read-time annotation; stored rows unchanged.

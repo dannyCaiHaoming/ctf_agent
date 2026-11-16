@@ -1,0 +1,80 @@
+{
+  "note": "Single-arm interface smoke run (not a benefit comparison). Counts and key names only, derived from run evidence; no message text, entry text, refs, candidate or flag.",
+  "run": "wbs-20261116-ac5a1bc0-1",
+  "challenge": "2023-web-ac5a1bc0",
+  "product_revision": "6ef0a50c",
+  "product_dirty": false,
+  "context": {"index": "summary", "workbook": true},
+  "outcome": {
+    "status": "completed",
+    "stop_reason": "completed",
+    "root_finish": "stop",
+    "exit_code": 0,
+    "elapsed_ms": 1520653,
+    "deadline_ms": 1800000,
+    "model_calls": 124
+  },
+  "interface_checks": {
+    "prepare_failures": 0,
+    "full_projection_index_summary": {
+      "recon": {"index_summary": true, "index": false, "summary_total": 2, "summary_sessions": 1, "summary_gaps": 1},
+      "domain-solver#1": {"index_summary": true, "index": false, "summary_total": 46, "summary_sessions": 2},
+      "domain-solver#2": {"index_summary": true, "index": false, "summary_total": 101, "summary_sessions": 3},
+      "domain-solver#3": {"index_summary": true, "index": false, "summary_total": 111, "summary_sessions": 4}
+    },
+    "solver_opening_workbook_entries": {"domain-solver#1": 11, "domain-solver#2": 18, "domain-solver#3": 22},
+    "workbook_top_level_keys": ["candidate_host", "coverage", "goal", "guidance", "slots"],
+    "workbook_has_materials_key": false,
+    "workbook_goal_materials_names": 2,
+    "publications_at_solver_opening": {"domain-solver#1": 7, "domain-solver#2": 10, "domain-solver#3": 11},
+    "publication_kinds_final": {"file": 10, "job": 1},
+    "publication_refs_in_workbook_host_parts": 0,
+    "publication_refs_cited_in_entry_evidence": {"domain-solver#1": 4, "domain-solver#2": 7, "domain-solver#3": 8},
+    "coordinator_workbook": {
+      "presented": 21,
+      "sent_full": 1,
+      "sent_entries": 20,
+      "full_view_chars": 656,
+      "delta_bytes_with_workbook": 15557
+    },
+    "coverage": {
+      "complete": true,
+      "omitted_ids": 0,
+      "total_cap": 0,
+      "slot_cap": 0
+    },
+    "final_active_entries": {"facts": 12, "refuted": 4, "hypotheses": 3, "questions_open": 3, "questions_closed": 5, "candidate": 0, "total": 27},
+    "accepted_supersedes": {"coordinator_questions": 5, "solver": 0},
+    "refused_workbook_writes": 5,
+    "candidate": {"entries": 0, "package_publications": 0, "engineer_executions": 0, "completions": 0},
+    "cross_challenge_or_wrong_round": 0,
+    "recon_read_calls": 1
+  },
+  "sessions": {
+    "coordinator_calls": 26,
+    "intake_calls": 4,
+    "recon_calls": 26,
+    "recovery_critic": {"sessions": 1, "calls": 3},
+    "solver": {"sessions": 3, "calls": [37, 9, 19]}
+  },
+  "cross_session_repeated_tool_fingerprints": 5,
+  "usage": {
+    "availability": "reported",
+    "input_tokens": 393191,
+    "output_tokens": 45889,
+    "reasoning_tokens": 160210,
+    "lower_bound": false
+  },
+  "r3_comparison": {
+    "product_revision": "2d22283d",
+    "model_calls": 95,
+    "solver_calls": [23, 10, 7],
+    "solver_opening_workbook_entries": [8, 12, 15],
+    "coordinator_presented": 18,
+    "coordinator_sent_full": 1,
+    "coordinator_sent_entries": 17,
+    "coordinator_delta_bytes_with_workbook": 13587,
+    "cross_session_repeated_tool_fingerprints": 3,
+    "usage": {"input_tokens": 350675, "output_tokens": 34606, "reasoning_tokens": 121510}
+  }
+}

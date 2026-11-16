@@ -36,7 +36,7 @@ export function checkWorkbookEntry(a:{kind:string;slot?:WorkbookSlot;text?:strin
   if(a.text.length>WORKBOOK_TEXT_MAX)throw new NoteRefused(`workbook text exceeds ${WORKBOOK_TEXT_MAX} characters; split or shorten it`);
   if(a.scope!==undefined&&a.scope.length>WORKBOOK_SCOPE_MAX)throw new NoteRefused(`workbook scope exceeds ${WORKBOOK_SCOPE_MAX} characters`);
   const rule=WORKBOOK_STATUS[a.slot];
-  if(!rule){if(a.status!==undefined)throw new NoteRefused(`${a.slot} entries take no status`);return {slot:a.slot};}
+  if(!rule){if(a.status!==undefined)throw new NoteRefused(`${a.slot} entries take no status; omit it`);return {slot:a.slot};}
   const status=a.status??rule.default;
   if(status===undefined)throw new NoteRefused(`${a.slot} entries require status (${rule.values.join('|')})`);
   if(!rule.values.includes(status))throw new NoteRefused(`${a.slot} status must be one of ${rule.values.join('|')}`);
@@ -227,7 +227,7 @@ export class ExperienceStore {
       return this.db.prepare('SELECT id,step_id,sequence,turn_no FROM recon_turns WHERE run_id=? AND session_id=? AND call_id=? AND kind=?').get(s.run,s.session,s.call??null,args.kind);
     });
   }
-  /** Same run and challenge, a still-active workbook entry, the writer's own role (any of its sessions), same slot except hypotheses -> refuted. */
+  /** Same run and challenge, a still-active workbook entry, the writer's own role (any of its sessions), same slot except hypotheses/facts -> refuted. */
   private checkSupersede(s:ProcessScope,slot:WorkbookSlot,id:number) {
     const target=this.db.prepare("SELECT id,role,note_json FROM recon_turns WHERE id=? AND run_id=? AND challenge_id=? AND kind='decision'").get(id,s.run,s.challenge) as {id:number;role:string;note_json?:string}|undefined;
     const note=target?this.parsedJson(target.note_json):null;
@@ -236,8 +236,9 @@ export class ExperienceStore {
     if(active!==id)throw new NoteRefused(`entry ${id} is already superseded; active entry is ${active}`);
     // Question ordering is the Coordinator's: it may supersede any role's question; nobody else crosses roles.
     const coordinatorQuestion=s.role==='coordinator'&&slot==='questions'&&note.slot==='questions';
-    if(!coordinatorQuestion&&target.role!==(s.role??'recon'))throw new NoteRefused('an entry can only be superseded by its own role');
-    if(note.slot!==slot&&!(note.slot==='hypotheses'&&slot==='refuted'))throw new NoteRefused(`cannot supersede a ${note.slot} entry with a ${slot} entry`);
+    if(!coordinatorQuestion&&target.role!==(s.role??'recon'))throw new NoteRefused(`an entry can only be superseded by its own role; to contradict entry ${id}, write your own entry with related_ids [${id}]`);
+    // A refuted entry may retire a hypothesis or a fact that turned out wrong (team-decision design §6.1); every other slot change is refused.
+    if(note.slot!==slot&&!((note.slot==='hypotheses'||note.slot==='facts')&&slot==='refuted'))throw new NoteRefused(`cannot supersede a ${note.slot} entry with a ${slot} entry; only hypotheses and facts may be superseded by a refuted entry`);
   }
   /** Follows the supersede chain from an entry to the entry that is currently active. */
   private activeEntryId(run:string,challenge:string,id:number):number {

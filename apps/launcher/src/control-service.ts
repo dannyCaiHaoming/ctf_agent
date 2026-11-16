@@ -479,6 +479,18 @@ export class ControlService {
     }
     return Object.keys(changed).length?{state:changed}:{};
   }
+  /** Why a task_id resume is refused, or null. Missing subagent_type and a role mismatch name the role the task was created with; only a foreign or unknown id is "not owned". */
+  private static resumeDenial(owned:{parent:string;role:string}|undefined,parent:string,role:unknown):string|null {
+    if (!owned || owned.parent !== parent) return 'task id not owned';
+    if (typeof role !== 'string' || !role) return `task must include subagent_type when resuming with task_id; this task was created as ${owned.role}`;
+    if (owned.role !== role) return `task_id was created as ${owned.role}; resume it with subagent_type ${owned.role} or dispatch a new task`;
+    return null;
+  }
+  /** Names the original role of an owned task_id, so a resume missing subagent_type can be retried as such. */
+  private static resumedRole(dispatched:Map<string,{parent:string;role:string}>,parent:string,taskId:unknown):string {
+    const owned=typeof taskId==='string'?dispatched.get(taskId):undefined;
+    return owned&&owned.parent===parent?`; this task was created as ${owned.role}`:'';
+  }
   /** Host-computed workbook parts: models cannot write them (team-decision design §6.1). */
   private workbookHost(binding:Binding,challenge:ReturnType<typeof findChallenge>,publications:Array<{ref:string;kind:string;size:number}>):WorkbookHost {
     const run=this.options.runId??'run',judge=this.options.completionJudges?.[challenge.id],status=this.completions.status(run,challenge.id,judge);
@@ -1005,7 +1017,9 @@ export class ControlService {
       let background = args.background === true;
       if (args.background === undefined && args.task_id !== undefined && args.task_id !== null && args.task_id !== '') {
         const owned = typeof args.task_id === 'string' ? this.dispatched.get(args.task_id) : undefined;
-        if (!owned || owned.parent !== binding.sessionID || owned.role !== args.subagent_type) throw new ControlDenied('dispatch', 'task id not owned; cannot inherit background');
+        // Distinct reasons: a resume that only omits subagent_type must not read as an ownership failure (it made the Coordinator open a new session instead).
+        const resumeDenial = ControlService.resumeDenial(owned, binding.sessionID, args.subagent_type);
+        if (resumeDenial || !owned) throw new ControlDenied('dispatch', (resumeDenial ?? 'task id not owned') + '; cannot inherit background');
         if (typeof owned.background !== 'boolean') throw new ControlDenied('dispatch', 'creation background unavailable');
         background = owned.background;
       }
@@ -1518,13 +1532,15 @@ export class ControlService {
     const role = args.subagent_type;
     if (!isRole(role) || !DISPATCH[binding.role]?.includes(role)) throw new ControlDenied('dispatch', 'role not dispatchable', typeof role === 'string' && role !== ''
       ? `subagent_type must be one of: ${(DISPATCH[binding.role] ?? []).join(', ')}`
-      : 'task must include subagent_type (also when resuming with task_id)');
+      : 'task must include subagent_type (also when resuming with task_id)' + ControlService.resumedRole(this.dispatched, binding.sessionID, args.task_id));
     if (!callID) throw new ControlDenied('dispatch', 'missing call id');
     const taskId = args.task_id;
     if (taskId !== undefined && taskId !== null && taskId !== '') {
       const owned = typeof taskId === 'string' ? this.dispatched.get(taskId) : undefined;
       const child = typeof taskId === 'string' ? this.bindings.get(taskId) : undefined;
-      if (!owned || owned.parent !== binding.sessionID || owned.role !== role || !child) throw new ControlDenied('dispatch', 'task id not owned');
+      const resumeDenial = ControlService.resumeDenial(owned, binding.sessionID, role);
+      if (resumeDenial) throw new ControlDenied('dispatch', resumeDenial);
+      if (!child) throw new ControlDenied('dispatch', 'task id not owned');
       this.live(child);
       if ([...this.executions.values()].some(e => e.childID === taskId && (e.state === 'starting' || e.state === 'running'))) throw new ControlDenied('dispatch', 'execution still active');
       if(role==='verifier'&&!this.versions.has(binding.sessionID+'/'+role))throw new ControlDenied('verification version');

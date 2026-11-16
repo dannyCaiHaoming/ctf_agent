@@ -1,6 +1,6 @@
 # Coordinator／Recon／Solver：決策上下文與責任調整
 
-**狀態（2026-11-16）：** 進行中。§6.1 題目工作簿已落地（host 接口、角色檔，以及 Recon 重設計 §4 的索引摘要），§6.2–6.3 的內容契約已寫入角色檔，通過無模型測試；三次真實 run 確認模型會寫、會接上工作簿，對解題的影響未驗證。§6.4 後續片未開始。
+**狀態（2026-11-16）：** 進行中。§6.1 題目工作簿已落地（host 接口、角色檔，以及 Recon 重設計 §4 的索引摘要），§6.2–6.3 的內容契約已寫入角色檔，通過無模型測試；三次真實 run 與一次冒煙 run 確認模型會寫、會接上工作簿，索引摘要與材料去重在 runtime 成立；對解題的影響未驗證。§6.4 後續片未開始。
 
 本文是[核心 design v1](2026-10-22-ctf-agent-design-v1.md) C 的子設計，負責三角色之間的問題歸屬、決策交接與驗證方法，此範圍的細節以本文為準。既有產品行為仍以實作及原子設計為準，本文的候選不是已生效契約。
 
@@ -184,7 +184,7 @@ Engineer、Verifier 與裁判的權限不合併，「Solver 宣稱候選」不�
 **寫入接口（2026-11-11 定）。**
 - **沿用 `decision` kind，加欄位。** 帶 `slot` 的 decision 就是工作簿條目；新增欄位為 `slot`、`text`（≤ 300 字元，超過即拒絕並說明上限）、選填的 `status`、`scope`、`supersedes`，既有 related_ids／evidence_refs 照用。不帶 `slot` 的 decision 與 handoff 語義不變，不進工作簿。理由：寫入時去敏、episode 來源與快照鏈都已處理 decision，不另開新 kind 和新路徑。
 - **狀態取值。** 工作假設為 open／supported／refuted；未決問題為 open／answered／dropped；候選為 proposed／withdrawn；事實與已排除路線不帶狀態。answered、dropped、withdrawn 的條目仍有效、可再被取代，但不進視圖。
-- **狀態變化即取代。** 假設由 open 變 supported 或 refuted，寫新條目取代舊條目；被否定的假設可直接以「已排除路線」欄的條目跨欄取代，其他跨欄取代一律拒絕。
+- **狀態變化即取代。** 假設由 open 變 supported 或 refuted，寫新條目取代舊條目；被否定的假設，或後來證明不成立的事實，可由同一角色以「已排除路線」欄的條目跨欄取代，其他跨欄取代一律拒絕。事實可撤回是冒煙 run 後補的：Solver 想撤回先前 Solver 寫錯的事實，被拒後另寫了一條不關聯的排除路線，錯誤的事實仍留在視圖中。跨角色仍不能取代，拒絕訊息提示改用 `related_ids` 關聯。
 - **只能取代仍有效的條目。** 目標已被取代時拒絕，並回傳目前有效條目的 id，避免分叉；並行寫入以先寫入者為準。
 - **被取代的標示。** 工作簿視圖只呈現有效條目；`recon.read` 讀到被取代的條目時，在讀取時附上 `superseded_by`，不改寫原記錄。
 - **host 欄不是條目。** 目標與約束、材料目錄、host 事實由 host 從既有 challenge、publication 與預算狀態即時計算；候選的已打包與提交結果取自既有 package 與 completion 記錄。模型不能寫這些欄，Engineer 也不需要寫入權。
@@ -264,21 +264,22 @@ Engineer、Verifier 與裁判的權限不合併，「Solver 宣稱候選」不�
 - 候選條目由 host 限定只有 Domain Solver 能寫。Recon 看到疑似候選材料時寫成附 ref 的事實，並提出問題請 Solver 確認。Coordinator 在工作簿有 proposed 候選時不以 stop_and_report 結束該題，須先派 Engineer 或請 Solver 撤回，做不到時在 progress note 寫明條目 id 與原因。
 - 已知限制：Coordinator 寫入時若 SQLite 出錯，只拒絕該次寫入，不會像題目角色那樣暫停該題的探索，因為 Coordinator 沒有綁定的題目。
 
-**真實 run（2026-11-12，[檢查結果](../../gates/workbook-runtime-20261112/)）。** 都是同一題單次、deepseek-v4.1-flash、Solver 開思考，只說明接口在 runtime 中的表現，不是收益證據；計數由 `tests/manual/workbook-run-check.py` 從 run 證據離線算出。
+**真實 run（2026-11-12／16，[r1–r3](../../gates/workbook-runtime-20261112/)、[冒煙 run](../../gates/workbook-smoke-20261116/)）。** 都是同一題單次、deepseek-v4.1-flash、Solver 開思考，只說明接口在 runtime 中的表現，不是收益證據；計數由 `tests/manual/workbook-run-check.py` 從 run 證據離線算出。
 
 | run | 條件 | 結果 | 能說明什麼 |
 | --- | --- | --- | --- |
 | r1（`05af1de2`） | 80 次調用 | 預算用完未解出，未派 Engineer；寫入 29 次（1 次因截短的 ref 被拒）；第 2 個 Solver 開場接到 12 條；派單 6 次中 5 次引用條目 id、0 次手抄清單 | 寫入、承接與派單改變都在 runtime 成立；整份重送讓 Recon／Solver 單一 session 累計多收 5–7 萬字元 |
 | r2（`825bc343`） | 45 分鐘、調用不限 | Coordinator 自行結束未解出，108 次調用、4 個 Solver session；Solver 開場依序接到 14／17／22／26 條；跨 session 重複的工具指紋 9 次，8 次是讀取；派單全部引用條目 id | 條目級 delta 生效（Recon 18 次 delta 合計約 2.6 萬 bytes）；Coordinator 整份重送 21 次、8.1 萬字元；Recon 寫的候選無人處理，未派 Engineer 即結束 |
 | r3（`2d22283d`） | 30 分鐘、調用不限 | Coordinator 自行結束未解出，95 次調用、3 個 Solver session（23／10／7 次調用）；沒有出現候選條目；跨 session 重複 3 次，全是讀取；派單 4 次引用條目 id | Coordinator 條目級 delta 生效（17 次合計約 1.4 萬 bytes，r2 為 8.1 萬字元）；候選處理與條目合併兩項修正都沒被觸發，仍待驗證 |
+| 冒煙（`6ef0a50c`） | 同 r3，顯式 summary 索引、新 runs-root | Coordinator 自行結束未解出，124 次調用、3 個 Solver session（37／9／19 次調用）；Solver 開場依序接到 11／18／22 條；沒有候選；跨 session 重複 5 次，全是讀取 | 索引摘要讓單次投影最大降到約 15K bytes（r3 約 56K）；工作簿不再帶材料、ref 只在 `state.publications`；Coordinator delta 約 1.6 萬 bytes；未觸及總量上限（Solver#3 開場 8.4K）。暴露兩個缺口：續派拒絕訊息誤導，以及事實無法撤回 |
 
-據此修正：引用拒絕改為具體訊息；Recon／Solver／Engineer 與 Coordinator 的工作簿都改為條目級 delta；候選限定由 Solver 寫，Coordinator 不得在有 proposed 候選時直接結束。
+據此修正：引用拒絕改為具體訊息；續派時只漏寫或寫錯 `subagent_type` 的拒絕改為說明原角色，不再顯示為「task id not owned」（冒煙 run 中 Coordinator 因此放棄續接、改開新 Solver session）；事實可由同角色的排除路線取代；Recon／Solver／Engineer 與 Coordinator 的工作簿都改為條目級 delta；候選限定由 Solver 寫，Coordinator 不得在有 proposed 候選時直接結束。
 
 **仍待觀察：**
-- Recon／Solver 三次都沒有取代自己的條目；r2 結束時有 33 條有效條目、facts 17 條，r3 為 21 條。合併規則是否會在觸及上限時被遵循，還沒有樣本。
+- Recon／Solver 四次都沒有成功取代自己的條目（冒煙 run 中唯一兩次嘗試是撤回事實，被當時的規則拒絕）；r2 結束時有 33 條有效條目、facts 17 條，r3 為 21 條，冒煙 run 為 27 條。合併規則是否會在觸及上限時被遵循，還沒有樣本。
 - Solver 回合仍短：r3 三個 Solver 只有 23／10／7 次調用，與 §6.4 放寬交回門檻的動機一致。
-- 第 4 個 Solver 的首個完整投影約 79KB，大部分是 200 條步驟索引，工作簿約 1.1 萬字元。索引按需讀取已在 [Recon 重設計 §4](2026-10-29-design-v1-recon-redesign.md) 實作（預設 summary），同一組運行設定 `context.workbook` 補上了關閉工作簿的開關。
-- 三次都沒有走到候選與提交，工作簿對解題的影響仍需同題配對；關閉工作簿的開關已由運行設定 `context.workbook` 提供，角色檔不隨之切換，配對時關閉組另以 `--product` 換回改動前的角色檔（§7.2）。
+- r2 第 4 個 Solver 的首個完整投影約 79KB，大部分是 200 條步驟索引。索引按需讀取（[Recon 重設計 §4](2026-10-29-design-v1-recon-redesign.md)，預設 summary）在冒煙 run 中把最大投影降到約 15K bytes，模型只展開過 1 次 `recon.read`。
+- 四次都沒有走到候選與提交，工作簿對解題的影響仍需同題配對；關閉工作簿的開關已由運行設定 `context.workbook` 提供，角色檔不隨之切換，配對時關閉組另以 `--product` 換回改動前的角色檔（§7.2）。
 
 **plan 切分。** 本片按依賴拆成三份 plan，各自驗收：
 1. **host 工作簿接口：** 寫入接口、折疊、上限截取，以及 Recon／Solver／Engineer 視圖的注入；驗證第 1、2、3、5 項（Coordinator 相關部分除外）。保留既有 200 條索引注入，讓變量只有「有沒有工作簿」。

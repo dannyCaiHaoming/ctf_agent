@@ -167,7 +167,11 @@ describe('control service permission layer', () => {
       await finish(resume.callID, effective);
     }
     await expect(service.handle('root', 'tool.before', task('strategy', { task_id: 'child' }))).rejects.toThrow('dispatch');
-    await expect(service.handle('root', 'tool.before', task('recon', { task_id: 'foreign' }))).rejects.toThrow('dispatch');
+    // A resume that only omits or mismatches subagent_type names the original role instead of reading as an ownership failure.
+    await expect(service.handle('root', 'tool.before', task('recon', { task_id: 'child', subagent_type: undefined }))).rejects.toThrow('must include subagent_type when resuming with task_id; this task was created as recon');
+    await expect(service.handle('root', 'tool.before', task('recon', { task_id: 'child', subagent_type: undefined, background: true }))).rejects.toThrow('this task was created as recon');
+    await expect(service.handle('root', 'tool.before', task('domain-solver', { task_id: 'child' }))).rejects.toThrow('task_id was created as recon');
+    await expect(service.handle('root', 'tool.before', task('recon', { task_id: 'foreign' }))).rejects.toThrow('task id not owned');
     await expect(service.handle('root', 'tool.before', task('recon', { task_id: 'missing' }))).rejects.toThrow('dispatch');
     service.bindings.set('unrecorded', { ...service.bindings.get('child')!, sessionID: 'unrecorded' });
     await expect(service.handle('root', 'tool.before', task('recon', { task_id: 'unrecorded' }))).rejects.toThrow('dispatch');

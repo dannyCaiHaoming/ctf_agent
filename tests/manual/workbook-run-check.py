@@ -48,12 +48,14 @@ for f in glob.glob(os.path.join(ev, 'messages-*.json')):
             tools[(who, p['tool'])] += 1
             if p['tool'] == 'ctf_recon_note':
                 key = f"{who}:{inp.get('slot') or 'kind:' + str(inp.get('kind', 'decision'))}"
-                writes[key + (':supersedes' if inp.get('supersedes') else '')] += 1
+                # workbook_writes counts accepted writes only; refused attempts are counted under refused.
                 if st.get('status') == 'error':
                     refused[f"{who}:{str(st.get('error'))[:120]}"] += 1
+                else:
+                    writes[key + (':supersedes' if inp.get('supersedes') else '')] += 1
             if p['tool'] == 'task' and who == 'coordinator':
                 pr = inp.get('prompt', '')
-                dispatch.append({'to': inp.get('subagent_type'), 'chars': len(pr),
+                dispatch.append({'to': inp.get('subagent_type'), 'status': st.get('status'), 'resume': bool(inp.get('task_id')), 'chars': len(pr),
                                  'numbers': sorted({int(n) for n in re.findall(r'(?<![\w.])(\d{1,5})(?![\w.])', pr)}),
                                  'tested_list': bool(re.search('未測|未测|tested', pr))})
 out['workbook_writes'] = dict(sorted(writes.items()))
