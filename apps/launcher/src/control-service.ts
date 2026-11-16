@@ -484,7 +484,6 @@ export class ControlService {
     const run=this.options.runId??'run',judge=this.options.completionJudges?.[challenge.id],status=this.completions.status(run,challenge.id,judge);
     return {
       goal:{challenge:challenge.id,materials:challenge.materials.map(m=>m.name).slice(0,16),submission:{allowed:status.allowed,remaining:status.remaining,reasons:status.reasons}},
-      materials:publications.map(p=>({ref:p.ref,kind:p.kind,size:p.size})),
       candidate_host:{packages:publications.filter(p=>p.kind==='package').map(p=>p.ref),
         completions:this.completions.snapshot().filter(r=>r.run===run&&r.challenge===challenge.id).map(r=>({version:r.version,state:r.state,solved:r.solved,rejection:(r as {rejection?:unknown}).rejection??null}))},
     };

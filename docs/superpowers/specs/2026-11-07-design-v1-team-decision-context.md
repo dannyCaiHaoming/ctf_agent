@@ -172,7 +172,7 @@ Engineer、Verifier 與裁判的權限不合併，「Solver 宣稱候選」不�
 | 工作假設 | Recon／Solver | 假設＋狀態（open／supported／refuted）＋依據 |
 | 已排除路線 | Recon／Solver | 一行一條，帶排除範圍 |
 | 未決問題 | Coordinator 為主；Recon／Solver 可提出 | 下一個要回答的問題，即派單單位 |
-| 材料目錄 | host（發布時） | artifact ref＋用途＋缺口 |
+| 材料目錄 | host（發布時） | artifact ref＋kind＋size；以 context 的 `state.publications` 呈現，不在工作簿內重複（見下方「host 接口的實作結果」） |
 | 候選狀態 | Solver 提出或撤回；已打包與提交結果由 host 從 package 與 completion 記錄計算 | 有無候選材料、是否已打包、提交結果 |
 | host 事實 | host | 剩餘時間、派單次數、回合時長 |
 
@@ -227,7 +227,7 @@ Engineer、Verifier 與裁判的權限不合併，「Solver 宣稱候選」不�
 | 單條條目 | 300 字元 |
 | 已確認事實／已排除路線 | 各 20 條 |
 | 工作假設／未決問題 | 各 8 條 |
-| 材料目錄 | 12 條 |
+| 材料目錄 | 不設上限（隨 `state.publications` 送出，按 ref 增量） |
 | 候選狀態 | 3 條 |
 | 視圖總量 | Recon／Solver 12K 字元；Coordinator 8K；Engineer 4K |
 
@@ -256,7 +256,7 @@ Engineer、Verifier 與裁判的權限不合併，「Solver 宣稱候選」不�
 
 **host 接口的實作結果（2026-11-11）。** 寫入、取代、折疊、上限截取，以及 Recon／Solver／Engineer 與 Coordinator 的注入已實作；`tests/contract/workbook.test.ts` 26 項覆蓋上面驗證第 1–5 項與兩種視圖條目級 delta 的合併還原，全量 867 項通過。實作中定下的細節：
 - 工作簿相關的拒絕（超長、狀態不合法、取代失效條目等）以具體訊息返回模型，訊息只含固定文字、條目 id 與欄位名；其他 note 錯誤仍是通用拒絕。
-- Recon／Solver／Engineer 的工作簿在 delta 中按條目傳送：只帶新增或改變的條目（各帶所屬欄）、不再呈現的 id，以及有變化的 host 部分；按 id 合併即還原完整視圖。原先整份重送在首次真實 run 中讓單一 session 累計多收 5–7 萬字元（見下）。既有 `state.publications` 與工作簿材料目錄仍有重複：索引按需化之後，summary 與 full 兩種模式都同時送出兩者（2026-11-16 核對 `prepareContext`），尚未處理。
+- Recon／Solver／Engineer 的工作簿在 delta 中按條目傳送：只帶新增或改變的條目（各帶所屬欄）、不再呈現的 id，以及有變化的 host 部分；按 id 合併即還原完整視圖。原先整份重送在首次真實 run 中讓單一 session 累計多收 5–7 萬字元（見下）。材料目錄不再作為工作簿的 host 部分送出（2026-11-16）：同一個 context block 的 `state.publications` 已帶相同的 ref／kind／size，另有 sha256 與 session，不設 12 條上限，且已按 ref 增量傳送；原先兩種索引模式都重複送出兩者。工作簿 guidance 指向 `state.publications`；關閉組本來只有 `state.publications`，兩組在材料呈現上一致。工作簿視圖也因此少了最多 12 條材料（約 1K 字元），計入 12K 總量的只剩條目、目標、候選 host 部分與 coverage。
 - episode 來源中，Solver 寫的條目保留 `role: domain-solver`，不被標成 recon。
 - Coordinator 視圖按記錄的更新時間決定折疊順序：各題的 sequence 各自編號、不能跨題比較。最近更新的那題永遠不折疊，只有一題時超出部分改為省略最舊條目，避免單題 run 整題被折成一行。
 - Coordinator 視圖同樣按條目傳送 delta：變動的條目（帶題目與欄）、移除的 id、有變化的題目標頭（host 事實或折疊狀態），剩餘分鐘與 coverage 只在變化時重複。原先整份重送在 45 分鐘的 run 中累計 8.1 萬字元，其中剩餘分鐘每跨一分鐘就觸發一次。

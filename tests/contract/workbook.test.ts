@@ -1,5 +1,5 @@
 import {describe, expect, it} from 'vitest';
-import {mkdtempSync, mkdirSync} from 'node:fs';
+import {mkdtempSync, mkdirSync, writeFileSync} from 'node:fs';
 import {join} from 'node:path';
 import {tmpdir} from 'node:os';
 import {ExperienceStore} from '../../apps/launcher/src/experience-store.js';
@@ -126,7 +126,7 @@ describe('workbook fold and caps', () => {
     await note('recon', {slot: 'questions', text: 'answered question', status: 'answered', supersedes: q.id});
     const c = await note('solver-a', {slot: 'candidate', text: 'candidate'});
     await note('solver-a', {slot: 'candidate', text: 'withdrawn candidate', status: 'withdrawn', supersedes: c.id});
-    const host = {goal: {challenge: 'X', materials: [], submission: null}, materials: [], candidate_host: {packages: [], completions: []}};
+    const host = {goal: {challenge: 'X', materials: [], submission: null}, candidate_host: {packages: [], completions: []}};
     const {view, omitted_ids} = workbookView(store.allRecords('A', 'X'), 'domain-solver', host);
     expect(texts(view, 'facts')).toHaveLength(20);
     expect(texts(view, 'facts')[0]).toBe('fact 1');
@@ -145,7 +145,7 @@ describe('workbook fold and caps', () => {
     const ids = [];
     for (let i = 0; i < 20; i++) ids.push((await note('recon', {slot: 'facts', text: `${i}:` + 'f'.repeat(280)})).id);
     for (let i = 0; i < 20; i++) ids.push((await note('recon', {slot: 'refuted', text: `${i}:` + 'r'.repeat(280)})).id);
-    const host = {goal: {challenge: 'X', materials: [], submission: null}, materials: [], candidate_host: {packages: [], completions: []}};
+    const host = {goal: {challenge: 'X', materials: [], submission: null}, candidate_host: {packages: [], completions: []}};
     const result = workbookView(store.allRecords('A', 'X'), 'recon', host);
     expect(result.chars).toBeLessThanOrEqual(12000);
     expect(result.omitted_ids.length).toBeGreaterThan(0);
@@ -155,11 +155,11 @@ describe('workbook fold and caps', () => {
     store.close();
   });
 
-  it('builds role views: Engineer sees only candidates and materials; Recon sees no candidate slot', async () => {
+  it('builds role views: Engineer sees only candidates; Recon sees no candidate slot; no role repeats the publication catalog', async () => {
     const {store, note} = fixture();
     await note('recon', {slot: 'facts', text: 'fact'});
     await note('solver-a', {slot: 'candidate', text: 'candidate'});
-    const host = {goal: {challenge: 'X', materials: ['statement.md'], submission: null}, materials: [{ref: 'r1', kind: 'file', size: 1}], candidate_host: {packages: ['p1'], completions: []}};
+    const host = {goal: {challenge: 'X', materials: ['statement.md'], submission: null}, candidate_host: {packages: ['p1'], completions: []}};
     const engineer = workbookView(store.allRecords('A', 'X'), 'engineer', host).view as any;
     expect(Object.keys(engineer.slots)).toEqual(['candidate']);
     expect(engineer).toHaveProperty('candidate_host');
@@ -167,6 +167,7 @@ describe('workbook fold and caps', () => {
     const recon = workbookView(store.allRecords('A', 'X'), 'recon', host).view as any;
     expect(Object.keys(recon.slots)).toEqual(['facts', 'hypotheses', 'refuted', 'questions']);
     expect(recon).not.toHaveProperty('candidate_host');
+    for (const v of [engineer, recon, workbookView(store.allRecords('A', 'X'), 'domain-solver', host).view as any]) expect(v).not.toHaveProperty('materials');
     store.close();
   });
 });
@@ -186,6 +187,19 @@ describe('workbook injection', () => {
     expect(texts(payload.workbook, 'facts')).toEqual(['upstream fact from recon']);
     expect(texts(payload.workbook, 'questions')).toEqual(['question left by the previous solver']);
     expect(payload.workbook.goal.challenge).toBe('X');
+    store.close();
+  });
+
+  it('lists a published artifact once, in state.publications, not again in the workbook', async () => {
+    const {root, store, service, note} = fixture();
+    await note('recon', {slot: 'facts', text: 'fact'});
+    mkdirSync(join(root, 'workspace/X/work/recon'), {recursive: true});
+    writeFileSync(join(root, 'workspace/X/work/recon/baseline'), 'baseline bytes');
+    const p = await service.handle('recon', 'tool.execute', {tool: 'artifact.publish', callID: 'p1', messageID: 'mp1', args: {source: 'file', path: 'work/baseline'}}) as any;
+    const payload = body((await prepare(service, 'solver-b', {messageID: 'u1', placement: 'chat.message'})).text);
+    expect(payload.state.publications.map((x: any) => x.ref)).toEqual([p.ref]);
+    expect(payload.workbook).not.toHaveProperty('materials');
+    expect(JSON.stringify(payload.workbook)).not.toContain(p.ref);
     store.close();
   });
 

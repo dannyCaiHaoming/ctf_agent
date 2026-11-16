@@ -6,18 +6,17 @@
 import {WORKBOOK_SLOTS,type WorkbookSlot} from './experience-store.js';
 
 export const SLOT_CAPS:Record<WorkbookSlot,number>={facts:20,hypotheses:8,refuted:20,questions:8,candidate:3};
-export const MATERIALS_CAP=12;
 /** Statuses that keep an entry active (it can still be superseded) but out of the presented view. */
 const CLOSED_STATUS=new Set(['answered','dropped','withdrawn']);
 export type WorkbookRole='recon'|'domain-solver'|'engineer';
-const VIEWS:Record<WorkbookRole,{slots:readonly WorkbookSlot[];host:readonly ('goal'|'materials'|'candidate_host')[];maxChars:number}>={
-  'domain-solver':{slots:WORKBOOK_SLOTS,host:['goal','materials','candidate_host'],maxChars:12000},
-  recon:{slots:['facts','hypotheses','refuted','questions'],host:['goal','materials'],maxChars:12000},
-  engineer:{slots:['candidate'],host:['materials','candidate_host'],maxChars:4000},
+const VIEWS:Record<WorkbookRole,{slots:readonly WorkbookSlot[];host:readonly ('goal'|'candidate_host')[];maxChars:number}>={
+  'domain-solver':{slots:WORKBOOK_SLOTS,host:['goal','candidate_host'],maxChars:12000},
+  recon:{slots:['facts','hypotheses','refuted','questions'],host:['goal'],maxChars:12000},
+  engineer:{slots:['candidate'],host:['candidate_host'],maxChars:4000},
 };
+/** The published-artifact catalog is not a workbook part: the same context block already carries it, uncapped and delta-by-ref, as `state.publications`. */
 export interface WorkbookHost {
   goal:{challenge:string;materials:string[];submission:unknown};
-  materials:Array<{ref:string;kind:string;size:number}>;
   candidate_host:{packages:string[];completions:unknown[]};
 }
 export interface WorkbookEntry {id:number;sequence:number;slot:WorkbookSlot;role:string;status?:string;text:string;scope?:string;evidence_refs:string[];related_ids:number[]}
@@ -43,17 +42,16 @@ export function workbookView(rows:any[],role:WorkbookRole,host:WorkbookHost) {
     for(const e of all.slice(0,all.length-keep.length))omitted.set(e.id,'slot_cap');
     shown.set(slot,keep);
   }
-  const hostPart=Object.fromEntries(view.host.map(k=>[k,k==='materials'?host.materials.slice(-MATERIALS_CAP):host[k]]));
+  const hostPart=Object.fromEntries(view.host.map(k=>[k,host[k]]));
   const build=()=>({
     slots:Object.fromEntries(view.slots.map(s=>[s,shown.get(s)!.map(present)])),
     ...hostPart,
     coverage:{
       per_slot:Object.fromEntries(view.slots.map(s=>[s,{active:active.filter(e=>e.slot===s).length,presented:shown.get(s)!.length}])),
-      ...(view.host.includes('materials')?{materials:{total:host.materials.length,presented:Math.min(host.materials.length,MATERIALS_CAP)}}:{}),
       omitted_ids:[...omitted.keys()].sort((a,b)=>a-b),omitted_reasons:Object.fromEntries([...omitted].map(([id,r])=>[id,r])),
-      max_chars:view.maxChars,complete:omitted.size===0&&(!view.host.includes('materials')||host.materials.length<=MATERIALS_CAP),
+      max_chars:view.maxChars,complete:omitted.size===0,
     },
-    guidance:'Current state of this challenge as written by Recon/Solver, not tool facts. Supersede your own role\'s entry to update it; read omitted ids with recon.read. Later context blocks carry workbook changes by entry id: upserted entries replace or add (each names its slot), removed ids leave the view, and only changed parts (goal, materials, candidate_host, coverage) are repeated.',
+    guidance:'Current state of this challenge as written by Recon/Solver, not tool facts. Supersede your own role\'s entry to update it; read omitted ids with recon.read. Published artifacts are listed once, in state.publications of this context. Later context blocks carry workbook changes by entry id: upserted entries replace or add (each names its slot), removed ids leave the view, and only changed parts (goal, candidate_host, coverage) are repeated.',
   });
   let result=build();
   // Total cap: drop the oldest presented entry (by sequence, any slot) until the view fits; never by content.
