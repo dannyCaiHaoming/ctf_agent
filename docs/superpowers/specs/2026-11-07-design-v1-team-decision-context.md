@@ -345,6 +345,8 @@ Engineer、Verifier 與裁判的權限不合併，「Solver 宣稱候選」不�
   - **兩臂共同：** summary 索引、四項決策事實、同一份 host 代碼。關閉組中，舊 Solver 不寫 note 與 host 拒絕一致；舊 Recon 的不帶欄位 decision／handoff 照常放行；舊 Coordinator 不寫 `recon.note`。
   - **關閉組產品目錄：** 批次執行時從 git 生成到 run 目錄外的批次目錄，不在倉庫另存一份角色檔；生成方法、來源 commit 組合與各資產 sha256 寫進批次記錄。外部目錄的 metadata `productDirty` 會顯示為未知，以複製清單的 sha256 核對兩臂實際用了哪份角色檔。
   - **lesson 隔離：** `experience.sqlite` 位於 runs-root、同 root 的 run 共用（`launch.ts`），開啟組 episode 帶工作簿條目會被關閉組檢索到。每個 run 用獨立 runs-root，或從同一份凍結的庫複製起步。r1–r3 沒有跑 learning（episode 都是 pending），兩臂從同一份凍結的庫起步即可。
+  - **準備工具（2026-11-17）。** `tests/manual/paired-control-product.py` 生成關閉組產品目錄與 manifest；`product/` 在基線之後的每個 commit 都必須歸入「套用」或「排除」，未歸類就停止，避免日後與工作簿無關的改動漏進或工作簿改動混入關閉組。`tests/manual/paired-run.mts` 按 spec 跑一組一次：從同一份基礎 profile 只改 `context` 與產品目錄，啟動前核對模型、Solver 思考、預算與關閉組 manifest，每次用新的 runs-root，經驗庫為空或為凍結庫的一致快照；`--check` 只做前置核對、不寫任何東西。`workbook-run-check.py` 補上兩組都能算的時間點：各角色首次派單、首次候選條目、首次打包與提交、是否解出、停止原因與用量。
+  - **選題時注意。** `ac5a1bc0` 在工作簿前的 a1 批次解出（Solver 不開思考、完整索引），工作簿上線後 r1–r3 與冒煙 run 共 0/4，兩邊同時改了工作簿、Solver 思考、索引與預算，不能歸因；配對對照應保留這題，兩組 Solver 思考設定一致，思考的影響另做單變量對照。
   - 本條只定對照組成，不授權運行；題目、模型／provider、批次與 token 上限仍按上文另行授權。
 - **記錄：** 首次可開工交接、實際承接的來源、錯輪／缺資料次數、無新前提的重做、首次候選聲稱／固定 package／提交時點、accepted／solved、用量和停止原因。人工復核保留判斷依據與不確定性，不以 hash 當「新資訊」。所有失敗計入，usage 缺失記 unavailable。
 

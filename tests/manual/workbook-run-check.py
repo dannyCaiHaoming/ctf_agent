@@ -85,6 +85,27 @@ for a in audit:
 out['presentation'] = dict(sent)
 out['prepare_failures'] = sum(1 for a in audit if a.get('op') == 'context.prepare' and not a.get('allow'))
 
+# Paired-control milestones (team-decision design §7.2), minutes from the control service's first audit entry.
+# Both arms produce them; the candidate-entry time exists only where the workbook is on.
+t0_at = (audit[0].get('at') - audit[0].get('t')) if audit and audit[0].get('at') is not None and audit[0].get('t') is not None else None
+minutes = lambda t: None if t is None else round(t / 60000, 2)
+first = lambda pred: min((a['t'] for a in audit if a.get('allow') and pred(a)), default=None)
+roles = sorted({(a.get('detail') or {}).get('role') for a in audit if a.get('op') == 'dispatch.register' and a.get('allow')} - {None})
+out['milestones'] = {
+    'context': state.get('context'),
+    'first_dispatch_min': {r: minutes(first(lambda a, r=r: a.get('op') == 'dispatch.register' and (a.get('detail') or {}).get('role') == r)) for r in roles},
+    'dispatches': dict(collections.Counter((a.get('detail') or {}).get('role') for a in audit if a.get('op') == 'dispatch.register' and a.get('allow'))),
+    'first_candidate_entry_min': None,
+    'first_package_min': minutes(first(lambda a: a.get('op') == 'package.published')),
+    'first_completion_min': minutes(first(lambda a: a.get('op') == 'completion.saved')),
+    'solved': any(c.get('solved') for c in completions),
+    'completions': len(completions),
+    'last_audit_min': minutes(max((a.get('t') or 0 for a in audit), default=None)),
+    'stop_reason': state.get('stopReason'),
+    'root_finish': (state.get('rootResult') or {}).get('finish'),
+    'usage': state.get('usageTotal') or 'unavailable',
+}
+
 if db_path:
     db = sqlite3.connect(f'file:{db_path}?mode=ro', uri=True)
     rows = db.execute("SELECT session_id,tool,args_meta_json FROM recon_turns WHERE run_id=? AND kind='tool' AND tool NOT LIKE 'recon.%' ORDER BY sequence", (state.get('runId'),)).fetchall()
@@ -95,6 +116,9 @@ if db_path:
         if k in seen and seen[k] != sid:
             repeats[f"{label.get(sid, '?')}<-{label.get(seen[k], '?')}:{tool}"] += 1
         seen.setdefault(k, sid)
+    first_candidate = db.execute("SELECT min(created_at) FROM recon_turns WHERE run_id=? AND kind='decision' AND json_extract(note_json,'$.slot')='candidate'", (state.get('runId'),)).fetchone()[0]
+    if first_candidate is not None and t0_at is not None:
+        out['milestones']['first_candidate_entry_min'] = minutes(first_candidate - t0_at)
     out['tool_steps'] = dict(steps)
     out['cross_session_repeats'] = dict(repeats)
     # A dispatch references the workbook when it names ids of existing workbook entries (any format).
