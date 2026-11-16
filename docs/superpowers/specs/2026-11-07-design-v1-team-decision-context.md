@@ -270,7 +270,7 @@ Engineer、Verifier 與裁判的權限不合併，「Solver 宣稱候選」不�
 | --- | --- | --- | --- |
 | r1（`05af1de2`） | 80 次調用 | 預算用完未解出，未派 Engineer；寫入 29 次（1 次因截短的 ref 被拒）；第 2 個 Solver 開場接到 12 條；派單 6 次中 5 次引用條目 id、0 次手抄清單 | 寫入、承接與派單改變都在 runtime 成立；整份重送讓 Recon／Solver 單一 session 累計多收 5–7 萬字元 |
 | r2（`825bc343`） | 45 分鐘、調用不限 | Coordinator 自行結束未解出，108 次調用、4 個 Solver session；Solver 開場依序接到 14／17／22／26 條；跨 session 重複的工具指紋 9 次，8 次是讀取；派單全部引用條目 id | 條目級 delta 生效（Recon 18 次 delta 合計約 2.6 萬 bytes）；Coordinator 整份重送 21 次、8.1 萬字元；Recon 寫的候選無人處理，未派 Engineer 即結束 |
-| r3（`2d22283d`） | 同 r2 | Coordinator 自行結束未解出，95 次調用、3 個 Solver session（23／10／7 次調用）；沒有出現候選條目；跨 session 重複 3 次，全是讀取；派單 4 次引用條目 id | Coordinator 條目級 delta 生效（17 次合計約 1.4 萬 bytes，r2 為 8.1 萬字元）；候選處理與條目合併兩項修正都沒被觸發，仍待驗證 |
+| r3（`2d22283d`） | 30 分鐘、調用不限 | Coordinator 自行結束未解出，95 次調用、3 個 Solver session（23／10／7 次調用）；沒有出現候選條目；跨 session 重複 3 次，全是讀取；派單 4 次引用條目 id | Coordinator 條目級 delta 生效（17 次合計約 1.4 萬 bytes，r2 為 8.1 萬字元）；候選處理與條目合併兩項修正都沒被觸發，仍待驗證 |
 
 據此修正：引用拒絕改為具體訊息；Recon／Solver／Engineer 與 Coordinator 的工作簿都改為條目級 delta；候選限定由 Solver 寫，Coordinator 不得在有 proposed 候選時直接結束。
 
