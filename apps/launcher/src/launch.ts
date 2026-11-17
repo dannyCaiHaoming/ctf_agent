@@ -82,7 +82,7 @@ async function listFiles(directory: string): Promise<string[]> {
 }
 
 /** Whitelisted assets of one layer: AGENTS.md, agents/*.md and skills/<name>/**. Targets are relative to the config directory. */
-async function collectLayer(layer: string): Promise<Array<{ source: string; target: string }>> {
+export async function collectLayer(layer: string): Promise<Array<{ source: string; target: string }>> {
   const items: Array<{ source: string; target: string }> = [];
   for (const forbidden of ['plugin', 'plugins', 'tool', 'tools', 'command', 'commands']) {
     if (existsSync(join(layer, forbidden))) throw new Blocked(`product layer must not contain ${forbidden}/`);
@@ -112,7 +112,7 @@ async function collectLayer(layer: string): Promise<Array<{ source: string; targ
 }
 
 /** Runtime config may only add `agent.<name>.options` for agents the product defines; merge over the product's same-name options. */
-function mergeAgentOptions(runtimeAgent: unknown, baseAgent: unknown, productAgents: ReadonlySet<string>): { agent?: Record<string, unknown>; effective: Record<string, Record<string, unknown>> } {
+export function mergeAgentOptions(runtimeAgent: unknown, baseAgent: unknown, productAgents: ReadonlySet<string>): { agent?: Record<string, unknown>; effective: Record<string, Record<string, unknown>> } {
   const effective: Record<string, Record<string, unknown>> = {};
   if (runtimeAgent === undefined) return { effective };
   const isObject = (v: unknown): v is Record<string, unknown> => !!v && typeof v === 'object' && !Array.isArray(v);

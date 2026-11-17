@@ -1,0 +1,55 @@
+{
+ "id": "round-half-even",
+ "role": "domain-solver",
+ "questions": [
+  "Q3",
+  "Q6"
+ ],
+ "materials": {
+  "statement.md": "calc.py 計算平均分並四捨五入，預期 2.5 得 3，實際得 2。\n",
+  "calc.py": "scores = [2, 3]\nprint(round(sum(scores) / len(scores)))\n",
+  "run.log": "$ python3 calc.py\n2\n"
+ },
+ "workbook": [
+  {
+   "id": 1,
+   "role": "recon",
+   "slot": "facts",
+   "text": "calc.py 對平均 2.5 輸出 2，程式作者預期 3（見 run.log）",
+   "scope": "materials/run.log"
+  },
+  {
+   "id": 2,
+   "role": "coordinator",
+   "slot": "questions",
+   "text": "為什麼結果是 2 而不是 3？",
+   "status": "open"
+  }
+ ],
+ "rounds": [
+  {
+   "dispatch": "本輪要回答工作簿問題 id 2。允許的操作：workspace 讀寫、argv 形式的 job。剩餘資源：本輪約 10 分鐘。足以交回：能說明原因與依據。"
+  }
+ ],
+ "stubs": [
+  {
+   "tool": "job.run",
+   "result": {
+    "harness": "fixed decision point: this operation is not executed here",
+    "next": "record the planned step and its expected observation in the workbook, then hand back"
+   }
+  }
+ ],
+ "variants": {
+  "index-only": {},
+  "method-provided": {
+   "dispatchAppend": "可用方法：先查語言文件對 round() 的捨入規則，再用 2.5 與 3.5 兩個值做最小重現；兩者若都捨入到偶數，結果來自語言規則，不是解釋器缺陷。"
+  }
+ },
+ "expected": {
+  "next_step": "查 round() 的文件捨入規則，用 2.5、3.5 最小重現",
+  "must_not": [
+   "解釋器缺陷"
+  ]
+ }
+}

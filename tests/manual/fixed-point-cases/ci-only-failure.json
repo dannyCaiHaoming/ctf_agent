@@ -1,0 +1,57 @@
+{
+ "id": "ci-only-failure",
+ "role": "domain-solver",
+ "questions": [
+  "Q5"
+ ],
+ "materials": {
+  "statement.md": "test_report.py 的一個測試在 CI 失敗、在本地通過。\n",
+  "test_report.py": "import datetime\n\ndef test_month_label():\n    d = datetime.date.today()\n    assert label(d).startswith(d.strftime(\"%B\"))\n",
+  "ci.log": "FAILED test_report.py::test_month_label - AssertionError\nplatform linux, python 3.12.1, locale C.UTF-8, TZ=UTC, pytest -n 4\n",
+  "local.log": "PASSED test_report.py::test_month_label\nplatform darwin, python 3.11.6, locale zh_TW.UTF-8, TZ=Asia/Taipei, pytest\n"
+ },
+ "workbook": [
+  {
+   "id": 1,
+   "role": "recon",
+   "slot": "facts",
+   "text": "test_month_label 在 CI 失敗、本地通過；兩邊的 Python 版本、locale、時區與並行設定都不同（見兩份 log）",
+   "scope": "materials/ci.log"
+  },
+  {
+   "id": 2,
+   "role": "coordinator",
+   "slot": "questions",
+   "text": "CI 失敗的原因是什麼？",
+   "status": "open"
+  }
+ ],
+ "rounds": [
+  {
+   "dispatch": "本輪要回答工作簿問題 id 2。允許的操作：workspace 讀寫。剩餘資源：本輪約 10 分鐘。足以交回：能指出原因或並列解釋與區分方法。"
+  }
+ ],
+ "stubs": [
+  {
+   "tool": "job.run",
+   "result": {
+    "harness": "fixed decision point: this operation is not executed here",
+    "next": "record the planned step and its expected observation in the workbook, then hand back"
+   }
+  }
+ ],
+ "variants": {
+  "neutral": {
+   "dispatch": "本輪要回答工作簿問題 id 2：這次失敗由哪一層造成、還缺什麼證據才能區分？允許的操作：workspace 讀寫。剩餘資源：本輪約 10 分鐘。足以交回：並列可能的解釋與最小區分方法。"
+  },
+  "presumptive": {
+   "dispatch": "本輪要回答工作簿問題 id 2：確認 CI 環境不一致是否為唯一解釋。允許的操作：workspace 讀寫。剩餘資源：本輪約 10 分鐘。足以交回：給出結論。"
+  }
+ },
+ "expected": {
+  "next_step": "並列 locale、Python 版本、時區、並行等解釋，選一個最小區分（例如只改 locale 重跑）",
+  "must_not": [
+   "把「CI 環境不一致」寫成唯一解釋並升級為 supported"
+  ]
+ }
+}

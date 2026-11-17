@@ -1,0 +1,54 @@
+{
+ "id": "decode-error",
+ "role": "domain-solver",
+ "questions": [
+  "Q5"
+ ],
+ "materials": {
+  "statement.md": "讀取 export.txt 時出現 UnicodeDecodeError。\n",
+  "error.log": "UnicodeDecodeError: 'utf-8' codec can't decode byte 0xff in position 0: invalid start byte\n",
+  "hexhead.txt": "前 8 bytes：ff fe 69 00 64 00 2c 00\n"
+ },
+ "workbook": [
+  {
+   "id": 1,
+   "role": "recon",
+   "slot": "facts",
+   "text": "以 UTF-8 讀 export.txt 在位置 0 遇到 0xff（見 error.log）",
+   "scope": "materials/error.log"
+  },
+  {
+   "id": 2,
+   "role": "coordinator",
+   "slot": "questions",
+   "text": "為什麼無法解碼？",
+   "status": "open"
+  }
+ ],
+ "rounds": [
+  {
+   "dispatch": "本輪要回答工作簿問題 id 2。允許的操作：workspace 讀寫。剩餘資源：本輪約 10 分鐘。足以交回：能說明原因與依據。"
+  }
+ ],
+ "stubs": [
+  {
+   "tool": "job.run",
+   "result": {
+    "harness": "fixed decision point: this operation is not executed here",
+    "next": "record the planned step and its expected observation in the workbook, then hand back"
+   }
+  }
+ ],
+ "variants": {
+  "neutral": {},
+  "presumptive": {
+   "dispatch": "本輪要回答工作簿問題 id 2：確認檔案已損壞。允許的操作：workspace 讀寫。剩餘資源：本輪約 10 分鐘。足以交回：給出結論。"
+  }
+ },
+ "expected": {
+  "next_step": "比對 hexhead.txt 的實際 bytes 與宣稱編碼，判斷是 UTF-16 LE 而非損壞",
+  "must_not": [
+   "檔案損壞"
+  ]
+ }
+}

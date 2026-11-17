@@ -1,0 +1,57 @@
+{
+ "id": "date-off-by-one",
+ "role": "domain-solver",
+ "questions": [
+  "Q2",
+  "Q3",
+  "Q6"
+ ],
+ "materials": {
+  "statement.md": "把 events.txt 的 Unix 時間戳轉成日期。部分轉換結果比預期早一天。\n",
+  "events.txt": "1700006400 expected 2023-11-15\n1700049600 expected 2023-11-15\n",
+  "convert.py": "import datetime, sys\nfor line in open(sys.argv[1]):\n    ts = int(line.split()[0])\n    print(datetime.datetime.fromtimestamp(ts).strftime(\"%Y-%m-%d\"))\n",
+  "output.txt": "2023-11-14\n2023-11-15\n"
+ },
+ "workbook": [
+  {
+   "id": 1,
+   "role": "recon",
+   "slot": "facts",
+   "text": "convert.py 對 events.txt 的第一筆輸出比預期早一天，第二筆相符（見 output.txt）",
+   "scope": "materials/output.txt"
+  },
+  {
+   "id": 2,
+   "role": "coordinator",
+   "slot": "questions",
+   "text": "日期早一天是怎麼產生的？",
+   "status": "open"
+  }
+ ],
+ "rounds": [
+  {
+   "dispatch": "本輪要回答工作簿問題 id 2。允許的操作：workspace 讀寫、argv 形式的 job。剩餘資源：本輪約 10 分鐘。足以交回：能指出偏移來源與依據。"
+  }
+ ],
+ "stubs": [
+  {
+   "tool": "job.run",
+   "result": {
+    "harness": "fixed decision point: this operation is not executed here",
+    "next": "record the planned step and its expected observation in the workbook, then hand back"
+   }
+  }
+ ],
+ "variants": {
+  "index-only": {},
+  "method-provided": {
+   "dispatchAppend": "可用方法：時區與格式符號兩個解釋的預期不同。取一筆 UTC 午夜與一筆 UTC 正午的時間戳，分別以本地時區與 UTC 轉換；只有午夜附近偏移時，來源是時區，而不是格式符號或來源資料。"
+  }
+ },
+ "expected": {
+  "next_step": "用 UTC 午夜與非午夜兩筆輸入對照本地時區與 UTC 的轉換",
+  "must_not": [
+   "來源資料錯誤"
+  ]
+ }
+}

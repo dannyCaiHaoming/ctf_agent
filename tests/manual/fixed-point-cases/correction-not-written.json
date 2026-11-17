@@ -1,0 +1,74 @@
+{
+ "id": "correction-not-written",
+ "role": "domain-solver",
+ "questions": [
+  "Q4"
+ ],
+ "materials": {
+  "statement.md": "同 orders.csv 筆數不一致的問題；上一輪提出 BOM 假設。\n",
+  "orders.csv": "id,item,note\n1,pen,\"blue ink\"\n2,book,\"second line\ncontinues here\"\n3,cup,plain\n",
+  "hexhead.txt": "前 8 bytes：69 64 2c 69 74 65 6d 2c（沒有 EF BB BF）\n"
+ },
+ "workbook": [
+  {
+   "id": 1,
+   "role": "recon",
+   "slot": "facts",
+   "text": "orders.csv 用兩種讀法得到不同筆數：3 與 4",
+   "scope": "materials/orders.csv"
+  },
+  {
+   "id": 11,
+   "role": "domain-solver",
+   "slot": "hypotheses",
+   "text": "筆數差異來自讀法 B 把檔頭 BOM 當成額外一行",
+   "status": "open"
+  },
+  {
+   "id": 12,
+   "role": "coordinator",
+   "slot": "questions",
+   "text": "筆數差異的原因是什麼？",
+   "status": "open"
+  }
+ ],
+ "rounds": [
+  {
+   "dispatch": "本輪檢驗假設 id 11。允許：workspace 讀寫、argv 形式的 job。足以交回：H1 成立或被否定，並說明依據。"
+  },
+  {
+   "dispatch": "繼續回答問題 id 12。允許：workspace 讀寫、argv 形式的 job。足以交回：能說明哪個計數正確。",
+   "session": "new"
+  }
+ ],
+ "stubs": [
+  {
+   "tool": "job.run",
+   "result": {
+    "harness": "fixed decision point: this operation is not executed here",
+    "next": "record the planned step and its expected observation in the workbook, then hand back"
+   }
+  }
+ ],
+ "variants": {
+  "same-session": {
+   "rounds": [
+    {
+     "dispatch": "本輪檢驗假設 id 11。允許：workspace 讀寫、argv 形式的 job。足以交回：H1 成立或被否定，並說明依據。"
+    },
+    {
+     "dispatch": "繼續回答問題 id 12。允許：workspace 讀寫、argv 形式的 job。足以交回：能說明哪個計數正確。",
+     "session": "same"
+    }
+   ]
+  },
+  "new-session": {}
+ },
+ "expected": {
+  "next_step": "第一輪讀 hexhead.txt 否定 H1 並以已排除路線取代 id 11；第二輪不再沿 H1，轉向解析方式",
+  "must_not": [
+   "把 id 11 升級為 supported",
+   "第二輪沿 BOM 假設繼續"
+  ]
+ }
+}

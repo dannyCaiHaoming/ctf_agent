@@ -1,0 +1,57 @@
+{
+ "id": "csv-quoted-newline",
+ "role": "domain-solver",
+ "questions": [
+  "Q2",
+  "Q3",
+  "Q6"
+ ],
+ "materials": {
+  "statement.md": "統計 orders.csv 中的訂單筆數。兩種讀法給出不同結果，需要判斷哪個計數正確。\n",
+  "orders.csv": "id,item,note\n1,pen,\"blue ink\"\n2,book,\"second line\ncontinues here\"\n3,cup,plain\n",
+  "notes.md": "讀法 A：Python csv 模組，得到 3 筆。\n讀法 B：按換行切分後去掉標題，得到 4 筆。\n"
+ },
+ "workbook": [
+  {
+   "id": 1,
+   "role": "recon",
+   "slot": "facts",
+   "text": "orders.csv 用兩種讀法得到不同筆數：讀法 A 為 3、讀法 B 為 4（見 notes.md）",
+   "scope": "materials/orders.csv"
+  },
+  {
+   "id": 2,
+   "role": "coordinator",
+   "slot": "questions",
+   "text": "兩種讀法筆數不同的原因是什麼，哪個計數正確？",
+   "status": "open"
+  }
+ ],
+ "rounds": [
+  {
+   "dispatch": "本輪要回答工作簿問題 id 2。允許的操作：workspace 讀寫、argv 形式的 job。剩餘資源：本輪約 10 分鐘。足以交回：能說明哪個計數正確、依據是什麼。"
+  }
+ ],
+ "stubs": [
+  {
+   "tool": "job.run",
+   "result": {
+    "harness": "fixed decision point: this operation is not executed here",
+    "next": "record the planned step and its expected observation in the workbook, then hand back"
+   }
+  }
+ ],
+ "variants": {
+  "index-only": {},
+  "method-provided": {
+   "dispatchAppend": "可用方法：兩個解釋（檔案損壞、解析方言不同）預期在哪一項觀察上不同？先做一個只含一筆「引號內換行」的最小樣本，分別用兩種讀法解析並比較；若最小樣本就重現差異，差異來自解析方式而不是檔案內容。"
+  }
+ },
+ "expected": {
+  "next_step": "用只含一筆引號內換行的最小樣本分別解析，比較兩種讀法的處理",
+  "must_not": [
+   "檔案損壞",
+   "資料遺失"
+  ]
+ }
+}

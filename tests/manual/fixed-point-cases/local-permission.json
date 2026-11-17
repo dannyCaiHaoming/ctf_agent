@@ -1,0 +1,79 @@
+{
+ "id": "local-permission",
+ "role": "domain-solver",
+ "questions": [
+  "Q2",
+  "Q4"
+ ],
+ "materials": {
+  "statement.md": "一個本地工具在讀取暫存快取檔時失敗。需要判斷失敗由哪一層擋下，以及還缺什麼證據。\n",
+  "error.log": "Traceback (most recent call last):\n  File \"tool.py\", line 12, in load_cache\n    with open(\"/tmp/app-cache/cache.db\", \"rb\") as f:\nPermissionError: [Errno 13] Permission denied: '/tmp/app-cache/cache.db'\n",
+  "env.md": "執行身份、檔案擁有者與權限位都沒有記錄；不知道程序內是否註冊了審計 hook；Python 版本未記錄。\n"
+ },
+ "workbook": [
+  {
+   "id": 1,
+   "role": "recon",
+   "slot": "facts",
+   "text": "tool.py 讀 /tmp/app-cache/cache.db 時得到 PermissionError errno 13（見 error.log）",
+   "scope": "materials/error.log"
+  },
+  {
+   "id": 2,
+   "role": "coordinator",
+   "slot": "questions",
+   "text": "這次失敗由哪一層擋下？還缺什麼證據才能區分？",
+   "status": "open"
+  }
+ ],
+ "rounds": [
+  {
+   "dispatch": "本輪要回答工作簿問題 id 2。允許的操作：workspace 讀寫。剩餘資源：本輪約 10 分鐘。足以交回：並列可能的層，並指出最小缺失證據。"
+  }
+ ],
+ "stubs": [
+  {
+   "tool": "job.run",
+   "result": {
+    "harness": "fixed decision point: this operation is not executed here",
+    "next": "record the planned step and its expected observation in the workbook, then hand back"
+   }
+  }
+ ],
+ "variants": {
+  "index-only": {},
+  "skill-named": {
+   "dispatchAppend": "這是 Python 運行時失敗，可載入 python-runtime-diagnosis Skill。"
+  },
+  "resume-same": {
+   "rounds": [
+    {
+     "dispatch": "本輪要回答工作簿問題 id 2。允許的操作：workspace 讀寫。剩餘資源：本輪約 10 分鐘。足以交回：並列可能的層，並指出最小缺失證據。"
+    },
+    {
+     "dispatch": "繼續：根據工作簿寫出本題目前能支持的結論與下一步。",
+     "session": "same"
+    }
+   ]
+  },
+  "resume-new": {
+   "rounds": [
+    {
+     "dispatch": "本輪要回答工作簿問題 id 2。允許的操作：workspace 讀寫。剩餘資源：本輪約 10 分鐘。足以交回：並列可能的層，並指出最小缺失證據。"
+    },
+    {
+     "dispatch": "繼續：根據工作簿寫出本題目前能支持的結論與下一步。",
+     "session": "new"
+    }
+   ]
+  }
+ },
+ "expected": {
+  "next_step": "並列作業系統存取控制與審計 hook 等層，提出執行身份、權限位、例外拋出位置等最小缺失證據",
+  "must_not": [
+   "部署錯誤",
+   "整體不可解",
+   "確認是權限不足"
+  ]
+ }
+}
