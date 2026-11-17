@@ -402,7 +402,7 @@ Engineer、Verifier 與裁判的權限不合併，「Solver 宣稱候選」不�
 
 - **四項決策事實：** 權威在[結果完整性 §5.2](2026-10-25-design-v1-run-readiness-and-result-completeness.md)，本文只引用。
 - **child 輸出上限、執行中時間事實、Recon cap 與 closure：** 歸[結果完整性 §5.2](2026-10-25-design-v1-run-readiness-and-result-completeness.md)與 [Recon 重設計 §5](2026-10-29-design-v1-recon-redesign.md)。本文不調這些數值，只在分工與決策受其影響時引用。
-- **Solver 方法缺口：** P2 復盤（Java gadget、特權 helper、native RASP）與 2026-11-17 配對批次（OGNL 成員存取、audit-hook 子解釋器）都指向方法內容與運用；內容增量歸 [B §7.1](2026-10-26-design-v1-b-method-generalization-and-efficiency.md#71-配对批次无候选复盘2026-11-17)，不在本文。
+- **Solver 方法缺口：** P2 復盤（Java gadget、特權 helper、native RASP）與 2026-11-17 配對批次（OGNL 成員存取、audit-hook 子解釋器）都指向方法內容與運用；診斷見 [B §7.1](2026-10-26-design-v1-b-method-generalization-and-efficiency.md#71-配对批次无候选复盘2026-11-17)，目前選定的內容增量是 [B §7.2](2026-10-26-design-v1-b-method-generalization-and-efficiency.md#72-python-运行时阻断归因) 的阻斷歸因（不含繞過或利用方法），§7.1 的方法類候選暫緩。不在本文。
 - **保留的底線：** Recon 記錄、追加式穩定歷史、完整 artifact 消費、失敗與 unknown、Critic 只建議、Engineer 整理、Verifier 獨立、oracle 規則與總預算。
 - **延後：** 強制 Solver closure、角色合併、模型更換、額外工具和摘要服務。全索引按需化已在 Recon 重設計 §4 實作，待真實 run 驗證。沒有證據不預排下一里程碑。
 

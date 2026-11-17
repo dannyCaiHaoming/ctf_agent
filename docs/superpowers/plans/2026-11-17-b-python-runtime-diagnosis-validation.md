@@ -4,7 +4,7 @@
 
 ## 0. 当前状态与边界
 
-当前只完成设计与计划，验证未执行。依据 B §7.1 的诊断、团队决策 design 与既有 gate 的 diagnosis.json。按 AGENTS.md 与 fucxxx-codex-spec 执行。
+当前只完成设计与计划，验证未执行。依据 B §7.1 的诊断、团队决策 design 与既有 gate 的 diagnosis.json。按 AGENTS.md 执行；计划结构沿用 fucxxx-codex-spec-plan 技能，不另增仓库规则。内容范围以 B §7.2 为准，§7.1 的方法类候选已暂缓，不在本计划内。
 
 目标：确认来源、合成反例与资产加载可行性。禁止模型调用、题目访问、历史请求重放、题目脚本、依赖安装、产品资产修改、commit/push。候选生成与真实行为收益不属本计划验收。
 
