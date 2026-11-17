@@ -44,16 +44,20 @@ Claude Code 會話開發 harness（host、控制層、OpenCode 接入、測試�
 
 ### Implicit Rules
 - Reply to user in Traditional Chinese
-- Commit/push only on explicit user request
-- Run evidence: bounded structured reads only; no exploitation content; user forbids model-driven pentest work in engineering sessions
-- Offline scripts run with python3 -I; gates outputs contain counts only, no text
+- Commit/push only on explicit user request; commit trailer Co-Authored-By: Claude Opus 5.5
+- Run evidence: bounded structured reads (jq/grep/sed -n) only; never read whole transcripts; no flag/candidate/challenge text in outputs; no model-driven pentest in engineering sessions
+- Offline Python scripts run with python3 -I; gate outputs counts only
+- Run data lives in /Users/caihaoming/Documents/pentest-agent-run-data/<batch>/<runId>/runs/<runId>/ (evidence/control-audit.json array of {seq,t,at,op,role,allow,detail,sessionID}); batch assets in runs/<batch>/
+- Product role files (product/) are product assets needing user review
+- Real model runs need explicit authorization of target, model/provider, batch, token cap
+- Leave untracked docs/gates/workbook-smoke-20261116/check.err and docs/superpowers/analysis/2026-11-12-open-source-ctf-skill-survey.md alone
 
 ### Key Decisions
-- Decision: workbook = mechanical fold of existing append-only recon_turns record; notes gain slot + supersedes — Reason: design forbids second editable fact store; workbook is state, record is evidence
-- Decision: slots goal/constraints(host), facts, hypotheses, refuted routes (Recon/Solver), open questions (Coordinator mainly), materials(host), candidate status, host facts — Reason: separate who experiments (writes facts) from who orders questions; Coordinator never rewrites facts, fixes unsourced premises
-- Decision: role views from same fold; Coordinator gets status/questions + one-line facts under restricted redaction; Verifier excluded — Reason: first time Coordinator sees investigation content, touches secrets-out-of-context baseline
-- Decision: caps entry 300 chars; facts/refuted 20; hypotheses/questions 8; materials 12; candidate 3; views Recon/Solver 12K chars, Coordinator 8K, Engineer 4K; overflow keeps writes, view shows newest N + omitted count — Reason: Coordinator manual clue lists 9-21 lines/2-9 refs over 42 dispatches, ~3x headroom; host must not judge importance
-- Decision: §4 Q3 'not supported' no longer blocks persistence — Reason: old check only verified handbacks had content, not that next role used them
-- Decision: old §6.1 Solver note + §6.3 role views merged into new §6.1; §6.4 adds relaxing Solver handback threshold after workbook works — Reason: one slice, continuity first then longer Solver rounds
+- Decision: off arm = product/ at 6adf73fa~1 + 05af1de2 via --product, context.workbook=false; on arm = repo product/, workbook=true — Reason: host-only off with current role files measures rule/env mismatch, not workbook
+- Decision: each run own runs-root, empty experience store, learning off — Reason: shared experience.sqlite leaks on-arm episodes into off arm
+- Decision: no rerun of batch after judge bug — Reason: offline verdicts recover candidate outcome; only possible side effect is Intake challenge.list showing completion not allowed, and the 7 no-candidate runs never reached submission
+- Decision: design records candidate outcome as even (8a6ac7ff 2/2 vs 2/2, ezoj 1/2 vs 0/2, ac5a1bc0 0/2 vs 0/2), no benefit claim — Reason: 2 runs per cell; 8a6ac7ff saturates both arms
+- Decision: comparable milestone for packaged runs is first_package_min, not end time — Reason: end time reflects stop after refused submission
+- Decision: gate summary.json keeps original host-recorded solved=false, adds correction block — Reason: preserve evidence, annotate defect
 
 <!-- handoff:learnings:end -->

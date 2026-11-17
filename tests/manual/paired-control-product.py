@@ -16,9 +16,9 @@ import hashlib, io, json, os, subprocess, sys, tarfile
 
 BASE = '6adf73fa~1'
 # Product commits after BASE that are not about the workbook: applied to the off arm, oldest first.
-INCLUDE = ['05af1de2']
+INCLUDE = ['05af1de2', '63b3633f']
 # Workbook role rules: left out of the off arm.
-EXCLUDE = ['6adf73fa', '2d22283d', '0cf1e606', 'ccdd0c0a']
+EXCLUDE = ['6adf73fa', '2d22283d', '0cf1e606', 'ccdd0c0a', 'e625024d']
 
 
 def git(*args, binary=False):
@@ -60,7 +60,8 @@ os.makedirs(out)
 with tarfile.open(fileobj=io.BytesIO(git('archive', BASE, 'product', binary=True))) as tar:
     tar.extractall(out, filter='data')
 for c in sorted(INCLUDE, key=lambda c: touched.index(short(c)), reverse=True):  # git log is newest first
-    patch = git('diff', f'{c}~1', c, '--', 'product', binary=True)
+    # One context line: included commits land on the older role files, whose neighbouring lines may differ.
+    patch = git('diff', '-U1', f'{c}~1', c, '--', 'product', binary=True)
     subprocess.run(['git', 'apply', '--whitespace=nowarn', '-'], cwd=out, input=patch, check=True)
 
 files = tree_hashes(os.path.join(out, 'product'))
