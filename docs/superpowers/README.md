@@ -33,7 +33,7 @@
 | 排查模型误用 workspace 路径或改进工具说明 | [G run 复盘与路径可发现性](specs/2026-10-24-design-v1-g-run-review-and-path-affordance.md) | 路径说明与示例已修正，既有 guard 保留，定向回归通过；修正后的模型遵循未验证。 |
 | 修改进度记录、停滞信号、Critic 判断，或准备练习批次 | [本地三题练习与进度帐本](specs/2026-10-24-design-v1-local-practice-suite-and-progress-ledger.md) | 进度帐本最小切片已接入并通过无模型验证；三题真实模型批次未授权，部分题目 oracle 未核实，不设正式成功率门槛。 |
 | 排查空交接、length 结束、结果归属或父上下文缺信息 | [结果完整性与交接可见性](specs/2026-10-25-design-v1-run-readiness-and-result-completeness.md) | 已按最小范围接入：同步关联、父展示、多通知消费及 Critic 条件澄清；无模型验收与独立 review 通过，见[实施证据](../gates/g-solver-verification-20261023/run-completeness-20261025/final-implementation/README.md)。child 输出上限自 a7 起为运行设定 32000；报告质量与 Critic 实际调用效果未验证。实作 plan 已完成回补并删除。 |
-| 改进通用解题方法、Skill／Reference 与失败归因 | [B 通用解题方法与耗时优化](specs/2026-10-26-design-v1-b-method-generalization-and-efficiency.md) | 进行中（2026-11-17）：既有资产已交付；配对诊断保留方法内容与运用假设。§7.2 选定 Python 运行时阻断归因，拟用独立短 Skill 与 Reference；无模型验证待执行，产品未改，候选与泛化收益未知。原收敛方案及限制保留在 §8。 |
+| 改进通用解题方法、Skill／Reference 与失败归因 | [B 通用解题方法与耗时优化](specs/2026-10-26-design-v1-b-method-generalization-and-efficiency.md) | 进行中（2026-11-17）：既有资产已交付；配对诊断保留方法内容与运用假设。§7.2 选定 Python 运行时阻断归因，拟用独立短 Skill 与 Reference；无模型验证完成，`python-runtime-diagnosis` Skill 与 Solver 指向行已提交（`f6bd40ab`）；模型载入、候选与泛化收益未验证。原收敛方案及限制保留在 §8。 |
 | 排查停滞未触发换路、Critic 复核关键前提或搜索结果有效性 | [否定证据与路线复核](specs/2026-10-25-design-v1-negative-evidence-and-route-review.md) | 源头取证与交接提示已提交；§5 候选 D（有界回合交回）已实现，r10 首次出现 Critic `redirect`；行为收益待真实 run 验证。 |
 | 修改同步任务交付身份、续接参数继承 | [任务参数继承与同步交付身份](specs/2026-10-25-design-v1-sync-resume-provenance.md) | 同步交付已实现并合入（merge `c120e143`），无模型验证通过；Q5 promotion 按可达性判定记录为限制、未实现。 |
 | 排查 finish=length、空正文或结果分类 | [生成到上限后的空正文与结果恢复](specs/2026-10-26-design-v1-c-empty-result-recovery.md) | 普通完成入口的多轮分类修复已合入；转后台、错误与不支持链的边界保留；实际额度接线与生成改善待验证。 |
