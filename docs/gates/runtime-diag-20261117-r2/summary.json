@@ -1,0 +1,742 @@
+{
+  "note": "Counts and structured fields only, derived from run evidence (inventory, control-audit, messages tool calls, task executions, state). No message text, workbook entry text, candidate, flag, or challenge content.",
+  "batch": {
+    "batchId": "runtime-diag-20261117-r2",
+    "head": "fe56cedd",
+    "baseCommit": "e8d9d76f",
+    "model": "volcano-plan/deepseek-v4.1-flash",
+    "provider": "volcano-plan direct (configs/opencode.json, copied unchanged from runtime-diag-20261117)",
+    "solverThinking": "enabled",
+    "deadlineMs": 1800000,
+    "maxObservableTokensPerRun": 5000000,
+    "batchTokenCap": 10000000,
+    "plannedRuns": 2,
+    "executedRuns": 2,
+    "launchAttempts": 2,
+    "launchAborts": 0,
+    "precondition": {
+      "gitStatusProductAppsClean": true,
+      "headContainsTargetCommit": true,
+      "domainSolverPointer": {
+        "present": true,
+        "location": "實驗與修正 first bullet +1 (line 37)",
+        "absentFromStartSection": true
+      },
+      "coordinatorAttributionExample": {
+        "present": true,
+        "location": "有界回合 (line 30)"
+      },
+      "runsRootUpperDirWritable": true,
+      "targetContainer": {
+        "stateBeforeFirstRun": "exited_137",
+        "action": "docker start",
+        "restartedAt": "2026-11-17T14:01:42Z",
+        "stateAfterRestart": "running"
+      }
+    },
+    "target": {
+      "composeProject": "workbook-paired-20261117-ezoj",
+      "containerID": "6688b4b6e41ae4e4f4dbcd6705efee8f9c9816f385c826a565e21bcfb2da626c",
+      "image": "quay.io/alibaba-aaig/alibaba-ctf-bench:runtime-alibabactf-2025-Web-ezoj",
+      "binding": "127.0.0.1:8047 -> 5000",
+      "evidence": "runs/runtime-diag-20261117-r2/targets/*/evidence/preflight.json"
+    },
+    "judge": {
+      "module": "runs/workbook-paired-20261117/judges/alibaba.mts",
+      "export": "createAlibabaExactJudge",
+      "id": "local-alibaba-ezoj-exact-v1"
+    }
+  },
+  "runs": [
+    {
+      "runId": "rtd2-ezoj-on-1",
+      "arm": "on",
+      "context": {
+        "index": "summary",
+        "workbook": true
+      },
+      "productSource": "repository",
+      "startedAt": "2026-11-17T14:02:08.259Z",
+      "finishedAt": "2026-11-17T14:29:06.322Z",
+      "wallMin": 26.97,
+      "exitCode": 0,
+      "status": "completed",
+      "stopReason": "completed",
+      "modelCalls": 116,
+      "usage": {
+        "availability": "reported",
+        "input": 725202,
+        "output": 108021,
+        "reasoning": 143828,
+        "sum": 977051
+      },
+      "skillCalls": {
+        "total": 0,
+        "byRole": {
+          "coordinator": 0,
+          "intake": 0,
+          "recon": 0,
+          "domain-solver": 0,
+          "recovery-critic": 0
+        },
+        "names": [],
+        "firstAtMin": null
+      },
+      "referenceReads": {
+        "total": 0
+      },
+      "solverRuntimeFailure": {
+        "first": {
+          "tMin": 4.14,
+          "exception": "RuntimeError",
+          "errno": null,
+          "channel": "HTTP response RE (ret=1)",
+          "evidence": "first RE ret=1 body (work/http)"
+        },
+        "firstPermission": {
+          "tMin": 25.78,
+          "exception": "PermissionError",
+          "errno": 13,
+          "channel": "server-side python via HTTP; recorded in workbook",
+          "evidence": "entries 370/376/377; closure 378"
+        }
+      },
+      "solverAttribution": {
+        "firstAny": null,
+        "firstSupported": null,
+        "firstConclusionFactsOrRefuted": null,
+        "excludedNeutralMentions": [
+          {
+            "id": 199,
+            "tMin": 15.79,
+            "reason": "部署 worker context, not a failure attribution"
+          },
+          {
+            "id": 200,
+            "tMin": 15.81,
+            "reason": "environment variables, not a failure attribution"
+          }
+        ]
+      },
+      "deploymentAsFactsOrRefuted": [],
+      "coordinatorAttributionQuestions": [
+        {
+          "id": 378,
+          "tMin": 26.8,
+          "status": "answered",
+          "kind": "closure",
+          "mentionsDeploy": false,
+          "mentionsLayer": true,
+          "reviewPhrasing": false,
+          "namesSkill": false,
+          "presetConclusion": false
+        }
+      ],
+      "solverDispatches": [
+        {
+          "to": "domain-solver",
+          "tMin": 1.94,
+          "chars": 1479,
+          "deploy": false,
+          "inconsistency": false,
+          "reviewPhrasing": true,
+          "namesSkill": false
+        },
+        {
+          "to": "domain-solver",
+          "tMin": 16.85,
+          "chars": 1027,
+          "deploy": false,
+          "inconsistency": false,
+          "reviewPhrasing": true,
+          "namesSkill": false
+        },
+        {
+          "to": "domain-solver",
+          "tMin": 21.4,
+          "chars": 1403,
+          "deploy": false,
+          "inconsistency": false,
+          "reviewPhrasing": false,
+          "namesSkill": false
+        },
+        {
+          "to": "domain-solver",
+          "tMin": 22.46,
+          "chars": 1060,
+          "deploy": false,
+          "inconsistency": false,
+          "reviewPhrasing": false,
+          "namesSkill": false
+        },
+        {
+          "to": "domain-solver",
+          "tMin": 23.55,
+          "chars": 815,
+          "deploy": false,
+          "inconsistency": false,
+          "reviewPhrasing": true,
+          "namesSkill": false
+        },
+        {
+          "to": "domain-solver",
+          "tMin": 24.26,
+          "chars": 629,
+          "deploy": false,
+          "inconsistency": false,
+          "reviewPhrasing": true,
+          "namesSkill": false
+        },
+        {
+          "to": "domain-solver",
+          "tMin": 24.74,
+          "chars": 884,
+          "deploy": false,
+          "inconsistency": false,
+          "reviewPhrasing": false,
+          "namesSkill": false
+        },
+        {
+          "to": "domain-solver",
+          "tMin": 26.2,
+          "chars": 957,
+          "deploy": false,
+          "inconsistency": false,
+          "reviewPhrasing": true,
+          "namesSkill": false
+        }
+      ],
+      "critic": {
+        "dispatched": false,
+        "tMin": null,
+        "route": null,
+        "skillCalls": 0,
+        "loadsSkill": false
+      },
+      "finalNote": {
+        "tMin": 26.85,
+        "route": "stop_and_report",
+        "remainingMin": 3,
+        "blockerCategories": [
+          "permission",
+          "time_budget"
+        ],
+        "hedged": false
+      },
+      "openAtEnd": {
+        "hypotheses": [
+          {
+            "id": 27,
+            "status": "open"
+          }
+        ],
+        "questions": [
+          {
+            "id": 30,
+            "role": "recon",
+            "status": "open"
+          }
+        ],
+        "finalNoteExplains": []
+      },
+      "result": {
+        "candidate": false,
+        "firstCandidateMin": null,
+        "firstPackageMin": null,
+        "completionAttempts": 0,
+        "judgeReceipts": 0,
+        "publications": 10
+      },
+      "rounds": [
+        {
+          "role": "recon",
+          "childID": "ses_e162ee186ffeitoWh2jy9fbkn7",
+          "startMin": 0.49,
+          "durMin": 1.28
+        },
+        {
+          "role": "domain-solver",
+          "childID": "ses_e162d8cdeffeVfI4i1ZXr8N2TB",
+          "startMin": 1.94,
+          "durMin": 14.16
+        },
+        {
+          "role": "domain-solver",
+          "childID": "ses_e162d8cdeffeVfI4i1ZXr8N2TB",
+          "startMin": 16.85,
+          "durMin": 4.33
+        },
+        {
+          "role": "domain-solver",
+          "childID": "ses_e162d8cdeffeVfI4i1ZXr8N2TB",
+          "startMin": 21.4,
+          "durMin": 0.84
+        },
+        {
+          "role": "domain-solver",
+          "childID": "ses_e162d8cdeffeVfI4i1ZXr8N2TB",
+          "startMin": 22.46,
+          "durMin": 0.97
+        },
+        {
+          "role": "domain-solver",
+          "childID": "ses_e162d8cdeffeVfI4i1ZXr8N2TB",
+          "startMin": 23.55,
+          "durMin": 0.63
+        },
+        {
+          "role": "domain-solver",
+          "childID": "ses_e162d8cdeffeVfI4i1ZXr8N2TB",
+          "startMin": 24.26,
+          "durMin": 0.36
+        },
+        {
+          "role": "domain-solver",
+          "childID": "ses_e162d8cdeffeVfI4i1ZXr8N2TB",
+          "startMin": 24.74,
+          "durMin": 1.19
+        },
+        {
+          "role": "domain-solver",
+          "childID": "ses_e162d8cdeffeVfI4i1ZXr8N2TB",
+          "startMin": 26.2,
+          "durMin": 0.42
+        }
+      ],
+      "refusals": {
+        "reconMissingFields": 1,
+        "solverTextOver300": 1
+      },
+      "workbookWritesByRole": {
+        "recon": {
+          "facts": 5,
+          "hypotheses": 1,
+          "refuted": 2,
+          "questions": 1,
+          "kind": 2
+        },
+        "domain-solver": {
+          "facts": 8,
+          "hypotheses": 4,
+          "refuted": 2,
+          "questions": 7
+        },
+        "coordinator": {
+          "questions": 3
+        }
+      },
+      "workbookTotals": {
+        "facts": 13,
+        "hypotheses": 5,
+        "questions": 11,
+        "refuted": 4
+      }
+    },
+    {
+      "runId": "rtd2-ezoj-on-2",
+      "arm": "on",
+      "context": {
+        "index": "summary",
+        "workbook": true
+      },
+      "productSource": "repository",
+      "startedAt": "2026-11-17T14:29:17.517Z",
+      "finishedAt": "2026-11-17T14:57:06.011Z",
+      "wallMin": 27.81,
+      "exitCode": 0,
+      "status": "completed",
+      "stopReason": "completed",
+      "modelCalls": 110,
+      "usage": {
+        "availability": "reported",
+        "input": 252630,
+        "output": 58269,
+        "reasoning": 194550,
+        "sum": 505449
+      },
+      "skillCalls": {
+        "total": 1,
+        "byRole": {
+          "coordinator": 0,
+          "intake": 0,
+          "recon": 0,
+          "domain-solver": 1,
+          "recovery-critic": 0
+        },
+        "names": [
+          "python-runtime-diagnosis"
+        ],
+        "firstAtMin": 16.49
+      },
+      "referenceReads": {
+        "total": 0
+      },
+      "solverRuntimeFailure": {
+        "first": {
+          "tMin": 11.35,
+          "exception": "RuntimeError",
+          "errno": null,
+          "channel": "HTTP response RE (ret=1)",
+          "evidence": "first RE ret=1 body"
+        },
+        "firstPermission": {
+          "tMin": 16.3,
+          "exception": "PermissionError",
+          "errno": 13,
+          "channel": "server-side python via HTTP; recorded in workbook",
+          "evidence": "entry 123"
+        }
+      },
+      "solverAttribution": {
+        "firstAny": {
+          "id": 128,
+          "seq": 128,
+          "tMin": 16.4,
+          "slot": "hypotheses",
+          "status": "open",
+          "kind": "assumption_open",
+          "skillLoadedBefore": false,
+          "skillLoadAtMin": 16.49,
+          "deltaMin": 0.09
+        },
+        "firstSupported": {
+          "id": 147,
+          "tMin": 23.72,
+          "slot": "hypotheses",
+          "status": "supported",
+          "kind": "assumption_supported",
+          "session": "ses_e16069ca4ffeqin1oU3SaaoC4q",
+          "skillLoadedInSession": false
+        },
+        "firstConclusionFactsOrRefuted": null
+      },
+      "deploymentAsFactsOrRefuted": [],
+      "coordinatorAttributionQuestions": [
+        {
+          "id": 148,
+          "tMin": 24.05,
+          "status": "answered",
+          "mentionsDeploy": false,
+          "mentionsLayer": true,
+          "presetConclusion": false
+        },
+        {
+          "id": 149,
+          "tMin": 24.07,
+          "status": "dropped",
+          "mentionsDeploy": true,
+          "mentionsLayer": false,
+          "presetConclusion": false
+        },
+        {
+          "id": 150,
+          "tMin": 24.1,
+          "status": "answered",
+          "mentionsDeploy": false,
+          "mentionsLayer": true,
+          "presetConclusion": false
+        },
+        {
+          "id": 151,
+          "tMin": 24.11,
+          "status": "dropped",
+          "mentionsDeploy": true,
+          "mentionsLayer": true,
+          "presetConclusion": true
+        }
+      ],
+      "solverDispatches": [
+        {
+          "to": "domain-solver",
+          "tMin": 3.77,
+          "chars": 1158,
+          "deploy": false,
+          "inconsistency": false,
+          "reviewPhrasing": true,
+          "namesSkill": false
+        },
+        {
+          "to": "domain-solver",
+          "tMin": 17.32,
+          "chars": 1207,
+          "deploy": true,
+          "inconsistency": true,
+          "reviewPhrasing": true,
+          "namesSkill": false,
+          "asksWhetherOnlyExplanation": true
+        },
+        {
+          "to": "domain-solver",
+          "tMin": 24.98,
+          "chars": 1031,
+          "deploy": false,
+          "inconsistency": false,
+          "reviewPhrasing": true,
+          "namesSkill": false
+        },
+        {
+          "to": "domain-solver",
+          "tMin": 26.16,
+          "chars": 540,
+          "deploy": false,
+          "inconsistency": false,
+          "reviewPhrasing": true,
+          "namesSkill": false
+        }
+      ],
+      "critic": {
+        "dispatched": true,
+        "tMin": 24.33,
+        "childID": "ses_e160032b3ffefX5kxl5pItvEDt",
+        "route": "redirect",
+        "routeAtMin": 24.71,
+        "skillCalls": 0,
+        "loadsSkill": false,
+        "qualifiedSupportedHypothesis": true
+      },
+      "finalNote": {
+        "tMin": 27.71,
+        "route": "stop_and_report",
+        "remainingMin": 2,
+        "blockerCategories": [
+          "deployment_environment",
+          "permission"
+        ],
+        "hedged": false,
+        "claimsAllOpenClosed": true
+      },
+      "openAtEnd": {
+        "hypotheses": [
+          {
+            "id": 53,
+            "status": "supported"
+          },
+          {
+            "id": 54,
+            "status": "open"
+          },
+          {
+            "id": 147,
+            "status": "supported"
+          }
+        ],
+        "questions": [
+          {
+            "id": 1,
+            "role": "coordinator",
+            "status": "open"
+          }
+        ],
+        "finalNoteExplains": [
+          147
+        ]
+      },
+      "result": {
+        "candidate": false,
+        "firstCandidateMin": null,
+        "firstPackageMin": null,
+        "completionAttempts": 0,
+        "judgeReceipts": 0,
+        "publications": 31
+      },
+      "rounds": [
+        {
+          "role": "recon",
+          "childID": "ses_e1616039affeDDr0zWbR1QknB7",
+          "startMin": 0.5,
+          "durMin": 3.11
+        },
+        {
+          "role": "domain-solver",
+          "childID": "ses_e161304b9ffeZYq4h0v0NqHO6r",
+          "startMin": 3.77,
+          "durMin": 12.89
+        },
+        {
+          "role": "domain-solver",
+          "childID": "ses_e16069ca4ffeqin1oU3SaaoC4q",
+          "startMin": 17.32,
+          "durMin": 6.53
+        },
+        {
+          "role": "recovery-critic",
+          "childID": "ses_e160032b3ffefX5kxl5pItvEDt",
+          "startMin": 24.33,
+          "durMin": 0.46
+        },
+        {
+          "role": "domain-solver",
+          "childID": "ses_e15ff9aeeffe9O7AIqd69UKZuD",
+          "startMin": 24.98,
+          "durMin": 1.01
+        },
+        {
+          "role": "domain-solver",
+          "childID": "ses_e15fe859fffejGq8yl1APi7uzN",
+          "startMin": 26.16,
+          "durMin": 1.48
+        }
+      ],
+      "refusals": {
+        "evidenceRefsIncomplete": 9,
+        "solverTextOver300": 1
+      },
+      "workbookWritesByRole": {
+        "recon": {
+          "facts": 8,
+          "hypotheses": 2,
+          "refuted": 2,
+          "questions": 2,
+          "kind": 2
+        },
+        "domain-solver": {
+          "facts": 8,
+          "hypotheses": 2,
+          "refuted": 4,
+          "questions": 1
+        },
+        "coordinator": {
+          "questions": 6
+        }
+      },
+      "workbookTotals": {
+        "facts": 16,
+        "hypotheses": 4,
+        "questions": 9,
+        "refuted": 6
+      }
+    }
+  ],
+  "comparison": {
+    "previous": {
+      "batch": "runtime-diag-20261117",
+      "runId": "rtd-ezoj-on-1",
+      "head": "13a93056",
+      "solverSkillCalls": 0,
+      "firstAttribution": {
+        "id": 72,
+        "tMin": 13.18,
+        "slot": "refuted",
+        "kind": "conclusion",
+        "wording": "deployment inconsistency"
+      },
+      "coordinatorQuestion": {
+        "id": 65,
+        "tMin": 12.37,
+        "presetConclusion": true,
+        "namesSkill": false
+      },
+      "critic": {
+        "dispatchedAtMin": 12.62,
+        "skillLoadAtMin": 14.28,
+        "route": "continue",
+        "corrected": true
+      },
+      "finalNote": {
+        "route": "stop_and_report",
+        "remainingMin": 10,
+        "blockerCategories": [
+          "deployment_environment",
+          "permission"
+        ],
+        "hedged": true
+      },
+      "openAtEnd": {
+        "hypotheses": [
+          25,
+          26,
+          60,
+          61
+        ],
+        "questions": []
+      }
+    },
+    "thisBatch": {
+      "rtd2-ezoj-on-1": {
+        "solverSkillCalls": 0,
+        "firstAttribution": null,
+        "coordinatorAttributionDispatches": 0,
+        "critic": null,
+        "finalNote": {
+          "route": "stop_and_report",
+          "remainingMin": 3,
+          "blockerCategories": [
+            "permission",
+            "time_budget"
+          ]
+        }
+      },
+      "rtd2-ezoj-on-2": {
+        "solverSkillCalls": 1,
+        "skillAtMin": 16.49,
+        "firstAttribution": {
+          "id": 128,
+          "tMin": 16.4,
+          "slot": "hypotheses",
+          "status": "open"
+        },
+        "firstSupportedAttribution": {
+          "id": 147,
+          "tMin": 23.72
+        },
+        "attributionCoordinatorDispatch": {
+          "tMin": 17.32,
+          "deploy": true,
+          "reviewPhrasing": true,
+          "namesSkill": false,
+          "asksWhetherOnlyExplanation": true
+        },
+        "critic": {
+          "dispatchedAtMin": 24.33,
+          "route": "redirect",
+          "skillLoaded": false
+        },
+        "finalNote": {
+          "route": "stop_and_report",
+          "remainingMin": 2,
+          "blockerCategories": [
+            "deployment_environment",
+            "permission"
+          ]
+        }
+      }
+    },
+    "differences": [
+      "Solver skill load: previous 0; rtd2-ezoj-on-1 0; rtd2-ezoj-on-2 1 (at 16.49, 0.09 min after the first open-hypothesis deployment attribution write and before the round-1 handback).",
+      "Deployment attribution: previous wrote deployment inconsistency as a conclusion at 13.18 (refuted slot); rtd2-ezoj-on-1 wrote none; rtd2-ezoj-on-2 wrote an open hypothesis at 16.40 and escalated it to supported at 23.72, with no facts/refuted deployment entry.",
+      "Coordinator attribution dispatch: previous question 65 at 12.37 contained a preset cause; rtd2-ezoj-on-1 had none; rtd2-ezoj-on-2 dispatch at 17.32 asks whether deployment inconsistency is the only explanation and does not name the Skill.",
+      "Critic: previous dispatched at 12.62, loaded the Skill at 14.28 and corrected; rtd2-ezoj-on-1 none; rtd2-ezoj-on-2 dispatched at 24.33 without the Skill and qualified the supported hypothesis.",
+      "Stop: previous remaining 10 min with deployment unverified; rtd2-ezoj-on-1 remaining 3 min on permission/time; rtd2-ezoj-on-2 remaining 2 min with deployment inconsistency stated as an environment blocker.",
+      "No candidate, no package, no judge receipt in any of the three runs."
+    ],
+    "noBenefitClaim": true
+  },
+  "failures": {
+    "spec": [],
+    "environment": [
+      {
+        "what": "the previous batch's ezoj container was exited (137) before this batch",
+        "evidence": "runs/runtime-diag-20261117-r2/targets/rtd2-ezoj-on-1/evidence/preflight.json",
+        "impact": "none; restarted with docker start, both runs completed"
+      }
+    ],
+    "interface": [
+      {
+        "what": "no blocking interface failure; control refusals occurred and were retried within the runs",
+        "evidence": "docs/gates/runtime-diag-20261117-r2/*.check.json refused; run1 2, run2 10"
+      }
+    ],
+    "capability": [
+      {
+        "run": "rtd2-ezoj-on-1",
+        "what": "Solver wrote no deployment/environment/unsolvable attribution, so the moved pointer was not exercised; 0 skill calls across roles",
+        "evidence": "control-audit skill rows 0; entries 199/200 neutral; finalNote blocker permission+time"
+      },
+      {
+        "run": "rtd2-ezoj-on-2",
+        "what": "first deployment-inconsistency hypothesis written 0.09 min before the Solver loaded the Skill; the supported escalation in a later session did not reload it and no runtime-boundaries read occurred",
+        "evidence": "entries 128 (16.40) / 147 (23.72); skill call at 16.49; referenceReads 0"
+      }
+    ]
+  }
+}

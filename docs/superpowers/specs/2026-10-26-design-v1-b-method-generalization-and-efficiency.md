@@ -1,6 +1,6 @@
 # design v1 B／G：通用解题方法与耗时优化
 
-状态（2026-11-17）：进行中。现有 Reference 与 Skill 入口已交付；§7.2 选定 Python 运行时阻断归因为当前最小能力，无模型验证已完成，`python-runtime-diagnosis` Skill 与 Solver 指向行已经用户审阅并提交（`f6bd40ab`）；候选产出、模型载入与遵循及泛化收益未验证。
+状态（2026-11-17）：进行中。Reference 与 Skill 入口已交付；§7.2 的 Python 运行时阻断归因已有 3 次 ezoj run：`13a93056` 1 次（指向行在「開始前」），`e8d9d76f` 后同条件 2 次。Solver 共载入 1 次，在交回前、晚于第一条归因假设；Coordinator 派单点名 Skill 0 次；候选产出与泛化收益未验证。
 
 本文是[核心 design v1](2026-10-22-ctf-agent-design-v1.md) B／G 的详细子文件，细节以本文为准。沿用 [A／B 资产设计](2026-10-22-design-v1-ab-product-assets.md)的原生 Skill、固定副本和受控 Reference，不另建知识平台。
 
@@ -283,16 +283,25 @@ r7（[路线优先级 §8.2](#82-路线优先级的-skill-内容增量)、[路�
 
 **验证证据（2026-11-17）。** 五例在正文都有对应段落。实施前跑过 `experience-tools`、`c-denial-detail`、`control-service` 三组 58 项定向测试，实施后 `npm run test:deterministic` 52 个文件、834 项通过；重新生成的关闭组产品含逐字节相同的 Skill 与位置正确的指向行。审阅后修正一处（`13a93056`）：控制层表原把 `PermissionError`／`EACCES` 直接对应到“身份没有权限”，与“hook 可抛出同类异常”矛盾；现加“成立条件”栏，§3 改为条件句，不能外推表补一行“例外类型 → 错误来自操作系统”；该修正同样归入套用，重新生成的关闭组 Reference 与 HEAD 逐字节相同。Reference 现为 4050 字节。
 
-**未验证与下一步。** 无模型检查只证明内容与接口设计一致。2026-11-17 的一次真实 run（ezoj，arm=on，head `13a93056`，30 分钟／5M token 上限；96 次模型调用、约 35 万 token、19.5 分钟完成）给出第一组行为观察：`inventory.json` 列出该 Skill；`skill` 调用 1 次，来自 recovery-critic（第 14.3 分钟），随后读取 `references/runtime-boundaries.md`；Solver 0 次。Solver 第 7.1 分钟首次遇到权限被拒的 Python 运行时失败（首次读取目标文件被拒，`PermissionError` errno 13；4.9 分钟时另有一次脚本路径错误，属程序错误），工作簿在约 10.8–11.2 分钟把 OS 存取控制写成事实，把部署身分差异留为 open 假设与问题（seq 61、63）。随后归因升级：12.4 分钟 Coordinator 的问题写成“否则确认部署不一致”（seq 65）；12.5 分钟续接 Solver、12.6 分钟并行派 Critic；13.2 分钟 Solver 写成“属部署不一致”并要求部署端修正（seq 72、73），即 Skill 要防的外推，此时 Solver 未载入 Skill。14.3 分钟 Critic 载入 Skill，14.8 分钟的 note 写明权限拒绝不能推出部署不一致或整题不可解；此后 Solver 第三轮（18.9 分钟）与 Coordinator 最终 `stop_and_report` 都写“部署差异或原题意图无法验证”，并引用 OS 存取控制层。改正来自 Critic，Solver 的按名指向本次没有起作用。与配对批次 3 次无候选 ezoj run 的差别只在最终归因措辞：那 3 次把部署不一致／落差写成判定，本次中途也写成判定，经 Critic 改正后最终写成未证；无候选、无打包、无裁判回执。载入发生在 critic 而非 Solver，不能归因于 Solver 载入，也不能说明候选率变化；计数见 [gate 摘要](../../gates/runtime-diag-20261117/summary.json)。
+**未验证与下一步。** 同条件（ezoj、arm=on、`fe56cedd`、30 分钟／5M token）在本批跑两次；两次结果不一致，分列在下表，不合并成一个结论。两次都无候选、无打包、无裁判回执；前置检查通过（runsRoot 可写，目标容器原为 exited 137，重启后运行）；两次 `--check` 的输出未单独保存，只由 `batch-meta.json` 的 precheck 与两次 run exit 0 间接确认。
 
-停止规则（§6.3 团队决策 design，`63b3633f`／`e625024d`）只部分遵守：结束时剩约 10 分钟，而 Solver 三轮用时 8.2、0.8、3.5 分钟，够再一轮；Critic（12.6–15.0 分钟，与 Solver 第二轮并行）建议 `continue` 并给出 10 分钟有界计划，Coordinator 只续一轮 3.5 分钟便停止；最终 note 写了剩余分钟并说明 Solver 的 open 假设 60、61，Recon 的 open 假设 25、26 未说明。这属于团队决策 design 的验收观察，不是本 Skill 的效果。
+| run | 条件与结果 | 能说明什么 |
+| --- | --- | --- |
+| `rtd-ezoj-on-1`（上批，`13a93056`） | Solver 0 次载入；13.2 分钟把部署不一致写成判定（seq 72、73）；Coordinator 问题 65 预设部署不一致的结论；Critic 14.3 分钟载入并改正；剩 10 分钟 | 指向行在「開始前」时，任务中途不触发 |
+| `rtd2-ezoj-on-1`（本批，116 次调用、约 98 万 token、27.0 分钟） | Solver 0 次载入；没有写出部署／环境／不可解归因；4.1 分钟遇到 RuntimeError，25.8 分钟记录 PermissionError，停在权限层；无 Critic；剩 3 分钟 | 没有归因写入，指针未被触发；不能判断是否生效 |
+| `rtd2-ezoj-on-2`（本批，110 次调用、约 51 万 token、27.8 分钟） | Solver 1 次载入（16.49 分钟）；首次归因是 16.40 分钟的开放假设（seq 128），0.09 分钟后、交回前载入；23.72 分钟升级为 supported「唯一解释」（seq 147），未再载入、未读 Reference；Coordinator 17.32 分钟派单问“部署不一致是否唯一解释”、未点名 Skill；Critic 24.33 分钟派单、未载入，限定 id147；剩 2 分钟，部署不一致作为 blocker | 载入晚于第一条假设记录；支持的升级仍超出权限拒绝能支持的结论 |
 
-**Solver 未载入的原因（2026-11-17 核对）。** 只用 `inventory.json`、control-audit、progress、工作簿计数与派单文字的关键词布尔值，未读 transcript。
-- **已排除：** 资产已送到（run 内 `domain-solver.md` 含指向行，Skill 目录已复制，inventory 列出）；权限允许（Solver 与 Critic 的 `skill` 规则相同，Critic 调用成功）；prompt 完整（2139 字，与角色档正文一致，指向行在第 20 行）；模型未换（Solver 曾调用 skill 的 r3、r4 同为 DeepSeek v4.1 flash，端点不同）。
+与上一批相比，差异只在时序与措辞：上一批在写归因前 0 次载入并把部署不一致写成判定；本批一次没有归因可观察，一次在开放假设之后载入，且把“唯一解释”写成 supported 假设。两次都没有把部署不一致写进 facts 或 refuted；Coordinator 两次都没有点名该 Skill。不能据此说明收益。
+
+停止规则（§6.3 团队决策 design，`63b3633f`／`e625024d`）仍只部分遵守：上一批剩约 10 分钟，本批两次分别剩 3 与 2 分钟。`rtd2-ezoj-on-2` 采纳 Critic 的 redirect 后补查两轮（1.0、1.5 分钟）才收束。上一批的最终 note 未说明 open 假设 25、26；本批 `rtd2-ezoj-on-1` 未说明假设 27、问题 30，`rtd2-ezoj-on-2` 声称“全部 open 问题已关闭”，但问题 1 与假设 54 仍 open；假设 53、147 为 supported、未被取代，最终 note 只引用了 147。这属于团队决策 design 的验收观察，不是本 Skill 的效果。
+
+**载入行为与原因（2026-11-17 核对）。** 只用 `inventory.json`、control-audit、progress、工作簿计数与派单文字的关键词布尔值，未读 transcript。
+- **已排除：** 资产已送到（run 内 `domain-solver.md` 含指向行，Skill 目录已复制，inventory 列出）；权限允许（Solver 与 Critic 的 `skill` 规则相同，Critic 调用成功）；prompt 完整（2139 字，与角色档正文一致；上一批 `13a93056` 的指向行在第 20 行）；模型未换（Solver 曾调用 skill 的 r3、r4 同为 DeepSeek v4.1 flash，端点不同）。
 - **基础率低：** 56 个有 control-audit 的 run 中，Solver 只在 2 个 run 调用过 `skill`（10-25 r3、10-26 r4），之后约 45 个 run 为 0；`recon.md` 自 10-29 起按名指向 `recon-investigation`，此后 Recon 也只载入 2 次，都在 session 开始约 0.5 分钟。角色档里的按名指向在开头偶尔有效，任务中途几乎不起作用。
 - **触发位置：** 指向行在「開始前」，条件却出现在任务中途：第 7.08 分钟、Solver 第 18 次 `job.run` 循环里出现 `PermissionError`（errno 13），当时上下文没有任何提醒。
 - **派单措辞：** Solver 第二轮派单含「部署」、不含复核措辞，承接 Coordinator 的问题“否则确认部署不一致”（seq 65），Solver 照做并在 13.2 分钟写成判定；Critic 的派单含「部署」且以待复核的结论提出，正合 Skill description 的“判断这次失败能支持什么结论”，所以载入。
-- **结论：** 主要是触发位置与派单措辞，叠加任务中途调用 skill 的低基础率；不是资产、权限或模型变更。仍未区分的是：改了触发点后，模型是否会在中途调用。
+- **本批一次载入的时序：** `rtd2-ezoj-on-2` 第一轮 Solver 在 16.30 分钟记录 `PermissionError`（seq 123），16.40 分钟写出部署不一致的开放假设（seq 128，未并列其他层），16.45 分钟写问题（seq 129），16.49 分钟载入 `python-runtime-diagnosis`（只载入 SKILL.md，未读 Reference），16.54 分钟输出交回文字，16.66 分钟交回完成。载入后没有再写工作簿，seq 128 未改；交回文字含并列解释与保留措辞，工作簿条目没有。第二轮是新 session（17.32 分钟派单），23.72 分钟以 seq 147 取代 seq 128、升级为 supported，文字含“唯一解释”，该 session 未载入 Skill，也未读 Reference。
+- **结论：** 上一批主要是触发位置与派单措辞，叠加任务中途调用 skill 的低基础率；不是资产、权限或模型变更。触发点移到「写结论」后，本批唯一一次载入紧贴交回：指向行「交回或記錄中」只在交回这一半生效，写工作簿时没有触发。可能的原因有两层，本批无法再细分：措辞上，open 假设不算“寫成部署錯誤”，模型先写假设合乎字面；机制上，Skill 内容只在载入的 session 内有效，第二轮新 session 不带它，升级发生在那里。Coordinator 两次 12 次 Solver 派单点名 Skill 0 次，B 中点名的部分没有生效。
 
 **触发点与派单修改（2026-11-17 用户审阅后写入角色档，`e8d9d76f`）。** 都只改角色档文字，不加 host 判断；措辞不涉及工作簿，关闭组基准（`6adf73fa~1`）在两处插入点的前后行与 HEAD 相同，1 行上下文补丁可套上，归入套用。
 - **A：把触发点移到写结论的那一刻。** `domain-solver.md` 删去「開始前」的指向行，改在「實驗與修正」第一条之后加：
@@ -314,7 +323,11 @@ r7（[路线优先级 §8.2](#82-路线优先级的-skill-内容增量)、[路�
 
 A、B 写入后：`npm run test:deterministic` 834 项通过；在临时 worktree 由 HEAD 重新生成关闭组产品，1 行上下文补丁可干净套上。`e8d9d76f` 已归入套用，重新生成的关闭组产品中 Solver 指向行位于「實驗與修正」第一条之后、Coordinator 含归因例子，Skill 文件与 HEAD 逐字节相同。
 
-下一步须另行授权并满足成本边界：同条件重复不少于 2 次，确认 Solver 是否在归因前载入、停止理由是否保留未证；若 Solver 仍不载入，再区分触发面不足与模型不调用方法（§8.2 L1）。在该证据出现前，不把本次观察当作收益，也不以强制载入替代。本次首个 launch 因会话文件沙箱无法写 runsRoot 中止（环境，0 次模型调用），product 未提交改动在跑前以 `13a93056` 提交（规格前提），未出现阻塞性接口失败。
+下一步（需另行授权）：同条件 2 次已在本批完成，结果不一致；验收未通过。本批时序已显示载入落在交回前、不在写记录前，所以下一步不再区分“指向行位置”与“只在交回前载入”，而是分别处理两层：
+- 措辞：把触发面从“寫成部署錯誤…之前”扩到“在工作簿写出任何部署／环境／不可解类条目（含 open 假设）之前”，堵住先写假设的字面空间。改动只在角色档，需用户审阅。
+- 跨 session：Skill 不随续接的新 session 带过去，只有派单文字能带到下一轮。先查 Coordinator 为什么 12 次派单都没点名（角色档例子的位置、派单时是否把失败识别为 Python 运行时），再决定是否调整 B 的措辞；不以 host 拦截或强制载入替代。
+
+在这两项有证据前，不把本批观察当作收益。本批无规格、环境或接口阻塞：runsRoot 可写，容器重启后两次 run 都在 deadline 内完成。
 
 ## 8. 收敛子片
 
