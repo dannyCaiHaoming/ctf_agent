@@ -1,0 +1,244 @@
+{
+  "note": "Counts and structured fields only, derived from run evidence (inventory, control-audit, progress notes, messages tool calls, state). No message text, entry text, candidate, flag, or challenge content.",
+  "batch": {
+    "batchId": "runtime-diag-20261117",
+    "head": "13a93056",
+    "model": "volcano-plan/deepseek-v4.1-flash",
+    "solverThinking": "enabled",
+    "deadlineMs": 1800000,
+    "maxObservableTokensPerRun": 5000000,
+    "batchTokenCap": 5000000,
+    "plannedRuns": 1,
+    "executedRuns": 1,
+    "launchAttempts": 2,
+    "launchAttempt1": {
+      "result": "aborted_before_launch",
+      "stage": "runsRoot_mkdir",
+      "error": "EPERM",
+      "modelCalls": 0
+    },
+    "precondition": {
+      "check": "passed_after_product_commit",
+      "firstCheck": "refused_product_dirty",
+      "productCommit": "13a93056"
+    }
+  },
+  "run": {
+    "runId": "rtd-ezoj-on-1",
+    "arm": "on",
+    "challenge": "ezoj",
+    "context": {
+      "index": "summary",
+      "workbook": true
+    },
+    "productSource": "repository",
+    "experience": "empty",
+    "exitCode": 0,
+    "status": "completed",
+    "stopReason": "completed",
+    "startedAt": "2026-11-17T12:31:50.222Z",
+    "finishedAt": "2026-11-17T12:51:18.218Z",
+    "wallMin": 19.53,
+    "modelCalls": 96,
+    "usage": {
+      "availability": "reported",
+      "input": 192802,
+      "output": 55513,
+      "reasoning": 102843,
+      "sum": 351158
+    },
+    "skillCalls": {
+      "total": 1,
+      "byRole": {
+        "recovery-critic": 1,
+        "coordinator": 0,
+        "intake": 0,
+        "recon": 0,
+        "domain-solver": 0
+      },
+      "names": [
+        "python-runtime-diagnosis"
+      ],
+      "auditRows": 2,
+      "firstAtMin": 14.28
+    },
+    "referenceReads": {
+      "total": 1,
+      "byRole": {
+        "recovery-critic": 1
+      },
+      "path": "skills/python-runtime-diagnosis/references/runtime-boundaries.md",
+      "atMin": 14.29
+    },
+    "firstJobError": {
+      "atMin": 4.86,
+      "kind": "program_path_error"
+    },
+    "firstPermissionFailure": {
+      "role": "domain-solver",
+      "atMin": 7.08,
+      "operation": "sandbox_read_file",
+      "primitive": "c_level_read",
+      "exception": "PermissionError",
+      "errno": 13,
+      "traceback": false,
+      "layer": "os_access_control"
+    },
+    "workbookAtFirstFailure": {
+      "firstEntryAtMin": 10.77,
+      "deploymentHypothesisAtMin": 11.09,
+      "layerRecordedAs": "fact",
+      "deploymentRecordedAs": "open_hypothesis_and_open_question",
+      "deploymentAsFact": false
+    },
+    "coordinatorFinalNote": {
+      "atMin": 19.35,
+      "role": "coordinator",
+      "route": "stop_and_report",
+      "remainingMin": 10,
+      "blockerSubtype": "permission_denial_deployment_vs_intent_unverified",
+      "citesConfirmedLayer": true,
+      "layer": "os_access_control"
+    },
+    "result": {
+      "candidate": false,
+      "firstCandidateEntryMin": null,
+      "firstPackageMin": null,
+      "completionAttempts": 0,
+      "judgeReceipts": 0,
+      "publications": 7
+    },
+    "workbook": {
+      "facts": 10,
+      "hypotheses": 2,
+      "questions": 4,
+      "refuted": 5,
+      "violations": 0
+    },
+    "controlRefusals": {
+      "coordinatorChallengeNameMissing": 1,
+      "workbookTextOverLimit": 1
+    },
+    "abortedSessionsAtEnd": 5
+  },
+  "comparison": {
+    "pairedBatch": "workbook-paired-20261117",
+    "pairedNoCandidateEzoj": [
+      {
+        "runId": "wbp-ezoj-on-1",
+        "finalDeploymentAttribution": "asserted",
+        "skillCalls": 0,
+        "modelCalls": 102,
+        "firstPackageMin": null
+      },
+      {
+        "runId": "wbp-ezoj-off-1",
+        "finalDeploymentAttribution": "asserted",
+        "skillCalls": 0,
+        "modelCalls": 105,
+        "firstPackageMin": null
+      },
+      {
+        "runId": "wbp-ezoj-off-2",
+        "finalDeploymentAttribution": "asserted",
+        "skillCalls": 0,
+        "modelCalls": 73,
+        "firstPackageMin": null
+      }
+    ],
+    "thisRun": {
+      "finalDeploymentAttribution": "unverified",
+      "solverSkillCalls": 0,
+      "criticSkillCalls": 1,
+      "criticRejectedDeploymentInference": true
+    },
+    "difference": "Final attribution wording only: the three paired no-candidate runs recorded the permission denial as a deployment inconsistency/gap; this run kept deployment vs intent unverified and cited the confirmed OS layer. The skill was loaded by the recovery-critic, not the Solver; no benefit claim."
+  },
+  "failures": {
+    "spec": [
+      {
+        "what": "paired-run precondition refused: product/ had one uncommitted file (skill reference)",
+        "evidence": "tests/manual/paired-run.mts:67 refusal; resolved by commit 13a93056; --check then passed"
+      }
+    ],
+    "environment": [
+      {
+        "what": "first launch aborted before model calls: runsRoot mkdir EPERM under the session file sandbox",
+        "evidence": "rtd-ezoj-on-1.launch.log (attempt 2 only; attempt-1 error recorded in session, log overwritten)"
+      },
+      {
+        "what": "target compose project had a stopped container from the paired batch",
+        "evidence": "runs/runtime-diag-20261117/targets/rtd-ezoj-on-1/evidence/preflight.json"
+      }
+    ],
+    "interface": [
+      {
+        "what": "no blocking interface failure; two coordinator control refusals",
+        "evidence": "docs/gates/runtime-diag-20261117/rtd-ezoj-on-1.check.json refused"
+      }
+    ],
+    "capability": [
+      {
+        "what": "Solver made 0 skill calls across the run; the only load was recovery-critic at 14.28 min",
+        "evidence": "control-audit.json seq 627-628; messages tool parts"
+      }
+    ]
+  },
+  "correction": {
+    "at": "2026-11-17",
+    "note": "Original fields are kept. workbookAtFirstFailure and comparison.thisRun describe the first failure and the final note only; the workbook shows a later escalation. Derived from recon_turns slot/sequence/time and keyword windows; no entry text copied.",
+    "solverEscalation": {
+      "deploymentHypothesisSeq": [
+        61,
+        63
+      ],
+      "deploymentHypothesisAtMin": 11.1,
+      "coordinatorQuestionPresupposesDeploymentSeq": 65,
+      "coordinatorQuestionAtMin": 12.4,
+      "deploymentAsConclusionSeq": [
+        72,
+        73
+      ],
+      "deploymentAsConclusionAtMin": 13.2,
+      "solverSkillLoadedBefore": false
+    },
+    "criticCorrection": {
+      "skillLoadAtMin": 14.28,
+      "noteAtMin": 14.8,
+      "route": "continue",
+      "rejectedDeploymentInference": true
+    },
+    "afterCorrection": {
+      "solverRound3AtMin": 18.9,
+      "deploymentAsConclusion": false,
+      "coordinatorFinalDeploymentAsConclusion": false
+    },
+    "stopRule": {
+      "remainingMin": 10,
+      "priorSolverRoundsMin": [
+        8.2,
+        0.8,
+        3.5
+      ],
+      "criticSuggestedBoundedMin": 10,
+      "roundsAfterCritic": 1,
+      "openHypothesesAtStop": [
+        25,
+        26,
+        60,
+        61
+      ],
+      "openHypothesesExplainedInNote": [
+        60,
+        61
+      ],
+      "openQuestionsAtStop": 0,
+      "remainingStated": true,
+      "criticWindowMin": [
+        12.6,
+        15.0
+      ]
+    },
+    "interpretation": "The correction came from the critic after loading the Skill; the Solver pointer did not take effect in this run. No benefit claim."
+  }
+}

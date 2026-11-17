@@ -1,0 +1,174 @@
+{
+ "run": "rtd-ezoj-on-1",
+ "revision": "13a93056",
+ "status": "completed",
+ "stop_reason": "completed",
+ "model_calls": 96,
+ "agent_options": {
+  "domain-solver": {
+   "thinking": {
+    "type": "enabled"
+   }
+  }
+ },
+ "assistant_messages": {
+  "coordinator": 19,
+  "intake": 4,
+  "recon": 16,
+  "domain-solver#1": 53,
+  "recovery-critic#1": 4
+ },
+ "executions": {
+  "intake:completed": 1,
+  "recon:completed": 1,
+  "domain-solver:completed": 3,
+  "recovery-critic:completed": 1
+ },
+ "completions": [],
+ "workbook_writes": {
+  "coordinator:questions": 1,
+  "coordinator:questions:supersedes": 5,
+  "domain-solver#1:facts": 10,
+  "domain-solver#1:hypotheses": 2,
+  "domain-solver#1:questions": 4,
+  "domain-solver#1:refuted": 5,
+  "recon:facts": 5,
+  "recon:hypotheses": 2,
+  "recon:kind:decision": 1,
+  "recon:kind:handoff": 1,
+  "recon:questions": 1,
+  "recon:refuted": 2
+ },
+ "refused": {
+  "coordinator:denied: the Coordinator must name a challenge of this run": 1,
+  "coordinator:denied: workbook text exceeds 300 characters; split or shorten it": 1
+ },
+ "dispatch": [
+  {
+   "to": "intake",
+   "status": "completed",
+   "resume": false,
+   "chars": 454,
+   "tested_list": false,
+   "entry_id_refs": 1
+  },
+  {
+   "to": "recon",
+   "status": "completed",
+   "resume": false,
+   "chars": 1007,
+   "tested_list": false,
+   "entry_id_refs": 2
+  },
+  {
+   "to": "domain-solver",
+   "status": "completed",
+   "resume": false,
+   "chars": 1826,
+   "tested_list": true,
+   "entry_id_refs": 3
+  },
+  {
+   "to": "domain-solver",
+   "status": "completed",
+   "resume": true,
+   "chars": 1153,
+   "tested_list": false,
+   "entry_id_refs": 3
+  },
+  {
+   "to": "recovery-critic",
+   "status": "completed",
+   "resume": false,
+   "chars": 1926,
+   "tested_list": false,
+   "entry_id_refs": 13
+  },
+  {
+   "to": "domain-solver",
+   "status": "completed",
+   "resume": true,
+   "chars": 1152,
+   "tested_list": false,
+   "entry_id_refs": 3
+  }
+ ],
+ "presentation": {
+  "coordinator": {
+   "presented": 17,
+   "workbook_sent": 17,
+   "workbook_chars_sent": 656,
+   "max_bytes": 4086,
+   "first_full_entries": 0,
+   "sent_kinds": {
+    "full": 1,
+    "entries": 16
+   },
+   "delta_bytes_with_workbook": 16689
+  },
+  "recon": {
+   "presented": 31,
+   "workbook_sent": 11,
+   "workbook_chars_sent": 1139,
+   "max_bytes": 3871,
+   "first_full_entries": 1,
+   "sent_kinds": {
+    "full": 1,
+    "entries": 10
+   },
+   "delta_bytes_with_workbook": 15518
+  },
+  "domain-solver#1": {
+   "presented": 65,
+   "workbook_sent": 21,
+   "workbook_chars_sent": 4173,
+   "max_bytes": 8839,
+   "first_full_entries": 10,
+   "sent_kinds": {
+    "full": 1,
+    "entries": 20
+   },
+   "delta_bytes_with_workbook": 35385
+  }
+ },
+ "prepare_failures": 0,
+ "milestones": {
+  "context": {
+   "index": "summary",
+   "workbook": true
+  },
+  "first_dispatch_min": {
+   "domain-solver": 3.16,
+   "intake": 0.12,
+   "recon": 0.86,
+   "recovery-critic": 12.62
+  },
+  "dispatches": {
+   "intake": 1,
+   "recon": 1,
+   "domain-solver": 1,
+   "recovery-critic": 1
+  },
+  "first_candidate_entry_min": null,
+  "first_package_min": null,
+  "first_completion_min": null,
+  "solved": false,
+  "completions": 0,
+  "last_audit_min": 19.45,
+  "stop_reason": "completed",
+  "root_finish": "stop",
+  "usage": {
+   "availability": "reported",
+   "input_tokens": 192802,
+   "output_tokens": 55513,
+   "reasoning_tokens": 102843,
+   "lowerBound": false
+  }
+ },
+ "tool_steps": {
+  "recon": 18,
+  "domain-solver#1": 41
+ },
+ "cross_session_repeats": {},
+ "active_entries_end": 32
+}
