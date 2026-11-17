@@ -1,0 +1,162 @@
+{
+ "run": "wbp-8a6ac7ff-off-2",
+ "revision": "b88529ed",
+ "status": "completed",
+ "stop_reason": "completed",
+ "model_calls": 88,
+ "agent_options": {
+  "domain-solver": {
+   "thinking": {
+    "type": "enabled"
+   }
+  }
+ },
+ "assistant_messages": {
+  "coordinator": 18,
+  "intake": 3,
+  "recon": 25,
+  "domain-solver#1": 14,
+  "engineer#1": 12,
+  "verifier#1": 16
+ },
+ "executions": {
+  "intake:completed": 1,
+  "recon:completed": 1,
+  "domain-solver:completed": 1,
+  "engineer:completed": 1,
+  "verifier:completed": 1
+ },
+ "completions": [],
+ "workbook_writes": {
+  "recon:kind:decision": 3,
+  "recon:kind:handoff": 1
+ },
+ "refused": {
+  "recon:denied: evidence_refs must be complete refs returned by a publish call of this challenge, or episode:id@version / lesson": 2,
+  "domain-solver#1:denied: workbook disabled for this run": 3
+ },
+ "dispatch": [
+  {
+   "to": "intake",
+   "status": "completed",
+   "resume": false,
+   "chars": 640,
+   "tested_list": false,
+   "entry_id_refs": 0
+  },
+  {
+   "to": "recon",
+   "status": "completed",
+   "resume": false,
+   "chars": 1705,
+   "tested_list": true,
+   "entry_id_refs": 0
+  },
+  {
+   "to": "domain-solver",
+   "status": "completed",
+   "resume": false,
+   "chars": 2507,
+   "tested_list": true,
+   "entry_id_refs": 0
+  },
+  {
+   "to": "engineer",
+   "status": "completed",
+   "resume": false,
+   "chars": 1613,
+   "tested_list": true,
+   "entry_id_refs": 0
+  },
+  {
+   "to": "verifier",
+   "status": "completed",
+   "resume": false,
+   "chars": 1620,
+   "tested_list": true,
+   "entry_id_refs": 0
+  }
+ ],
+ "presentation": {
+  "recon": {
+   "presented": 41,
+   "workbook_sent": 41,
+   "workbook_chars_sent": 0,
+   "max_bytes": 2476,
+   "first_full_entries": 0,
+   "sent_kinds": {
+    "True": 41
+   }
+  },
+  "domain-solver#1": {
+   "presented": 17,
+   "workbook_sent": 17,
+   "workbook_chars_sent": 0,
+   "max_bytes": 3696,
+   "first_full_entries": 0,
+   "sent_kinds": {
+    "True": 17
+   }
+  },
+  "engineer#1": {
+   "presented": 19,
+   "workbook_sent": 19,
+   "workbook_chars_sent": 0,
+   "max_bytes": 4942,
+   "first_full_entries": 0,
+   "sent_kinds": {
+    "True": 19
+   }
+  }
+ },
+ "prepare_failures": 0,
+ "milestones": {
+  "context": {
+   "index": "summary",
+   "workbook": false
+  },
+  "first_dispatch_min": {
+   "domain-solver": 5.59,
+   "engineer": 7.01,
+   "intake": 0.14,
+   "recon": 0.63,
+   "verifier": 8.16
+  },
+  "dispatches": {
+   "intake": 1,
+   "recon": 1,
+   "domain-solver": 1,
+   "engineer": 1,
+   "verifier": 1
+  },
+  "first_candidate_entry_min": null,
+  "first_package_min": 7.52,
+  "first_completion_min": null,
+  "solved": false,
+  "completions": 0,
+  "last_audit_min": 12.12,
+  "stop_reason": "completed",
+  "root_finish": "stop",
+  "usage": {
+   "availability": "reported",
+   "input_tokens": 242053,
+   "output_tokens": 41991,
+   "reasoning_tokens": 68033,
+   "lowerBound": false
+  }
+ },
+ "tool_steps": {
+  "recon": 36,
+  "domain-solver#1": 15,
+  "engineer#1": 18,
+  "verifier#1": 21
+ },
+ "cross_session_repeats": {
+  "engineer#1<-domain-solver#1:artifact.read": 2,
+  "verifier#1<-engineer#1:package.read": 4,
+  "verifier#1<-recon:workspace.list": 1,
+  "verifier#1<-domain-solver#1:artifact.read": 2,
+  "verifier#1<-engineer#1:artifact.read": 1
+ },
+ "active_entries_end": 0
+}

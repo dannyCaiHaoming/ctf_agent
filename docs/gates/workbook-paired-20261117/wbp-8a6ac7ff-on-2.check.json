@@ -1,0 +1,182 @@
+{
+ "run": "wbp-8a6ac7ff-on-2",
+ "revision": "b88529ed",
+ "status": "completed",
+ "stop_reason": "completed",
+ "model_calls": 77,
+ "agent_options": {
+  "domain-solver": {
+   "thinking": {
+    "type": "enabled"
+   }
+  }
+ },
+ "assistant_messages": {
+  "coordinator": 22,
+  "intake": 3,
+  "recon": 17,
+  "domain-solver#1": 9,
+  "engineer#1": 13,
+  "verifier#1": 13
+ },
+ "executions": {
+  "intake:completed": 1,
+  "recon:completed": 1,
+  "domain-solver:completed": 1,
+  "engineer:completed": 1,
+  "verifier:completed": 1
+ },
+ "completions": [],
+ "workbook_writes": {
+  "coordinator:questions": 1,
+  "coordinator:questions:supersedes": 2,
+  "domain-solver#1:candidate": 1,
+  "domain-solver#1:facts": 1,
+  "recon:facts": 4,
+  "recon:hypotheses": 1,
+  "recon:kind:decision": 1,
+  "recon:kind:handoff": 1,
+  "recon:questions": 1,
+  "recon:refuted": 1
+ },
+ "refused": {},
+ "dispatch": [
+  {
+   "to": "intake",
+   "status": "completed",
+   "resume": false,
+   "chars": 634,
+   "tested_list": false,
+   "entry_id_refs": 0
+  },
+  {
+   "to": "recon",
+   "status": "completed",
+   "resume": false,
+   "chars": 1137,
+   "tested_list": false,
+   "entry_id_refs": 2
+  },
+  {
+   "to": "domain-solver",
+   "status": "completed",
+   "resume": false,
+   "chars": 1909,
+   "tested_list": false,
+   "entry_id_refs": 4
+  },
+  {
+   "to": "engineer",
+   "status": "completed",
+   "resume": false,
+   "chars": 1324,
+   "tested_list": false,
+   "entry_id_refs": 1
+  },
+  {
+   "to": "verifier",
+   "status": "completed",
+   "resume": false,
+   "chars": 2011,
+   "tested_list": false,
+   "entry_id_refs": 0
+  }
+ ],
+ "presentation": {
+  "coordinator": {
+   "presented": 11,
+   "workbook_sent": 11,
+   "workbook_chars_sent": 656,
+   "max_bytes": 2891,
+   "first_full_entries": 0,
+   "sent_kinds": {
+    "full": 1,
+    "entries": 10
+   },
+   "delta_bytes_with_workbook": 7824
+  },
+  "recon": {
+   "presented": 29,
+   "workbook_sent": 8,
+   "workbook_chars_sent": 1122,
+   "max_bytes": 3768,
+   "first_full_entries": 1,
+   "sent_kinds": {
+    "full": 1,
+    "entries": 7
+   },
+   "delta_bytes_with_workbook": 11306
+  },
+  "domain-solver#1": {
+   "presented": 13,
+   "workbook_sent": 3,
+   "workbook_chars_sent": 3255,
+   "max_bytes": 7636,
+   "first_full_entries": 7,
+   "sent_kinds": {
+    "full": 1,
+    "entries": 2
+   },
+   "delta_bytes_with_workbook": 3768
+  },
+  "engineer#1": {
+   "presented": 18,
+   "workbook_sent": 2,
+   "workbook_chars_sent": 1095,
+   "max_bytes": 5475,
+   "first_full_entries": 1,
+   "sent_kinds": {
+    "full": 1,
+    "entries": 1
+   },
+   "delta_bytes_with_workbook": 1567
+  }
+ },
+ "prepare_failures": 0,
+ "milestones": {
+  "context": {
+   "index": "summary",
+   "workbook": true
+  },
+  "first_dispatch_min": {
+   "domain-solver": 2.23,
+   "engineer": 2.99,
+   "intake": 0.07,
+   "recon": 0.43,
+   "verifier": 5.67
+  },
+  "dispatches": {
+   "intake": 1,
+   "recon": 1,
+   "domain-solver": 1,
+   "engineer": 1,
+   "verifier": 1
+  },
+  "first_candidate_entry_min": 2.73,
+  "first_package_min": 5.3,
+  "first_completion_min": null,
+  "solved": false,
+  "completions": 0,
+  "last_audit_min": 11.96,
+  "stop_reason": "completed",
+  "root_finish": "stop",
+  "usage": {
+   "availability": "reported",
+   "input_tokens": 230992,
+   "output_tokens": 29525,
+   "reasoning_tokens": 73964,
+   "lowerBound": false
+  }
+ },
+ "tool_steps": {
+  "recon": 19,
+  "domain-solver#1": 10,
+  "engineer#1": 17,
+  "verifier#1": 15
+ },
+ "cross_session_repeats": {
+  "domain-solver#1<-recon:workspace.read": 1,
+  "verifier#1<-engineer#1:artifact.read": 2
+ },
+ "active_entries_end": 10
+}

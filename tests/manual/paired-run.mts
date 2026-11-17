@@ -102,10 +102,15 @@ if ((opencode.agent?.['domain-solver']?.options?.thinking?.type ?? 'disabled') !
 
 // Experience store: empty, or a consistent snapshot (VACUUM INTO) of one frozen store; never a shared live file.
 const judgeModule = await import(pathToFileURL(spec.judge.module).href);
-const judge = (judgeModule[spec.judge.export] ?? fail(`judge export ${spec.judge.export} missing`))(spec.challenge);
+// The factory may be async (subprocessExactJudge is); an unawaited Promise has no limits, so the host refuses every
+// completion as "submission limits unknown". Await it and check the shape the completion gate reads.
+const judge = await (judgeModule[spec.judge.export] ?? fail(`judge export ${spec.judge.export} missing`))(spec.challenge);
+if (typeof judge?.id !== 'string' || typeof judge.submit !== 'function') fail('judge factory did not return a CompletionJudge');
+const attempts = judge.limits?.attempts?.kind;
+if (attempts !== 'unlimited' && attempts !== 'limited') fail(`judge submission limits ${attempts ?? 'missing'}; the host would refuse every completion`);
 if (checkOnly) {
   if (spec.frozenExperience) new DatabaseSync(spec.frozenExperience, { readOnly: true }).close();
-  console.log(JSON.stringify({ check: 'passed', arm: spec.arm, runId: spec.runId, context: armProfile.context, product: { source: product.source, head: product.head, files: Object.keys(product.files).length }, model: spec.model, solverThinking: spec.solverThinking }));
+  console.log(JSON.stringify({ check: 'passed', arm: spec.arm, runId: spec.runId, context: armProfile.context, product: { source: product.source, head: product.head, files: Object.keys(product.files).length }, model: spec.model, solverThinking: spec.solverThinking, judge: { id: judge.id, attempts } }));
   process.exit(0);
 }
 await mkdir(spec.runsRoot, { recursive: true });

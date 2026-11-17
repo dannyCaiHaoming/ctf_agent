@@ -1,0 +1,198 @@
+{
+ "run": "wbp-ac5a1bc0-on-2",
+ "revision": "b88529ed",
+ "status": "completed",
+ "stop_reason": "completed",
+ "model_calls": 109,
+ "agent_options": {
+  "domain-solver": {
+   "thinking": {
+    "type": "enabled"
+   }
+  }
+ },
+ "assistant_messages": {
+  "coordinator": 28,
+  "intake": 4,
+  "recon": 27,
+  "domain-solver#1": 41,
+  "reference#1": 6,
+  "recovery-critic#1": 3
+ },
+ "executions": {
+  "intake:completed": 1,
+  "recon:completed": 1,
+  "domain-solver:completed": 4,
+  "reference:completed": 1,
+  "recovery-critic:completed": 1
+ },
+ "completions": [],
+ "workbook_writes": {
+  "coordinator:questions": 2,
+  "coordinator:questions:supersedes": 3,
+  "domain-solver#1:facts": 6,
+  "domain-solver#1:hypotheses": 1,
+  "domain-solver#1:questions": 1,
+  "domain-solver#1:refuted": 3,
+  "recon:facts": 4,
+  "recon:hypotheses": 1,
+  "recon:kind:decision": 1,
+  "recon:kind:handoff": 1,
+  "recon:questions": 1,
+  "recon:refuted": 1
+ },
+ "refused": {
+  "domain-solver#1:denied: an entry can only be superseded by its own role; to contradict entry 34, write your own entry with related_ids [": 1,
+  "domain-solver#1:denied: workbook text exceeds 300 characters; split or shorten it": 6,
+  "domain-solver#1:denied: evidence_refs must be complete refs returned by a publish call of this challenge, or episode:id@version / lesson": 1
+ },
+ "dispatch": [
+  {
+   "to": "intake",
+   "status": "completed",
+   "resume": false,
+   "chars": 516,
+   "tested_list": false,
+   "entry_id_refs": 0
+  },
+  {
+   "to": "recon",
+   "status": "completed",
+   "resume": false,
+   "chars": 1465,
+   "tested_list": false,
+   "entry_id_refs": 1
+  },
+  {
+   "to": "domain-solver",
+   "status": "completed",
+   "resume": false,
+   "chars": 1689,
+   "tested_list": false,
+   "entry_id_refs": 2
+  },
+  {
+   "to": "domain-solver",
+   "status": "completed",
+   "resume": true,
+   "chars": 1184,
+   "tested_list": false,
+   "entry_id_refs": 5
+  },
+  {
+   "to": "domain-solver",
+   "status": "completed",
+   "resume": true,
+   "chars": 1267,
+   "tested_list": false,
+   "entry_id_refs": 5
+  },
+  {
+   "to": "reference",
+   "status": "completed",
+   "resume": false,
+   "chars": 1013,
+   "tested_list": false,
+   "entry_id_refs": 0
+  },
+  {
+   "to": "recovery-critic",
+   "status": "completed",
+   "resume": false,
+   "chars": 1906,
+   "tested_list": false,
+   "entry_id_refs": 13
+  },
+  {
+   "to": "domain-solver",
+   "status": "completed",
+   "resume": true,
+   "chars": 1046,
+   "tested_list": false,
+   "entry_id_refs": 3
+  }
+ ],
+ "presentation": {
+  "coordinator": {
+   "presented": 20,
+   "workbook_sent": 20,
+   "workbook_chars_sent": 656,
+   "max_bytes": 2739,
+   "first_full_entries": 0,
+   "sent_kinds": {
+    "full": 1,
+    "entries": 19
+   },
+   "delta_bytes_with_workbook": 14768
+  },
+  "recon": {
+   "presented": 36,
+   "workbook_sent": 8,
+   "workbook_chars_sent": 1129,
+   "max_bytes": 3733,
+   "first_full_entries": 1,
+   "sent_kinds": {
+    "full": 1,
+    "entries": 7
+   },
+   "delta_bytes_with_workbook": 11782
+  },
+  "domain-solver#1": {
+   "presented": 63,
+   "workbook_sent": 13,
+   "workbook_chars_sent": 4318,
+   "max_bytes": 7747,
+   "first_full_entries": 7,
+   "sent_kinds": {
+    "full": 1,
+    "entries": 12
+   },
+   "delta_bytes_with_workbook": 21591
+  }
+ },
+ "prepare_failures": 0,
+ "milestones": {
+  "context": {
+   "index": "summary",
+   "workbook": true
+  },
+  "first_dispatch_min": {
+   "domain-solver": 1.99,
+   "intake": 0.04,
+   "recon": 0.41,
+   "recovery-critic": 14.54,
+   "reference": 13.71
+  },
+  "dispatches": {
+   "intake": 1,
+   "recon": 1,
+   "domain-solver": 1,
+   "reference": 1,
+   "recovery-critic": 1
+  },
+  "first_candidate_entry_min": null,
+  "first_package_min": null,
+  "first_completion_min": null,
+  "solved": false,
+  "completions": 0,
+  "last_audit_min": 18.8,
+  "stop_reason": "completed",
+  "root_finish": "stop",
+  "usage": {
+   "availability": "reported",
+   "input_tokens": 174490,
+   "output_tokens": 42083,
+   "reasoning_tokens": 146361,
+   "lowerBound": false
+  }
+ },
+ "tool_steps": {
+  "recon": 28,
+  "domain-solver#1": 48
+ },
+ "cross_session_repeats": {
+  "domain-solver#1<-recon:workspace.list": 1,
+  "domain-solver#1<-recon:workspace.read": 1
+ },
+ "active_entries_end": 20
+}

@@ -1,0 +1,161 @@
+{
+ "run": "wbp-8a6ac7ff-off-1",
+ "revision": "b88529ed",
+ "status": "completed",
+ "stop_reason": "completed",
+ "model_calls": 78,
+ "agent_options": {
+  "domain-solver": {
+   "thinking": {
+    "type": "enabled"
+   }
+  }
+ },
+ "assistant_messages": {
+  "coordinator": 18,
+  "intake": 4,
+  "recon": 15,
+  "domain-solver#1": 15,
+  "engineer#1": 15,
+  "verifier#1": 11
+ },
+ "executions": {
+  "intake:completed": 1,
+  "recon:completed": 1,
+  "domain-solver:completed": 1,
+  "engineer:completed": 1,
+  "verifier:completed": 1
+ },
+ "completions": [],
+ "workbook_writes": {
+  "recon:kind:decision": 1,
+  "recon:kind:handoff": 1
+ },
+ "refused": {
+  "recon:denied: workbook disabled for this run": 2,
+  "domain-solver#1:denied: workbook disabled for this run": 1,
+  "domain-solver#1:denied: solver notes must be workbook entries with slot": 1
+ },
+ "dispatch": [
+  {
+   "to": "intake",
+   "status": "completed",
+   "resume": false,
+   "chars": 697,
+   "tested_list": false,
+   "entry_id_refs": 0
+  },
+  {
+   "to": "recon",
+   "status": "completed",
+   "resume": false,
+   "chars": 2210,
+   "tested_list": true,
+   "entry_id_refs": 0
+  },
+  {
+   "to": "domain-solver",
+   "status": "completed",
+   "resume": false,
+   "chars": 2801,
+   "tested_list": false,
+   "entry_id_refs": 0
+  },
+  {
+   "to": "engineer",
+   "status": "completed",
+   "resume": false,
+   "chars": 2279,
+   "tested_list": false,
+   "entry_id_refs": 0
+  },
+  {
+   "to": "verifier",
+   "status": "completed",
+   "resume": false,
+   "chars": 2578,
+   "tested_list": true,
+   "entry_id_refs": 0
+  }
+ ],
+ "presentation": {
+  "recon": {
+   "presented": 26,
+   "workbook_sent": 26,
+   "workbook_chars_sent": 0,
+   "max_bytes": 2476,
+   "first_full_entries": 0,
+   "sent_kinds": {
+    "True": 26
+   }
+  },
+  "domain-solver#1": {
+   "presented": 16,
+   "workbook_sent": 16,
+   "workbook_chars_sent": 0,
+   "max_bytes": 3504,
+   "first_full_entries": 0,
+   "sent_kinds": {
+    "True": 16
+   }
+  },
+  "engineer#1": {
+   "presented": 22,
+   "workbook_sent": 22,
+   "workbook_chars_sent": 0,
+   "max_bytes": 3793,
+   "first_full_entries": 0,
+   "sent_kinds": {
+    "True": 22
+   }
+  }
+ },
+ "prepare_failures": 0,
+ "milestones": {
+  "context": {
+   "index": "summary",
+   "workbook": false
+  },
+  "first_dispatch_min": {
+   "domain-solver": 3.59,
+   "engineer": 5.01,
+   "intake": 0.05,
+   "recon": 0.41,
+   "verifier": 6.54
+  },
+  "dispatches": {
+   "intake": 1,
+   "recon": 1,
+   "domain-solver": 1,
+   "engineer": 1,
+   "verifier": 1
+  },
+  "first_candidate_entry_min": null,
+  "first_package_min": 6.19,
+  "first_completion_min": null,
+  "solved": false,
+  "completions": 0,
+  "last_audit_min": 10.15,
+  "stop_reason": "completed",
+  "root_finish": "stop",
+  "usage": {
+   "availability": "reported",
+   "input_tokens": 224412,
+   "output_tokens": 31478,
+   "reasoning_tokens": 52313,
+   "lowerBound": false
+  }
+ },
+ "tool_steps": {
+  "recon": 23,
+  "domain-solver#1": 15,
+  "engineer#1": 21,
+  "verifier#1": 15
+ },
+ "cross_session_repeats": {
+  "domain-solver#1<-recon:artifact.publish": 1,
+  "engineer#1<-domain-solver#1:artifact.read": 1,
+  "verifier#1<-engineer#1:package.read": 1
+ },
+ "active_entries_end": 0
+}
