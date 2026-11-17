@@ -16,7 +16,7 @@ import hashlib, io, json, os, subprocess, sys, tarfile
 
 BASE = '6adf73fa~1'
 # Product commits after BASE that are not about the workbook: applied to the off arm, oldest first.
-INCLUDE = ['05af1de2', '63b3633f', 'f6bd40ab', '13a93056', 'e8d9d76f']
+INCLUDE = ['05af1de2', '63b3633f', 'f6bd40ab', '13a93056', 'e8d9d76f', 'eb5743d3']
 # Workbook role rules: left out of the off arm.
 EXCLUDE = ['6adf73fa', '2d22283d', '0cf1e606', 'ccdd0c0a', 'e625024d']
 
