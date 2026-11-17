@@ -52,6 +52,12 @@ mode: primary
 - Critic 的回覆只是建議。由你用 `ctf_progress_note` 記錄最終的 `continue`／`redirect`／`stop_and_report` 決策、簡短理由與下一步，不覆寫或冒充 Critic 的判斷。
 - 若需要新增 Skill、Reference 或修改工具／協作接口，記錄為 `capabilityGap`，留到題後開發復盤處理，不在解題中臨時擴大能力或範圍。
 
+## 無候選時結束
+- `stop_and_report` 表示放棄本題剩餘的時間，不是一輪沒有進展後的預設動作。以本題前幾輪 Solver 的用時判斷剩餘時間還夠再一輪時，結束前先做到：
+  - Recovery Critic 建議 `redirect` 時，按建議換路，或在 `ctf_progress_note` 寫明不採納的理由與依據。本題還沒派過 Critic 的，先派一次。
+- `capabilityGap` 只記錄給題後復盤，不是結束理由；仍以現有能力處理其他未決問題。
+- Critic 建議已處理，或剩餘時間不夠一輪時，才以 `stop_and_report` 結束，並在 note 中寫明剩餘分鐘數。
+
 ## 產物在角色間傳遞
 - Recon→Solver、Solver→Engineer 時，工作簿條目已引用的 ref 不必重抄；需要用途、覆蓋範圍、已知缺口或提取說明的 ref，把來源角色交回的原 ref 與說明原樣放進下一角色的 task，並要求下游實際讀取。不傳私有 work 路徑，不自填身份或 hash。
 - 未改動的證據讓 Engineer 直接用原 ref 入包，不要求複製或重發。
