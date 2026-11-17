@@ -67,6 +67,8 @@ export function workbookView(rows:any[],role:WorkbookRole,host:WorkbookHost) {
 
 /** Coordinator view (team-decision design §6.1): restricted fields, one-line facts, no candidate text, cleaned again at presentation. */
 export const COORDINATOR_MAX_CHARS=8000,COORDINATOR_LINE=120;
+/** Slots whose evidence refs the Coordinator sees next to the text: the support behind a fact, a refuted route or a hypothesis travels with it. */
+const REF_SLOTS=new Set<WorkbookSlot>(['facts','refuted','hypotheses']);
 export interface CoordinatorChallenge {
   id:string;rows:any[];
   host:{submission:unknown;packages:string[];completions:unknown[];executions:Record<string,{total:number;running:number}>};
@@ -85,7 +87,7 @@ export function coordinatorView(challenges:CoordinatorChallenge[],remainingMin:n
         if(e.slot==='candidate'){entries.push({...base,status:e.status,evidence_refs:e.evidence_refs.map(clean)});continue;}
         let text=clean(raw.text);
         if((e.slot==='facts'||e.slot==='refuted')&&text.length>COORDINATOR_LINE){text=text.slice(0,COORDINATOR_LINE-1)+'…';truncated.push(e.id);}
-        entries.push({...base,...(e.status?{status:e.status}:{}),text,...(e.slot==='facts'||e.slot==='refuted'?{evidence_refs:e.evidence_refs.map(clean)}:{})});
+        entries.push({...base,...(e.status?{status:e.status}:{}),text,...(REF_SLOTS.has(e.slot)?{evidence_refs:e.evidence_refs.map(clean)}:{})});
       }catch{failed[e.id]='assembly_failed';}
     }
     const shown=new Map<WorkbookSlot,CoordinatorEntry[]>();

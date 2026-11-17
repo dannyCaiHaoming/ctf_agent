@@ -1,0 +1,334 @@
+{
+ "note": "Counts and structured fields only, from tests/manual/decision-point-check.py over the runs in runs.txt (paths relative to the run-data root). Message and entry text were used only for keyword booleans and id parsing. No transcript, candidate, flag or challenge text.",
+ "design": "docs/superpowers/specs/2026-11-18-design-v1-fixed-decision-point-diagnosis.md §3.1",
+ "scope": {
+  "runs": 13,
+  "batches": [
+   "workbook-runtime-20261112 (r1-r3)",
+   "workbook-smoke-20261116",
+   "workbook-paired-20261117 on arm (6)",
+   "runtime-diag-20261117 (1)",
+   "runtime-diag-20261117-r2 (2)"
+  ],
+  "excluded": "off arm (no workbook)"
+ },
+ "results": {
+  "rounds": {
+   "total": 42,
+   "first": 13,
+   "resume": 13,
+   "new_after_first": 16
+  },
+  "presentation": {
+   "solver_rounds_full_view": 30,
+   "open_or_supported_entries_active": 127,
+   "of_which_presented": 127,
+   "solver_view_omission_events": 0,
+   "dispatch_cited_ids_all_presented": 20,
+   "dispatch_cited_ids_checked": 20
+  },
+  "hypotheses": {
+   "updates_of_hypotheses": 5,
+   "to_refuted_or_closed": 1,
+   "reworded_open": 2,
+   "to_supported_new_refs": 2,
+   "to_supported_same_or_subset": 0,
+   "to_supported_no_refs": 0,
+   "supported_assertive_wording": 2,
+   "active_hypotheses_end": 28,
+   "active_hypotheses_with_refs_end": 24
+  },
+  "handback": {
+   "with_text": 41,
+   "hedge_keyword": 34,
+   "assertive_keyword": 24,
+   "cites_entry_ids": 37,
+   "rounds_writing_hypotheses": 15,
+   "rounds_hypotheses_hedge_keyword": 2
+  },
+  "by_dispatch": {
+   "first": {
+    "rounds": 13,
+    "written": 79,
+    "own_supersedes": 2,
+    "rounds_superseding_prev": 0,
+    "dispatch_cites_open_question": 12,
+    "skill_loads": 1,
+    "prev_round_loaded_skill": 0
+   },
+   "resume": {
+    "rounds": 13,
+    "written": 30,
+    "own_supersedes": 9,
+    "rounds_superseding_prev": 6,
+    "dispatch_cites_open_question": 5,
+    "skill_loads": 0,
+    "prev_round_loaded_skill": 0
+   },
+   "new_after_first": {
+    "rounds": 16,
+    "written": 49,
+    "own_supersedes": 6,
+    "rounds_superseding_prev": 6,
+    "dispatch_cites_open_question": 6,
+    "skill_loads": 0,
+    "prev_round_loaded_skill": 1
+   }
+  },
+  "carry_over": {
+   "resume": {
+    "pairs": 13,
+    "pairs_with_prev_open": 9,
+    "prev_open": 16,
+    "prev_open_superseded_next": 10,
+    "pairs_all_prev_open_untouched": 2,
+    "next_new_unlinked_hyp_q": 2
+   },
+   "new": {
+    "pairs": 16,
+    "pairs_with_prev_open": 11,
+    "prev_open": 15,
+    "prev_open_superseded_next": 6,
+    "pairs_all_prev_open_untouched": 6,
+    "next_new_unlinked_hyp_q": 8
+   }
+  },
+  "skill_loads_by_run": {
+   "r3": {
+    "recon": 1
+   },
+   "rtd-ezoj-on-1": {
+    "recovery-critic": 1
+   },
+   "rtd2-ezoj-on-2": {
+    "domain-solver": 1
+   }
+  },
+  "per_run": [
+   {
+    "run": "r1",
+    "solver_rounds": 3,
+    "resume": 1,
+    "new_after_first": 1,
+    "entries": 18
+   },
+   {
+    "run": "r2",
+    "solver_rounds": 3,
+    "resume": 0,
+    "new_after_first": 2,
+    "entries": 41
+   },
+   {
+    "run": "r3",
+    "solver_rounds": 3,
+    "resume": 0,
+    "new_after_first": 2,
+    "entries": 27
+   },
+   {
+    "run": "smoke",
+    "solver_rounds": 3,
+    "resume": 0,
+    "new_after_first": 2,
+    "entries": 32
+   },
+   {
+    "run": "wbp-8a6ac7ff-on-1",
+    "solver_rounds": 1,
+    "resume": 0,
+    "new_after_first": 0,
+    "entries": 20
+   },
+   {
+    "run": "wbp-8a6ac7ff-on-2",
+    "solver_rounds": 1,
+    "resume": 0,
+    "new_after_first": 0,
+    "entries": 12
+   },
+   {
+    "run": "wbp-ac5a1bc0-on-1",
+    "solver_rounds": 6,
+    "resume": 0,
+    "new_after_first": 5,
+    "entries": 39
+   },
+   {
+    "run": "wbp-ac5a1bc0-on-2",
+    "solver_rounds": 4,
+    "resume": 3,
+    "new_after_first": 0,
+    "entries": 23
+   },
+   {
+    "run": "wbp-ezoj-on-1",
+    "solver_rounds": 2,
+    "resume": 0,
+    "new_after_first": 1,
+    "entries": 35
+   },
+   {
+    "run": "wbp-ezoj-on-2",
+    "solver_rounds": 1,
+    "resume": 0,
+    "new_after_first": 0,
+    "entries": 15
+   },
+   {
+    "run": "rtd-ezoj-on-1",
+    "solver_rounds": 3,
+    "resume": 2,
+    "new_after_first": 0,
+    "entries": 37
+   },
+   {
+    "run": "rtd2-ezoj-on-1",
+    "solver_rounds": 8,
+    "resume": 7,
+    "new_after_first": 0,
+    "entries": 33
+   },
+   {
+    "run": "rtd2-ezoj-on-2",
+    "solver_rounds": 4,
+    "resume": 0,
+    "new_after_first": 3,
+    "entries": 35
+   }
+  ]
+ },
+ "coordinator_view": {
+  "presentations": 225,
+  "with_omitted_ids": 0,
+  "with_failed_ids": 0,
+  "with_truncated_fact_or_refuted_lines": 184,
+  "active_hypotheses_end": 28,
+  "active_hypotheses_with_refs_end_not_shown_to_coordinator": 24
+ },
+ "critic": {
+  "dispatches": 4,
+  "dispatches_citing_entry_ids": 2,
+  "workbook_access": "none by design (recon.read limited to recon/domain-solver/engineer; Critic gets Coordinator excerpts)"
+ },
+ "answers": {
+  "Q1_solver_not_seen": "not supported: 127/127 active open or supported entries presented at 30 full-view round starts; dispatch-cited ids presented 20/20; 0 omission events",
+  "Q1_coordinator": "no omissions or failures; facts/refuted truncated to one line by design; 24 of 28 active hypotheses at end carry evidence refs the Coordinator view does not show",
+  "supported_upgrades_without_new_evidence": "not supported as a pattern: 2 upgrades to supported in 13 runs, both with new refs; hypotheses are rarely updated at all (5 updates; 28 active at end)",
+  "handback_vs_entries": "unknown: keyword proxy saturates (hedge words in 34/41 handbacks, 2/15 hypothesis-writing rounds); needs semantic comparison",
+  "Q4_resume_vs_new": "directional only: previous round's own open hypotheses/questions superseded next round 10/16 (resume) vs 6/15 (new); pairs leaving all untouched 2/9 vs 6/11; new unlinked hypotheses/questions 2 vs 8. Resume concentrated in 4 runs (7 pairs in one run) and chosen by the Coordinator, so confounded",
+  "skill_across_sessions": "1 sample (rtd2-ezoj-on-2); Skill loads across the 13 runs: 3 (recon 1, recovery-critic 1, domain-solver 1)"
+ },
+ "execution_option_A": {
+  "gaps": [
+   "workbook rows are scoped by run_id, so entries cannot be pre-seeded for a new run (experience-store recon_turns queries)",
+   "launcher always starts the Coordinator as primary; no single-role entry"
+  ],
+  "reusable": [
+   "workbookView/coordinatorView in apps/launcher/src/workbook.ts build role views from rows without a model",
+   "packages/opencode-bridge startManagedOpenCode, used by tests/manual/recon-context-interface.ts with a local mock provider"
+  ]
+ },
+ "coordinator_view_size_with_hypothesis_refs": {
+  "method": "coordinatorView recomputed after every slotted decision of each run (identity cleaning, remaining_min fixed), with hypothesis evidence_refs kept vs emptied; cap 8000 chars",
+  "max_chars_with": 7731,
+  "max_chars_without": 7500,
+  "max_increase_at_peak": 231,
+  "steps": 381,
+  "steps_with_omission_with": 0,
+  "steps_with_omission_without": 0,
+  "per_run": {
+   "r1": {
+    "steps": 19,
+    "maxCharsWith": 3852,
+    "maxCharsWithout": 3737,
+    "stepsWithOmissionWith": 0,
+    "stepsWithOmissionWithout": 0
+   },
+   "r2": {
+    "steps": 42,
+    "maxCharsWith": 6867,
+    "maxCharsWithout": 6829,
+    "stepsWithOmissionWith": 0,
+    "stepsWithOmissionWithout": 0
+   },
+   "r3": {
+    "steps": 28,
+    "maxCharsWith": 4694,
+    "maxCharsWithout": 4656,
+    "stepsWithOmissionWith": 0,
+    "stepsWithOmissionWithout": 0
+   },
+   "smoke": {
+    "steps": 34,
+    "maxCharsWith": 6618,
+    "maxCharsWithout": 6465,
+    "stepsWithOmissionWith": 0,
+    "stepsWithOmissionWithout": 0
+   },
+   "wbp-8a6ac7ff-on-1": {
+    "steps": 21,
+    "maxCharsWith": 2888,
+    "maxCharsWithout": 2888,
+    "stepsWithOmissionWith": 0,
+    "stepsWithOmissionWithout": 0
+   },
+   "wbp-8a6ac7ff-on-2": {
+    "steps": 13,
+    "maxCharsWith": 2828,
+    "maxCharsWithout": 2790,
+    "stepsWithOmissionWith": 0,
+    "stepsWithOmissionWithout": 0
+   },
+   "wbp-ac5a1bc0-on-1": {
+    "steps": 40,
+    "maxCharsWith": 6798,
+    "maxCharsWithout": 6760,
+    "stepsWithOmissionWith": 0,
+    "stepsWithOmissionWithout": 0
+   },
+   "wbp-ac5a1bc0-on-2": {
+    "steps": 24,
+    "maxCharsWith": 5272,
+    "maxCharsWithout": 5157,
+    "stepsWithOmissionWith": 0,
+    "stepsWithOmissionWithout": 0
+   },
+   "wbp-ezoj-on-1": {
+    "steps": 36,
+    "maxCharsWith": 6153,
+    "maxCharsWithout": 6039,
+    "stepsWithOmissionWith": 0,
+    "stepsWithOmissionWithout": 0
+   },
+   "wbp-ezoj-on-2": {
+    "steps": 16,
+    "maxCharsWith": 3213,
+    "maxCharsWithout": 3175,
+    "stepsWithOmissionWith": 0,
+    "stepsWithOmissionWithout": 0
+   },
+   "rtd-ezoj-on-1": {
+    "steps": 38,
+    "maxCharsWith": 6977,
+    "maxCharsWithout": 6825,
+    "stepsWithOmissionWith": 0,
+    "stepsWithOmissionWithout": 0
+   },
+   "rtd2-ezoj-on-1": {
+    "steps": 34,
+    "maxCharsWith": 5554,
+    "maxCharsWithout": 5478,
+    "stepsWithOmissionWith": 0,
+    "stepsWithOmissionWithout": 0
+   },
+   "rtd2-ezoj-on-2": {
+    "steps": 36,
+    "maxCharsWith": 7731,
+    "maxCharsWithout": 7500,
+    "stepsWithOmissionWith": 0,
+    "stepsWithOmissionWithout": 0
+   }
+  }
+ }
+}

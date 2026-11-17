@@ -361,6 +361,21 @@ describe('Coordinator workbook view', () => {
     store.close();
   });
 
+  it('carries cleaned evidence refs with hypotheses, not with questions', async () => {
+    const {store, service} = fixture();
+    const ref = '0b7e4c1a-6f2d-4e8b-9a35-1c2d3e4f5a6b';
+    const h = rawEntry(store, 'X', {kind: 'decision', slot: 'hypotheses', text: 'supported by a published response', status: 'supported', evidence_refs: [ref, `leak-${RUN_SECRET}`]});
+    const q = rawEntry(store, 'X', {kind: 'decision', slot: 'questions', text: 'which layer refused it', status: 'open', evidence_refs: [ref]});
+    const {projection, payload} = await coordinatorView(service);
+    const x = section(payload, 'X');
+    const hyp = x.slots.hypotheses.find((e: any) => e.id === h);
+    expect(hyp.evidence_refs).toHaveLength(2);
+    expect(hyp.evidence_refs[0]).toBe(ref);
+    expect(projection.text).not.toContain(RUN_SECRET);
+    expect(x.slots.questions.find((e: any) => e.id === q)).not.toHaveProperty('evidence_refs');
+    store.close();
+  });
+
   it('omits an entry that cannot be assembled and keeps the others', async () => {
     const {store, service, note} = fixture();
     const good = await note('recon', {slot: 'facts', text: 'good fact'});
