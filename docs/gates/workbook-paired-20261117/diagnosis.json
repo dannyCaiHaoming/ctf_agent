@@ -1,0 +1,113 @@
+{
+  "note": "Counts and classifications only, derived from the paired batch's control-audit progress notes, run state, and workbook tables. No message text, entry text, candidate, flag, refs, or tool output.",
+  "scope": "seven runs that ended without a candidate",
+  "source": {
+    "batch": "workbook-paired-20261117",
+    "head": "b88529ed",
+    "summary": "docs/gates/workbook-paired-20261117/summary.json",
+    "runsRoot": "/Users/caihaoming/Documents/pentest-agent-run-data/workbook-paired-20261117"
+  },
+  "runs": [
+    {
+      "runId": "wbp-ac5a1bc0-on-1",
+      "challenge": "ac5a1bc0",
+      "arm": "on",
+      "remaining_min": 4.3,
+      "critic": "none",
+      "critic_adopted": null,
+      "blocker": "time_and_method",
+      "open_questions": 1,
+      "open_hypotheses": 1
+    },
+    {
+      "runId": "wbp-ac5a1bc0-off-1",
+      "challenge": "ac5a1bc0",
+      "arm": "off",
+      "remaining_min": 7.81,
+      "critic": "stop",
+      "critic_adopted": true,
+      "blocker": "scope",
+      "open_questions": 0,
+      "open_hypotheses": 0
+    },
+    {
+      "runId": "wbp-ac5a1bc0-on-2",
+      "challenge": "ac5a1bc0",
+      "arm": "on",
+      "remaining_min": 11.2,
+      "critic": "redirect",
+      "critic_adopted": true,
+      "blocker": "scope",
+      "open_questions": 1,
+      "open_hypotheses": 2
+    },
+    {
+      "runId": "wbp-ac5a1bc0-off-2",
+      "challenge": "ac5a1bc0",
+      "arm": "off",
+      "remaining_min": 13.51,
+      "critic": "none",
+      "critic_adopted": null,
+      "blocker": "uncertain",
+      "open_questions": 0,
+      "open_hypotheses": 0
+    },
+    {
+      "runId": "wbp-ezoj-on-1",
+      "challenge": "ezoj",
+      "arm": "on",
+      "remaining_min": 7.94,
+      "critic": "none",
+      "critic_adopted": null,
+      "blocker": "dac",
+      "open_questions": 3,
+      "open_hypotheses": 2
+    },
+    {
+      "runId": "wbp-ezoj-off-1",
+      "challenge": "ezoj",
+      "arm": "off",
+      "remaining_min": 3.97,
+      "critic": "none",
+      "critic_adopted": null,
+      "blocker": "dac",
+      "open_questions": 0,
+      "open_hypotheses": 0
+    },
+    {
+      "runId": "wbp-ezoj-off-2",
+      "challenge": "ezoj",
+      "arm": "off",
+      "remaining_min": 12.8,
+      "critic": "redirect",
+      "critic_adopted": true,
+      "blocker": "dac",
+      "open_questions": 0,
+      "open_hypotheses": 0
+    }
+  ],
+  "method_contrast": {
+    "ezoj_on_2": {
+      "candidate": "accepted_offline",
+      "first_candidate_min": 9.19,
+      "first_package_min": 11.48,
+      "method": "audit-hook subinterpreter bypass plus setuid helper"
+    },
+    "ezoj_no_candidate_runs": 3,
+    "ac5a1bc0_no_candidate_runs": 4
+  },
+  "counts": {
+    "no_candidate_runs": 7,
+    "critic_dispatched": 3,
+    "critic_redirect": 2,
+    "critic_stop": 1,
+    "critic_adopted": 3,
+    "blocker_scope_or_dac": 5,
+    "blocker_time_or_uncertain": 2
+  },
+  "limits": [
+    "One reader, final progress notes only; no second review.",
+    "The two ezoj no-candidate runs with a 'dac' blocker concluded deployment inconsistency, but the same challenge's on-2 run produced an accepted candidate; the environment attribution is therefore incomplete, not proven false for those exact runs.",
+    "The batch head predates the no-candidate stop rule commits 63b3633f and e625024d; this file is not evidence for that rule's behavior."
+  ]
+}

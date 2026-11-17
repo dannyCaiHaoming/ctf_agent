@@ -1,6 +1,6 @@
 # Coordinator／Recon／Solver：決策上下文與責任調整
 
-**狀態（2026-11-17）：** 進行中。§6.1 題目工作簿已落地（host 接口、角色檔，以及 Recon 重設計 §4 的索引摘要），§6.2–6.3 的內容契約已寫入角色檔，通過無模型測試；三次真實 run 與一次冒煙 run 確認模型會寫、會接上工作簿，索引摘要與材料去重在 runtime 成立。首輪配對對照（§7.2，3 題 × 2 組 × 2 次）兩組候選結果持平，未顯示工作簿對解題的收益或損害。§6.4 後續片未開始。
+**狀態（2026-11-17）：** 進行中。§6.1 題目工作簿已落地（host 接口、角色檔，以及 Recon 重設計 §4 的索引摘要），§6.2–6.3 的內容契約已寫入角色檔，通過無模型測試；三次真實 run 與一次冒煙 run 確認模型會寫、會接上工作簿，索引摘要與材料去重在 runtime 成立。首輪配對對照（§7.2，3 題 × 2 組 × 2 次）兩組候選結果持平，未顯示工作簿對解題的收益或損害。2026-11-17 有界診斷把 7 個無候選 run 的停止多數歸到授權／環境邊界，3 次 Critic 建議均被承接；主缺口在 Solver 方法內容與運用，另有 ac5a1bc0 的授權／部署邊界，不是續派或工作簿交付。§6.3 無候選停止規則已寫入角色檔，尚無變更後行為證據；§6.4 後續片未開始。
 
 本文是[核心 design v1](2026-10-22-ctf-agent-design-v1.md) C 的子設計，負責三角色之間的問題歸屬、決策交接與驗證方法，此範圍的細節以本文為準。既有產品行為仍以實作及原子設計為準，本文的候選不是已生效契約。
 
@@ -9,12 +9,16 @@
 **目前已知：**
 - **候選出現後的承接沒有缺口。** a3–a6 共 4 次交回提出候選材料，4 次的下一派單都是 Engineer（§3.2）。
 - **沒有候選時的續派大致合理。** 19 個決策點中 16 個續派了新的、能區分假設的問題，沒有一次忽略換路訊號（§4 問題 1）。
-- **主瓶頸是 Solver 沒產出候選。** 6 個未解 run 從未提出候選；[P2 復盤](../analysis/2026-11-06-alibaba-a1-a4-harness-findings.md)把它們歸為方法缺口（Java gadget 施工、特權 helper 列舉、native RASP）。這不屬本文。
+- **主瓶頸是 Solver 沒產出候選。** 6 個未解 run 從未提出候選；[P2 復盤](../analysis/2026-11-06-alibaba-a1-a4-harness-findings.md)把它們歸為方法缺口（Java gadget 施工、特權 helper 列舉、native RASP）。2026-11-17 的配對批次把同題缺口定位到 OGNL 成員存取／靜態呼叫，以及 Python audit-hook 子解釋器繞過；沒有觀察到能解釋全部無候選的工具能力或資料交付缺口；一次 Reference 空交回是局部例外（§6.3、[B §7.1](2026-10-26-design-v1-b-method-generalization-and-efficiency.md#71-配对批次无候选复盘2026-11-17)）。這不屬本文的續派契約。
+- **方法缺口是內容缺失，不只是發現失敗。** `ac5a1bc0` on-2／off-2 的 Reference 讀了現有 Web Skill 的目錄與兩份 Reference，off-2 另讀了 SKILL.md；其中沒有 OGNL 成員存取或 audit-hook 子解釋器方法。Solver 沒有 `skill` 呼叫是另一個問題，但不能用它解釋這兩題的缺口。
+- **提前結束不是主要規則缺口。** 配對批次 7 個無候選 run 中，5 個的停止理由指向授權邊界或 DAC；其中 ezoj 的同題成功 run 顯示 DAC 不是唯一路徑。2 個仍有剩餘時間，但一個只剩 4.3 分鐘、另一個的區分價值未知。3 次 Critic 建議都被承接。無候選停止規則主要改善收尾的可核對性，不能單獨補上方法缺口（§6.3）。
 - **Recon 不是 Solver 時間被壓縮的主因。** 16 個 Recon 階段中，建好基線後還繼續求解或列舉的只有 2 個（a3 C3、a7 F1），Intake 材料從來不足以直接派 Solver（§4 問題 2）。
 - **相鄰的兩個執行問題已另行處理。** child `finish=length` 截斷已由輸出上限 32000 消除（a7，[結果完整性 §5.2](2026-10-25-design-v1-run-readiness-and-result-completeness.md)）；child 拖到 deadline 不交回已由執行中時間事實改善（a8，[Recon 重設計 §5](2026-10-29-design-v1-recon-redesign.md)）。兩者都不改變三角色的分工與決策。
 
 **目前未知（本文要回答的）：**
 1. 統一的題目工作簿（§6.1）能否讓各角色接上前一角色的理解，並在上限內不膨脹。§4 問題 3 的舊核對只確認交回有內容，沒有核對承接，不作為否定依據。
+2. 無候選停止規則在變更後 run 的行為。目前只有角色檔文字與無模型檢查，沒有變更後的執行證據；配對批次早於規則，不能當驗收（§6.3）。
+3. `ezoj` 同題的成功與失敗差異，能否由通用方法內容改善；目前只有一次 accepted 候選與三次環境歸因的對照，沒有內容增量的效果證據（[B §7.1](2026-10-26-design-v1-b-method-generalization-and-efficiency.md#71-配对批次无候选复盘2026-11-17)）。
 
 **不做：** 不重寫多 Agent 架構，不新增 Agent、知識服務、通用規劃器、監控調度器或摘要模型，不加專屬題解或新的 solved 判據。保留 OpenCode 原生模型／task 循環、薄 host、既有工具與獨立驗證／可信提交。不據現有證據判定模型能力不足。
 
@@ -84,6 +88,8 @@ Engineer、Verifier 與裁判的權限不合併，「Solver 宣稱候選」不�
 
 **結論與適用範圍。** 原核心假設「判斷在交接中遺失或未被承接」沒有得到支持，所以第一片暫緩。但這次核對只回答了「交回有沒有內容」和「候選有沒有被接」，沒有判斷無候選時的續派是否合理，見 §4 問題 1。
 
+**冒煙 run 的兩個接口缺口（2026-11-17 核對）。** 冒煙 run 的 Coordinator 一次只帶 `task_id`、漏 `subagent_type` 的續接被拒為 `task id not owned`，隨即改開新 Solver session；Solver 兩次想以 refuted 撤回事實：一次因 refuted 不帶 status 被拒，一次因 facts 不能由 refuted 取代被拒；錯誤事實留在視圖（[冒煙 gate](../../gates/workbook-smoke-20261116/)）。兩者已在 `ccdd0c0a` 修正：續接拒絕改為指出原角色，facts 可由同角色的 refuted 取代（refuted 仍不帶 status）。配對批次（`b88529ed`，含此修正）的 `ac5a1bc0` on-2 有 3 次成功續接、0 次拒絕，直接支持續接訊息已修好；12 次 run 的 facts→refuted 為 0，事實撤回只有契約測試，沒有真實使用樣本（§6.1）。這兩項只證明接口可用，不證明會改善候選產生。
+
 ### 3.3 反例與限制
 
 - **只縮短 child 不夠。** a4 的 6 次交回各為 0.2–2.9 分鐘，Coordinator 仍每次再派 Solver（[結果完整性 §5.2](2026-10-25-design-v1-run-readiness-and-result-completeness.md)）。a8 時間事實生效後，F2 在 Critic 交回後又派 2 次 Solver，剩約 4.2 分鐘以 0 提交結束。
@@ -116,6 +122,11 @@ Engineer、Verifier 與裁判的權限不合併，「Solver 宣稱候選」不�
   - **無候選得到確認。** 19 個決策點對應的交回都沒提出候選材料，與 §3.2 一致。
   - **反例的覆蓋。** a6 F2 的 5 次續派中，計入的 4 次是 3 a、1 b；a8 F2 Critic 交回後的 2 次都是 a，其中 1 次是 Critic 執行期間並行派出。a5 E2 在 Critic `redirect` 後的那次續派，前一個交回是 Critic 而非 Solver，不在本次口徑內，未判斷。
   - **限制。** 單人分類，無第二評審；3 個邊界列全部改判時 a 為 13/19，結論不變。ezoj 佔多數，不代表題目分佈。
+- **2026-11-17 配對批次复核。** 7 個無候選 run 的續派與換路仍大致合理，沒有新的 (b)／(c) 系統性缺口。
+  - **Critic 被承接。** 3 次 Critic（2 次 `redirect`、1 次 stop）都對應到一致的下一步：`ac5a1bc0` on-2 續接 Solver 做了 H1/H2 兩個判別觀察，`ezoj` off-2 續接 Solver 做了兩項有界實驗，`ac5a1bc0` off-1 依 Critic 建議停止。沒有觀察到忽略 redirect 而續跑。
+  - **多數停止有外部邊界。** 5 次的最後障礙是授權或環境邊界：`ac5a1bc0` 的 backend 8080 不在授權內，`ezoj` 的 `/flag` 是 root 0600、服務為 uid1000。這些不是 Coordinator 選錯下一個問題。
+  - **仍有兩個可疑收尾。** `ac5a1bc0` on-1 剩 4.3 分鐘，仍有具體的 OGNL 成員存取檢查；off-2 剩 13.5 分鐘，仍有未測 anomaly。兩者的可區分價值與能否在剩餘時間完成打包／送驗都未證實，只記錄，不判成規則缺口。
+  - **與舊核對的關係。** 這次复核沒有推翻 2026-11-10 的 a 16/19；它補上了「停止時是否仍有有效下一步」與 Critic 承接的行為證據，結論是主要缺口仍在 Solver 方法，不在續派。
 
 ### 問題 2：Recon 何時算完成、是否每題都要派
 
@@ -254,7 +265,7 @@ Engineer、Verifier 與裁判的權限不合併，「Solver 宣稱候選」不�
 
 只有 schema 通過、hook 有輸出而實際請求沒有正文，判失敗。
 
-**host 接口的實作結果（2026-11-11）。** 寫入、取代、折疊、上限截取，以及 Recon／Solver／Engineer 與 Coordinator 的注入已實作；`tests/contract/workbook.test.ts` 26 項覆蓋上面驗證第 1–5 項與兩種視圖條目級 delta 的合併還原，全量 867 項通過。實作中定下的細節：
+**host 接口的實作結果（2026-11-11）。** 寫入、取代、折疊、上限截取，以及 Recon／Solver／Engineer 與 Coordinator 的注入已實作；`tests/contract/workbook.test.ts` 27 項覆蓋上面驗證第 1–5 項與兩種視圖條目級 delta 的合併還原。2026-11-17 定向執行 control-service 36 項與 workbook 27 項全通過；全量 867 項是 2026-11-11 的記錄，未在本次重跑。實作中定下的細節：
 - 工作簿相關的拒絕（超長、狀態不合法、取代失效條目等）以具體訊息返回模型，訊息只含固定文字、條目 id 與欄位名；其他 note 錯誤仍是通用拒絕。
 - Recon／Solver／Engineer 的工作簿在 delta 中按條目傳送：只帶新增或改變的條目（各帶所屬欄）、不再呈現的 id，以及有變化的 host 部分；按 id 合併即還原完整視圖。原先整份重送在首次真實 run 中讓單一 session 累計多收 5–7 萬字元（見下）。材料目錄不再作為工作簿的 host 部分送出（2026-11-16）：同一個 context block 的 `state.publications` 已帶相同的 ref／kind／size，另有 sha256 與 session，不設 12 條上限，且已按 ref 增量傳送；原先兩種索引模式都重複送出兩者。工作簿 guidance 指向 `state.publications`；關閉組本來只有 `state.publications`，兩組在材料呈現上一致。工作簿視圖也因此少了最多 12 條材料（約 1K 字元），計入 12K 總量的只剩條目、目標、候選 host 部分與 coverage。
 - episode 來源中，Solver 寫的條目保留 `role: domain-solver`，不被標成 recon。
@@ -275,9 +286,11 @@ Engineer、Verifier 與裁判的權限不合併，「Solver 宣稱候選」不�
 
 據此修正：引用拒絕改為具體訊息；續派時只漏寫或寫錯 `subagent_type` 的拒絕改為說明原角色，不再顯示為「task id not owned」（冒煙 run 中 Coordinator 因此放棄續接、改開新 Solver session）；事實可由同角色的排除路線取代；Recon／Solver／Engineer 與 Coordinator 的工作簿都改為條目級 delta；候選限定由 Solver 寫，Coordinator 不得在有 proposed 候選時直接結束。
 
+**兩個冒煙缺口的驗證狀態（2026-11-17）。** 續接拒絕的修正只有一個真實樣本：配對批次 `ac5a1bc0` on-2 的 3 次續接全部成功、0 次拒絕；其他 run 沒有續接，不能算覆蓋。事實撤回由 `workbook.test.ts` 覆蓋 facts→refuted 路徑，但配對批次 12 次 run 的 facts→refuted 為 0，沒有真實使用樣本；模型是否會在實際錯誤事實出現時使用它，仍未知。兩項都只證明接口可用，沒有證據說它們提高了候選產生率。
+
 **仍待觀察：**
 - Recon／Solver 四次都沒有成功取代自己的條目（冒煙 run 中唯一兩次嘗試是撤回事實，被當時的規則拒絕）；r2 結束時有 33 條有效條目、facts 17 條，r3 為 21 條，冒煙 run 為 27 條。合併規則是否會在觸及上限時被遵循，還沒有樣本。
-- Solver 回合仍短：r3 三個 Solver 只有 23／10／7 次調用，與 §6.4 放寬交回門檻的動機一致。
+- Solver 回合仍短：r3 三個 Solver 只有 23／10／7 次調用，與 §6.4 放寬交回門檻的動機一致。配對批次的後期回合也短，但同時有 4–7 分鐘上限與問題收窄，不能只歸因於交回門檻（§6.3）。
 - r2 第 4 個 Solver 的首個完整投影約 79KB，大部分是 200 條步驟索引。索引按需讀取（[Recon 重設計 §4](2026-10-29-design-v1-recon-redesign.md)，預設 summary）在冒煙 run 中把最大投影降到約 15K bytes，模型只展開過 1 次 `recon.read`。
 - 上面四次 run 都沒有走到候選與提交。首輪配對（§7.2）中，開啟組有 3 次產出候選並打包、被 judge 接受。開啟組 6 次 run 共成功取代自己的條目 20 次：Coordinator 13 次（6 次 run 都有），Solver 7 次（2 次 run），Recon 0 次；撤回事實（facts→refuted）0 次。12 次 run 都沒有觸及總量上限，所以合併規則在上限下的表現仍無樣本。
 
@@ -310,12 +323,15 @@ Engineer、Verifier 與裁判的權限不合併，「Solver 宣稱候選」不�
 - Engineer 無法整理就交回具體缺口；不能因時間緊要求它編造 bytes、補解或略過原出處契約。
 - 候選狀態欄是角色聲稱＋綁定 refs＋unknown，不是 host 的 candidate_available 真值；hash 只證明材料身份，不證明內容正確。
 - 固定 deadline 或單回合上限不在本文。
-- **無候選時的提前結束（2026-11-17 核對，[配對 gate](../../gates/workbook-paired-20261117/)）。** 只用 control-audit 的操作與標籤、角色檔與工作簿計數，未讀 transcript。
-  - **事實：** 配對批次 7 次未解出的 run（`ac5a1bc0` 4 次、`ezoj` 3 次），都由 Coordinator 寫 `stage=finalize`、`route=stop_and_report` 並附 blocker 後結束，host 沒有截斷，結束時還剩 4–13.5 分鐘。兩組都有，不是工作簿或本批次才有：a1–a8 共 15 次未解出的 run，9 次由 Coordinator 提前結束、6 次跑到 deadline；冒煙 run 與 r2、r3 也是自行結束。
-  - **結束前的軌跡：** Solver 回合逐輪變短，首輪 5–13 分鐘、21–84 步，最後一兩輪只有 0.4–2 分鐘、4–19 步；最後一次交回後 0.1–0.3 分鐘內就寫下結束記錄。開啟組 3 次結束時，工作簿仍有 1–3 條 open 問題與 1–2 條 open 假設，都沒有被 answered／dropped 關閉。7 次中只有 3 次在結束前派了 Recovery Critic；能讀到判斷的 2 次都是 `redirect`，Coordinator 沒有換路，而是在剩 11 與 13 分鐘時結束。6 次附了 `capabilityGap`（environment 4、reference 1、unknown 1）。
-  - **歸因（§7.1）：** 不是「沒看到」：`remaining_min`、未決條目與 Critic 建議都在 Coordinator 上下文中。主要是規則缺口：角色檔只禁止「有 proposed 候選時」結束，沒有寫在什麼條件下才能放棄剩餘時間；「需要新能力就記為 `capabilityGap`、留到題後復盤」容易被讀成「發現缺口就停」。environment 缺口是否屬實未知：host 拒絕記錄裡沒有環境層的拒絕，要分辨是 harness 限制還是題目本身的情況，得讀模型寫的缺口說明，屬實驗模式。
-  - **限制：** 已解出的 run 都在 19 分鐘內解出，跑到 deadline 的 6 次也都沒解出，沒有證據表明多跑剩餘幾分鐘就能多解。提前結束更接近症狀，Solver 不產出候選、後期回合縮短仍是主因（§6.4 Solver 交回門檻）。改結束規則的目的，是不在未決路線和 Critic 換路建議都還在時放棄剩餘時間，不預期它單獨提高解出率。
-  - **規則（2026-11-17 用戶審定，已寫入 coordinator.md）：** 在「停滯與 Recovery Critic」之後加「無候選時結束」一節，host 不加任何判斷或閘門（不採「有 open 條目時拒絕 root 結束」，違反薄 host 與「不加新判據」）。原文見下。提交拆成兩個 commit：`63b3633f` 是與工作簿無關的部分（Critic `redirect` 的處理、`capabilityGap` 不作結束理由、結束時寫明剩餘分鐘），歸入「套用」，關閉組同樣生效；`e625024d` 補上關閉 open 條目與列出未處理條目 id，歸入「排除」。`paired-control-product.py` 改以 1 行上下文產生「套用」補丁，因為舊角色檔在插入點附近的文字不同；05af1de2 的生成結果不變。
+- **無候選時的提前結束（2026-11-17 核對，[配對 gate](../../gates/workbook-paired-20261117/)，分類計數見 `diagnosis.json`）。** 只用 control-audit 的操作與標籤、角色檔與工作簿計數，未讀 transcript。
+  - **事實：** 配對批次 7 次無候選 run（`ac5a1bc0` 4 次、`ezoj` 3 次）都由 Coordinator 以 `stage=finalize`、`route=stop_and_report` 結束，host 沒有截斷，剩 4–13.5 分鐘。兩組都有；a1–a8 的 15 次未解 run 也有 9 次自行結束，所以這不是本批次或工作簿獨有。
+  - **停止依據（2026-11-17）：** 5 次的停止記錄指向授權或環境邊界：`ac5a1bc0` off-1／on-2 的 backend 8080 不在授權內，只能從 8052 間接觀察；`ezoj` on-1／off-1／off-2 的 `/flag` 是 root 0600、服務與 judge 為 uid1000。`ac5a1bc0` on-1 剩 4.3 分鐘，仍有具體的 OGNL 成員存取檢查，但不足以完成突破＋打包＋送驗；`ac5a1bc0` off-2 剩 13.5 分鐘，仍有未測的 `%2f`／`+` anomaly，區分價值未知。開啟組 3 次結束時，工作簿仍有 1–3 條 open 問題與 1–2 條 open 假設，都沒有被 answered／dropped 關閉；關閉與否是收尾狀態，不直接證明還有可行下一步。分類只讀最終 note、Critic 交回與工作簿計數。
+  - **Critic 與承接：** 7 次中 3 次在結束前派了 Recovery Critic。2 次 `redirect`（`ac5a1bc0` on-2、`ezoj` off-2）都被承接：Coordinator 分別續接 Solver 做了 H1/H2 與兩項有界實驗，並在 Critic 自己設定的「無新判別即停」條件下結束；另 1 次（`ac5a1bc0` off-1）Critic 建議 stop，Coordinator 直接停止。沒有觀察到「忽略 redirect 而續跑」。另 4 次未派 Critic：2 次剩不到 5 分鐘，2 次剩 8–13.5 分鐘；新規則會要求後兩者至少派一次，但沒有變更後樣本，不能說它會改變結果。
+  - **回合長度：** 多數後期回合變短是 Coordinator 依剩餘時間設定 4–7 分鐘上限、把問題收窄的結果；最後一兩輪仍寫出新條目（on-1 的 facts／refuted、on-2 的 H1/H2），不能當成失去上下文或方法枯竭的證據。
+  - **歸因（§7.1）：** 不是「沒看到」：`remaining_min`、未決條目與 Critic 建議都在 Coordinator 上下文中。也不是主要規則缺口：`ac5a1bc0` 的 2 次 scope 邊界是 host 記錄，`ezoj` 的 3 次「DAC 導致不可解」被同題成功 run 部分否定；2 次有具體下一步但時間或價值不足。主要缺口在 Solver 方法內容與運用：`ac5a1bc0` on-1 已到 OGNL sink，卡在 3.1.29 的成員存取／靜態呼叫；`ezoj` 的失敗 run 沒有找到 audit-hook 子解釋器這條路。Reference 在 on-2／off-2 讀了現有 Skill 的目錄與 Reference（off-2 另讀 SKILL.md），內容仍沒有這兩個方法，所以不是單純沒看到。`ac5a1bc0` 另有 2 次授權邊界與 1 次 Feign 重編碼，屬另一層，不能全歸方法。
+  - **ezoj 對照：** 同題 on-2 以 audit-hook 子解釋器繞過＋setuid helper 在 9.2 分鐘取得 accepted 候選；另外 3 次卻把 `/flag` 的 DAC 當成部署不一致後停止。這是同批次、同題的對照，足以否定「環境普遍不可解」，但不足以證明通用內容增量一定能把失敗 run 變成成功。
+  - **限制：** `ezoj` on-2 是 on-arm、有工作簿；失敗的 3 次包含 on／off 兩臂。成功與失敗的差異可能還包含模型波動、初始路線與時間分配，不能全部歸給方法內容。`ac5a1bc0` 的 2 次 scope 邊界是 host 記錄，屬實；on-1 的 OGNL 下一步能否在 4.3 分鐘內產生候選未知。7 次的 blocker 分類是單人、只讀最終 note 與 Critic 交回；沒有第二評審。
+  - **規則（2026-11-17 用戶審定，已寫入 coordinator.md）：** 在「停滯與 Recovery Critic」之後加「無候選時結束」一節，host 不加任何判斷或閘門（不採「有 open 條目時拒絕 root 結束」，違反薄 host 與「不加新判據」）。原文見下。提交拆成兩個 commit：`63b3633f` 是與工作簿無關的部分（Critic `redirect` 的處理、`capabilityGap` 不作結束理由、結束時寫明剩餘分鐘），歸入「套用」，關閉組同樣生效；`e625024d` 補上關閉 open 條目與列出未處理條目 id，歸入「排除」。`paired-control-product.py` 改以 1 行上下文產生「套用」補丁，因為舊角色檔在插入點附近的文字不同；05af1de2 的生成結果不變。**驗證狀態：** 兩個 commit 都在配對批次 head `b88529ed` 之後，批次不能當變更後驗收；目前只有角色檔內容與無模型檢查，沒有變更後真實 run。角色檔不是可執行邏輯，確定性測試不覆蓋此規則的行為。
 
     > ## 無候選時結束
     > - `stop_and_report` 表示放棄本題剩餘的時間，不是一輪沒有進展後的預設動作。以本題前幾輪 Solver 的用時判斷剩餘時間（`remaining_min`）還夠再一輪時，結束前先做到：
@@ -323,12 +339,14 @@ Engineer、Verifier 與裁判的權限不合併，「Solver 宣稱候選」不�
     >   - Recovery Critic 建議 `redirect` 時，按建議換路，或在 `ctf_progress_note` 寫明不採納的理由與依據。本題還沒派過 Critic 的，先派一次，附上述未決條目。
     > - `capabilityGap` 只記錄給題後復盤，不是結束理由；仍以現有能力處理其他未決問題。
     > - 未決條目都已關閉或說明、Critic 建議已處理，或剩餘時間不夠一輪時，才以 `stop_and_report` 結束，並在 note 中寫明剩餘分鐘數與未處理的條目 id。
-  - **驗收：** 規則寫入後，在未解出的 run 中核對：結束時 open 條目是否都已關閉或說明、Critic `redirect` 後的下一步、結束時剩餘分鐘數，以及多出的回合有沒有新條目或候選。只看行為，不以解出率判定規則成敗。
+  - **待審閱的收斂：** 現行文字仍以「本題前幾輪 Solver 的用時」判斷剩餘時間，容易把歷史整輪耗時當成固定單位。較符合證據的寫法是先看下一個具體工作能否在剩餘時間內完成、是否有區分價值，再用剩餘資源決定是否續派；不機械套用歷史整輪耗時。代價是 Coordinator 每次停止前要估下一個工作的成本，可能增加判斷負擔或低估時間；驗收看是否在剩餘時間內產生新的判別觀察，不看關閉條目數。此改動未套用，列為 §6.4 候選。
+  - **驗收：** 規則寫入後，在未解出的 run 中核對：結束時 open 條目是否都已關閉或說明、Critic 建議是否被承接、結束時剩餘分鐘數，以及多出的回合有沒有**新的判別性觀察或候選**。關閉條目、增加 note 或把時間用完都不算有效探索的證明；若 blocker 是同一個授權／DAC 邊界，關閉條目也不改變可解性。只看行為，不以解出率判定規則成敗。
 
 ### 6.4 後續片（前一片成立且有行為證據後才拆）
 
 每片各自一份 plan，不合併成一次大改。
-- **Solver 交回門檻放寬：** 工作簿能承接狀態後，評估讓 Solver 同問題在同一 session 持續，只在問題答完、需要外部前提或時間不足時交回。
+- **Solver 交回門檻放寬：** 工作簿能承接狀態後，評估讓 Solver 同問題在同一 session 持續，只在問題答完、需要外部前提或時間不足時交回。2026-11-17 配對批次提供一個初步對照：`ac5a1bc0` on-2 以 3 次續接、1.0–1.3K 字元指令完成後續三輪；on-1 對同一條 OGNL 路線開了 6 個新 session。這支持「同問題的局部觀察與修錯留在同一 session」，但沒有證據說它單獨提高候選率，仍是候選。
+- **剩餘時間的判斷：** 先看下一個具體工作能否在剩餘時間內完成、是否有區分價值，再決定續派或止損；不機械套用歷史整輪耗時。這與 §6.3 的停止規則相鄰，但改的是判斷方式，不是新增 gate；未套用，待用戶審閱。
 - **衝突呈現：** 同一條觀察被 Recon 和 Solver 不同解釋時，各視圖能看到衝突與支持範圍；沒有額外證據時 host 不自動裁定。
 - **恢復與經驗庫：** compaction、重啟、長交回及缺分頁時保留來源和缺口；經驗檢索／episode 保留作者與來源，不把 Solver 自述當成功。角色綁定與 host outcome 已具備（§6.1「取代的現有做法」）；待真實產生 lesson 後，評估是否在 episode 提示中說明帶欄位的 decision 是作者判斷，不先改提示。
 
@@ -362,14 +380,16 @@ Engineer、Verifier 與裁判的權限不合併，「Solver 宣稱候選」不�
   - **準備工具（2026-11-17）。** `tests/manual/paired-control-product.py` 生成關閉組產品目錄與 manifest；`product/` 在基線之後的每個 commit 都必須歸入「套用」或「排除」，未歸類就停止，避免日後與工作簿無關的改動漏進或工作簿改動混入關閉組。`tests/manual/paired-run.mts` 按 spec 跑一組一次：從同一份基礎 profile 只改 `context` 與產品目錄，啟動前核對模型、Solver 思考、預算與關閉組 manifest，每次用新的 runs-root，經驗庫為空或為凍結庫的一致快照；`--check` 只做前置核對、不寫任何東西。`workbook-run-check.py` 補上兩組都能算的時間點：各角色首次派單、首次候選條目、首次打包與提交、是否解出、停止原因與用量。
   - **選題時注意。** `ac5a1bc0` 在工作簿前的 a1 批次解出（Solver 不開思考、完整索引），工作簿上線後 r1–r3 與冒煙 run 共 0/4，兩邊同時改了工作簿、Solver 思考、索引與預算，不能歸因；配對對照應保留這題，兩組 Solver 思考設定一致，思考的影響另做單變量對照。
   - 本條只定對照組成，不授權運行；題目、模型／provider、批次與 token 上限仍按上文另行授權。
-- **首輪配對（2026-11-17，[gate](../../gates/workbook-paired-20261117/)）。** 條件：`b88529ed`；`ac5a1bc0`、`8a6ac7ff`、`ezoj` 三題，每題每組 2 次、交錯順序；deepseek-v4.1-flash，兩組 Solver 都開思考；每次 30 分鐘、可觀測 token 上限 5M；learning 關閉，經驗庫為空。批次合計 543 萬 token，開啟組 268 萬、關閉組 275 萬。
+- **首輪配對（2026-11-17，[gate](../../gates/workbook-paired-20261117/)，停止分類見 `diagnosis.json`）。** 條件：`b88529ed`；`ac5a1bc0`、`8a6ac7ff`、`ezoj` 三題，每題每組 2 次、交錯順序；deepseek-v4.1-flash，兩組 Solver 都開思考；每次 30 分鐘、可觀測 token 上限 5M；learning 關閉，經驗庫為空。批次合計 543 萬 token，開啟組 268 萬、關閉組 275 萬。
   - **準備工具缺陷：** `paired-run.mts` 沒有 await 非同步的 judge factory，host 拿到的 judge 沒有 limits，所有 `completion.request` 都被拒絕（`submission limits unknown`），Coordinator 被拒後自行結束。因此 run 記錄的 solved 一律為 false，不代表候選結果。已修正：腳本會 await，`--check` 也核對 judge 的 id、submit 與 limits。事後用同一 judge 離線比對所有打包的候選，只取 accepted 或 rejected，結果寫在 gate 的 `correction`。12 次 run 中，Intake 讀到的題目提交狀態也是「不可提交」；這是否影響了 Coordinator，沒有核對。
   - **候選被接受的次數（開啟組／關閉組）：** `8a6ac7ff` 2/2 對 2/2，`ezoj` 1/2 對 0/2，`ac5a1bc0` 0/2 對 0/2。`8a6ac7ff` 兩組全中，區分不了兩組；`ezoj` 只差 1 次；`ac5a1bc0` 兩組都沒有產出候選，仍屬「未產生候選」一類。
+  - **無候選 run 的停止核對（2026-11-17）：** 7 次中 5 次的停止記錄指向授權／DAC 邊界（其中 ezoj 的 DAC 不可解結論被同題成功 run 部分否定），2 次有具體下一步但時間或價值不足；3 次 Critic 建議都被承接（2 次 `redirect` 有後續實驗、1 次 stop）。這改寫了 §6.3 先前「主要是規則缺口」與「Critic 沒有換路」的判斷；詳見 §6.3。
+  - **停止規則的驗證狀態：** 本批次 head `b88529ed` 早於 `63b3633f`／`e625024d`，所以本批次不是停止規則的驗收。規則目前只有角色檔與 commit，沒有變更後 run；不能拿變更前的 7 次停止當成規則有效或無效。
   - **可比的時間點：** `8a6ac7ff` 首次打包，開啟組在 5.5 與 5.3 分鐘，關閉組在 6.2 與 7.5 分鐘；首次派 Solver，開啟組在 2.8 與 2.2 分鐘，關閉組在 3.6 與 5.6 分鐘。有打包的 5 次 run，結束時間只反映提交被拒後的停止，不能比較。
   - **重做：** 跨 session 的非讀取重複，開啟組 0 次，關閉組 6 次（其中 5 次是 `http.request`）；讀取重複兩組分別為 19 次和 25 次。
-  - **未解出的 7 次 run**（`ac5a1bc0` 4 次、`ezoj` 3 次）都在 16–26 分鐘由 Coordinator 自行結束，還剩 4–14 分鐘的時間預算，兩組都有。這與工作簿無關，按 §4 問題 1 與 §7.1 另行歸因。
+  - **未解出的 7 次 run**（`ac5a1bc0` 4 次、`ezoj` 3 次）都在 16–26 分鐘由 Coordinator 自行結束，還剩 4–14 分鐘的時間預算，兩組都有。停止依據見 §6.3：5 次的停止記錄指向授權／DAC 邊界，2 次有具體下一步但時間或價值不足；不能只用提前結束或工作簿解釋，也不能把這個批次當停止規則的驗收。
   - **關閉組與 host 的不一致：** §7.2 原先假設舊角色不寫 note、與 host 一致，實際上關閉組 6 次 run 中，舊 Solver 每次仍嘗試寫 note，被拒 2–7 次；舊 Recon 在 5 次 run 中被拒 2–5 次，其中 `ezoj` off-1 的 4 次是傳了現行 schema 不認識的 `reason` 字段。關閉組因此多了少量被拒的調用，下輪配對前要先決定是否接受這個偏差。
-  - **結論：** 每格只有 2 次，候選結果兩組持平。開啟組在一題上派單和打包較早，非讀取重做較少，只算初步方向，不構成收益證據。要有區分力，需要換「材料已出但收尾延遲」一類的題目，或在 `ezoj` 上加次數。
+  - **結論：** 每格只有 2 次，候選結果兩組持平。開啟組在一題上派單和打包較早，非讀取重做較少，只算初步方向，不構成收益證據；也不能用這次的停止行為宣稱工作簿或停止規則有效。要有區分力，需要換「材料已出但收尾延遲」一類的題目，或在 `ezoj` 上加次數。
 - **記錄：** 首次可開工交接、實際承接的來源、錯輪／缺資料次數、無新前提的重做、首次候選聲稱／固定 package／提交時點、accepted／solved、用量和停止原因。人工復核保留判斷依據與不確定性，不以 hash 當「新資訊」。所有失敗計入，usage 缺失記 unavailable。
 
 驗收分兩層：
@@ -382,7 +402,7 @@ Engineer、Verifier 與裁判的權限不合併，「Solver 宣稱候選」不�
 
 - **四項決策事實：** 權威在[結果完整性 §5.2](2026-10-25-design-v1-run-readiness-and-result-completeness.md)，本文只引用。
 - **child 輸出上限、執行中時間事實、Recon cap 與 closure：** 歸[結果完整性 §5.2](2026-10-25-design-v1-run-readiness-and-result-completeness.md)與 [Recon 重設計 §5](2026-10-29-design-v1-recon-redesign.md)。本文不調這些數值，只在分工與決策受其影響時引用。
-- **Solver 方法缺口：** 歸 [P2 復盤](../analysis/2026-11-06-alibaba-a1-a4-harness-findings.md)及其後續，不在本文。
+- **Solver 方法缺口：** P2 復盤（Java gadget、特權 helper、native RASP）與 2026-11-17 配對批次（OGNL 成員存取、audit-hook 子解釋器）都指向方法內容與運用；內容增量歸 [B §7.1](2026-10-26-design-v1-b-method-generalization-and-efficiency.md#71-配对批次无候选复盘2026-11-17)，不在本文。
 - **保留的底線：** Recon 記錄、追加式穩定歷史、完整 artifact 消費、失敗與 unknown、Critic 只建議、Engineer 整理、Verifier 獨立、oracle 規則與總預算。
 - **延後：** 強制 Solver closure、角色合併、模型更換、額外工具和摘要服務。全索引按需化已在 Recon 重設計 §4 實作，待真實 run 驗證。沒有證據不預排下一里程碑。
 
