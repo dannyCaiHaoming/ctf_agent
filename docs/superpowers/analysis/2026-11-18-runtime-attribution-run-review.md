@@ -2,7 +2,7 @@
 
 本文保存 [B design §7.2](../specs/2026-10-26-design-v1-b-method-generalization-and-efficiency.md#72-python-运行时阻断归因) 的逐次时间线、核对过程与停止规则观察；design 只保留结论。计数见 [runtime-diag-20261117](../../gates/runtime-diag-20261117/summary.json) 与 [runtime-diag-20261117-r2](../../gates/runtime-diag-20261117-r2/summary.json)。
 
-核对方式：只用 `inventory.json`、control-audit、progress note、工作簿 sqlite 计数、派单与交回文字的关键词布尔值和位置，以及历史 run 的派单计数；未读 transcript，不重放请求。
+核对方式：用 `inventory.json`、control-audit、progress note、工作簿 sqlite 计数、派单与交回文字的关键词布尔值和位置，以及历史 run 的派单计数。第 2.1 节另按指定的 session、消息与工具调用 ID 投影交接元数据、核对文字是否完整包含，并查必要短片段。未通读 transcript，也未重放请求。
 
 ## 1. 条件与结果
 
@@ -12,7 +12,7 @@
 | --- | --- | --- | --- |
 | `rtd-ezoj-on-1` | `13a93056`（指向行在「開始前」） | 96 次调用、约 35 万 token、19.5 分钟 | Solver 0 次载入；13.2 分钟把部署不一致写成判定（seq 72、73）；Coordinator 问题 65 预设部署不一致的结论；Critic 14.3 分钟载入并改正；剩 10 分钟 |
 | `rtd2-ezoj-on-1` | `fe56cedd`（含 `e8d9d76f`） | 116 次调用、约 98 万 token、27.0 分钟 | Solver 0 次载入；没有写出部署／环境／不可解归因；4.1 分钟遇到 RuntimeError，25.8 分钟记录 PermissionError；无 Critic；剩 3 分钟 |
-| `rtd2-ezoj-on-2` | 同上 | 110 次调用、约 51 万 token、27.8 分钟 | 见 §2 时间线；剩 2 分钟，最终 note 把部署不一致写成 blocker |
+| `rtd2-ezoj-on-2` | 同上 | 110 次调用、约 51 万 token、27.8 分钟 | 见 §2 时间线；剩 2 分钟，最终 note 把部署不一致列为 blocker，最终回复称其为唯一解释 |
 
 `rtd2` 两次 `--check` 的输出未单独保存，只由 `batch-meta.json` 的 precheck 与 exit 0 间接确认；目标容器原为 exited 137，重启后运行。
 
@@ -29,7 +29,20 @@
 | 17.32 | Coordinator 新建 Solver 任务（不带 `task_id`），派单问“部署不一致是否为唯一解释”，未点名 Skill |
 | 23.72 | 第二轮以 seq 147 取代 seq 128，升级为 supported，文字含“唯一解释”；该 session 未载入 Skill、未读 Reference |
 | 24.33 | 派 Critic，未载入 Skill；Critic 限定 seq 147，route=redirect |
-| 27.71 | 最终 note：stop_and_report，部署不一致作为 blocker，无保留措辞 |
+| 24.79 | Critic 完成交回。同一派单的合成消息完整送达 Coordinator；下一条 progress note 采用 redirect |
+| 27.71 | 最终 progress note 的 route 为 stop_and_report，说明授权与能力范围内已无可行下一步，部署不一致仅列为 blocker。随后给出的最终回复称其为唯一解释 |
+
+### 2.1 Critic 限定如何传到最终报告
+
+以下 seq 指 `progress.jsonl` 的事件号，id 指工作簿条目。核对来源为该 run 的 `progress.jsonl`、`evidence/task-executions.json`、`evidence/sessions.json` 与指定消息的字段投影。
+
+| 环节 | 对应记录 | 保留的限定 |
+| --- | --- | --- |
+| Critic 交回 | 24.33 分钟派单，调用 `call_00_jr4pmepdnkavmgos3a7ermrh`，ref `9acbeb74-a47f-446d-9803-92cf5c94b562`，子 session `ses_e160032b3ffefX5kxl5pItvEDt`；24.71 分钟记 redirect（seq 1236），交回消息 `msg_1ea0025aa001vgBPvusDrtvU1A` 完整结束（seq 1241） | id147 仍是 supported 假设。Critic 仅使用摘要，未独立核验原文，已有否证的范围不足以支撑「唯一解释」。建议做一次范围明确的补查；若仍无可行下一步，按现有授权与能力停止，部署不一致仅作为 blocker，环境缺陷尚未证实。 |
+| Coordinator 收到 | 根 session `ses_e161678c2ffeZ34U6LhkSaKRPS`。原 `task` 工具的 474 字输出未包含 Critic 限定。24.79 分钟的 `task.completion`／`task.result`／`task.delivered`（seq 1241、1242、1245）可按同一 ref 对齐，投递消息 `msg_1ea0039ad0018Xfyni9rS4F67L` 的首个合成文字片段逐字包含完整的 1179 字交回，随后准入模型调用 #90（seq 1246） | 投递记录及对应消息证实限定完整抵达 Coordinator 会话。24.88 分钟的 redirect note（seq 1253）明确复述 id147 的 supported 状态、已有否证范围以及 blocker 的措辞边界。模型内部如何理解或权衡仍为 unknown。 |
+| 补查第一轮 | 24.98–25.99 分钟（seq 1259、1313），子 session `ses_e15ff9aeeffe9O7AIqd69UKZuD`，交回消息 `msg_1ea013a47001fvfg3gsjsVDGSn`（投递 seq 1317） | Coordinator 按 Critic 建议派出限时、单问题补查。Solver 回报 id156，标明本轮仍有未验证项，并按本轮问题已答交回。 |
+| 补查第二轮 | 26.16–27.64 分钟（seq 1328、1416），子 session `ses_e15fe859fffejGq8yl1APi7uzN`，交回消息 `msg_1ea02bd8c001l8xUDxbTL3vhFk`（投递 seq 1420） | 派单限于第一轮未覆盖的边缘。Solver 回报 id165，仍列出未验证细节，但交回已把部署不一致写成补查后的收尾结论。两轮的有限否证不足以证明部署不一致是唯一解释。 |
+| Coordinator 停止与报告 | 27.71 分钟最终 progress note（seq 1424），随后最终回复 `msg_1ea02e5f2001m0TDNg9O1bLRuJ` | **停止决定**沿用 Critic 的条件，记载授权与能力范围内已无可行下一步、约剩两分钟。**原因陈述**在 progress note 中仍限定部署不一致仅是 blocker，但最终回复升级为唯一解释。progress note 还声称所有 open 问题都已关闭，和工作簿中仍 open 的问题 1、假设 54 不符。 |
 
 ## 3. Solver 载入行为的核对
 

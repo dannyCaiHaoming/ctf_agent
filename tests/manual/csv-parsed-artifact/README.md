@@ -68,3 +68,25 @@ done
 ```
 
 `split-newline.json` 與 `lost-newline.json` 是固定的錯誤產物，不是由 `parse_records.py` 產生，也不隨預期值變動。
+
+## A/B 兩組本地任務
+
+`local-task.sh` 只把 `input/task.md` 與 `input/orders.csv` 複製到倉庫外的 run dir，建立空的 `out/`；B 的 `task.md` 只多一句：
+
+> 如果兩種讀法可能不同，可用一筆含引號內換行的小樣本比較它們的結果。
+
+```bash
+./local-task.sh prepare A /tmp/csv-debug/A
+./local-task.sh prepare B /tmp/csv-debug/B
+```
+
+每個 run dir 用乾淨 session，cwd 設在該目錄，只把 `input/task.md` 交給參與者；不要交倉庫路徑或整個測試目錄。session 結束後，由評分端執行：
+
+```bash
+./local-task.sh score A /tmp/csv-debug/A
+./local-task.sh score B /tmp/csv-debug/B
+```
+
+`score` 先把 `out/records.json` 另存到 run dir 外的 `<run>-submission.json`，再呼叫 `judge.py`；完整差異寫到 `<run>-submission.log`，終端只印 verdict。同一個 run 已有不同的第一次提交時會拒絕覆寫。`score` 也會檢查 `expected/records.json` 的 sha256 與 run dir 的 `input/orders.csv` 未被改動。A/B 的資料、輸出要求、工具、預算與判定方式相同，差別只有 B 多那一句提示；提示不指定筆數或欄位值，也不要求照做。
+
+這個入口只做操作面的隔離，不建立容器或不同使用者。若參與者程序能讀整個檔案系統，仍需由啟動端限制工具範圍。要實際執行還需另定 agent／model／provider、批次、token 上限與 timeout；本次未啟動。
