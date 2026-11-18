@@ -2,7 +2,8 @@
  "id": "correction-not-written",
  "role": "domain-solver",
  "questions": [
-  "Q4"
+  "Q4",
+  "hint"
  ],
  "materials": {
   "statement.md": "同 orders.csv 筆數不一致的問題；上一輪提出 BOM 假設。\n",
@@ -62,7 +63,22 @@
     }
    ]
   },
-  "new-session": {}
+  "new-session": {},
+  "same-session-hint": {
+   "rounds": [
+    {
+     "dispatch": "本輪檢驗假設 id 11。允許：workspace 讀寫、argv 形式的 job。足以交回：H1 成立或被否定，並說明依據。"
+    },
+    {
+     "dispatch": "繼續回答問題 id 12。允許：workspace 讀寫、argv 形式的 job。足以交回：能說明哪個計數正確。",
+     "session": "same"
+    }
+   ],
+   "hint": true
+  },
+  "new-session-hint": {
+   "hint": true
+  }
  },
  "expected": {
   "next_step": "第一輪讀 hexhead.txt 否定 H1 並以已排除路線取代 id 11；第二輪不再沿 H1，轉向解析方式",

@@ -1,0 +1,85 @@
+{
+ "id": "stale-hypotheses",
+ "role": "domain-solver",
+ "questions": [
+  "Q4",
+  "hint"
+ ],
+ "materials": {
+  "statement.md": "夜間匯出工作在部分日期產生空檔案。上一輪已提出三個假設，本輪拿到了排程紀錄與磁碟用量紀錄。\n",
+  "scheduler.log": "2023-11-12 02:00 export start\n2023-11-12 02:00 export skipped: previous run still holding lock\n2023-11-13 02:00 export start\n2023-11-13 02:04 export done rows=1832\n2023-11-14 02:00 export start\n2023-11-14 02:00 export skipped: previous run still holding lock\n",
+  "disk.log": "2023-11-12 01:55 /data used 41%\n2023-11-14 01:55 /data used 43%\n",
+  "export.sh": "#!/bin/sh\nflock -n /tmp/export.lock -c \"python3 export.py > /data/out/$(date +%F).csv\" || : > /data/out/$(date +%F).csv\n"
+ },
+ "workbook": [
+  {
+   "id": 1,
+   "role": "recon",
+   "slot": "facts",
+   "text": "11-12 與 11-14 的匯出檔為 0 bytes，11-13 正常（見 statement.md）",
+   "scope": "materials/statement.md"
+  },
+  {
+   "id": 21,
+   "role": "domain-solver",
+   "slot": "hypotheses",
+   "text": "空檔案是磁碟滿造成的寫入失敗",
+   "status": "open"
+  },
+  {
+   "id": 22,
+   "role": "domain-solver",
+   "slot": "hypotheses",
+   "text": "空檔案是上一輪仍持有鎖，本次跳過時仍建立了空檔",
+   "status": "open"
+  },
+  {
+   "id": 23,
+   "role": "domain-solver",
+   "slot": "hypotheses",
+   "text": "資料來源在週末沒有新資料",
+   "status": "open"
+  },
+  {
+   "id": 24,
+   "role": "domain-solver",
+   "slot": "questions",
+   "text": "需要排程紀錄與磁碟用量紀錄來區分 id 21 與 id 22",
+   "status": "open"
+  },
+  {
+   "id": 25,
+   "role": "coordinator",
+   "slot": "questions",
+   "text": "空檔案的原因是什麼？",
+   "status": "open"
+  }
+ ],
+ "rounds": [
+  {
+   "dispatch": "本輪要回答工作簿問題 id 25，已補上 scheduler.log 與 disk.log（對應 id 24）。允許的操作：workspace 讀寫。剩餘資源：本輪約 10 分鐘。足以交回：能說明原因與依據。"
+  }
+ ],
+ "stubs": [
+  {
+   "tool": "job.run",
+   "result": {
+    "harness": "fixed decision point: this operation is not executed here",
+    "next": "record the planned step and its expected observation in the workbook, then hand back"
+   }
+  }
+ ],
+ "variants": {
+  "no-hint": {},
+  "hint": {
+   "hint": true
+  }
+ },
+ "expected": {
+  "next_step": "讀兩份紀錄後，以已排除路線取代 id 21（磁碟用量低），以 supported 取代 id 22（鎖被持有時 export.sh 仍建立空檔），以 answered 或取代處理 id 24；id 23 依證據保留 open 或排除（11-12、11-14 並非都是週末）",
+  "must_not": [
+   "不處理 id 21、22 而只新增條目",
+   "用相同文字重寫未改變的條目"
+  ]
+ }
+}

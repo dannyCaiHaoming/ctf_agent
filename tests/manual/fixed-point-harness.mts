@@ -54,7 +54,7 @@ if (out === repoRoot || out.startsWith(repoRoot + sep)) fail('--out must be outs
 interface Entry { id: number; role: string; slot: string; text: string; status?: string; scope?: string; evidence_refs?: string[]; related_ids?: number[]; supersedes?: number }
 interface Stub { tool: string; match?: string; result: unknown }
 interface Round { dispatch: string; session?: 'same' | 'new' }
-interface Variant { dispatch?: string; dispatchAppend?: string; workbook?: Entry[]; rounds?: Round[]; note?: string }
+interface Variant { dispatch?: string; dispatchAppend?: string; workbook?: Entry[]; rounds?: Round[]; note?: string; hint?: boolean }
 interface Case {
   id: string; role: WorkbookRole; questions: string[]; materials: Record<string, string>; workbook: Entry[];
   rounds: Round[]; stubs?: Stub[]; variants: Record<string, Variant>; expected: { next_step: string; must_not: string[] };
@@ -113,12 +113,20 @@ const work = new Map<string, string>();
 const visible = new Map<string, string>();
 const notExecuted = { harness: 'fixed decision point: this operation is not executed here', next: 'record the planned step and its expected observation in the workbook, then hand back' };
 const stubFor = (tool: string, args: unknown) => (spec.stubs ?? []).find(s => (s.tool === tool || s.tool === '*') && (!s.match || new RegExp(s.match).test(JSON.stringify(args))))?.result;
+// Candidate host hint (team-decision design §6.2): ids only, computed from roles, statuses, supersedes and the round
+// boundary; the host never reads the entry text or judges whether an entry should change.
+const roundStartSequences: number[] = [];
+const unchangedOwnOpen = () => activeEntries(rows)
+  .filter(e => e.role === spec.role && (e.slot === 'hypotheses' || e.slot === 'questions') && (e.status ?? 'open') === 'open' && e.sequence <= (roundStartSequences[roundIndex] ?? 0))
+  .map(e => e.id);
+const HINT_NOTE = 'Open hypotheses and questions your role wrote before this round that this round has not superseded yet. Supersede, refute or leave each open as the evidence says; the host does not judge them.';
 const contextText = (role: WorkbookRole) => {
   const host = { goal: { challenge: spec.id, materials: Object.keys(spec.materials).map(n => `materials/${n}`), submission: { available: false } }, candidate_host: { packages: [], completions: [] } };
   const wb = workbookView(rows, role, host as never);
-  const version = createHash('sha256').update(JSON.stringify(wb.view)).digest('hex').slice(0, 16);
-  const payload = { mode: 'full', version, current_question: { source: 'the native dispatch message of this session, kept unmodified in history', execution: null, role }, state: { publications: [] }, workbook: wb.view };
-  return { version, text: '[CTF investigation context]\n' + JSON.stringify(payload) };
+  const hint = variant.hint ? { own_open_unchanged_this_round: { ids: unchangedOwnOpen(), note: HINT_NOTE } } : {};
+  const version = createHash('sha256').update(JSON.stringify([wb.view, hint])).digest('hex').slice(0, 16);
+  const payload = { mode: 'full', version, current_question: { source: 'the native dispatch message of this session, kept unmodified in history', execution: null, role }, state: { publications: [] }, workbook: wb.view, ...hint };
+  return { version, text: '[CTF investigation context]\n' + JSON.stringify(payload), hintIds: variant.hint ? hint.own_open_unchanged_this_round!.ids : null };
 };
 const toolExecute = (sessionID: string, tool: string, args: any) => {
   switch (tool) {
@@ -149,9 +157,9 @@ const control = createServer((req: IncomingMessage, res: ServerResponse) => { vo
     case 'context.prepare': {
       const c = contextText(spec.role);
       if (input?.placement !== 'compacting' && input?.visibleVersion === c.version) return reply({ version: c.version, unchanged: true });
-      if (visible.get(sessionID) !== c.version) record('context', { round: roundIndex, session: sessionID, version: c.version, placement: input?.placement, entries: activeEntries(rows).length });
+      if (visible.get(sessionID) !== c.version) record('context', { round: roundIndex, session: sessionID, version: c.version, placement: input?.placement, entries: activeEntries(rows).length, activeIds: activeEntries(rows).map(e => e.id), hintIds: c.hintIds });
       visible.set(sessionID, c.version);
-      return reply(c);
+      return reply({ version: c.version, text: c.text });
     }
     case 'model.call':
       if (++modelCalls > maxModelCalls) { record('model.denied', { round: roundIndex, modelCalls }); return deny('denied: harness model-call budget exhausted'); }
@@ -187,7 +195,10 @@ const mockServer = mock ? createServer((req, res) => { void (async () => {
   const lastUser = messages.map(m => m.role).lastIndexOf('user');
   mockRequests.push({ system: messages.filter(m => m.role === 'system').map(text).join('\n'), user: messages.filter(m => m.role === 'user').map(text).join('\n'), tools: (body.tools ?? []).map((t: any) => t?.function?.name) });
   const step = messages.slice(lastUser + 1).filter(m => m.role === 'tool').length;
-  const plan: Array<[string, unknown] | null> = [['ctf_workspace_read', { path: `materials/${Object.keys(spec.materials)[0]}` }], ['skill', { name: 'python-runtime-diagnosis' }], ['ctf_recon_note', { slot: 'hypotheses', text: 'mock hypothesis written by the scripted provider', status: 'open' }], null];
+  // With the hint shown, the scripted note retires the first listed entry, so the hint and supersede metrics are exercised.
+  const hinted = [...mockRequests.at(-1)!.user.matchAll(/"own_open_unchanged_this_round":\{"ids":\[([0-9,]*)\]/g)].at(-1)?.[1]?.split(',').filter(Boolean).map(Number) ?? [];
+  const note = hinted.length ? { slot: 'refuted', text: 'mock: retired by the scripted provider', supersedes: hinted[0] } : { slot: 'hypotheses', text: 'mock hypothesis written by the scripted provider', status: 'open' };
+  const plan: Array<[string, unknown] | null> = [['ctf_workspace_read', { path: `materials/${Object.keys(spec.materials)[0]}` }], ['skill', { name: 'python-runtime-diagnosis' }], ['ctf_recon_note', note], null];
   const call = plan[Math.min(step, plan.length - 1)];
   const base = { id: 'chatcmpl-' + randomUUID(), object: 'chat.completion.chunk', created: 1, model: 'scripted' };
   const delta = call ? { role: 'assistant', tool_calls: [{ index: 0, id: 'call_' + randomUUID().slice(0, 8), type: 'function', function: { name: call[0], arguments: JSON.stringify(call[1]) } }] } : { role: 'assistant', content: 'MOCK_HANDBACK' };
@@ -235,6 +246,7 @@ try {
   let session: string | undefined;
   for (const [i, round] of rounds.entries()) {
     roundIndex = i;
+    roundStartSequences[i] = sequence;
     if (!session || round.session !== 'same') session = (await client.session.create({ title: `${spec.id} ${variantName} r${i}` }, { throwOnError: true })).data!.id;
     record('round.start', { round: i, session, sessionMode: i === 0 ? 'first' : round.session ?? 'new' });
     await client.session.prompt({ sessionID: session, agent: spec.role, parts: [{ type: 'text', text: round.dispatch }] }, { throwOnError: true });
@@ -255,6 +267,10 @@ try {
 // ---------- outputs ----------
 const calls = events.filter(e => e.kind === 'tool.call');
 const writes = rows.filter(r => written.has(r.id));
+const roundOfWrite = new Map<number, number>(events.filter(e => e.kind === 'tool.result' && e.tool === 'recon.note' && typeof (e.result as any)?.id === 'number').map(e => [(e.result as any).id as number, e.round as number]));
+const isEarlierOwn = (r: any, i: number) => { const old = rows.find(o => o.id === r.note_json.supersedes); return Boolean(old && old.role === spec.role && old.sequence <= (roundStartSequences[i] ?? 0)); };
+const bigrams = (t: string) => { const x = t.replace(/\s+/g, ''); return new Set([...Array(Math.max(0, x.length - 1)).keys()].map(k => x.slice(k, k + 2))); };
+const similarity = (a: string, b: string) => { const A = bigrams(a), B = bigrams(b); const inter = [...A].filter(v => B.has(v)).length; const union = new Set([...A, ...B]).size; return union ? inter / union : 0; };
 const summary = {
   case: spec.id, variant: variantName, questions: spec.questions, mode: mock ? 'mock' : 'model', model, failure: failure ?? null,
   rounds: rounds.length, modelCalls, maxModelCalls,
@@ -265,6 +281,10 @@ const summary = {
   skillReferenceReads: calls.filter(c => c.tool === 'read').length,
   firstNonReadAction: rounds.map((_, i) => calls.find(c => c.round === i && !['read', 'skill', 'ctf_workspace_read', 'ctf_workspace_list', 'ctf_recon_read', 'ctf_workspace_search'].includes(c.tool))?.tool ?? null),
   workbookWrites: writes.map(r => ({ id: r.id, slot: r.note_json.slot, status: r.note_json.status ?? null, supersedes: r.note_json.supersedes ?? null })),
+  hint: Boolean(variant.hint),
+  // Per round: writes that supersede an own entry that existed before the round, and those whose text barely changed.
+  earlierOwnSupersededByRound: rounds.map((_, i) => writes.filter(r => roundOfWrite.get(r.id) === i && isEarlierOwn(r, i)).length),
+  nearIdenticalRewrites: writes.filter(r => { const old = rows.find(o => o.id === r.note_json.supersedes); return old && similarity(String(old.note_json.text), String(r.note_json.text)) >= 0.8; }).length,
   denied: events.filter(e => e.kind === 'tool.denied' || e.kind === 'model.denied').length,
   contextPresentations: events.filter(e => e.kind === 'context').length,
   expected: spec.expected
@@ -290,8 +310,10 @@ if (mock) {
       const start = events.find(e => e.kind === 'round.start' && e.round === 1);
       const firstCall = events.find(e => e.kind === 'tool.call' && e.round === 1)?.t_ms ?? Infinity;
       const before = events.filter(e => e.kind === 'context' && e.session === start?.session && e.t_ms <= firstCall);
-      return before.some(e => e.entries > spec.workbook.length + (variant.workbook ?? []).length);
+      const round0 = [...written].filter(id => roundOfWrite.get(id) === 0);
+      return round0.length === 0 || before.some(e => round0.every(id => (e.activeIds as number[]).includes(id)));
     })(),
+    hintReachedModel: !variant.hint || mockRequests.some(r => r.user.includes('own_open_unchanged_this_round')),
     noFailure: !failure
   };
   await writeFile(join(out, 'mock-checks.json'), JSON.stringify(checks, null, 1));

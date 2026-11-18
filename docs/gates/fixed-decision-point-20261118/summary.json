@@ -330,5 +330,91 @@
     "stepsWithOmissionWithout": 0
    }
   }
+ },
+ "resume_rounds_check": {
+  "date": "2026-11-18",
+  "scope": "same 13 runs; every Solver round after the first (29 rounds)",
+  "method": "round boundaries from task.source/task.completion (dispatch times for r1 and wbp-ezoj-on-2); writes by the round's session within the round; superseded_own = at least one write supersedes an earlier domain-solver entry; dispatch_asks_update = dispatch text contains 取代/supersede/更新/合併/關閉 (keyword proxy)",
+  "by_mode": {
+   "resume": {
+    "rounds": 13,
+    "superseded_own": 6,
+    "only_unlinked_new_entries": 7,
+    "no_writes": 0,
+    "had_own_active_entries_at_start": 13
+   },
+   "new": {
+    "rounds": 16,
+    "superseded_own": 6,
+    "only_unlinked_new_entries": 9,
+    "no_writes": 1,
+    "had_own_active_entries_at_start": 16
+   }
+  },
+  "concentration": {
+   "superseding_rounds": 12,
+   "from_rtd2-ezoj-on-1": 6,
+   "from_wbp-ac5a1bc0-on-1": 4,
+   "other_runs": 2,
+   "resume_rounds_outside_rtd2-ezoj-on-1": {
+    "rounds": 6,
+    "superseded_own": 0
+   }
+  },
+  "dispatch_asks_update": {
+   "asked": {
+    "rounds": 10,
+    "superseded_own": 5,
+    "note": "all 5 in rtd2-ezoj-on-1"
+   },
+   "not_asked": {
+    "rounds": 19,
+    "superseded_own": 7
+   }
+  },
+  "answer": "real runs do not reproduce the synthetic pattern (resume rounds with no writes: 0/13) nor a resume advantage once rtd2-ezoj-on-1 is set aside (other resume rounds 0/6 superseded); in both modes most later rounds add new entries without superseding their own (16/29), and superseding is concentrated in two runs"
+ },
+ "hint_estimate": {
+  "date": "2026-11-18",
+  "scope": "same 13 runs, Solver writes and rounds",
+  "write_time_option": {
+   "rule": "slotted Solver write without supersedes while the Solver has an active entry in the same slot",
+   "writes": 158,
+   "would_fire": 89,
+   "by_slot": {
+    "facts": [
+     62,
+     77
+    ],
+    "refuted": [
+     22,
+     36
+    ],
+    "hypotheses": [
+     2,
+     16
+    ],
+    "questions": [
+     3,
+     29
+    ]
+   },
+   "note": "fires mostly on facts that accumulate by design"
+  },
+  "round_option": {
+   "rule": "open hypotheses/questions written by the Solver before the round start and not superseded in it (ids only)",
+   "rounds": 42,
+   "rounds_with_earlier_own_open": 26,
+   "would_fire": 19,
+   "ids_listed_per_firing": "1-3"
+  },
+  "near_duplicates": {
+   "method": "character-bigram Jaccard of each non-superseding write against the writer's own same-slot active entries",
+   "writes_checked": {
+    "domain-solver": 89,
+    "recon": 69
+   },
+   "max_similarity_at_least_0.3": 0
+  }
  }
 }
