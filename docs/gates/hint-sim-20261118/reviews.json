@@ -1,0 +1,307 @@
+{
+ "batch": "hint-sim-20261118",
+ "reviewed": 30,
+ "criteria": "無實質取代＝目標回合的取代未帶狀態改變、新證據或新結論；近乎原文重寫以字元 bigram 重疊 >=0.8 計。",
+ "runs": [
+  {
+   "case": "stale-hypotheses",
+   "variant": "no-hint",
+   "n": 1,
+   "next_step": "符合",
+   "must_not": "未出現",
+   "non_substantive": 0,
+   "near_identical_target": 0,
+   "reason": "以 disk.log 41/43% 否定磁碟滿、以 supported 取代鎖假設、以 answered 關閉問題 24，未只新增條目。"
+  },
+  {
+   "case": "stale-hypotheses",
+   "variant": "no-hint",
+   "n": 2,
+   "next_step": "符合",
+   "must_not": "未出現",
+   "non_substantive": 0,
+   "near_identical_target": 0,
+   "reason": "三條假設分別 refuted／supported／refuted，並補上日誌與腳本事實。"
+  },
+  {
+   "case": "stale-hypotheses",
+   "variant": "no-hint",
+   "n": 3,
+   "next_step": "符合",
+   "must_not": "未出現",
+   "non_substantive": 0,
+   "near_identical_target": 0,
+   "reason": "三條假設完成分流並關閉問題 24，另留下鎖持有者為新 open 問題。"
+  },
+  {
+   "case": "stale-hypotheses",
+   "variant": "hint",
+   "n": 1,
+   "next_step": "符合",
+   "must_not": "未出現",
+   "non_substantive": 0,
+   "near_identical_target": 0,
+   "reason": "提示列出 4 個 id，全部以狀態改變或新證據取代，沒有空泛重寫。"
+  },
+  {
+   "case": "stale-hypotheses",
+   "variant": "hint",
+   "n": 2,
+   "next_step": "符合",
+   "must_not": "未出現",
+   "non_substantive": 0,
+   "near_identical_target": 0,
+   "reason": "提示列出 4 個 id，全部以 refuted／supported／answered 取代並附新事實。"
+  },
+  {
+   "case": "stale-hypotheses",
+   "variant": "hint",
+   "n": 3,
+   "next_step": "符合",
+   "must_not": "未出現",
+   "non_substantive": 0,
+   "near_identical_target": 0,
+   "reason": "提示列出 4 個 id，全部以狀態改變或新證據取代。"
+  },
+  {
+   "case": "correction-not-written",
+   "variant": "same-session",
+   "n": 1,
+   "next_step": "符合",
+   "must_not": "未出現",
+   "non_substantive": 0,
+   "near_identical_target": 0,
+   "reason": "第二輪回答 3 正確、BOM 已排除，並把替代解釋升級為 supported。"
+  },
+  {
+   "case": "correction-not-written",
+   "variant": "same-session",
+   "n": 2,
+   "next_step": "符合",
+   "must_not": "未出現",
+   "non_substantive": 1,
+   "near_identical_target": 0,
+   "reason": "第二輪答案正確；唯一取代只補記被擋的工具清單，沒有新證據。"
+  },
+  {
+   "case": "correction-not-written",
+   "variant": "same-session",
+   "n": 3,
+   "next_step": "符合",
+   "must_not": "未出現",
+   "non_substantive": 1,
+   "near_identical_target": 0,
+   "reason": "第二輪答案正確；一次取代把假設升為 supported，另一次只補記執行面阻斷。"
+  },
+  {
+   "case": "correction-not-written",
+   "variant": "same-session-hint",
+   "n": 1,
+   "next_step": "符合",
+   "must_not": "未出現",
+   "non_substantive": 0,
+   "near_identical_target": 0,
+   "reason": "提示清單為空；第二輪新增事實回答 3 正確，未沿 BOM。"
+  },
+  {
+   "case": "correction-not-written",
+   "variant": "same-session-hint",
+   "n": 2,
+   "next_step": "符合",
+   "must_not": "未出現",
+   "non_substantive": 0,
+   "near_identical_target": 0,
+   "reason": "提示清單為空；第二輪結論正確且未新增取代。"
+  },
+  {
+   "case": "correction-not-written",
+   "variant": "same-session-hint",
+   "n": 3,
+   "next_step": "符合",
+   "must_not": "未出現",
+   "non_substantive": 2,
+   "near_identical_target": 0,
+   "reason": "提示列出 4 個 id；一次升級替代解釋為 supported，另兩次只補記工具阻斷。"
+  },
+  {
+   "case": "correction-not-written",
+   "variant": "new-session",
+   "n": 1,
+   "next_step": "符合",
+   "must_not": "未出現",
+   "non_substantive": 2,
+   "near_identical_target": 1,
+   "reason": "第二輪結論正確；兩次取代只補記工具阻斷，其中一次近乎原文。"
+  },
+  {
+   "case": "correction-not-written",
+   "variant": "new-session",
+   "n": 2,
+   "next_step": "符合",
+   "must_not": "未出現",
+   "non_substantive": 0,
+   "near_identical_target": 0,
+   "reason": "第二輪以新事實與 answered 問題收尾，內容有實質變化。"
+  },
+  {
+   "case": "correction-not-written",
+   "variant": "new-session",
+   "n": 3,
+   "next_step": "符合",
+   "must_not": "未出現",
+   "non_substantive": 1,
+   "near_identical_target": 0,
+   "reason": "第二輪結論正確；一次取代只補記第二次 job 嘗試。"
+  },
+  {
+   "case": "correction-not-written",
+   "variant": "new-session-hint",
+   "n": 1,
+   "next_step": "符合",
+   "must_not": "未出現",
+   "non_substantive": 0,
+   "near_identical_target": 0,
+   "reason": "提示列出 1 個 id 並被 answered；結論正確。"
+  },
+  {
+   "case": "correction-not-written",
+   "variant": "new-session-hint",
+   "n": 2,
+   "next_step": "符合",
+   "must_not": "未出現",
+   "non_substantive": 1,
+   "near_identical_target": 0,
+   "reason": "提示列出 1 個 id；一次取代只重述同一結構結論，另一次關閉問題。"
+  },
+  {
+   "case": "correction-not-written",
+   "variant": "new-session-hint",
+   "n": 3,
+   "next_step": "符合",
+   "must_not": "未出現",
+   "non_substantive": 1,
+   "near_identical_target": 0,
+   "reason": "提示列出 2 個 id；四次取代中三次改變結論或狀態，一次只補記執行面阻斷。"
+  },
+  {
+   "case": "local-permission",
+   "variant": "resume-same",
+   "n": 1,
+   "next_step": "符合",
+   "must_not": "未出現",
+   "non_substantive": 0,
+   "near_identical_target": 0,
+   "reason": "第二輪正確並列 OS 與 hook 層、列出缺失證據，未新增取代。"
+  },
+  {
+   "case": "local-permission",
+   "variant": "resume-same",
+   "n": 2,
+   "next_step": "符合",
+   "must_not": "未出現",
+   "non_substantive": 0,
+   "near_identical_target": 0,
+   "reason": "第二輪結論正確且無寫入，未誤稱單一層。"
+  },
+  {
+   "case": "local-permission",
+   "variant": "resume-same",
+   "n": 3,
+   "next_step": "符合",
+   "must_not": "未出現",
+   "non_substantive": 0,
+   "near_identical_target": 0,
+   "reason": "第二輪列出三層與缺失證據，無寫入。"
+  },
+  {
+   "case": "local-permission",
+   "variant": "resume-same-hint",
+   "n": 1,
+   "next_step": "符合",
+   "must_not": "未出現",
+   "non_substantive": 0,
+   "near_identical_target": 0,
+   "reason": "提示列出 4 個 id；模型選擇不新增條目，理由是本輪無新證據。"
+  },
+  {
+   "case": "local-permission",
+   "variant": "resume-same-hint",
+   "n": 2,
+   "next_step": "符合",
+   "must_not": "未出現",
+   "non_substantive": 0,
+   "near_identical_target": 0,
+   "reason": "提示列出 5 個 id；只新增一條上限事實，未改舊條目。"
+  },
+  {
+   "case": "local-permission",
+   "variant": "resume-same-hint",
+   "n": 3,
+   "next_step": "符合",
+   "must_not": "未出現",
+   "non_substantive": 0,
+   "near_identical_target": 0,
+   "reason": "提示列出 3 個 id；本輪無寫入，結論仍正確。"
+  },
+  {
+   "case": "local-permission",
+   "variant": "resume-new",
+   "n": 1,
+   "next_step": "符合",
+   "must_not": "未出現",
+   "non_substantive": 0,
+   "near_identical_target": 0,
+   "reason": "第二輪細化問題條目並保留兩層並列，內容有實質變化。"
+  },
+  {
+   "case": "local-permission",
+   "variant": "resume-new",
+   "n": 2,
+   "next_step": "符合",
+   "must_not": "未出現",
+   "non_substantive": 0,
+   "near_identical_target": 0,
+   "reason": "兩次取代都細化既有假設與問題，帶新機制說明。"
+  },
+  {
+   "case": "local-permission",
+   "variant": "resume-new",
+   "n": 3,
+   "next_step": "符合",
+   "must_not": "未出現",
+   "non_substantive": 0,
+   "near_identical_target": 0,
+   "reason": "兩次取代把問題改寫為可執行的區分實驗，內容有實質變化。"
+  },
+  {
+   "case": "local-permission",
+   "variant": "resume-new-hint",
+   "n": 1,
+   "next_step": "符合",
+   "must_not": "未出現",
+   "non_substantive": 0,
+   "near_identical_target": 0,
+   "reason": "提示列出 4 個 id；兩次取代分別細化假設與問題。"
+  },
+  {
+   "case": "local-permission",
+   "variant": "resume-new-hint",
+   "n": 2,
+   "next_step": "符合",
+   "must_not": "未出現",
+   "non_substantive": 0,
+   "near_identical_target": 0,
+   "reason": "提示列出 4 個 id；四次取代都細化假設或問題。"
+  },
+  {
+   "case": "local-permission",
+   "variant": "resume-new-hint",
+   "n": 3,
+   "next_step": "符合",
+   "must_not": "未出現",
+   "non_substantive": 0,
+   "near_identical_target": 0,
+   "reason": "提示列出 5 個 id；五次取代都改寫假設或問題並帶新內容。"
+  }
+ ]
+}

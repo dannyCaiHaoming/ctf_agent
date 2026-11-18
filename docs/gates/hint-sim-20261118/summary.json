@@ -1,0 +1,1309 @@
+{
+ "batch": "hint-sim-20261118",
+ "date": "2026-11-18",
+ "design": "docs/superpowers/specs/2026-11-18-design-v1-fixed-decision-point-diagnosis.md",
+ "team_design": "docs/superpowers/specs/2026-11-07-design-v1-team-decision-context.md",
+ "model": "volcano-plan/deepseek-v4.1-flash",
+ "solver_thinking": "enabled",
+ "opencode_config": "runs/runtime-diag-20261117/configs/opencode.json",
+ "runs_per_cell": 3,
+ "run_data": "/Users/caihaoming/Documents/pentest-agent-run-data/hint-sim-20261118",
+ "budget": {
+  "max_model_calls_per_run": 40,
+  "timeout_ms": 600000,
+  "batch_model_calls_cap": 1500,
+  "batch_token_cap": 8000000
+ },
+ "execution": {
+  "runs": 30,
+  "failures": 0,
+  "timeouts": 0,
+  "budget_denials": 0,
+  "runs_with_workbook_write": 30,
+  "model_calls": 364,
+  "tokens": "unavailable",
+  "mock_checks": {
+   "combinations": 10,
+   "checks_per_run": 11,
+   "failed": 0
+  }
+ },
+ "pre_registered_thresholds": {
+  "direction": "(a) 3 次提示中有 >=2 次目標回合取代數高於無提示平均；(b) 提示的無實質取代＋近乎原文重寫合計 <= 無提示；(c) must_not 出現次數 <= 無提示。",
+  "implement": "5 組中 >=3 組有方向，且沒有任何一組的無實質取代在 3 次中 >=2 次。",
+  "measurement": "目標回合取代數取自 summary.json 的 earlierOwnSupersededByRound；近乎原文重寫以目標回合計（字元 bigram 重疊 >=0.8）；無實質取代為人工判定（狀態改變、新證據或新結論才算實質）。"
+ },
+ "cells": [
+  {
+   "case": "stale-hypotheses",
+   "variant": "no-hint",
+   "runs": 3,
+   "failures": 0,
+   "timeouts": 0,
+   "budget_denials": 0,
+   "model_calls": 14,
+   "tool_calls": 32,
+   "tokens": "unavailable",
+   "next_step": {
+    "符合": 3,
+    "部分符合": 0,
+    "不符合": 0
+   },
+   "must_not": {
+    "出現": 0,
+    "未出現": 3
+   },
+   "per_run": [
+    {
+     "n": 1,
+     "model_calls": 3,
+     "tool_calls": 9,
+     "writes_target": 5,
+     "earlier_own_superseded": 4,
+     "near_identical_total": 0,
+     "near_identical_target": 0,
+     "non_substantive": 0,
+     "new_unlinked_target": 1,
+     "active_own_total_end": 5,
+     "hint_ids_first_len": null,
+     "hint_ids_last_len": null,
+     "hint_ids_start_computed": [
+      21,
+      22,
+      23,
+      24
+     ],
+     "hint_ids_end_computed": [],
+     "hint_ids_start_len_computed": 4,
+     "hint_ids_end_len_computed": 0,
+     "next_step": "符合",
+     "must_not": "未出現",
+     "failure": null
+    },
+    {
+     "n": 2,
+     "model_calls": 4,
+     "tool_calls": 12,
+     "writes_target": 8,
+     "earlier_own_superseded": 4,
+     "near_identical_total": 0,
+     "near_identical_target": 0,
+     "non_substantive": 0,
+     "new_unlinked_target": 4,
+     "active_own_total_end": 8,
+     "hint_ids_first_len": null,
+     "hint_ids_last_len": null,
+     "hint_ids_start_computed": [
+      21,
+      22,
+      23,
+      24
+     ],
+     "hint_ids_end_computed": [],
+     "hint_ids_start_len_computed": 4,
+     "hint_ids_end_len_computed": 0,
+     "next_step": "符合",
+     "must_not": "未出現",
+     "failure": null
+    },
+    {
+     "n": 3,
+     "model_calls": 7,
+     "tool_calls": 11,
+     "writes_target": 7,
+     "earlier_own_superseded": 4,
+     "near_identical_total": 0,
+     "near_identical_target": 0,
+     "non_substantive": 0,
+     "new_unlinked_target": 3,
+     "active_own_total_end": 7,
+     "hint_ids_first_len": null,
+     "hint_ids_last_len": null,
+     "hint_ids_start_computed": [
+      21,
+      22,
+      23,
+      24
+     ],
+     "hint_ids_end_computed": [],
+     "hint_ids_start_len_computed": 4,
+     "hint_ids_end_len_computed": 0,
+     "next_step": "符合",
+     "must_not": "未出現",
+     "failure": null
+    }
+   ]
+  },
+  {
+   "case": "stale-hypotheses",
+   "variant": "hint",
+   "runs": 3,
+   "failures": 0,
+   "timeouts": 0,
+   "budget_denials": 0,
+   "model_calls": 20,
+   "tool_calls": 34,
+   "tokens": "unavailable",
+   "next_step": {
+    "符合": 3,
+    "部分符合": 0,
+    "不符合": 0
+   },
+   "must_not": {
+    "出現": 0,
+    "未出現": 3
+   },
+   "per_run": [
+    {
+     "n": 1,
+     "model_calls": 7,
+     "tool_calls": 12,
+     "writes_target": 7,
+     "earlier_own_superseded": 4,
+     "near_identical_total": 0,
+     "near_identical_target": 0,
+     "non_substantive": 0,
+     "new_unlinked_target": 3,
+     "active_own_total_end": 7,
+     "hint_ids_first_len": 4,
+     "hint_ids_last_len": 0,
+     "hint_ids_start_computed": [
+      21,
+      22,
+      23,
+      24
+     ],
+     "hint_ids_end_computed": [],
+     "hint_ids_start_len_computed": 4,
+     "hint_ids_end_len_computed": 0,
+     "next_step": "符合",
+     "must_not": "未出現",
+     "failure": null
+    },
+    {
+     "n": 2,
+     "model_calls": 5,
+     "tool_calls": 10,
+     "writes_target": 5,
+     "earlier_own_superseded": 4,
+     "near_identical_total": 0,
+     "near_identical_target": 0,
+     "non_substantive": 0,
+     "new_unlinked_target": 1,
+     "active_own_total_end": 5,
+     "hint_ids_first_len": 4,
+     "hint_ids_last_len": 0,
+     "hint_ids_start_computed": [
+      21,
+      22,
+      23,
+      24
+     ],
+     "hint_ids_end_computed": [],
+     "hint_ids_start_len_computed": 4,
+     "hint_ids_end_len_computed": 0,
+     "next_step": "符合",
+     "must_not": "未出現",
+     "failure": null
+    },
+    {
+     "n": 3,
+     "model_calls": 8,
+     "tool_calls": 12,
+     "writes_target": 7,
+     "earlier_own_superseded": 4,
+     "near_identical_total": 0,
+     "near_identical_target": 0,
+     "non_substantive": 0,
+     "new_unlinked_target": 3,
+     "active_own_total_end": 7,
+     "hint_ids_first_len": 4,
+     "hint_ids_last_len": 0,
+     "hint_ids_start_computed": [
+      21,
+      22,
+      23,
+      24
+     ],
+     "hint_ids_end_computed": [],
+     "hint_ids_start_len_computed": 4,
+     "hint_ids_end_len_computed": 0,
+     "next_step": "符合",
+     "must_not": "未出現",
+     "failure": null
+    }
+   ]
+  },
+  {
+   "case": "correction-not-written",
+   "variant": "same-session",
+   "runs": 3,
+   "failures": 0,
+   "timeouts": 0,
+   "budget_denials": 0,
+   "model_calls": 45,
+   "tool_calls": 58,
+   "tokens": "unavailable",
+   "next_step": {
+    "符合": 3,
+    "部分符合": 0,
+    "不符合": 0
+   },
+   "must_not": {
+    "出現": 0,
+    "未出現": 3
+   },
+   "per_run": [
+    {
+     "n": 1,
+     "model_calls": 12,
+     "tool_calls": 18,
+     "writes_target": 2,
+     "earlier_own_superseded": 1,
+     "near_identical_total": 0,
+     "near_identical_target": 0,
+     "non_substantive": 0,
+     "new_unlinked_target": 0,
+     "active_own_total_end": 6,
+     "hint_ids_first_len": null,
+     "hint_ids_last_len": null,
+     "hint_ids_start_computed": [
+      1003,
+      1004
+     ],
+     "hint_ids_end_computed": [
+      1004
+     ],
+     "hint_ids_start_len_computed": 2,
+     "hint_ids_end_len_computed": 1,
+     "next_step": "符合",
+     "must_not": "未出現",
+     "failure": null
+    },
+    {
+     "n": 2,
+     "model_calls": 15,
+     "tool_calls": 19,
+     "writes_target": 2,
+     "earlier_own_superseded": 1,
+     "near_identical_total": 0,
+     "near_identical_target": 0,
+     "non_substantive": 1,
+     "new_unlinked_target": 0,
+     "active_own_total_end": 5,
+     "hint_ids_first_len": null,
+     "hint_ids_last_len": null,
+     "hint_ids_start_computed": [
+      1003
+     ],
+     "hint_ids_end_computed": [
+      1003
+     ],
+     "hint_ids_start_len_computed": 1,
+     "hint_ids_end_len_computed": 1,
+     "next_step": "符合",
+     "must_not": "未出現",
+     "failure": null
+    },
+    {
+     "n": 3,
+     "model_calls": 18,
+     "tool_calls": 21,
+     "writes_target": 3,
+     "earlier_own_superseded": 2,
+     "near_identical_total": 0,
+     "near_identical_target": 0,
+     "non_substantive": 1,
+     "new_unlinked_target": 0,
+     "active_own_total_end": 6,
+     "hint_ids_first_len": null,
+     "hint_ids_last_len": null,
+     "hint_ids_start_computed": [
+      1002,
+      1003
+     ],
+     "hint_ids_end_computed": [
+      1003
+     ],
+     "hint_ids_start_len_computed": 2,
+     "hint_ids_end_len_computed": 1,
+     "next_step": "符合",
+     "must_not": "未出現",
+     "failure": null
+    }
+   ]
+  },
+  {
+   "case": "correction-not-written",
+   "variant": "same-session-hint",
+   "runs": 3,
+   "failures": 0,
+   "timeouts": 0,
+   "budget_denials": 0,
+   "model_calls": 42,
+   "tool_calls": 48,
+   "tokens": "unavailable",
+   "next_step": {
+    "符合": 3,
+    "部分符合": 0,
+    "不符合": 0
+   },
+   "must_not": {
+    "出現": 0,
+    "未出現": 3
+   },
+   "per_run": [
+    {
+     "n": 1,
+     "model_calls": 13,
+     "tool_calls": 14,
+     "writes_target": 1,
+     "earlier_own_superseded": 0,
+     "near_identical_total": 0,
+     "near_identical_target": 0,
+     "non_substantive": 0,
+     "new_unlinked_target": 0,
+     "active_own_total_end": 3,
+     "hint_ids_first_len": 0,
+     "hint_ids_last_len": 0,
+     "hint_ids_start_computed": [],
+     "hint_ids_end_computed": [],
+     "hint_ids_start_len_computed": 0,
+     "hint_ids_end_len_computed": 0,
+     "next_step": "符合",
+     "must_not": "未出現",
+     "failure": null
+    },
+    {
+     "n": 2,
+     "model_calls": 9,
+     "tool_calls": 9,
+     "writes_target": 1,
+     "earlier_own_superseded": 0,
+     "near_identical_total": 0,
+     "near_identical_target": 0,
+     "non_substantive": 0,
+     "new_unlinked_target": 0,
+     "active_own_total_end": 3,
+     "hint_ids_first_len": 0,
+     "hint_ids_last_len": 0,
+     "hint_ids_start_computed": [],
+     "hint_ids_end_computed": [],
+     "hint_ids_start_len_computed": 0,
+     "hint_ids_end_len_computed": 0,
+     "next_step": "符合",
+     "must_not": "未出現",
+     "failure": null
+    },
+    {
+     "n": 3,
+     "model_calls": 20,
+     "tool_calls": 25,
+     "writes_target": 4,
+     "earlier_own_superseded": 3,
+     "near_identical_total": 0,
+     "near_identical_target": 0,
+     "non_substantive": 2,
+     "new_unlinked_target": 0,
+     "active_own_total_end": 7,
+     "hint_ids_first_len": 4,
+     "hint_ids_last_len": 1,
+     "hint_ids_start_computed": [
+      1002,
+      1003,
+      1005,
+      1006
+     ],
+     "hint_ids_end_computed": [
+      1003
+     ],
+     "hint_ids_start_len_computed": 4,
+     "hint_ids_end_len_computed": 1,
+     "next_step": "符合",
+     "must_not": "未出現",
+     "failure": null
+    }
+   ]
+  },
+  {
+   "case": "correction-not-written",
+   "variant": "new-session",
+   "runs": 3,
+   "failures": 0,
+   "timeouts": 0,
+   "budget_denials": 0,
+   "model_calls": 50,
+   "tool_calls": 68,
+   "tokens": "unavailable",
+   "next_step": {
+    "符合": 3,
+    "部分符合": 0,
+    "不符合": 0
+   },
+   "must_not": {
+    "出現": 0,
+    "未出現": 3
+   },
+   "per_run": [
+    {
+     "n": 1,
+     "model_calls": 16,
+     "tool_calls": 24,
+     "writes_target": 4,
+     "earlier_own_superseded": 2,
+     "near_identical_total": 1,
+     "near_identical_target": 1,
+     "non_substantive": 2,
+     "new_unlinked_target": 0,
+     "active_own_total_end": 4,
+     "hint_ids_first_len": null,
+     "hint_ids_last_len": null,
+     "hint_ids_start_computed": [],
+     "hint_ids_end_computed": [],
+     "hint_ids_start_len_computed": 0,
+     "hint_ids_end_len_computed": 0,
+     "next_step": "符合",
+     "must_not": "未出現",
+     "failure": null
+    },
+    {
+     "n": 2,
+     "model_calls": 20,
+     "tool_calls": 26,
+     "writes_target": 2,
+     "earlier_own_superseded": 2,
+     "near_identical_total": 0,
+     "near_identical_target": 0,
+     "non_substantive": 0,
+     "new_unlinked_target": 0,
+     "active_own_total_end": 3,
+     "hint_ids_first_len": null,
+     "hint_ids_last_len": null,
+     "hint_ids_start_computed": [
+      1002
+     ],
+     "hint_ids_end_computed": [],
+     "hint_ids_start_len_computed": 1,
+     "hint_ids_end_len_computed": 0,
+     "next_step": "符合",
+     "must_not": "未出現",
+     "failure": null
+    },
+    {
+     "n": 3,
+     "model_calls": 14,
+     "tool_calls": 18,
+     "writes_target": 3,
+     "earlier_own_superseded": 1,
+     "near_identical_total": 0,
+     "near_identical_target": 0,
+     "non_substantive": 1,
+     "new_unlinked_target": 1,
+     "active_own_total_end": 3,
+     "hint_ids_first_len": null,
+     "hint_ids_last_len": null,
+     "hint_ids_start_computed": [],
+     "hint_ids_end_computed": [],
+     "hint_ids_start_len_computed": 0,
+     "hint_ids_end_len_computed": 0,
+     "next_step": "符合",
+     "must_not": "未出現",
+     "failure": null
+    }
+   ]
+  },
+  {
+   "case": "correction-not-written",
+   "variant": "new-session-hint",
+   "runs": 3,
+   "failures": 0,
+   "timeouts": 0,
+   "budget_denials": 0,
+   "model_calls": 52,
+   "tool_calls": 82,
+   "tokens": "unavailable",
+   "next_step": {
+    "符合": 3,
+    "部分符合": 0,
+    "不符合": 0
+   },
+   "must_not": {
+    "出現": 0,
+    "未出現": 3
+   },
+   "per_run": [
+    {
+     "n": 1,
+     "model_calls": 16,
+     "tool_calls": 22,
+     "writes_target": 4,
+     "earlier_own_superseded": 2,
+     "near_identical_total": 0,
+     "near_identical_target": 0,
+     "non_substantive": 0,
+     "new_unlinked_target": 2,
+     "active_own_total_end": 6,
+     "hint_ids_first_len": 1,
+     "hint_ids_last_len": 0,
+     "hint_ids_start_computed": [
+      1003
+     ],
+     "hint_ids_end_computed": [],
+     "hint_ids_start_len_computed": 1,
+     "hint_ids_end_len_computed": 0,
+     "next_step": "符合",
+     "must_not": "未出現",
+     "failure": null
+    },
+    {
+     "n": 2,
+     "model_calls": 19,
+     "tool_calls": 28,
+     "writes_target": 5,
+     "earlier_own_superseded": 2,
+     "near_identical_total": 0,
+     "near_identical_target": 0,
+     "non_substantive": 1,
+     "new_unlinked_target": 1,
+     "active_own_total_end": 7,
+     "hint_ids_first_len": 1,
+     "hint_ids_last_len": 0,
+     "hint_ids_start_computed": [
+      1003
+     ],
+     "hint_ids_end_computed": [],
+     "hint_ids_start_len_computed": 1,
+     "hint_ids_end_len_computed": 0,
+     "next_step": "符合",
+     "must_not": "未出現",
+     "failure": null
+    },
+    {
+     "n": 3,
+     "model_calls": 17,
+     "tool_calls": 32,
+     "writes_target": 5,
+     "earlier_own_superseded": 4,
+     "near_identical_total": 0,
+     "near_identical_target": 0,
+     "non_substantive": 1,
+     "new_unlinked_target": 0,
+     "active_own_total_end": 6,
+     "hint_ids_first_len": 2,
+     "hint_ids_last_len": 0,
+     "hint_ids_start_computed": [
+      1002,
+      1003
+     ],
+     "hint_ids_end_computed": [],
+     "hint_ids_start_len_computed": 2,
+     "hint_ids_end_len_computed": 0,
+     "next_step": "符合",
+     "must_not": "未出現",
+     "failure": null
+    }
+   ]
+  },
+  {
+   "case": "local-permission",
+   "variant": "resume-same",
+   "runs": 3,
+   "failures": 0,
+   "timeouts": 0,
+   "budget_denials": 0,
+   "model_calls": 24,
+   "tool_calls": 42,
+   "tokens": "unavailable",
+   "next_step": {
+    "符合": 3,
+    "部分符合": 0,
+    "不符合": 0
+   },
+   "must_not": {
+    "出現": 0,
+    "未出現": 3
+   },
+   "per_run": [
+    {
+     "n": 1,
+     "model_calls": 6,
+     "tool_calls": 13,
+     "writes_target": 2,
+     "earlier_own_superseded": 0,
+     "near_identical_total": 0,
+     "near_identical_target": 0,
+     "non_substantive": 0,
+     "new_unlinked_target": 0,
+     "active_own_total_end": 7,
+     "hint_ids_first_len": null,
+     "hint_ids_last_len": null,
+     "hint_ids_start_computed": [
+      1001,
+      1002,
+      1003,
+      1004
+     ],
+     "hint_ids_end_computed": [
+      1001,
+      1002,
+      1003,
+      1004
+     ],
+     "hint_ids_start_len_computed": 4,
+     "hint_ids_end_len_computed": 4,
+     "next_step": "符合",
+     "must_not": "未出現",
+     "failure": null
+    },
+    {
+     "n": 2,
+     "model_calls": 10,
+     "tool_calls": 14,
+     "writes_target": 0,
+     "earlier_own_superseded": 0,
+     "near_identical_total": 0,
+     "near_identical_target": 0,
+     "non_substantive": 0,
+     "new_unlinked_target": 0,
+     "active_own_total_end": 6,
+     "hint_ids_first_len": null,
+     "hint_ids_last_len": null,
+     "hint_ids_start_computed": [
+      1001,
+      1002,
+      1003,
+      1004
+     ],
+     "hint_ids_end_computed": [
+      1001,
+      1002,
+      1003,
+      1004
+     ],
+     "hint_ids_start_len_computed": 4,
+     "hint_ids_end_len_computed": 4,
+     "next_step": "符合",
+     "must_not": "未出現",
+     "failure": null
+    },
+    {
+     "n": 3,
+     "model_calls": 8,
+     "tool_calls": 15,
+     "writes_target": 0,
+     "earlier_own_superseded": 0,
+     "near_identical_total": 0,
+     "near_identical_target": 0,
+     "non_substantive": 0,
+     "new_unlinked_target": 0,
+     "active_own_total_end": 9,
+     "hint_ids_first_len": null,
+     "hint_ids_last_len": null,
+     "hint_ids_start_computed": [
+      1003,
+      1004,
+      1007,
+      1008
+     ],
+     "hint_ids_end_computed": [
+      1003,
+      1004,
+      1007,
+      1008
+     ],
+     "hint_ids_start_len_computed": 4,
+     "hint_ids_end_len_computed": 4,
+     "next_step": "符合",
+     "must_not": "未出現",
+     "failure": null
+    }
+   ]
+  },
+  {
+   "case": "local-permission",
+   "variant": "resume-same-hint",
+   "runs": 3,
+   "failures": 0,
+   "timeouts": 0,
+   "budget_denials": 0,
+   "model_calls": 27,
+   "tool_calls": 41,
+   "tokens": "unavailable",
+   "next_step": {
+    "符合": 3,
+    "部分符合": 0,
+    "不符合": 0
+   },
+   "must_not": {
+    "出現": 0,
+    "未出現": 3
+   },
+   "per_run": [
+    {
+     "n": 1,
+     "model_calls": 12,
+     "tool_calls": 15,
+     "writes_target": 0,
+     "earlier_own_superseded": 0,
+     "near_identical_total": 0,
+     "near_identical_target": 0,
+     "non_substantive": 0,
+     "new_unlinked_target": 0,
+     "active_own_total_end": 7,
+     "hint_ids_first_len": 4,
+     "hint_ids_last_len": 4,
+     "hint_ids_start_computed": [
+      1002,
+      1003,
+      1004,
+      1006
+     ],
+     "hint_ids_end_computed": [
+      1002,
+      1003,
+      1004,
+      1006
+     ],
+     "hint_ids_start_len_computed": 4,
+     "hint_ids_end_len_computed": 4,
+     "next_step": "符合",
+     "must_not": "未出現",
+     "failure": null
+    },
+    {
+     "n": 2,
+     "model_calls": 9,
+     "tool_calls": 16,
+     "writes_target": 1,
+     "earlier_own_superseded": 0,
+     "near_identical_total": 0,
+     "near_identical_target": 0,
+     "non_substantive": 0,
+     "new_unlinked_target": 1,
+     "active_own_total_end": 8,
+     "hint_ids_first_len": 5,
+     "hint_ids_last_len": 5,
+     "hint_ids_start_computed": [
+      1002,
+      1003,
+      1004,
+      1005,
+      1006
+     ],
+     "hint_ids_end_computed": [
+      1002,
+      1003,
+      1004,
+      1005,
+      1006
+     ],
+     "hint_ids_start_len_computed": 5,
+     "hint_ids_end_len_computed": 5,
+     "next_step": "符合",
+     "must_not": "未出現",
+     "failure": null
+    },
+    {
+     "n": 3,
+     "model_calls": 6,
+     "tool_calls": 10,
+     "writes_target": 0,
+     "earlier_own_superseded": 0,
+     "near_identical_total": 0,
+     "near_identical_target": 0,
+     "non_substantive": 0,
+     "new_unlinked_target": 0,
+     "active_own_total_end": 4,
+     "hint_ids_first_len": 3,
+     "hint_ids_last_len": 3,
+     "hint_ids_start_computed": [
+      1001,
+      1002,
+      1003
+     ],
+     "hint_ids_end_computed": [
+      1001,
+      1002,
+      1003
+     ],
+     "hint_ids_start_len_computed": 3,
+     "hint_ids_end_len_computed": 3,
+     "next_step": "符合",
+     "must_not": "未出現",
+     "failure": null
+    }
+   ]
+  },
+  {
+   "case": "local-permission",
+   "variant": "resume-new",
+   "runs": 3,
+   "failures": 0,
+   "timeouts": 0,
+   "budget_denials": 0,
+   "model_calls": 35,
+   "tool_calls": 66,
+   "tokens": "unavailable",
+   "next_step": {
+    "符合": 3,
+    "部分符合": 0,
+    "不符合": 0
+   },
+   "must_not": {
+    "出現": 0,
+    "未出現": 3
+   },
+   "per_run": [
+    {
+     "n": 1,
+     "model_calls": 12,
+     "tool_calls": 23,
+     "writes_target": 3,
+     "earlier_own_superseded": 1,
+     "near_identical_total": 0,
+     "near_identical_target": 0,
+     "non_substantive": 0,
+     "new_unlinked_target": 0,
+     "active_own_total_end": 6,
+     "hint_ids_first_len": null,
+     "hint_ids_last_len": null,
+     "hint_ids_start_computed": [
+      1001,
+      1002,
+      1003
+     ],
+     "hint_ids_end_computed": [
+      1001,
+      1002
+     ],
+     "hint_ids_start_len_computed": 3,
+     "hint_ids_end_len_computed": 2,
+     "next_step": "符合",
+     "must_not": "未出現",
+     "failure": null
+    },
+    {
+     "n": 2,
+     "model_calls": 15,
+     "tool_calls": 22,
+     "writes_target": 3,
+     "earlier_own_superseded": 2,
+     "near_identical_total": 0,
+     "near_identical_target": 0,
+     "non_substantive": 0,
+     "new_unlinked_target": 0,
+     "active_own_total_end": 6,
+     "hint_ids_first_len": null,
+     "hint_ids_last_len": null,
+     "hint_ids_start_computed": [
+      1002,
+      1003,
+      1004
+     ],
+     "hint_ids_end_computed": [
+      1002
+     ],
+     "hint_ids_start_len_computed": 3,
+     "hint_ids_end_len_computed": 1,
+     "next_step": "符合",
+     "must_not": "未出現",
+     "failure": null
+    },
+    {
+     "n": 3,
+     "model_calls": 8,
+     "tool_calls": 21,
+     "writes_target": 6,
+     "earlier_own_superseded": 2,
+     "near_identical_total": 0,
+     "near_identical_target": 0,
+     "non_substantive": 0,
+     "new_unlinked_target": 2,
+     "active_own_total_end": 9,
+     "hint_ids_first_len": null,
+     "hint_ids_last_len": null,
+     "hint_ids_start_computed": [
+      1001,
+      1002,
+      1003,
+      1004
+     ],
+     "hint_ids_end_computed": [
+      1001,
+      1002
+     ],
+     "hint_ids_start_len_computed": 4,
+     "hint_ids_end_len_computed": 2,
+     "next_step": "符合",
+     "must_not": "未出現",
+     "failure": null
+    }
+   ]
+  },
+  {
+   "case": "local-permission",
+   "variant": "resume-new-hint",
+   "runs": 3,
+   "failures": 0,
+   "timeouts": 0,
+   "budget_denials": 0,
+   "model_calls": 55,
+   "tool_calls": 85,
+   "tokens": "unavailable",
+   "next_step": {
+    "符合": 3,
+    "部分符合": 0,
+    "不符合": 0
+   },
+   "must_not": {
+    "出現": 0,
+    "未出現": 3
+   },
+   "per_run": [
+    {
+     "n": 1,
+     "model_calls": 16,
+     "tool_calls": 27,
+     "writes_target": 4,
+     "earlier_own_superseded": 2,
+     "near_identical_total": 0,
+     "near_identical_target": 0,
+     "non_substantive": 0,
+     "new_unlinked_target": 0,
+     "active_own_total_end": 9,
+     "hint_ids_first_len": 4,
+     "hint_ids_last_len": 3,
+     "hint_ids_start_computed": [
+      1002,
+      1003,
+      1004,
+      1006
+     ],
+     "hint_ids_end_computed": [
+      1002,
+      1003,
+      1004
+     ],
+     "hint_ids_start_len_computed": 4,
+     "hint_ids_end_len_computed": 3,
+     "next_step": "符合",
+     "must_not": "未出現",
+     "failure": null
+    },
+    {
+     "n": 2,
+     "model_calls": 17,
+     "tool_calls": 30,
+     "writes_target": 6,
+     "earlier_own_superseded": 4,
+     "near_identical_total": 0,
+     "near_identical_target": 0,
+     "non_substantive": 0,
+     "new_unlinked_target": 2,
+     "active_own_total_end": 7,
+     "hint_ids_first_len": 4,
+     "hint_ids_last_len": 0,
+     "hint_ids_start_computed": [
+      1001,
+      1002,
+      1003,
+      1004
+     ],
+     "hint_ids_end_computed": [],
+     "hint_ids_start_len_computed": 4,
+     "hint_ids_end_len_computed": 0,
+     "next_step": "符合",
+     "must_not": "未出現",
+     "failure": null
+    },
+    {
+     "n": 3,
+     "model_calls": 22,
+     "tool_calls": 28,
+     "writes_target": 9,
+     "earlier_own_superseded": 5,
+     "near_identical_total": 0,
+     "near_identical_target": 0,
+     "non_substantive": 0,
+     "new_unlinked_target": 1,
+     "active_own_total_end": 9,
+     "hint_ids_first_len": 5,
+     "hint_ids_last_len": 0,
+     "hint_ids_start_computed": [
+      1001,
+      1002,
+      1003,
+      1004,
+      1005
+     ],
+     "hint_ids_end_computed": [],
+     "hint_ids_start_len_computed": 5,
+     "hint_ids_end_len_computed": 0,
+     "next_step": "符合",
+     "must_not": "未出現",
+     "failure": null
+    }
+   ]
+  }
+ ],
+ "comparisons": [
+  {
+   "case": "stale-hypotheses",
+   "group": "stale-hypotheses:no-hint/hint",
+   "target_round": 0,
+   "no_hint_earlier": [
+    4,
+    4,
+    4
+   ],
+   "hint_earlier": [
+    4,
+    4,
+    4
+   ],
+   "no_hint_mean": 4.0,
+   "hint_higher_count": 0,
+   "direction": false,
+   "combined_non_substantive": {
+    "no_hint": 0,
+    "hint": 0
+   },
+   "must_not_appeared": {
+    "no_hint": 0,
+    "hint": 0
+   },
+   "failed_points": [
+    "a"
+   ],
+   "note": "方向成立的判準 (a)(b)(c) 全部通過；未通過時列出 a/b/c。",
+   "runs_with_non_substantive": {
+    "no_hint": 0,
+    "hint": 0
+   },
+   "hint_listed_ids_resolved_aux": {
+    "no_hint": {
+     "listed": 12,
+     "resolved": 12
+    },
+    "hint": {
+     "listed": 12,
+     "resolved": 12
+    }
+   },
+   "hint_runs_with_nonempty_list": 3,
+   "testability": "無法檢驗：無提示基線已每次處理全部 4 個 id（天花板）。"
+  },
+  {
+   "case": "correction-not-written",
+   "group": "correction-not-written:same-session/same-session-hint",
+   "target_round": 1,
+   "no_hint_earlier": [
+    1,
+    1,
+    2
+   ],
+   "hint_earlier": [
+    0,
+    0,
+    3
+   ],
+   "no_hint_mean": 1.33,
+   "hint_higher_count": 1,
+   "direction": false,
+   "combined_non_substantive": {
+    "no_hint": 2,
+    "hint": 2
+   },
+   "must_not_appeared": {
+    "no_hint": 0,
+    "hint": 0
+   },
+   "failed_points": [
+    "a"
+   ],
+   "note": "方向成立的判準 (a)(b)(c) 全部通過；未通過時列出 a/b/c。",
+   "runs_with_non_substantive": {
+    "no_hint": 2,
+    "hint": 1
+   },
+   "hint_listed_ids_resolved_aux": {
+    "no_hint": {
+     "listed": 5,
+     "resolved": 2
+    },
+    "hint": {
+     "listed": 4,
+     "resolved": 3
+    }
+   },
+   "hint_runs_with_nonempty_list": 1,
+   "testability": "樣本不足：提示組 3 次中 2 次提示清單為空，只有 1 次實際出現提示。"
+  },
+  {
+   "case": "correction-not-written",
+   "group": "correction-not-written:new-session/new-session-hint",
+   "target_round": 1,
+   "no_hint_earlier": [
+    2,
+    2,
+    1
+   ],
+   "hint_earlier": [
+    2,
+    2,
+    4
+   ],
+   "no_hint_mean": 1.67,
+   "hint_higher_count": 3,
+   "direction": true,
+   "combined_non_substantive": {
+    "no_hint": 4,
+    "hint": 2
+   },
+   "must_not_appeared": {
+    "no_hint": 0,
+    "hint": 0
+   },
+   "failed_points": [],
+   "note": "方向成立的判準 (a)(b)(c) 全部通過；未通過時列出 a/b/c。",
+   "runs_with_non_substantive": {
+    "no_hint": 2,
+    "hint": 2
+   },
+   "hint_listed_ids_resolved_aux": {
+    "no_hint": {
+     "listed": 1,
+     "resolved": 1
+    },
+    "hint": {
+     "listed": 4,
+     "resolved": 4
+    }
+   },
+   "hint_runs_with_nonempty_list": 3,
+   "testability": "可檢驗，但無提示組 3 次中 2 次起始清單為空，與提示組起始狀態不同。"
+  },
+  {
+   "case": "local-permission",
+   "group": "local-permission:resume-same/resume-same-hint",
+   "target_round": 1,
+   "no_hint_earlier": [
+    0,
+    0,
+    0
+   ],
+   "hint_earlier": [
+    0,
+    0,
+    0
+   ],
+   "no_hint_mean": 0.0,
+   "hint_higher_count": 0,
+   "direction": false,
+   "combined_non_substantive": {
+    "no_hint": 0,
+    "hint": 0
+   },
+   "must_not_appeared": {
+    "no_hint": 0,
+    "hint": 0
+   },
+   "failed_points": [
+    "a"
+   ],
+   "note": "方向成立的判準 (a)(b)(c) 全部通過；未通過時列出 a/b/c。",
+   "runs_with_non_substantive": {
+    "no_hint": 0,
+    "hint": 0
+   },
+   "hint_listed_ids_resolved_aux": {
+    "no_hint": {
+     "listed": 12,
+     "resolved": 0
+    },
+    "hint": {
+     "listed": 12,
+     "resolved": 0
+    }
+   },
+   "hint_runs_with_nonempty_list": 3,
+   "testability": "可檢驗。"
+  },
+  {
+   "case": "local-permission",
+   "group": "local-permission:resume-new/resume-new-hint",
+   "target_round": 1,
+   "no_hint_earlier": [
+    1,
+    2,
+    2
+   ],
+   "hint_earlier": [
+    2,
+    4,
+    5
+   ],
+   "no_hint_mean": 1.67,
+   "hint_higher_count": 3,
+   "direction": true,
+   "combined_non_substantive": {
+    "no_hint": 0,
+    "hint": 0
+   },
+   "must_not_appeared": {
+    "no_hint": 0,
+    "hint": 0
+   },
+   "failed_points": [],
+   "note": "方向成立的判準 (a)(b)(c) 全部通過；未通過時列出 a/b/c。",
+   "runs_with_non_substantive": {
+    "no_hint": 0,
+    "hint": 0
+   },
+   "hint_listed_ids_resolved_aux": {
+    "no_hint": {
+     "listed": 10,
+     "resolved": 5
+    },
+    "hint": {
+     "listed": 13,
+     "resolved": 10
+    }
+   },
+   "hint_runs_with_nonempty_list": 3,
+   "testability": "可檢驗。"
+  }
+ ],
+ "conclusion": {
+  "implement": false,
+  "direction_groups": [
+   "correction-not-written:new-session/new-session-hint",
+   "local-permission:resume-new/resume-new-hint"
+  ],
+  "direction_count": 2,
+  "required_direction_groups": 3,
+  "failed_groups": [
+   "stale-hypotheses:no-hint/hint",
+   "correction-not-written:same-session/same-session-hint",
+   "local-permission:resume-same/resume-same-hint"
+  ],
+  "reason": "兩項條件都未通過。(1) 5 組中只有 2 組通過 (a)(b)(c)：correction-not-written:new-session/new-session-hint、local-permission:resume-new/resume-new-hint，需要 3 組。(2) correction-not-written:new-session-hint 的無實質取代在 3 次中出現 2 次；同案例兩個無提示格也是 2/3，屬基線現象，不是提示造成的增加。未通過的 3 組中，stale-hypotheses 是天花板、無法檢驗；correction-not-written 同 session 的提示組只有 1 次實際出現提示；真正可檢驗而無方向的只有 local-permission 同 session。",
+  "decision": "不實作到 host。",
+  "non_substantive_condition": {
+   "rule": "有提示格的無實質取代在 3 次中出現 >=2 次即不通過。",
+   "violated_by": [
+    "correction-not-written:new-session/new-session-hint"
+   ],
+   "baseline_cells_also_at_2_of_3": [
+    "correction-not-written:same-session",
+    "correction-not-written:new-session"
+   ]
+  },
+  "aux_metric_note": "earlierOwnSupersededByRound 也計入事實欄等非提示對象；hint_listed_ids_resolved_aux 只計起始清單中的 id 是否在目標回合被處理，為事後輔助口徑，不改事先固定的門檻。",
+  "corrections_20261118": [
+   "reason 原寫「沒有任何一組的無實質取代在 3 次中出現 >=2 次」，與 per_run 不符（new-session-hint 為 2/3），已改。",
+   "各組加 testability、runs_with_non_substantive、hint_runs_with_nonempty_list 與輔助口徑。",
+   "reviews.json 中 correction-not-written new-session-hint 第 2 次的提示 id 數由 2 改為 1。"
+  ]
+ }
+}
