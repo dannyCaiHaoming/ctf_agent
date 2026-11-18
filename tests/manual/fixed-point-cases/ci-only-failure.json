@@ -6,9 +6,10 @@
  ],
  "materials": {
   "statement.md": "test_report.py 的一個測試在 CI 失敗、在本地通過。\n",
-  "test_report.py": "import datetime\n\ndef test_month_label():\n    d = datetime.date.today()\n    assert label(d).startswith(d.strftime(\"%B\"))\n",
+  "test_report.py": "import datetime\nfrom report import label\n\ndef test_month_label():\n    d = datetime.date.today()\n    assert label(d).startswith(d.strftime(\"%B\"))\n",
   "ci.log": "FAILED test_report.py::test_month_label - AssertionError\nplatform linux, python 3.12.1, locale C.UTF-8, TZ=UTC, pytest -n 4\n",
-  "local.log": "PASSED test_report.py::test_month_label\nplatform darwin, python 3.11.6, locale zh_TW.UTF-8, TZ=Asia/Taipei, pytest\n"
+  "local.log": "PASSED test_report.py::test_month_label\nplatform darwin, python 3.11.6, locale zh_TW.UTF-8, TZ=Asia/Taipei, pytest\n",
+  "report.py": "import datetime, locale\n\ndef label(d):\n    locale.setlocale(locale.LC_TIME, \"\")\n    return datetime.date.today().strftime(\"%B\") + \" report\"\n"
  },
  "workbook": [
   {

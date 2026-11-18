@@ -1,6 +1,6 @@
 # 固定決策點診斷：分清方法發現、內容、承接、措辭與模型能力
 
-**狀態（2026-11-18）：** 進行中。離線核對已完成（§6）：Solver 沒有「沒看到」的證據，續接比新建承接得好但有混雜；交回與條目是否一致仍未知。執行方式選定丙，手動腳本與 7 個案例檔已完成並通過無模型自檢；需要模型的對照未授權。
+**狀態（2026-11-18）：** 進行中。離線核對（§6）與合成案例模型對照（§7，48 次執行）已完成：Q2–Q5 都沒有成立；同 session 續接時工作簿常不更新，與離線核對的方向相反，兩者並列待查。換模型的 Q6 對照未授權。
 
 本文是[團隊決策上下文 §7.1](2026-11-07-design-v1-team-decision-context.md#71-行為歸因分清沒看到沒理解與做不到) 的詳細子文件，細節以本文為準。方向依據見 [B §7](2026-10-26-design-v1-b-method-generalization-and-efficiency.md#7-方向与优先序)：主驗收是方法選擇與連續執行，本文負責在動內容、接口、角色契約或模型配置之前，先定位失敗在哪一層。
 
@@ -104,3 +104,32 @@
 | 跨 session 的 Skill | 13 個 run 共 3 次載入（Recon、Critic、Solver 各 1），跨 session 失去方法只有 1 例 | 樣本不足，交給合成案例「本地權限拒絕」 |
 
 **限制。** 關鍵詞布林值與 id 解析是代理，不是語義比較；回合邊界在早期 run（r1、配對 `ezoj` on-2）由派單時間推得；13 個 run 只有 3 題：`ac5a1bc0` 6 個、`ezoj` 5 個、`8a6ac7ff` 2 個。
+
+## 7. 模型對照結果
+
+**結論。** 16 個組合各 3 次、共 48 次執行（`f7e90810` 的腳本與案例，deepseek-v4.1-flash、Solver 開思考）：0 次腳本失敗、超時或預算拒絕，2 次 `read` 因超出 Skill 目錄被拒；每次都有工具呼叫與工作簿寫入；模型呼叫 455 次，token 未取得，記 unavailable。**Q2–Q5 都沒有達到「成立」。** 最值得追的是 Q4：同 session 續接時，第二輪常不更新工作簿，與 §6 離線核對的方向相反。`job.run` 等由 harness 固定不執行，所以判的是選出的下一步與工作簿寫入，不是執行結果；單人評審，逐次理由沒有保存，只留每格計數（[gate](../../gates/fixed-point-20261118/summary.json)）。
+
+| 問題 | 組合（各 3 次） | 結果 | 能說明什麼 |
+| --- | --- | --- | --- |
+| Q2 發現 | local-permission index-only／skill-named | 兩邊都 3/3 載入 `python-runtime-diagnosis` 並讀 Reference | 合成情境下沒有重現「方法可用但沒載入」 |
+| Q2／Q3 | csv-quoted-newline index-only／method-provided | 符合 0/3 對 2/3 | 提供「單筆引號內換行的最小樣本」後 2/3 照做；只是方向 |
+| Q3 | date-off-by-one index-only／method-provided | 符合 2/3 對 3/3 | 兩邊多數都選到午夜／正午對照，差距不足 |
+| Q3 | round-half-even index-only／method-provided | 兩邊 0/3 符合（皆部分符合）；method-provided 3/3 誤載入 `python-runtime-diagnosis`，index-only 0/3 | 兩邊都提出 2.5／3.5 最小重現、沒查文件；方法文字裡的「解釋器缺陷」讓與運行時失敗無關的情境也載入了該 Skill |
+| Q4 承接 | correction-not-written same-session／new-session | 第一輪 3/3 以已排除路線取代 H1；第二輪以取代更新自己的條目：same 1/3、new 3/3；same 另有 2/3 只新增不關聯的條目 | 修正有寫回；但同 session 的下一輪較常讓工作簿停在舊狀態或出現重複 |
+| Q4 承接 | local-permission resume-same／resume-new | 答案 3/3 都符合；第二輪寫入：same 3/3 一條都沒寫，new 3/3 以取代更新 | 同上方向：同 session 倚賴對話歷史，新建 session 把工作簿維護好 |
+| Q5 措辭 | ci-only-failure neutral／presumptive | 符合 3/3 對 0/3（presumptive 皆部分符合）；presumptive 3/3 在交回中否定「唯一解釋」，1/3 把 locale 寫成 supported 並註明仍需原始碼驗證 | 預設措辭沒有被採納；但案例材料有缺陷（見下），這一格只作參考 |
+| Q5 措辭 | decode-error neutral／presumptive | 兩邊 3/3 符合；presumptive 3/3 否定「檔案已損壞」，1/3 把這個否定記成 supported | 預設措辭沒有被採納 |
+
+**Q2 與 Skill 觸發。** 未被點名時，`local-permission` 仍 3/3 載入並讀 Reference，所以合成情境裡不是發現失敗；[B §7.2](2026-10-26-design-v1-b-method-generalization-and-efficiency.md#72-python-运行时阻断归因) 的真實 run 不載入，較可能與任務中途的長上下文有關，本批無法驗證。反方向的誤觸發出現了：round 的 method-provided 3/3 載入同一 Skill，是 B §7.2 列為代價的「不相關情境也被點名」的第一個實例；目前只記錄，不改 description。
+
+**Q3。** 只有 csv 有 2/3 方向；date 差 1/3、round 差 0/3。round 兩變體缺的是查文件與執行，本 harness 都不提供，不能寫成方法內容不足。因此不據此補 [B §7](2026-10-26-design-v1-b-method-generalization-and-efficiency.md#7-方向与优先序) 第 3 項。
+
+**Q4（與離線核對相反，並列）。** 合成情境裡，同 session 續接的第二輪 6 次中只有 1 次以取代更新自己的條目，3 次一條都沒寫、2 次只新增不關聯的條目；新建 session 6/6 以取代更新。§6 的離線統計則是續接時上一輪條目被取代的比例較高（10/16 對 6/15）。兩者條件不同：離線樣本的續接集中在少數 run、由 Coordinator 選擇；合成樣本的第二輪派單沒有要求更新條目。這對 `eb5743d3` 的「預設續接」有直接影響：續接保住了角色自己的上下文，但 Coordinator 與下一個角色讀的是工作簿，工作簿不更新時承接只發生在單一 session 內。先不改規則；下一步是查真實 run 中續接回合交回前有沒有更新條目（`domain-solver.md` 已要求），再決定要不要在續接派單中明確要求。
+
+**Q5。** 兩個案例的 presumptive 派單都沒有把結論推過去：交回 6/6 明確否定預設，被記成 supported 的 2 次中，1 次是否定本身（decode），1 次是在環境因素內收斂到 locale 並寫明仍需驗證（ci）。後者正是 [團隊決策 §6.2](2026-11-07-design-v1-team-decision-context.md#62-派單與交回的內容契約)「supported 不表示其他解釋已排除」的樣本，只記錄，不改契約。
+
+**案例缺陷。** `ci-only-failure` 的 `test_report.py` 呼叫了未定義的 `label()`，照理應報 NameError，與 log 的 AssertionError 不符；兩組回答都抓到這點並轉去追「原始碼與 log 不一致」，削弱了這一格的措辭對照。案例檔已補上 `label()` 的定義（本批用的是補之前的版本），之後重跑以新版為準。
+
+**Q6。** 本批不換模型；兩變體同為「部分符合」的格子（round、ci presumptive）都有 harness 或案例的原因，不記為能力證據。
+
+**限制。** 每格 3 次只稱方向；單人評審且逐次理由未保存，判定無法逐次回查；`local-permission` 的第二輪派單是「根據工作簿寫出目前能支持的結論」，不是新的判別；需要執行才能完成的預期步驟，只看是否選到，不看執行成敗。
