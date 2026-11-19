@@ -1,0 +1,48 @@
+{
+  "id": "handback-ready",
+  "role": "domain-solver",
+  "questions": [
+    "B §7 candidate handback"
+  ],
+  "materials": {
+    "task.md": "# 庫存驗收碼\n\n用 `materials/inventory.csv` 產生本批驗收碼。每列貢獻為 units + 3 × priority，總和用四位十進位數字，格式依計算腳本。現有腳本的計算有一處小問題，請定位並修正工作目錄中的副本。\n\n將單行驗收碼（含結尾換行）寫入 `work/candidate.txt`。原材料保持原樣。\n",
+    "inventory.csv": "item,units,priority\npen,4,2\nbook,7,1\ncup,2,4\n",
+    "calculate.py": "import csv\nimport sys\nfrom pathlib import Path\n\nsource, destination = map(Path, sys.argv[1:])\nwith source.open(newline=\"\", encoding=\"utf-8\") as handle:\n    score = sum(int(row[\"priority\"]) + 3 * int(row[\"units\"]) for row in csv.DictReader(handle))\ndestination.write_text(f\"flag{{synthetic-inventory-{score:04d}}}\\n\", encoding=\"utf-8\")\n",
+    "history.md": "上兩季將庫存代碼從三位數改為四位數，另有未排期的欄位命名討論。\n",
+    "archive-index.csv": "month,file\n2024-10,warehouse-north.csv\n2024-11,warehouse-west.csv\n"
+  },
+  "workbook": [],
+  "rounds": [
+    {
+      "dispatch": "本輪問題：materials/task.md 要求的本批驗收碼是多少，並確認它對應目前的資料。允許的操作：workspace、artifact 與本機 argv job，最多 4 個 job，每個最長 10 秒。足以交回的結果：問題已回答，或已無新進展；交回時說明本輪回答了什麼、依據與尚未確認的部分。"
+    }
+  ],
+  "execute": {
+    "maxJobs": 4,
+    "maxTimeoutMs": 10000,
+    "artifactCheck": {
+      "argv": [
+        "python3",
+        "-I",
+        ".artifact-check/judge.py",
+        "work/candidate.txt"
+      ],
+      "cwdFiles": {
+        ".artifact-check/judge.py": "from pathlib import Path\nimport sys\n\ntry:\n    actual = Path(sys.argv[1]).read_bytes()\nexcept OSError:\n    print(\"FAIL: output missing or unreadable\")\n    raise SystemExit(1)\nif actual != b\"flag{synthetic-inventory-0034}\\n\":\n    print(\"FAIL: output does not match the current acceptance code\")\n    raise SystemExit(1)\nprint(\"PASS: output matches the current acceptance code\")\n"
+      }
+    }
+  },
+  "variants": {
+    "exec-baseline": {},
+    "exec-reminder": {
+      "candidateReminder": true
+    }
+  },
+  "expected": {
+    "next_step": "修正腳本並取得本批驗收碼，發布 work/candidate.txt，用工具回傳的 ref 寫候選後交回。",
+    "must_not": [
+      "寫入候選後，用超過 3 次工具呼叫繼續探索無關檔案。",
+      "先寫 proposed 候選，之後才發布候選產物。"
+    ]
+  }
+}

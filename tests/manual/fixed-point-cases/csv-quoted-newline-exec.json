@@ -1,0 +1,65 @@
+{
+ "id": "csv-quoted-newline-exec",
+ "role": "domain-solver",
+ "questions": [
+  "Q2",
+  "Q3",
+  "Q6"
+ ],
+ "materials": {
+  "task.md": "# 本地 CSV 解析\n\n讀 `materials/orders.csv`，把資料列（不含表頭）解析成 JSON，寫到 `work/records.json`。\n\n- 每筆紀錄保留 `id`、`item`、`note` 三個欄位，值一律用字串。\n- 不要修改 `materials/orders.csv`；評分只看 `work/records.json`。\n- 工具與步驟不限；只要輸出的欄位內容與 CSV 一致即可。\n\n輸出格式（兩種都接受）：\n\n```json\n[\n  {\"id\": \"<string>\", \"item\": \"<string>\", \"note\": \"<string>\"}\n]\n```\n\n```json\n{\"records\": [{\"id\": \"<string>\", \"item\": \"<string>\", \"note\": \"<string>\"}]}\n```\n",
+  "orders.csv": "id,item,note\n1,pen,\"blue ink\"\n2,book,\"second line\ncontinues here\"\n3,cup,plain\n",
+  "parse_records.py": "import csv\nimport json\nimport sys\nfrom pathlib import Path\n\nsource, destination = map(Path, sys.argv[1:])\nlines = source.read_text(encoding=\"utf-8\").splitlines()\nfields = lines[0].split(\",\")\nrows = [dict(zip(fields, next(csv.reader([line])))) for line in lines[1:]]\nrecords = [{field: row.get(field, \"\") for field in fields} for row in rows]\ndestination.parent.mkdir(parents=True, exist_ok=True)\ndestination.write_text(json.dumps(records, ensure_ascii=False) + \"\\n\", encoding=\"utf-8\")\nprint(f\"wrote {len(records)} records to {destination}\")\n"
+ },
+ "workbook": [
+  {
+   "id": 1,
+   "role": "recon",
+   "slot": "facts",
+   "text": "材料含 orders.csv 與可執行的 parse_records.py；解析後的紀錄數與另一種讀法不符，原因尚未確認。",
+   "scope": "materials/orders.csv"
+  },
+  {
+   "id": 2,
+   "role": "coordinator",
+   "slot": "questions",
+   "text": "如何定位記錄數差異並產出保留欄位內容的 work/records.json？",
+   "status": "open"
+  }
+ ],
+ "rounds": [
+  {
+   "dispatch": "本輪回答工作簿問題 id 2，完成 materials/task.md 的輸出要求。允許 workspace 讀寫與本機 argv job；最多 3 個 job，每個最長 10 秒。先執行現有解析腳本並讀回饋，再定位差異，將修正副本放在 work/，產出 work/records.json 後交回。足以交回：產物已寫出，說明修改與檢查依據。"
+  }
+ ],
+ "execute": {
+  "maxJobs": 3,
+  "maxTimeoutMs": 10000,
+  "artifactCheck": {
+   "argv": [
+    "python3",
+    "-I",
+    ".artifact-check/judge.py",
+    ".artifact-check/expected.json",
+    "work/records.json"
+   ],
+   "cwdFiles": {
+    ".artifact-check/judge.py": "#!/usr/bin/env python3\n\"\"\"Independently judge a parsed-records artifact against frozen expected values.\n\nThe judge reads exactly two JSON files: the expected records and the artifact.\nIt never reads input/orders.csv and never imports a CSV parser, so the expected\nvalues cannot be recomputed from the data under test.\n\nUsage:\n    python3 -I judge.py expected/records.json artifacts/correct.json\n\nExit codes: 0 = pass, 1 = fail, 2 = usage or invalid expected file.\n\"\"\"\n\nfrom __future__ import annotations\n\nimport json\nimport sys\nfrom pathlib import Path\n\nFIELDS = (\"id\", \"item\", \"note\")\n\n\ndef load_json(path: str, *, expected: bool) -> object:\n    prefix = \"ERROR\" if expected else \"FAIL\"\n    exit_code = 2 if expected else 1\n    try:\n        with Path(path).open(encoding=\"utf-8\") as handle:\n            return json.load(handle)\n    except OSError as error:\n        print(f\"{prefix} cannot read {path}: {error}\", file=sys.stderr)\n        raise SystemExit(exit_code) from error\n    except json.JSONDecodeError as error:\n        print(f\"{prefix} invalid JSON in {path}: {error}\", file=sys.stderr)\n        raise SystemExit(exit_code) from error\n\n\ndef expect_records(document: object, path: str) -> list[dict[str, str]]:\n    if not isinstance(document, list):\n        print(f\"ERROR {path}: expected a JSON array of records\", file=sys.stderr)\n        raise SystemExit(2)\n    records: list[dict[str, str]] = []\n    for index, item in enumerate(document):\n        if not isinstance(item, dict):\n            print(f\"ERROR {path}: record[{index}] is not an object\", file=sys.stderr)\n            raise SystemExit(2)\n        record = {}\n        for field in FIELDS:\n            value = item.get(field)\n            if not isinstance(value, str):\n                print(f\"ERROR {path}: record[{index}].{field} is not a string\", file=sys.stderr)\n                raise SystemExit(2)\n            record[field] = value\n        records.append(record)\n    return records\n\n\ndef artifact_records(document: object) -> tuple[list[dict[str, str]], list[str]]:\n    \"\"\"Return extracted records and shape problems; never raises for bad artifacts.\"\"\"\n    problems: list[str] = []\n    if isinstance(document, dict) and isinstance(document.get(\"records\"), list):\n        document = document[\"records\"]\n    if not isinstance(document, list):\n        return [], [\"artifact is not a JSON array or an object with a records array\"]\n\n    records: list[dict[str, str]] = []\n    for index, item in enumerate(document):\n        if not isinstance(item, dict):\n            problems.append(f\"record[{index}] is not an object\")\n            continue\n        missing = [field for field in FIELDS if field not in item]\n        if missing:\n            problems.append(f\"record[{index}] missing {','.join(missing)}\")\n            continue\n        record: dict[str, str] = {}\n        for field in FIELDS:\n            if not isinstance(item[field], str):\n                problems.append(f\"record[{index}].{field} is not a string\")\n                break\n            record[field] = item[field]\n        else:\n            records.append(record)\n    return records, problems\n\n\ndef quoted(value: str) -> str:\n    return json.dumps(value, ensure_ascii=False)\n\n\ndef main() -> int:\n    if len(sys.argv) != 3:\n        print(\"usage: judge.py <expected.json> <artifact.json>\", file=sys.stderr)\n        return 2\n\n    expected_path, artifact_path = sys.argv[1], sys.argv[2]\n    expected = expect_records(load_json(expected_path, expected=True), expected_path)\n    if not any(\"\\n\" in record[field] for record in expected for field in FIELDS):\n        print(\n            \"ERROR expected records contain no embedded newline; this case requires one\",\n            file=sys.stderr,\n        )\n        return 2\n    document = load_json(artifact_path, expected=False)\n    actual, shape_problems = artifact_records(document)\n\n    issues: list[str] = list(shape_problems)\n    for index in range(max(len(expected), len(actual))):\n        if index >= len(expected):\n            issues.append(f\"record[{index}]: unexpected record {json.dumps(actual[index], ensure_ascii=False)}\")\n            continue\n        if index >= len(actual):\n            issues.append(f\"record[{index}]: missing record {json.dumps(expected[index], ensure_ascii=False)}\")\n            continue\n        for field in FIELDS:\n            if actual[index][field] != expected[index][field]:\n                issues.append(\n                    f\"record[{index}].{field}: expected {quoted(expected[index][field])}, \"\n                    f\"got {quoted(actual[index][field])}\"\n                )\n\n    # Make the quoted-newline condition explicit: a right-shaped record table can\n    # still lose the newline that belongs to a field value.\n    newline_slots = [\n        (index, field)\n        for index, record in enumerate(expected)\n        for field in FIELDS\n        if \"\\n\" in record[field]\n    ]\n    missing_newlines = [\n        (index, field)\n        for index, field in newline_slots\n        if index < len(actual) and \"\\n\" not in actual[index][field]\n    ]\n    for index, field in missing_newlines:\n        issues.append(f\"record[{index}].{field}: embedded newline missing\")\n\n    header = f\"artifact={artifact_path} expected={expected_path}\"\n    if issues:\n        print(f\"FAIL {header}\")\n        print(f\"records: got {len(actual)}, expected {len(expected)}\")\n        for issue in issues:\n            print(f\"  {issue}\")\n        if shape_problems:\n            print(f\"  artifact shape: {len(shape_problems)} problem(s)\")\n        return 1\n\n    print(f\"PASS {header}\")\n    print(f\"records: {len(actual)}/{len(expected)}\")\n    if newline_slots:\n        slots = \", \".join(f\"record[{index}].{field}\" for index, field in newline_slots)\n        print(f\"embedded newline: preserved in {slots}\")\n    else:\n        print(\"embedded newline: not present in the expected data\")\n    return 0\n\n\nif __name__ == \"__main__\":\n    raise SystemExit(main())\n",
+    ".artifact-check/expected.json": "[\n  {\"id\": \"1\", \"item\": \"pen\", \"note\": \"blue ink\"},\n  {\"id\": \"2\", \"item\": \"book\", \"note\": \"second line\\ncontinues here\"},\n  {\"id\": \"3\", \"item\": \"cup\", \"note\": \"plain\"}\n]\n"
+   }
+  }
+ },
+ "variants": {
+  "exec-index-only": {},
+  "exec-method-provided": {
+   "dispatchAppend": "可用方法：兩個解釋（檔案損壞、解析方言不同）預期在哪一項觀察上不同？先做一個只含一筆「引號內換行」的最小樣本，分別用兩種讀法解析並比較；若最小樣本就重現差異，差異來自解析方式而不是檔案內容。"
+  }
+ },
+ "expected": {
+  "next_step": "執行解析並讀回饋 → 發現記錄數不符 → 用只含一筆引號內換行的最小樣本定位 → 修正 work/ 中的解析副本 → 產出 work/records.json 並通過判定",
+  "must_not": [
+   "檔案損壞",
+   "資料遺失"
+  ]
+ }
+}

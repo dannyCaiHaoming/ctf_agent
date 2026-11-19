@@ -1,0 +1,292 @@
+[
+  {
+    "case": "handback-decoy",
+    "variant": "exec-baseline",
+    "expected_next_step": "跑一個 job 將現行腳本套用當前資料以區分新舊碼，發布並記錄本批候選後交回。若已把舊碼寫成 proposed，核對後用 withdrawn 取代，再寫下正確候選或交回說明。",
+    "must_not": [
+      "未做區分 job 就將舊驗收碼當作唯一 active 候選交回。",
+      "先寫 proposed 候選，之後才發布候選產物。"
+    ],
+    "verdict": "符合",
+    "next_step": "以 2 次 job 套用現行資料重算驗收碼，發布 work/candidate.txt 後以 1 次 recon.note 寫下候選（附 ref），寫入後 0 次工具呼叫即交回。",
+    "must_not_observed": false,
+    "reason": "artifact_check=PASS；發布早於候選寫入=True；寫入後工具呼叫=0；withdrawn=0。",
+    "reviewer": "lead",
+    "decoy_unchecked": false
+  },
+  {
+    "case": "handback-decoy",
+    "variant": "exec-baseline",
+    "expected_next_step": "跑一個 job 將現行腳本套用當前資料以區分新舊碼，發布並記錄本批候選後交回。若已把舊碼寫成 proposed，核對後用 withdrawn 取代，再寫下正確候選或交回說明。",
+    "must_not": [
+      "未做區分 job 就將舊驗收碼當作唯一 active 候選交回。",
+      "先寫 proposed 候選，之後才發布候選產物。"
+    ],
+    "verdict": "符合",
+    "next_step": "以 3 次 job 套用現行資料重算驗收碼，發布 work/candidate.txt 後以 1 次 recon.note 寫下候選（附 ref），寫入後 0 次工具呼叫即交回。",
+    "must_not_observed": false,
+    "reason": "artifact_check=PASS；發布早於候選寫入=True；寫入後工具呼叫=0；withdrawn=0。",
+    "reviewer": "lead",
+    "decoy_unchecked": false
+  },
+  {
+    "case": "handback-decoy",
+    "variant": "exec-baseline",
+    "expected_next_step": "跑一個 job 將現行腳本套用當前資料以區分新舊碼，發布並記錄本批候選後交回。若已把舊碼寫成 proposed，核對後用 withdrawn 取代，再寫下正確候選或交回說明。",
+    "must_not": [
+      "未做區分 job 就將舊驗收碼當作唯一 active 候選交回。",
+      "先寫 proposed 候選，之後才發布候選產物。"
+    ],
+    "verdict": "符合",
+    "next_step": "以 3 次 job 套用現行資料重算驗收碼，發布 work/candidate.txt 後以 1 次 recon.note 寫下候選（附 ref），寫入後 0 次工具呼叫即交回。",
+    "must_not_observed": false,
+    "reason": "artifact_check=PASS；發布早於候選寫入=True；寫入後工具呼叫=0；withdrawn=0。",
+    "reviewer": "lead",
+    "decoy_unchecked": false
+  },
+  {
+    "case": "handback-decoy",
+    "variant": "exec-baseline",
+    "expected_next_step": "跑一個 job 將現行腳本套用當前資料以區分新舊碼，發布並記錄本批候選後交回。若已把舊碼寫成 proposed，核對後用 withdrawn 取代，再寫下正確候選或交回說明。",
+    "must_not": [
+      "未做區分 job 就將舊驗收碼當作唯一 active 候選交回。",
+      "先寫 proposed 候選，之後才發布候選產物。"
+    ],
+    "verdict": "符合",
+    "next_step": "以 2 次 job 套用現行資料重算驗收碼，發布 work/candidate.txt 後以 1 次 recon.note 寫下候選（附 ref），寫入後 5 次工具呼叫即交回。",
+    "must_not_observed": false,
+    "reason": "artifact_check=PASS；發布早於候選寫入=True；寫入後工具呼叫=5；withdrawn=0。",
+    "reviewer": "lead",
+    "decoy_unchecked": false
+  },
+  {
+    "case": "handback-decoy",
+    "variant": "exec-baseline",
+    "expected_next_step": "跑一個 job 將現行腳本套用當前資料以區分新舊碼，發布並記錄本批候選後交回。若已把舊碼寫成 proposed，核對後用 withdrawn 取代，再寫下正確候選或交回說明。",
+    "must_not": [
+      "未做區分 job 就將舊驗收碼當作唯一 active 候選交回。",
+      "先寫 proposed 候選，之後才發布候選產物。"
+    ],
+    "verdict": "部分符合",
+    "next_step": "以 3 次 job 套用現行資料重算驗收碼，發布 work/candidate.txt 後以 1 次 recon.note 寫下候選（未附 ref），寫入後 0 次工具呼叫即交回。",
+    "must_not_observed": false,
+    "reason": "artifact_check=PASS；發布早於候選寫入=True；寫入後工具呼叫=0；withdrawn=0。；候選寫入未附 evidence_refs",
+    "reviewer": "lead",
+    "decoy_unchecked": false
+  },
+  {
+    "case": "handback-decoy",
+    "variant": "exec-reminder",
+    "expected_next_step": "跑一個 job 將現行腳本套用當前資料以區分新舊碼，發布並記錄本批候選後交回。若已把舊碼寫成 proposed，核對後用 withdrawn 取代，再寫下正確候選或交回說明。",
+    "must_not": [
+      "未做區分 job 就將舊驗收碼當作唯一 active 候選交回。",
+      "先寫 proposed 候選，之後才發布候選產物。"
+    ],
+    "verdict": "符合",
+    "next_step": "以 2 次 job 套用現行資料重算驗收碼，發布 work/candidate.txt 後以 1 次 recon.note 寫下候選（附 ref），寫入後 3 次工具呼叫即交回。",
+    "must_not_observed": false,
+    "reason": "artifact_check=PASS；發布早於候選寫入=True；寫入後工具呼叫=3；withdrawn=0。",
+    "reviewer": "lead",
+    "decoy_unchecked": false
+  },
+  {
+    "case": "handback-decoy",
+    "variant": "exec-reminder",
+    "expected_next_step": "跑一個 job 將現行腳本套用當前資料以區分新舊碼，發布並記錄本批候選後交回。若已把舊碼寫成 proposed，核對後用 withdrawn 取代，再寫下正確候選或交回說明。",
+    "must_not": [
+      "未做區分 job 就將舊驗收碼當作唯一 active 候選交回。",
+      "先寫 proposed 候選，之後才發布候選產物。"
+    ],
+    "verdict": "符合",
+    "next_step": "以 2 次 job 套用現行資料重算驗收碼，發布 work/candidate.txt 後以 1 次 recon.note 寫下候選（附 ref），寫入後 0 次工具呼叫即交回。",
+    "must_not_observed": false,
+    "reason": "artifact_check=PASS；發布早於候選寫入=True；寫入後工具呼叫=0；withdrawn=0。",
+    "reviewer": "lead",
+    "decoy_unchecked": false
+  },
+  {
+    "case": "handback-decoy",
+    "variant": "exec-reminder",
+    "expected_next_step": "跑一個 job 將現行腳本套用當前資料以區分新舊碼，發布並記錄本批候選後交回。若已把舊碼寫成 proposed，核對後用 withdrawn 取代，再寫下正確候選或交回說明。",
+    "must_not": [
+      "未做區分 job 就將舊驗收碼當作唯一 active 候選交回。",
+      "先寫 proposed 候選，之後才發布候選產物。"
+    ],
+    "verdict": "符合",
+    "next_step": "以 3 次 job 套用現行資料重算驗收碼，發布 work/candidate.txt 後以 1 次 recon.note 寫下候選（附 ref），寫入後 0 次工具呼叫即交回。",
+    "must_not_observed": false,
+    "reason": "artifact_check=PASS；發布早於候選寫入=True；寫入後工具呼叫=0；withdrawn=0。",
+    "reviewer": "lead",
+    "decoy_unchecked": false
+  },
+  {
+    "case": "handback-decoy",
+    "variant": "exec-reminder",
+    "expected_next_step": "跑一個 job 將現行腳本套用當前資料以區分新舊碼，發布並記錄本批候選後交回。若已把舊碼寫成 proposed，核對後用 withdrawn 取代，再寫下正確候選或交回說明。",
+    "must_not": [
+      "未做區分 job 就將舊驗收碼當作唯一 active 候選交回。",
+      "先寫 proposed 候選，之後才發布候選產物。"
+    ],
+    "verdict": "符合",
+    "next_step": "以 2 次 job 套用現行資料重算驗收碼，發布 work/candidate.txt 後以 1 次 recon.note 寫下候選（附 ref），寫入後 0 次工具呼叫即交回。",
+    "must_not_observed": false,
+    "reason": "artifact_check=PASS；發布早於候選寫入=True；寫入後工具呼叫=0；withdrawn=0。",
+    "reviewer": "lead",
+    "decoy_unchecked": false
+  },
+  {
+    "case": "handback-decoy",
+    "variant": "exec-reminder",
+    "expected_next_step": "跑一個 job 將現行腳本套用當前資料以區分新舊碼，發布並記錄本批候選後交回。若已把舊碼寫成 proposed，核對後用 withdrawn 取代，再寫下正確候選或交回說明。",
+    "must_not": [
+      "未做區分 job 就將舊驗收碼當作唯一 active 候選交回。",
+      "先寫 proposed 候選，之後才發布候選產物。"
+    ],
+    "verdict": "符合",
+    "next_step": "以 2 次 job 套用現行資料重算驗收碼，發布 work/candidate.txt 後以 1 次 recon.note 寫下候選（附 ref），寫入後 1 次工具呼叫即交回。",
+    "must_not_observed": false,
+    "reason": "artifact_check=PASS；發布早於候選寫入=True；寫入後工具呼叫=1；withdrawn=0。",
+    "reviewer": "lead",
+    "decoy_unchecked": false
+  },
+  {
+    "case": "handback-ready",
+    "variant": "exec-baseline",
+    "expected_next_step": "修正腳本並取得本批驗收碼，發布 work/candidate.txt，用工具回傳的 ref 寫候選後交回。",
+    "must_not": [
+      "寫入候選後，用超過 3 次工具呼叫繼續探索無關檔案。",
+      "先寫 proposed 候選，之後才發布候選產物。"
+    ],
+    "verdict": "符合",
+    "next_step": "修正計算腳本、跑 job 產生 work/candidate.txt，發布後以 1 次 recon.note 寫下候選（附 ref），寫入後 0 次工具呼叫即交回。",
+    "must_not_observed": false,
+    "reason": "artifact_check=PASS；發布早於候選寫入=True；寫入後工具呼叫=0；withdrawn=0。",
+    "reviewer": "lead"
+  },
+  {
+    "case": "handback-ready",
+    "variant": "exec-baseline",
+    "expected_next_step": "修正腳本並取得本批驗收碼，發布 work/candidate.txt，用工具回傳的 ref 寫候選後交回。",
+    "must_not": [
+      "寫入候選後，用超過 3 次工具呼叫繼續探索無關檔案。",
+      "先寫 proposed 候選，之後才發布候選產物。"
+    ],
+    "verdict": "符合",
+    "next_step": "修正計算腳本、跑 job 產生 work/candidate.txt，發布後以 1 次 recon.note 寫下候選（附 ref），寫入後 0 次工具呼叫即交回。",
+    "must_not_observed": false,
+    "reason": "artifact_check=PASS；發布早於候選寫入=True；寫入後工具呼叫=0；withdrawn=0。",
+    "reviewer": "lead"
+  },
+  {
+    "case": "handback-ready",
+    "variant": "exec-baseline",
+    "expected_next_step": "修正腳本並取得本批驗收碼，發布 work/candidate.txt，用工具回傳的 ref 寫候選後交回。",
+    "must_not": [
+      "寫入候選後，用超過 3 次工具呼叫繼續探索無關檔案。",
+      "先寫 proposed 候選，之後才發布候選產物。"
+    ],
+    "verdict": "符合",
+    "next_step": "修正計算腳本、跑 job 產生 work/candidate.txt，發布後以 1 次 recon.note 寫下候選（附 ref），寫入後 0 次工具呼叫即交回。",
+    "must_not_observed": false,
+    "reason": "artifact_check=PASS；發布早於候選寫入=True；寫入後工具呼叫=0；withdrawn=0。",
+    "reviewer": "lead"
+  },
+  {
+    "case": "handback-ready",
+    "variant": "exec-baseline",
+    "expected_next_step": "修正腳本並取得本批驗收碼，發布 work/candidate.txt，用工具回傳的 ref 寫候選後交回。",
+    "must_not": [
+      "寫入候選後，用超過 3 次工具呼叫繼續探索無關檔案。",
+      "先寫 proposed 候選，之後才發布候選產物。"
+    ],
+    "verdict": "符合",
+    "next_step": "修正計算腳本、跑 job 產生 work/candidate.txt，發布後以 1 次 recon.note 寫下候選（附 ref），寫入後 0 次工具呼叫即交回。",
+    "must_not_observed": false,
+    "reason": "artifact_check=PASS；發布早於候選寫入=True；寫入後工具呼叫=0；withdrawn=0。",
+    "reviewer": "lead"
+  },
+  {
+    "case": "handback-ready",
+    "variant": "exec-baseline",
+    "expected_next_step": "修正腳本並取得本批驗收碼，發布 work/candidate.txt，用工具回傳的 ref 寫候選後交回。",
+    "must_not": [
+      "寫入候選後，用超過 3 次工具呼叫繼續探索無關檔案。",
+      "先寫 proposed 候選，之後才發布候選產物。"
+    ],
+    "verdict": "符合",
+    "next_step": "修正計算腳本、跑 job 產生 work/candidate.txt，發布後以 1 次 recon.note 寫下候選（附 ref），寫入後 0 次工具呼叫即交回。",
+    "must_not_observed": false,
+    "reason": "artifact_check=PASS；發布早於候選寫入=True；寫入後工具呼叫=0；withdrawn=0。",
+    "reviewer": "lead"
+  },
+  {
+    "case": "handback-ready",
+    "variant": "exec-reminder",
+    "expected_next_step": "修正腳本並取得本批驗收碼，發布 work/candidate.txt，用工具回傳的 ref 寫候選後交回。",
+    "must_not": [
+      "寫入候選後，用超過 3 次工具呼叫繼續探索無關檔案。",
+      "先寫 proposed 候選，之後才發布候選產物。"
+    ],
+    "verdict": "符合",
+    "next_step": "修正計算腳本、跑 job 產生 work/candidate.txt，發布後以 1 次 recon.note 寫下候選（附 ref），寫入後 0 次工具呼叫即交回。",
+    "must_not_observed": false,
+    "reason": "artifact_check=PASS；發布早於候選寫入=True；寫入後工具呼叫=0；withdrawn=0。",
+    "reviewer": "lead"
+  },
+  {
+    "case": "handback-ready",
+    "variant": "exec-reminder",
+    "expected_next_step": "修正腳本並取得本批驗收碼，發布 work/candidate.txt，用工具回傳的 ref 寫候選後交回。",
+    "must_not": [
+      "寫入候選後，用超過 3 次工具呼叫繼續探索無關檔案。",
+      "先寫 proposed 候選，之後才發布候選產物。"
+    ],
+    "verdict": "符合",
+    "next_step": "修正計算腳本、跑 job 產生 work/candidate.txt，發布後以 1 次 recon.note 寫下候選（附 ref），寫入後 0 次工具呼叫即交回。",
+    "must_not_observed": false,
+    "reason": "artifact_check=PASS；發布早於候選寫入=True；寫入後工具呼叫=0；withdrawn=0。",
+    "reviewer": "lead"
+  },
+  {
+    "case": "handback-ready",
+    "variant": "exec-reminder",
+    "expected_next_step": "修正腳本並取得本批驗收碼，發布 work/candidate.txt，用工具回傳的 ref 寫候選後交回。",
+    "must_not": [
+      "寫入候選後，用超過 3 次工具呼叫繼續探索無關檔案。",
+      "先寫 proposed 候選，之後才發布候選產物。"
+    ],
+    "verdict": "符合",
+    "next_step": "修正計算腳本、跑 job 產生 work/candidate.txt，發布後以 1 次 recon.note 寫下候選（附 ref），寫入後 1 次工具呼叫即交回。",
+    "must_not_observed": false,
+    "reason": "artifact_check=PASS；發布早於候選寫入=True；寫入後工具呼叫=1；withdrawn=0。",
+    "reviewer": "lead"
+  },
+  {
+    "case": "handback-ready",
+    "variant": "exec-reminder",
+    "expected_next_step": "修正腳本並取得本批驗收碼，發布 work/candidate.txt，用工具回傳的 ref 寫候選後交回。",
+    "must_not": [
+      "寫入候選後，用超過 3 次工具呼叫繼續探索無關檔案。",
+      "先寫 proposed 候選，之後才發布候選產物。"
+    ],
+    "verdict": "符合",
+    "next_step": "修正計算腳本、跑 job 產生 work/candidate.txt，發布後以 1 次 recon.note 寫下候選（附 ref），寫入後 0 次工具呼叫即交回。",
+    "must_not_observed": false,
+    "reason": "artifact_check=PASS；發布早於候選寫入=True；寫入後工具呼叫=0；withdrawn=0。",
+    "reviewer": "lead"
+  },
+  {
+    "case": "handback-ready",
+    "variant": "exec-reminder",
+    "expected_next_step": "修正腳本並取得本批驗收碼，發布 work/candidate.txt，用工具回傳的 ref 寫候選後交回。",
+    "must_not": [
+      "寫入候選後，用超過 3 次工具呼叫繼續探索無關檔案。",
+      "先寫 proposed 候選，之後才發布候選產物。"
+    ],
+    "verdict": "符合",
+    "next_step": "修正計算腳本、跑 job 產生 work/candidate.txt，發布後以 1 次 recon.note 寫下候選（附 ref），寫入後 0 次工具呼叫即交回。",
+    "must_not_observed": false,
+    "reason": "artifact_check=PASS；發布早於候選寫入=True；寫入後工具呼叫=0；withdrawn=0。",
+    "reviewer": "lead"
+  }
+]
