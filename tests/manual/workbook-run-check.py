@@ -8,6 +8,8 @@ can match incidental numbers, so treat low counts as approximate. Output is JSON
 no message text, tool output, flags or oracle data.
 """
 import collections, glob, json, os, re, sqlite3, sys
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from _candidate_common import audit_milestones
 
 run = sys.argv[1]
 ev = os.path.join(run, 'evidence')
@@ -89,18 +91,17 @@ out['prepare_failures'] = sum(1 for a in audit if a.get('op') == 'context.prepar
 # Both arms produce them; the candidate-entry time exists only where the workbook is on.
 t0_at = (audit[0].get('at') - audit[0].get('t')) if audit and audit[0].get('at') is not None and audit[0].get('t') is not None else None
 minutes = lambda t: None if t is None else round(t / 60000, 2)
-first = lambda pred: min((a['t'] for a in audit if a.get('allow') and pred(a)), default=None)
-roles = sorted({(a.get('detail') or {}).get('role') for a in audit if a.get('op') == 'dispatch.register' and a.get('allow')} - {None})
+audit_times = audit_milestones(audit)
 out['milestones'] = {
     'context': state.get('context'),
-    'first_dispatch_min': {r: minutes(first(lambda a, r=r: a.get('op') == 'dispatch.register' and (a.get('detail') or {}).get('role') == r)) for r in roles},
-    'dispatches': dict(collections.Counter((a.get('detail') or {}).get('role') for a in audit if a.get('op') == 'dispatch.register' and a.get('allow'))),
+    'first_dispatch_min': audit_times['first_dispatch_min'],
+    'dispatches': audit_times['dispatches'],
     'first_candidate_entry_min': None,
-    'first_package_min': minutes(first(lambda a: a.get('op') == 'package.published')),
-    'first_completion_min': minutes(first(lambda a: a.get('op') == 'completion.saved')),
+    'first_package_min': audit_times['first_package_min'],
+    'first_completion_min': audit_times['first_completion_min'],
     'solved': any(c.get('solved') for c in completions),
     'completions': len(completions),
-    'last_audit_min': minutes(max((a.get('t') or 0 for a in audit), default=None)),
+    'last_audit_min': audit_times['last_audit_min'],
     'stop_reason': state.get('stopReason'),
     'root_finish': (state.get('rootResult') or {}).get('finish'),
     'usage': state.get('usageTotal') or 'unavailable',
