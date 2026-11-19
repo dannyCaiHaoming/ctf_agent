@@ -38,7 +38,17 @@ export interface JobBinding {
 /** Thrown for any refusal; the control service turns `code` into a fixed denial message. */
 export class JobRefused extends Error { constructor(readonly code: string) { super(code); } }
 
-interface Stream { path: string; fd: number; bytes: number; truncated: boolean; chunks: Buffer[] }
+interface Stream {
+  path: string;
+  fd: number;
+  bytes: number;
+  // Count the bytes accepted by the file write separately from the in-memory capture.
+  storedBytes: number;
+  droppedBytes: number;
+  inputComplete: boolean;
+  truncated: boolean;
+  chunks: Buffer[];
+}
 interface Deferred { promise: Promise<void>; resolve: () => void }
 
 interface Job {
@@ -162,6 +172,13 @@ export class JobManager {
 
   async waitSettled(binding: JobBinding, handle: string) { const job = this.own(binding, handle); await job.done.promise; return terminalSnapshot(job); }
 
+  /** Audit counters for closed streams, independent of the output snapshot or preview. */
+  terminalStreams(binding: JobBinding, handle: string) {
+    const job = this.own(binding, handle);
+    if (!job.settled) return undefined;
+    return { stdout: streamMetadata(job.stdout), stderr: streamMetadata(job.stderr) };
+  }
+
   async cancelAll(sessionId?: string): Promise<void> {
     const jobs = [...this.jobs.values()].filter(j => (!sessionId || j.sessionId === sessionId) && !j.settled);
     for (const job of jobs) this.stop(job, 'cancelled');
@@ -226,6 +243,9 @@ export class JobManager {
     await Promise.race([job.closed.promise, delay(500)]);
     clearTimeout(job.timer);
     if (job.abort) job.signalOwner?.removeEventListener('abort', job.abort);
+    const failedToStart = job.state === 'failed_to_start';
+    job.stdout.inputComplete = failedToStart || job.child.stdout!.readableEnded;
+    job.stderr.inputComplete = failedToStart || job.child.stderr!.readableEnded;
     closeStream(job.stdout);
     closeStream(job.stderr);
     job.settled = true;
@@ -340,19 +360,31 @@ function groupAlive(pid: number): boolean {
 }
 
 function openStream(path: string): Stream {
-  return { path, fd: openSync(path, 'w'), bytes: 0, truncated: false, chunks: [] };
+  return { path, fd: openSync(path, 'w'), bytes: 0, storedBytes: 0, droppedBytes: 0,
+    inputComplete: false, truncated: false, chunks: [] };
 }
 
 function writeStream(stream: Stream, chunk: Buffer) {
   if (stream.fd < 0) return;
   const room = JOB_OUTPUT_LIMIT - stream.bytes;
-  if (chunk.length > room) stream.truncated = true;
+  if (chunk.length > room) {
+    stream.truncated = true;
+    stream.droppedBytes += chunk.length - room;
+  }
   const part = chunk.subarray(0, Math.min(room, chunk.length));
   if (part.length > 0) {
-    writeSync(stream.fd, part);
+    stream.storedBytes += writeSync(stream.fd, part);
     stream.chunks.push(Buffer.from(part));
     stream.bytes += part.length;
   }
+}
+
+function streamMetadata(stream: Stream) {
+  return {
+    stored_bytes: stream.storedBytes,
+    truncated: stream.truncated,
+    ...(stream.inputComplete ? { dropped_bytes: stream.droppedBytes } : {})
+  };
 }
 
 function closeStream(stream: Stream) {

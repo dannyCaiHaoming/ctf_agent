@@ -16,7 +16,7 @@
 | 2 | **舊方向不被取代，與 #1 互相放大** | 首輪後 29 個 Solver 回合有 16 個只新增不取代（固定決策點診斷 §6）；只新增會讓條目更快撞上限 | BreachWeave、Cairn 的分欄（轉述） | 不加提示；把「有效條目數隨回合增長」列入量測，與 #1 一起看 |
 | 3 | **Coordinator 規則持續膨脹** | 103 行、12,413 bytes，三天六次只增文字；停止規則 3 次變更後 run 只部分遵守 | 外部提示成本（調研 §9.1，轉述） | 見 [Coordinator 去重審閱](2026-11-19-coordinator-role-audit.md) 的 A 類，不改行為先合併 |
 | 4 | **背景回合中的候選，父端看不到** | 1 例 proposed 候選 11.7 分寫入、未派 Engineer；成功 run 0.2–0.8 分即派 | D-CIPHER 最後交回機會（已核對原文，有限類比）；中途喚醒未覆蓋 | 交回合成對照進行中（團隊決策 §6.3）；G／結果完整性 design 寫明各時間戳代表的事件 |
-| 5 | **可續讀不等於完整保存** | G 的 job 每流保存上限 1 MiB、超額丟棄並標 truncated；兩份摘要沒有逐流截斷欄位，無法估發生率 | VulnClaw 原文／預覽兩層、CyberStrikeAI 續接輪詢與統一輸出上限（轉述） | 量測加逐流 truncated 計數；G §5 分述「預覽未展示／已保存可續讀／超限已丟棄」 |
+| 5 | **可續讀不等於完整保存** | G 的 job 每流保存上限 1 MiB、超額丟棄並標 truncated；兩份摘要沒有逐流截斷欄位，無法估發生率 | VulnClaw 原文／預覽兩層、CyberStrikeAI 續接輪詢與統一輸出上限（轉述） | 已處理（2026-11-20）：job 終態的審計記錄逐流寫入已保存位元組、截斷標記與可確認的丟棄量，基線腳本統計 `job_streams`；G §5.3 已分述三種結果。此前 26 個 run 無此欄位，記 unknown，發生率待下一批 run |
 | 6 | **Critic 介入時點與停止的因果不清** | 8 例 Critic 後 Solver 只工作 0–1.7 分即停（redirect 4、continue 1、stop 3） | BreachWeave 旁路 Observer、LuaN1ao Supervisor（轉述）；整題放棄時點未覆蓋 | 團隊決策 §6.4 區分 Critic 建議、Coordinator 決定與其後實際工作；不據此改角色檔 |
 | 7 | **固定單一 flash 模型與 token 單一預算遮住成本結構** | 思考開／關 6 次各 1.96M／2.29M token；換模型對照未做 | hackingBuddyGPT 四種上限（轉述） | 成本報告並列牆鐘、停止時間、token 與 `usage_lower_bound`；既有延遲結論限定到所測模型 |
 | 8 | **部分接受與多 flag 回執** | exact judge 下提交數＝solved 數，`posthoc_accepted` 全為 null，未出現逐部分回執 | TSec 賽制（轉述） | 保留 D 的逐部分身分與權威完成條件，合成回執覆蓋部分接受與未知送達 |

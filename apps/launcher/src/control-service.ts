@@ -1311,7 +1311,10 @@ export class ControlService {
             void done.then(snapshot => {
               try {if(this.options.experienceStore && CHALLENGE_ROLES.includes(binding.role))this.options.experienceStore.finish(this.processScope(binding,{callID:call}),snapshot.reapIncomplete?'unknown':snapshot.state,snapshot);}
               catch(error){this.pauseProcess(binding,call);throw error;}
-              finally {this.settleResource(operation, snapshot.reapIncomplete ? 'cleanup_unknown' : snapshot.state, snapshot.exitCode);}
+              finally {
+                this.settleResource(operation, snapshot.reapIncomplete ? 'cleanup_unknown' : snapshot.state, snapshot.exitCode,
+                  this.jobs.terminalStreams(jobBinding, snapshot.job));
+              }
             }).catch(error=>this.record(binding.sessionID,'process.terminal',false,'storage failure',String(error)));
             // Decision prototype: retain the same RPC/call until terminal cleanup, without a model polling loop.
             if (args.completion === 'terminal' || args.wait_ms === undefined) result = await done;
@@ -1464,10 +1467,13 @@ export class ControlService {
     return { materialsDir: challenge.materialsDir, publishedDir: join(base, 'published'), workDir: join(base, 'work', binding.sessionID) };
   }
   private jobBinding(binding: Binding, roots: WorkspaceRoots): JobBinding { return { sessionId: binding.sessionID, challengeId: binding.challengeId!, ...roots }; }
-  private settleResource(resource: Resource, result: string, exitCode?: number | null): void {
+  private settleResource(resource: Resource, result: string, exitCode?: number | null, streams?: ReturnType<JobManager['terminalStreams']>): void {
     if (resource.state === 'settled') return;
     clearTimeout(resource.timer); resource.detachRpc?.(); resource.state = result === 'cleanup_unknown' ? 'unknown' : 'settled'; resource.result = result;
-    this.record(resource.sessionID, 'tool.settled', result !== 'cleanup_unknown', undefined, { callID: resource.callID, tool: resource.tool, job: resource.job, result, ...(exitCode !== undefined ? { exitCode } : {}) });
+    this.record(resource.sessionID, 'tool.settled', result !== 'cleanup_unknown', undefined, {
+      callID: resource.callID, tool: resource.tool, job: resource.job, result,
+      ...(exitCode !== undefined ? { exitCode } : {}), ...(streams ? { streams } : {})
+    });
   }
   private async cancelResources(sessionID?: string): Promise<void> {
     const resources = [...this.resources.values()].filter(r => (!sessionID || r.sessionID === sessionID) && r.state !== 'settled');

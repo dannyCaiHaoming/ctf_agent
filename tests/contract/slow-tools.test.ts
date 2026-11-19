@@ -1,9 +1,10 @@
 import { afterEach, expect, it, vi } from 'vitest';
-import { mkdtemp, mkdir, readFile, readdir, rm, writeFile } from 'node:fs/promises';
+import { mkdtemp, mkdir, readFile, readdir, rm, stat, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { createServer, type RequestListener } from 'node:http';
 import { ControlService } from '../../apps/launcher/src/control-service.js';
+import { JOB_OUTPUT_LIMIT } from '../../apps/launcher/src/job-tools.js';
 import { startControlRpc } from '../../apps/launcher/src/control-rpc.js';
 import { createCtfAgentHooks } from '../../apps/opencode-plugin/src/index.js';
 import { loadReleaseProfile } from '../../apps/cli/src/composition/releaseProfile.js';
@@ -586,6 +587,47 @@ it('terminal candidate keeps one execute pending beyond wait_ms, permits admissi
   expect(Buffer.from(late.data, 'base64').toString()).toBe('late\n'); expect(late.done).toBe(true);
   expect(c.audit.filter(r => r.op === 'tool.settled' && (r.detail as { callID?: string } | undefined)?.callID === 'terminal-one')).toHaveLength(1);
   await expect(execute(c, 'a', 'job.run', { argv: ['true'], completion: 'terminal' }, 'terminal-one')).rejects.toThrow('duplicate tool call');
+});
+
+it('audits exact stored and dropped bytes for each stream of a truncated job', async () => {
+  const { c, dir } = await fixture();
+  const result = await execute(c, 'a', 'job.run', {
+    argv: [process.execPath, '-e', `process.stdout.write(Buffer.alloc(${JOB_OUTPUT_LIMIT + 8192}, 97)); process.stderr.write('é')`]
+  }, 'stream-overflow') as { job: string };
+  expect(result).toMatchObject({ state: 'exited', excerpts: {
+    stdout: { capturedLength: JOB_OUTPUT_LIMIT, previewOmitted: true, truncated: true },
+    stderr: { capturedLength: 2, previewOmitted: false, truncated: false }
+  } });
+  expect(result).not.toHaveProperty('streams');
+  await execute(c, 'a', 'job.read', { job: result.job, stream: 'stderr' });
+  const jobDir = join(dir, 'state', 'jobs', 'a', result.job);
+  const stdoutBytes = (await stat(join(jobDir, 'stdout.bin'))).size;
+  const stderrBytes = (await stat(join(jobDir, 'stderr.bin'))).size;
+  expect(stdoutBytes).toBe(JOB_OUTPUT_LIMIT);
+  expect(stderrBytes).toBe(2);
+  expect(c.audit.filter(r => r.op === 'tool.settled' && (r.detail as { streams?: unknown }).streams))
+    .toMatchObject([{ detail: { callID: 'stream-overflow', tool: 'job.run', job: result.job, result: 'exited', exitCode: 0,
+      streams: { stdout: { stored_bytes: stdoutBytes, truncated: true, dropped_bytes: 8192 },
+        stderr: { stored_bytes: stderrBytes, truncated: false, dropped_bytes: 0 } } } }]);
+});
+
+it('audits complete streams only after a short-wait job reaches terminal cleanup', async () => {
+  const { c, dir } = await fixture();
+  const result = await execute(c, 'a', 'job.run', {
+    argv: [process.execPath, '-e', "const fs = require('node:fs'); const timer = setInterval(() => { if (!fs.existsSync('finish')) return; clearInterval(timer); process.stdout.write('ok'); process.stderr.write('é'); }, 10)"],
+    wait_ms: 0
+  }, 'stream-short-wait') as { job: string };
+  const streamRecords = () => c.audit.filter(r => r.op === 'tool.settled' && (r.detail as { streams?: unknown }).streams);
+  expect(result).toMatchObject({ state: 'running' });
+  expect(await execute(c, 'a', 'job.read', { job: result.job, stream: 'stdout' })).toMatchObject({ state: 'running', done: false });
+  expect(streamRecords()).toHaveLength(0);
+
+  await writeFile(join(dir, 'X/work/a/finish'), '');
+  await vi.waitFor(() => expect(c.resourceSnapshot().find(r => r.callID === 'stream-short-wait')).toMatchObject({ state: 'settled' }));
+  expect(await execute(c, 'a', 'job.read', { job: result.job, stream: 'stdout' })).toMatchObject({ state: 'exited', done: true });
+  expect(streamRecords()).toMatchObject([{ detail: { callID: 'stream-short-wait', tool: 'job.run', job: result.job, result: 'exited', exitCode: 0,
+    streams: { stdout: { stored_bytes: 2, truncated: false, dropped_bytes: 0 },
+      stderr: { stored_bytes: 2, truncated: false, dropped_bytes: 0 } } } }]);
 });
 
 it('terminal candidate cancellation is idempotent and returns to the same call without a completion notifier', async () => {

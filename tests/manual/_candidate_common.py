@@ -44,6 +44,32 @@ def dump(value, path=None):
         path.chmod(0o644)
 
 
+def job_stream_metrics(audit):
+    """Count unique terminal jobs with stream counters from the host audit."""
+    names = ('stdout', 'stderr')
+    totals = {name: {'truncated': 0, 'stored_bytes': 0} for name in names}
+    seen = set()
+    for record in audit or []:
+        detail = record.get('detail')
+        if record.get('op') != 'tool.settled' or not isinstance(detail, dict):
+            continue
+        if detail.get('tool') not in ('job.run', 'job.read', 'job.cancel'):
+            continue
+        job, streams = detail.get('job'), detail.get('streams')
+        if not isinstance(job, str) or not job or job in seen or not isinstance(streams, dict):
+            continue
+        if not all(isinstance(streams.get(name), dict)
+                   and type(streams[name].get('stored_bytes')) is int
+                   and streams[name]['stored_bytes'] >= 0
+                   and isinstance(streams[name].get('truncated'), bool) for name in names):
+            continue
+        seen.add(job)
+        for name in names:
+            for counter in totals[name]:
+                totals[name][counter] += streams[name][counter]
+    return {'terminal_jobs': len(seen), **totals} if seen else 'unknown'
+
+
 def audit_milestones(audit):
     """Same allow/op/t rules as workbook-run-check, without reading its broader inputs."""
     minutes = lambda t: None if t is None else round(t / 60000, 2)

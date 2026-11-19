@@ -229,6 +229,8 @@ HTTP 適配器由宿主提供 `{target, jar, workDir}`；每次請求另帶 `Htt
 | 輸出 | stdout、stderr 各自寫入 `jobs/<會話 ID>/<作業 ID>/`，每流上限 1 MiB，超出後丟棄並標 `truncated`；由 `job.read` 續讀 |
 | 安裝依賴 | 不提供。作業只運行鏡像預裝的解譯器與工具；缺少時 `failed_to_start` 並說明，不臨時下載（design v1 1.5） |
 
+**預覽由已保存的輸出產生。** `previewOmitted` 表示有已保存的位元組未在預覽展示。`job.read` 可分頁續讀全部已保存的位元組。`truncated` 表示有位元組超出每流保存上限，丟棄的部分無法取回。作業終態的審計記錄逐流記下已保存的位元組數與截斷標記，並在 host 能確認輸入總量時記下超限丟棄量。此前缺少 `streams` 的 run 在離線量測中記為 `unknown`。
+
 ### 5.4 OS 層隔離（產品部署仍受阻）
 
 **邊界不變：** 作業不得讀取控制狀態、provider／RPC 憑據、oracle 私有資料及他題材料；不得訪問他會話 work、進程環境／記憶體或向其發信號。本題 materials／published 可讀不可改，只有本會話 work 可寫；宿主仍能發布、讀輸出、停止整組，CPU／記憶體限制須實際生效。

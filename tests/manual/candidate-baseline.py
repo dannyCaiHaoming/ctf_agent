@@ -17,7 +17,7 @@ import sys
 sys.dont_write_bytecode = True
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from _candidate_common import (
-    candidate_audit_timing, dump, is_number, key_of, read_json, token,
+    candidate_audit_timing, dump, is_number, job_stream_metrics, key_of, read_json, token,
     workbook_candidates, workbook_view_metrics,
 )
 
@@ -85,6 +85,15 @@ def self_test():
             event(3, 'package.published', 'engineer'),
             view(3, 'engineer', 3900, omitted=(2,)),
             event(4, 'progress.note', route='stop_and_report'),
+            event(4, 'tool.settled', 'domain-solver', tool='job.run', job='truncated', result='exited',
+                  streams={'stdout': {'stored_bytes': 1048576, 'truncated': True, 'dropped_bytes': 8},
+                           'stderr': {'stored_bytes': 2, 'truncated': False}}),
+            event(4, 'tool.settled', 'domain-solver', tool='job.run', job='complete', result='exited',
+                  streams={'stdout': {'stored_bytes': 3, 'truncated': False},
+                           'stderr': {'stored_bytes': 4, 'truncated': False}}),
+            event(4, 'tool.settled', 'domain-solver', tool='job.read', job='complete', result='completed',
+                  streams={'stdout': {'stored_bytes': 3, 'truncated': False},
+                           'stderr': {'stored_bytes': 4, 'truncated': False}}),
             event(4.5, 'model.call', 'domain-solver'),
             event(5, 'progress.note', route='stop_and_report'),
             view(5, 'engineer', 1000),
@@ -100,6 +109,7 @@ def self_test():
             event(0, 'bind'),
             event(1, 'package.published', 'engineer'),
             event(2, 'progress.note', route='stop_and_report'),
+            event(3, 'tool.settled', 'domain-solver', tool='job.run', job='legacy', result='exited'),
         ])
         fixture('p1-synthetic-empty', [
             event(0, 'bind'),
@@ -109,6 +119,9 @@ def self_test():
             view(2, 'domain-solver', 11900, included=(4,), omitted=(2, 3)),
             view(3, 'domain-solver', 12000, included=(4,), omitted=(2, 3)),
             view(3.5, 'recon', 4000, included=(2, 3, 4)),
+            event(4, 'tool.settled', 'recon', tool='job.run', job='complete', result='exited',
+                  streams={'stdout': {'stored_bytes': 6, 'truncated': False},
+                           'stderr': {'stored_bytes': 0, 'truncated': False}}),
         ], [
             (2, 1, 'recon', 'hypotheses', 'open', None),
             (3, 1.25, 'recon', 'questions', 'open', None),
@@ -121,8 +134,10 @@ def self_test():
         gate.write_text(json.dumps({'runs': [
             {'run': withdrawn_id, 'wall_clock_min': 5.5, 'solved': False}],
             'correction': {'offline_judge': {'runs': [{'runId': withdrawn_id, 'accepted': 1}]}}}))
+        aggregate_gate = root / 'aggregate.json'
+        aggregate_gate.write_text(json.dumps({'runs': {'synthetic': 4}}))
 
-        report = collect([batch, run], [gate], [profiles])
+        report = collect([batch, run], [aggregate_gate, gate], [profiles])
         rows = {row['run']: row for row in report['runs']}
         assert len(report['runs']) == len(rows) == 4
         row = rows[withdrawn_id]
@@ -183,6 +198,15 @@ def self_test():
         assert report['totals']['runs_with_omission'] == 2
         assert report['totals']['unsolved_runs_with_omission'] == 1
         assert report['totals']['first_omission_minutes'] == [1.5, 2.5]
+        assert row['job_streams'] == {'terminal_jobs': 2,
+            'stdout': {'truncated': 1, 'stored_bytes': 1048579},
+            'stderr': {'truncated': 0, 'stored_bytes': 6}}
+        assert empty['job_streams'] == {'terminal_jobs': 1,
+            'stdout': {'truncated': 0, 'stored_bytes': 6},
+            'stderr': {'truncated': 0, 'stored_bytes': 0}}
+        assert rows['p2-synthetic-missing']['job_streams'] == active['job_streams'] == 'unknown'
+        assert report['totals']['runs_with_job_truncation'] == 1
+        assert report['totals']['runs_with_unknown_job_streams'] == 2
         bad = root / 'bad'
         bad.mkdir()
         assert collect([bad], [])['skipped'][0]['reason'] == 'no_state_run_json'
@@ -229,6 +253,8 @@ def collect(inputs, gates, profile_dirs=()):
         elif isinstance(g.get('run'), str):
             records = [*records, dict(g, runId=g['run'])]
         for rec in records:
+            if not isinstance(rec, dict):
+                continue
             rid = rec.get('runId', rec.get('run'))
             if not isinstance(rid, str):
                 continue
@@ -290,13 +316,17 @@ def collect(inputs, gates, profile_dirs=()):
         grouped.append({'challenge': challenge, 'product_head': head, 'product_dirty': dirty,
             'product_source': source, 'runs': len(members), **counts(members)})
     omitted_runs = [r for r in rows if r['omitted_distinct']]
+    measured_streams = [r['job_streams'] for r in rows if r['job_streams'] != 'unknown']
     return {'runs': rows, 'groups': grouped, 'totals': {'runs': len(rows),
         'batches': len({r['batch'] for r in rows}), 'challenges': len({r['challenge'] for r in rows
             if r['challenge'] != 'unknown'}), **counts(rows),
         'runs_with_omission': len(omitted_runs),
         'unsolved_runs_with_omission': sum(r['solved'] is False for r in omitted_runs),
         'first_omission_minutes': sorted(r['first_omission_min'] for r in omitted_runs
-                                         if r['first_omission_min'] is not None)}, 'skipped': skipped}
+                                         if r['first_omission_min'] is not None),
+        'runs_with_job_truncation': sum(bool(s['stdout']['truncated'] or s['stderr']['truncated'])
+                                        for s in measured_streams),
+        'runs_with_unknown_job_streams': len(rows) - len(measured_streams)}, 'skipped': skipped}
 
 
 RESULTS = ('candidate_claimed', 'packaged', 'submitted', 'solved', 'posthoc_accepted')
@@ -372,7 +402,8 @@ def run_record(state, audit, rec, meta, correction, run_name, profile, census):
         'candidate_withdrawn': withdrawn, 'packaged': packaged, 'submitted': submitted,
         'solved': solved, 'posthoc_accepted': correction, 'stop_reason': token(state.get('stopReason')),
         'wall_clock_min': elapsed, 'wall_minutes': elapsed, **times, 'observable_tokens': observable,
-        'usage_lower_bound': usage.get('lowerBound') if isinstance(usage.get('lowerBound'), bool) else 'unknown'}
+        'usage_lower_bound': usage.get('lowerBound') if isinstance(usage.get('lowerBound'), bool) else 'unknown',
+        'job_streams': job_stream_metrics(audit)}
 
 
 def default_gates():
