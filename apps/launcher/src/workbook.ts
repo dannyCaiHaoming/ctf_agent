@@ -1,7 +1,7 @@
 /**
  * Challenge workbook (team-decision design §6.1): a mechanical fold of slotted decisions in the append-only
  * investigation record, never a second editable store. The host neither ranks nor selects entries by content:
- * caps keep the newest entries by sequence and every omission is named.
+ * caps choose which entries keep full text, pressure compresses before it drops, and every short row and omission is named.
  */
 import {WORKBOOK_SLOTS,type WorkbookSlot} from './experience-store.js';
 
@@ -32,37 +32,82 @@ export function activeEntries(rows:any[]):WorkbookEntry[] {
 
 const present=({sequence:_s,...e}:WorkbookEntry)=>e;
 
-/** Role view with per-slot caps (newest by sequence) and a total character cap (oldest presented entries move to omitted first). */
+/**
+ * Omission rule (team-decision design §6.1, 2026-11-19): compress to short rows before dropping anything, and never drop
+ * a protected entry (proposed candidate, open hypothesis, open question) unless even short rows cannot fit. Decided by
+ * slot, status, author role, sequence and serialized length only; the host never reads the text to rank entries.
+ */
+export const SHORT_TEXT_CHARS=80;
+export function isProtectedEntry(e:{slot:WorkbookSlot;status?:string}):boolean {
+  if(e.slot==='candidate')return e.status===undefined||e.status==='proposed';
+  if(e.slot==='hypotheses'||e.slot==='questions')return e.status===undefined||e.status==='open';
+  return false;
+}
+const factsOrRefuted=(slot:WorkbookSlot)=>slot==='facts'||slot==='refuted';
+/** Compression groups, in order: facts/refuted, other hypotheses/questions, protected entries (candidates fall in the last). */
+const PRESSURE_GROUPS:((e:{slot:WorkbookSlot;status?:string})=>boolean)[]=[
+  e=>factsOrRefuted(e.slot),
+  e=>(e.slot==='hypotheses'||e.slot==='questions')&&!isProtectedEntry(e),
+  isProtectedEntry,
+];
+/** Short row of a role view: identity, status, an 80-character text prefix and counts; expand it with recon.read by id. */
+function shortRow(e:WorkbookEntry) {
+  return {id:e.id,slot:e.slot,role:e.role,...(e.status===undefined?{}:{status:e.status}),
+    text:Array.from(e.text.replace(/[\r\n\u2028\u2029]/g,'')).slice(0,SHORT_TEXT_CHARS).join('')+'…',truncated:true as const,
+    evidence_refs_count:e.evidence_refs.length,...(e.slot==='refuted'&&e.scope!==undefined?{scope_truncated:true as const}:{})};
+}
+type Omission='slot_cap'|'total_cap';
+interface Pressured {short:boolean;slot:WorkbookSlot;status?:string;id:number;sequence:number}
+/**
+ * Shared total-cap pass: compress groups oldest first, then drop short rows in the same group order. Ids of protected
+ * entries that had to be dropped (capacity shortfall) are appended to `lost`. `between` runs once after compression and
+ * before any drop (the Coordinator collapses older challenges there).
+ */
+function relieve<T extends Pressured>(rows:()=>T[],size:()=>number,cap:number,compress:(r:T)=>void,drop:(r:T)=>void,lost:number[],between?:()=>void) {
+  for(const dropping of [false,true]) {
+    if(dropping)between?.();
+    const ordered=rows().sort((a,b)=>a.sequence-b.sequence);
+    for(const inGroup of PRESSURE_GROUPS)for(const r of ordered) {
+      if(size()<=cap)return;
+      if(r.short!==dropping||!inGroup(r))continue;
+      // A protected id is recorded before the rebuild so the shortfall list counts toward the cap it is measured against.
+      if(dropping){if(isProtectedEntry(r))lost.push(r.id);drop(r);}else compress(r);
+    }
+  }
+}
+
+/** Role view: per-slot caps choose how many newest entries keep full text; older ones and total-cap pressure become short rows. */
 export function workbookView(rows:any[],role:WorkbookRole,host:WorkbookHost) {
   const view=VIEWS[role],active=activeEntries(rows).filter(e=>view.slots.includes(e.slot)&&!(e.status&&CLOSED_STATUS.has(e.status)));
-  const omitted=new Map<number,'slot_cap'|'total_cap'>();
-  const shown=new Map<WorkbookSlot,WorkbookEntry[]>();
+  const omitted=new Map<number,Omission>(),lost:number[]=[];
+  type Row=Pressured&{e:WorkbookEntry};
+  const shown=new Map<WorkbookSlot,Row[]>();
   for(const slot of view.slots) {
-    const all=active.filter(e=>e.slot===slot).sort((a,b)=>a.sequence-b.sequence),keep=all.slice(-SLOT_CAPS[slot]);
-    for(const e of all.slice(0,all.length-keep.length))omitted.set(e.id,'slot_cap');
-    shown.set(slot,keep);
+    const all=active.filter(e=>e.slot===slot).sort((a,b)=>a.sequence-b.sequence),full=all.length-SLOT_CAPS[slot];
+    shown.set(slot,all.map((e,i)=>({e,short:i<full,slot:e.slot,...(e.status===undefined?{}:{status:e.status}),id:e.id,sequence:e.sequence})));
   }
   const hostPart=Object.fromEntries(view.host.map(k=>[k,host[k]]));
+  const ids=(short:boolean)=>[...shown.values()].flat().filter(r=>r.short===short).map(r=>r.id).sort((a,b)=>a-b);
   const build=()=>({
-    slots:Object.fromEntries(view.slots.map(s=>[s,shown.get(s)!.map(present)])),
+    slots:Object.fromEntries(view.slots.map(s=>[s,shown.get(s)!.map(r=>r.short?shortRow(r.e):present(r.e))])),
     ...hostPart,
     coverage:{
       per_slot:Object.fromEntries(view.slots.map(s=>[s,{active:active.filter(e=>e.slot===s).length,presented:shown.get(s)!.length}])),
       omitted_ids:[...omitted.keys()].sort((a,b)=>a-b),omitted_reasons:Object.fromEntries([...omitted].map(([id,r])=>[id,r])),
       max_chars:view.maxChars,complete:omitted.size===0,
+      full_ids:ids(false),short_ids:ids(true),
+      ...(lost.length?{capacity_shortfall:true as const,protected_omitted_ids:[...lost].sort((a,b)=>a-b)}:{}),
     },
-    guidance:'Current state of this challenge as written by Recon/Solver, not tool facts. Supersede your own role\'s entry to update it; read omitted ids with recon.read. Published artifacts are listed once, in state.publications of this context. Later context blocks carry workbook changes by entry id: upserted entries replace or add (each names its slot), removed ids leave the view, and only changed parts (goal, candidate_host, coverage) are repeated.',
+    guidance:'Current state of this challenge as written by Recon/Solver, not tool facts. Entries marked truncated are short rows: expand them with recon.read by id. Open hypotheses, open questions and proposed candidates are never omitted for space, at most shortened. Supersede your own role\'s entry to update it; read omitted ids with recon.read. Published artifacts are listed once, in state.publications of this context. Later context blocks carry workbook changes by entry id: upserted entries replace or add (each names its slot), removed ids leave the view, and only changed parts (goal, candidate_host, coverage) are repeated.',
   });
   let result=build();
-  // Total cap: drop the oldest presented entry (by sequence, any slot) until the view fits; never by content.
-  while(JSON.stringify(result).length>view.maxChars) {
-    const oldest=[...shown.values()].flat().sort((a,b)=>a.sequence-b.sequence)[0];
-    if(!oldest)break;
-    shown.set(oldest.slot,shown.get(oldest.slot)!.filter(e=>e.id!==oldest.id));omitted.set(oldest.id,'total_cap');
-    result=build();
-  }
-  const included=[...shown.values()].flat().map(e=>e.id).sort((a,b)=>a-b);
-  return {view:result,included_ids:included,omitted_ids:result.coverage.omitted_ids,chars:JSON.stringify(result).length};
+  const size=()=>JSON.stringify(result).length;
+  relieve(()=>[...shown.values()].flat(),size,view.maxChars,
+    r=>{r.short=true;result=build();},
+    r=>{shown.set(r.slot,shown.get(r.slot)!.filter(x=>x!==r));omitted.set(r.id,'total_cap');result=build();},lost);
+  const included=[...shown.values()].flat().map(r=>r.id).sort((a,b)=>a-b);
+  return {view:result,included_ids:included,omitted_ids:result.coverage.omitted_ids,short_ids:result.coverage.short_ids,
+    ...(lost.length?{capacity_shortfall:true as const}:{}),chars:JSON.stringify(result).length};
 }
 
 /** Coordinator view (team-decision design §6.1): restricted fields, one-line facts, no candidate text, cleaned again at presentation. */
@@ -74,8 +119,12 @@ export interface CoordinatorChallenge {
   host:{submission:unknown;packages:string[];completions:unknown[];executions:Record<string,{total:number;running:number}>};
 }
 type CoordinatorEntry={id:number;sequence:number;slot:WorkbookSlot;role:string;status?:string;text?:string;evidence_refs?:string[]};
+/** Coordinator short row: id, author role and status (the slot is the list it sits in); hypotheses and candidates keep their cleaned evidence refs. */
+const coordinatorShort=(e:CoordinatorEntry)=>({id:e.id,role:e.role,...(e.status===undefined?{}:{status:e.status}),
+  ...((e.slot==='hypotheses'||e.slot==='candidate')&&e.evidence_refs!==undefined?{evidence_refs:e.evidence_refs}:{})});
 export function coordinatorView(challenges:CoordinatorChallenge[],remainingMin:number|null,clean:(text:string)=>string,maxChars=COORDINATOR_MAX_CHARS) {
-  const failed:Record<number,'assembly_failed'>={},truncated:number[]=[],omitted=new Map<number,'slot_cap'|'total_cap'>();
+  const failed:Record<number,'assembly_failed'>={},truncated:number[]=[],omitted=new Map<number,Omission>(),lost:number[]=[];
+  type Row=Pressured&{e:CoordinatorEntry};
   const sections=challenges.map(c=>{
     const entries:CoordinatorEntry[]=[];
     for(const e of activeEntries(c.rows)) {
@@ -90,38 +139,36 @@ export function coordinatorView(challenges:CoordinatorChallenge[],remainingMin:n
         entries.push({...base,...(e.status?{status:e.status}:{}),text,...(REF_SLOTS.has(e.slot)?{evidence_refs:e.evidence_refs.map(clean)}:{})});
       }catch{failed[e.id]='assembly_failed';}
     }
-    const shown=new Map<WorkbookSlot,CoordinatorEntry[]>();
+    const shown=new Map<WorkbookSlot,Row[]>();
     for(const slot of WORKBOOK_SLOTS) {
-      const all=entries.filter(e=>e.slot===slot).sort((a,b)=>a.sequence-b.sequence),keep=all.slice(-SLOT_CAPS[slot]);
-      for(const e of all.slice(0,all.length-keep.length))omitted.set(e.id,'slot_cap');
-      shown.set(slot,keep);
+      const all=entries.filter(e=>e.slot===slot).sort((a,b)=>a.sequence-b.sequence),full=all.length-SLOT_CAPS[slot];
+      shown.set(slot,all.map((e,i)=>({e,short:i<full,slot:e.slot,...(e.status===undefined?{}:{status:e.status}),id:e.id,sequence:e.sequence})));
     }
     const updated=Math.max(0,...c.rows.map(r=>Number(r.updated_at??r.created_at??0)));
     return {id:c.id,updated,shown,host:c.host,collapsed:false};
   });
+  const ids=(short:boolean)=>sections.filter(s=>!s.collapsed).flatMap(s=>[...s.shown.values()].flat()).filter(r=>r.short===short).map(r=>r.id).sort((a,b)=>a-b);
   const build=()=>({
     remaining_min:remainingMin,
     challenges:sections.map(s=>s.collapsed
       ?{challenge:s.id,collapsed:true,active:Object.fromEntries(WORKBOOK_SLOTS.map(k=>[k,s.shown.get(k)!.length]))}
-      :{challenge:s.id,slots:Object.fromEntries(WORKBOOK_SLOTS.map(k=>[k,s.shown.get(k)!.map(({sequence:_q,slot:_s,...e})=>e)])),...s.host}),
+      :{challenge:s.id,slots:Object.fromEntries(WORKBOOK_SLOTS.map(k=>[k,s.shown.get(k)!.map(r=>{if(r.short)return coordinatorShort(r.e);const {sequence:_q,slot:_s,...e}=r.e;return e;})])),...s.host}),
     coverage:{failed_ids:Object.keys(failed).map(Number).sort((a,b)=>a-b),failed_reasons:failed,truncated_ids:[...truncated].sort((a,b)=>a-b),
-      omitted_ids:[...omitted.keys()].sort((a,b)=>a-b),omitted_reasons:Object.fromEntries(omitted),collapsed:sections.filter(s=>s.collapsed).map(s=>s.id),max_chars:maxChars},
-    guidance:'Workbook entries written by Recon/Solver/Coordinator, cleaned and restricted for coordination; not tool facts. Write or close questions with recon.note (challenge, slot=questions, supersedes). Later context blocks carry changes by entry id: upserted entries (with challenge and slot) replace or add, removed ids leave the view, changed challenge headers (host facts or collapsed state) replace the header, and remaining_min/coverage are repeated only when they change.',
+      omitted_ids:[...omitted.keys()].sort((a,b)=>a-b),omitted_reasons:Object.fromEntries(omitted),collapsed:sections.filter(s=>s.collapsed).map(s=>s.id),max_chars:maxChars,
+      full_ids:ids(false),short_ids:ids(true),
+      ...(lost.length?{capacity_shortfall:true as const,protected_omitted_ids:[...lost].sort((a,b)=>a-b)}:{})},
+    guidance:'Workbook entries written by Recon/Solver/Coordinator, cleaned and restricted for coordination; not tool facts. Short rows carry only id, slot, author role and status; open hypotheses, open questions and proposed candidates are never omitted for space, at most shortened. Write or close questions with recon.note (challenge, slot=questions, supersedes). Later context blocks carry changes by entry id: upserted entries (with challenge and slot) replace or add, removed ids leave the view, changed challenge headers (host facts or collapsed state) replace the header, and remaining_min/coverage are repeated only when they change.',
   });
   let result=build();
-  // Over the cap: collapse the least recently updated challenges first (never the most recent one), then drop the oldest
-  // entries of what remains open; never by content.
-  for(const s of [...sections].sort((a,b)=>a.updated-b.updated).slice(0,-1)) {
-    if(JSON.stringify(result).length<=maxChars)break;
-    s.collapsed=true;result=build();
-  }
-  while(JSON.stringify(result).length>maxChars) {
-    const open=sections.filter(s=>!s.collapsed).flatMap(s=>[...s.shown.values()].flat().map(e=>({s,e}))).sort((a,b)=>a.e.sequence-b.e.sequence)[0];
-    if(!open)break;
-    open.s.shown.set(open.e.slot,open.s.shown.get(open.e.slot)!.filter(x=>x.id!==open.e.id));omitted.set(open.e.id,'total_cap');result=build();
-  }
-  const included=sections.filter(s=>!s.collapsed).flatMap(s=>[...s.shown.values()].flat().map(e=>e.id)).sort((a,b)=>a-b);
-  return {view:result,included_ids:included,chars:JSON.stringify(result).length};
+  const size=()=>JSON.stringify(result).length;
+  // Over the cap: compress every open challenge oldest first, then collapse the least recently updated challenges
+  // (never the most recent one), then drop short rows of what remains open; never by content.
+  relieve(()=>sections.filter(s=>!s.collapsed).flatMap(s=>[...s.shown.values()].flat()),size,maxChars,
+    r=>{r.short=true;result=build();},
+    r=>{const s=sections.find(x=>!x.collapsed&&x.shown.get(r.slot)!.includes(r))!;s.shown.set(r.slot,s.shown.get(r.slot)!.filter(x=>x!==r));omitted.set(r.id,'total_cap');result=build();},lost,
+    ()=>{for(const s of [...sections].sort((a,b)=>a.updated-b.updated).slice(0,-1)){if(size()<=maxChars)break;s.collapsed=true;result=build();}});
+  const included=sections.filter(s=>!s.collapsed).flatMap(s=>[...s.shown.values()].flat().map(r=>r.id)).sort((a,b)=>a-b);
+  return {view:result,included_ids:included,short_ids:result.coverage.short_ids,...(lost.length?{capacity_shortfall:true as const}:{}),chars:JSON.stringify(result).length};
 }
 
 /** Per-entry and per-part hashes of a presented role view: the base for entry-level deltas. */

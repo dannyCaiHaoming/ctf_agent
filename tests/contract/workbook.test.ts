@@ -4,7 +4,7 @@ import {join} from 'node:path';
 import {tmpdir} from 'node:os';
 import {ExperienceStore} from '../../apps/launcher/src/experience-store.js';
 import {ControlService} from '../../apps/launcher/src/control-service.js';
-import {workbookView} from '../../apps/launcher/src/workbook.js';
+import {workbookView, workbookBase, workbookDelta, coordinatorView as coordinatorProjection} from '../../apps/launcher/src/workbook.js';
 
 // Team-decision design §6.1: workbook entries, supersede rules, fold, caps and injection. Synthetic data only.
 const HEADER = '[CTF investigation context]\n';
@@ -124,7 +124,7 @@ describe('challenge workbook entries (team-decision §6.1)', () => {
 });
 
 describe('workbook fold and caps', () => {
-  it('keeps the newest entries per slot, hides closed entries and names every omission', async () => {
+  it('gives full text to the newest entries per slot, shortens older ones instead of omitting them, and hides closed entries', async () => {
     const {store, note} = fixture();
     const facts = [];
     for (let i = 0; i < 21; i++) facts.push(await note('recon', {slot: 'facts', text: `fact ${i}`}));
@@ -133,31 +133,100 @@ describe('workbook fold and caps', () => {
     const c = await note('solver-a', {slot: 'candidate', text: 'candidate'});
     await note('solver-a', {slot: 'candidate', text: 'withdrawn candidate', status: 'withdrawn', supersedes: c.id});
     const host = {goal: {challenge: 'X', materials: [], submission: null}, candidate_host: {packages: [], completions: []}};
-    const {view, omitted_ids} = workbookView(store.allRecords('A', 'X'), 'domain-solver', host);
-    expect(texts(view, 'facts')).toHaveLength(20);
-    expect(texts(view, 'facts')[0]).toBe('fact 1');
-    expect(omitted_ids).toEqual([facts[0].id]);
-    expect(view.coverage.omitted_reasons[facts[0].id]).toBe('slot_cap');
+    const {view, omitted_ids, short_ids} = workbookView(store.allRecords('A', 'X'), 'domain-solver', host);
+    expect(texts(view, 'facts')).toHaveLength(21);
+    expect((view as any).slots.facts[0]).toMatchObject({id: facts[0].id, slot: 'facts', role: 'recon', text: 'fact 0…', truncated: true, evidence_refs_count: 0});
+    expect(texts(view, 'facts')[1]).toBe('fact 1');
+    expect(omitted_ids).toEqual([]);
+    expect(short_ids).toEqual([facts[0].id]);
+    expect(view.coverage.full_ids).toHaveLength(20);
     expect(view.slots.questions).toEqual([]);
     expect(view.slots.candidate).toEqual([]);
-    expect(view.coverage.complete).toBe(false);
-    // An omitted entry stays readable by id.
+    expect(view.coverage.complete).toBe(true);
+    // A short row expands by id.
     expect(store.records('A', 'X', {ids: [facts[0].id]}).records[0].note_json.text).toBe('fact 0');
     store.close();
   });
 
-  it('drops the oldest presented entries when the total cap is exceeded', async () => {
+  it('under total-cap pressure shortens the oldest facts and refuted routes first and omits nothing while short rows fit', async () => {
     const {store, note} = fixture();
     const ids = [];
     for (let i = 0; i < 20; i++) ids.push((await note('recon', {slot: 'facts', text: `${i}:` + 'f'.repeat(280)})).id);
-    for (let i = 0; i < 20; i++) ids.push((await note('recon', {slot: 'refuted', text: `${i}:` + 'r'.repeat(280)})).id);
+    for (let i = 0; i < 20; i++) ids.push((await note('recon', {slot: 'refuted', text: `${i}:` + 'r'.repeat(280), scope: 'synthetic scope'})).id);
+    const host = {goal: {challenge: 'X', materials: [], submission: null}, candidate_host: {packages: [], completions: []}};
+    const result = workbookView(store.allRecords('A', 'X'), 'recon', host);
+    expect(result.chars).toBeLessThanOrEqual(12000);
+    expect(result.omitted_ids).toEqual([]);
+    expect(result.short_ids.length).toBeGreaterThan(0);
+    // By age only: the shortened ids are exactly the oldest ones.
+    expect(result.short_ids).toEqual(ids.slice(0, result.short_ids.length));
+    const shortRefuted = (result.view as any).slots.refuted.find((e: any) => e.truncated);
+    if (shortRefuted) expect(shortRefuted.scope_truncated).toBe(true);
+    for (const e of (result.view as any).slots.facts.filter((x: any) => x.truncated)) expect(Array.from(e.text).length).toBe(81);
+    store.close();
+  });
+
+  it('drops short facts before any open hypothesis or question, and keeps a ninth open hypothesis as a short row', async () => {
+    const {store, note} = fixture();
+    const facts: number[] = [], hyps: number[] = [], questions: number[] = [];
+    for (let i = 0; i < 150; i++) facts.push((await note('recon', {slot: 'facts', text: `${i}:` + 'f'.repeat(280)})).id);
+    for (let i = 0; i < 9; i++) hyps.push((await note('recon', {slot: 'hypotheses', text: `${i}:` + 'h'.repeat(280), status: 'open'})).id);
+    for (let i = 0; i < 3; i++) await note('recon', {slot: 'hypotheses', text: `s${i}:` + 'h'.repeat(280), status: 'supported'});
+    for (let i = 0; i < 8; i++) questions.push((await note('recon', {slot: 'questions', text: `${i}:` + 'q'.repeat(280)})).id);
     const host = {goal: {challenge: 'X', materials: [], submission: null}, candidate_host: {packages: [], completions: []}};
     const result = workbookView(store.allRecords('A', 'X'), 'recon', host);
     expect(result.chars).toBeLessThanOrEqual(12000);
     expect(result.omitted_ids.length).toBeGreaterThan(0);
-    // Omission is by age only: the omitted ids are exactly the oldest ones.
-    expect(result.omitted_ids).toEqual(ids.slice(0, result.omitted_ids.length));
-    expect(new Set(Object.values(result.view.coverage.omitted_reasons))).toEqual(new Set(['total_cap']));
+    expect(result.omitted_ids.every(id => facts.includes(id))).toBe(true);
+    // Oldest facts go first.
+    expect(result.omitted_ids).toEqual(facts.slice(0, result.omitted_ids.length));
+    for (const id of [...hyps, ...questions]) expect(result.included_ids).toContain(id);
+    expect(result.capacity_shortfall).toBeUndefined();
+    expect((result.view as any).coverage.capacity_shortfall).toBeUndefined();
+    store.close();
+  });
+
+  it('drops a protected entry only as a named capacity shortfall when even short rows cannot fit', async () => {
+    const {store, note} = fixture();
+    const hyps = [];
+    for (let i = 0; i < 300; i++) hyps.push((await note('recon', {slot: 'hypotheses', text: `${i}:` + 'h'.repeat(200), status: 'open'})).id);
+    const host = {goal: {challenge: 'X', materials: [], submission: null}, candidate_host: {packages: [], completions: []}};
+    const result = workbookView(store.allRecords('A', 'X'), 'recon', host);
+    const coverage = (result.view as any).coverage;
+    expect(result.chars).toBeLessThanOrEqual(12000);
+    expect(result.capacity_shortfall).toBe(true);
+    expect(coverage.capacity_shortfall).toBe(true);
+    expect(coverage.protected_omitted_ids).toEqual(result.omitted_ids);
+    expect(result.omitted_ids).toEqual(hyps.slice(0, result.omitted_ids.length));
+    expect(coverage.full_ids).toEqual([]);
+    store.close();
+  });
+
+  it('keeps a fourth proposed candidate for the Solver as a short row', async () => {
+    const {store, note} = fixture();
+    const cands = [];
+    for (let i = 0; i < 4; i++) cands.push((await note('solver-a', {slot: 'candidate', text: `candidate ${i} in a ref`})).id);
+    const host = {goal: {challenge: 'X', materials: [], submission: null}, candidate_host: {packages: [], completions: []}};
+    const result = workbookView(store.allRecords('A', 'X'), 'domain-solver', host);
+    expect(result.included_ids).toEqual(cands);
+    expect(result.short_ids).toEqual([cands[0]]);
+    expect(result.omitted_ids).toEqual([]);
+    store.close();
+  });
+
+  it('carries a full-to-short change of an older entry in the entry delta', async () => {
+    const {store, note} = fixture();
+    const host = {goal: {challenge: 'X', materials: [], submission: null}, candidate_host: {packages: [], completions: []}};
+    const facts: number[] = [];
+    for (let i = 0; i < 20; i++) facts.push((await note('recon', {slot: 'facts', text: `fact ${i}`})).id);
+    const hash = (v: unknown) => JSON.stringify(v);
+    const before = workbookView(store.allRecords('A', 'X'), 'domain-solver', host).view;
+    const added = (await note('recon', {slot: 'facts', text: 'fact 20'})).id;
+    const after = workbookView(store.allRecords('A', 'X'), 'domain-solver', host).view;
+    const d: any = workbookDelta(after, workbookBase(after, hash), workbookBase(before, hash));
+    expect(d.upserted.map((e: any) => e.id).sort((a: number, b: number) => a - b)).toEqual([facts[0], added]);
+    expect(d.upserted.find((e: any) => e.id === facts[0])).toMatchObject({truncated: true});
+    expect(d.removed).toEqual([]);
     store.close();
   });
 
@@ -387,7 +456,7 @@ describe('Coordinator workbook view', () => {
     store.close();
   });
 
-  it('lists only challenges with executions or entries and collapses the least recently updated challenge over the cap', async () => {
+  it('lists only challenges with executions or entries; shortens first and collapses the least recently updated challenge only when short rows do not fit', async () => {
     const {store, service} = fixture();
     let {payload} = await coordinatorView(service);
     expect(payload.workbook.challenges.map((c: any) => c.challenge)).toEqual(['X']);
@@ -396,24 +465,46 @@ describe('Coordinator workbook view', () => {
     for (let i = 0; i < 20; i++) rawEntry(store, 'Y', {kind: 'decision', slot: 'questions', text: `${i}:` + 'y'.repeat(280)}, 'recon', t);
     for (const [c, at] of [['X', t - 10000], ['Y', t]] as const) for (let i = 0; i < 8; i++) rawEntry(store, c, {kind: 'decision', slot: 'hypotheses', text: `${i}:` + 'h'.repeat(280), status: 'open'}, 'recon', at);
     ({payload} = await coordinatorView(service, {messageID: 'cu2', placement: 'chat.message'}));
-    expect(payload.workbook.challenges.map((c: any) => c.challenge)).toEqual(['X', 'Y']);
-    expect(section(payload, 'X')).toMatchObject({collapsed: true, active: expect.objectContaining({questions: 8})});
+    // Short rows fit: both challenges stay open and nothing is omitted.
+    expect(payload.workbook.coverage.collapsed).toEqual([]);
+    expect(payload.workbook.coverage.omitted_ids).toEqual([]);
+    expect(payload.workbook.coverage.short_ids.length).toBeGreaterThan(0);
+    expect(JSON.stringify(payload.workbook).length).toBeLessThanOrEqual(8000);
+    for (let i = 0; i < 120; i++) rawEntry(store, 'X', {kind: 'decision', slot: 'facts', text: `${i}:` + 'x'.repeat(200)}, 'recon', t - 10000);
+    for (let i = 0; i < 120; i++) rawEntry(store, 'Y', {kind: 'decision', slot: 'facts', text: `${i}:` + 'y'.repeat(200)}, 'recon', t);
+    ({payload} = await coordinatorView(service, {messageID: 'cu3', placement: 'chat.message'}));
+    expect(section(payload, 'X')).toMatchObject({collapsed: true, active: expect.objectContaining({questions: 20, hypotheses: 8})});
     expect(payload.workbook.coverage.collapsed).toEqual(['X']);
     expect(JSON.stringify(payload.workbook).length).toBeLessThanOrEqual(8000);
     store.close();
   });
 
-  it('a single challenge over the cap is never collapsed; its oldest entries are omitted instead', async () => {
+  it('a single challenge over the cap is never collapsed: short rows first, then only the oldest facts are omitted', async () => {
     const {store, service} = fixture();
-    const ids = [];
-    for (let i = 0; i < 20; i++) ids.push(rawEntry(store, 'X', {kind: 'decision', slot: 'questions', text: `${i}:` + 'q'.repeat(280)}));
-    for (let i = 0; i < 8; i++) ids.push(rawEntry(store, 'X', {kind: 'decision', slot: 'hypotheses', text: `${i}:` + 'h'.repeat(280), status: 'open'}));
-    for (let i = 0; i < 20; i++) ids.push(rawEntry(store, 'X', {kind: 'decision', slot: 'facts', text: `${i}:` + 'f'.repeat(280)}));
+    const questions: number[] = [], hyps: number[] = [], facts: number[] = [];
+    for (let i = 0; i < 20; i++) questions.push(rawEntry(store, 'X', {kind: 'decision', slot: 'questions', text: `${i}:` + 'q'.repeat(280)}));
+    for (let i = 0; i < 8; i++) hyps.push(rawEntry(store, 'X', {kind: 'decision', slot: 'hypotheses', text: `${i}:` + 'h'.repeat(280), status: 'open'}));
+    for (let i = 0; i < 200; i++) facts.push(rawEntry(store, 'X', {kind: 'decision', slot: 'facts', text: `${i}:` + 'f'.repeat(280)}));
     const {payload} = await coordinatorView(service);
+    const coverage = payload.workbook.coverage;
     expect(section(payload, 'X').collapsed).toBeUndefined();
-    expect(payload.workbook.coverage.omitted_ids.length).toBeGreaterThan(0);
+    expect(coverage.omitted_ids.length).toBeGreaterThan(0);
+    expect(coverage.omitted_ids).toEqual(facts.slice(0, coverage.omitted_ids.length));
+    for (const id of [...questions, ...hyps]) expect([...coverage.full_ids, ...coverage.short_ids]).toContain(id);
+    expect(coverage.capacity_shortfall).toBeUndefined();
+    // Coordinator short rows carry no text.
+    const shortQuestion = section(payload, 'X').slots.questions.find((e: any) => coverage.short_ids.includes(e.id));
+    expect(shortQuestion).toEqual({id: shortQuestion.id, role: 'recon'});
     expect(JSON.stringify(payload.workbook).length).toBeLessThanOrEqual(8000);
     store.close();
+  });
+
+  it('keeps cleaned evidence refs on short hypothesis rows of the Coordinator view', () => {
+    const rows = Array.from({length: 12}, (_, i) => ({id: i + 1, sequence: i + 1, role: 'recon', kind: 'decision', updated_at: i,
+      note_json: {slot: 'hypotheses', status: 'open', text: `h${i}`, evidence_refs: [`artifact:x${i}`]}}));
+    const {view, short_ids} = coordinatorProjection([{id: 'X', rows, host: {submission: null, packages: [], completions: [], executions: {}}}], 10, t => t) as any;
+    expect(short_ids).toEqual([1, 2, 3, 4]);
+    expect(view.challenges[0].slots.hypotheses[0]).toEqual({id: 1, role: 'recon', status: 'open', evidence_refs: ['artifact:x0']});
   });
 });
 

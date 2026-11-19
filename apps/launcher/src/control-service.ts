@@ -527,7 +527,7 @@ export class ControlService {
     const mode=delta?'delta':'full';
     const text='[CTF investigation context]\n'+JSON.stringify(delta?{mode,version,base_version:visible,workbook:delta}:{mode,version,workbook:workbook.view});
     const detail={session:binding.sessionID,messageID:typeof body.messageID==='string'?body.messageID:null,callID:typeof body.callID==='string'?body.callID:null,challenge:null,version,mode,...(delta?{base_version:visible}:{}),placement,
-      workbook:{sent:delta?'entries':'full',challenges:challenges.map(c=>c.id),included_ids:workbook.included_ids,omitted_ids:workbook.view.coverage.omitted_ids,failed_ids:workbook.view.coverage.failed_ids,truncated_ids:workbook.view.coverage.truncated_ids,collapsed:workbook.view.coverage.collapsed,chars:workbook.chars},
+      workbook:{sent:delta?'entries':'full',challenges:challenges.map(c=>c.id),included_ids:workbook.included_ids,omitted_ids:workbook.view.coverage.omitted_ids,short_ids:workbook.short_ids,...(workbook.capacity_shortfall?{capacity_shortfall:true}:{}),failed_ids:workbook.view.coverage.failed_ids,truncated_ids:workbook.view.coverage.truncated_ids,collapsed:workbook.view.coverage.collapsed,chars:workbook.chars},
       sha256:createHash('sha256').update(text).digest('hex'),bytes:Buffer.byteLength(text,'utf8')};
     if(placement==='compacting')this.record(binding.sessionID,'context.presented',true,undefined,{...detail,delivery:'compaction_context'});
     else ControlService.remember(this.contextPrepared,binding.sessionID,ControlService.deliveryKey({version,placement,messageID:body.messageID,callID:body.callID}),detail,64);
@@ -590,7 +590,7 @@ export class ControlService {
     const detail={session:binding.sessionID,messageID:typeof body.messageID==='string'?body.messageID:null,callID:typeof body.callID==='string'?body.callID:null,challenge:binding.challengeId,version,
       ...(base?{base_version:visible}:{}),mode:payload.mode,placement,record_ids:summaryMode?[]:payload.index.entries.map((e:any)=>e.id),recent_ids:base?[]:view.recent.map(s=>s.id),coverage:summaryMode?{total:view.all.length}:payload.index.coverage,
       sha256:createHash('sha256').update(text).digest('hex'),bytes:Buffer.byteLength(text,'utf8'),experience_refs:lessons.map(l=>`lesson:${l.id}@${l.version}`),retrieval:{query:signals.query??null,signals:signals.signals},
-      ...(workbook?{workbook:{hash:workbookHash,sent:!base?'full':base.workbook?.hash!==workbookHash?'entries':false,included_ids:workbook.included_ids,omitted_ids:workbook.omitted_ids,chars:workbook.chars}}:{}),
+      ...(workbook?{workbook:{hash:workbookHash,sent:!base?'full':base.workbook?.hash!==workbookHash?'entries':false,included_ids:workbook.included_ids,omitted_ids:workbook.omitted_ids,short_ids:workbook.short_ids,...(workbook.capacity_shortfall?{capacity_shortfall:true}:{}),chars:workbook.chars}}:{}),
       index_mode:settings.index,repeat_ids:summaryMode?[...repeats.map(r=>r.id),...recentRepeats.keys()]:[]};
     // Native compaction consumes the hook context immediately; other placements are presented with the next admitted request.
     if(placement==='compacting')this.record(binding.sessionID,'context.presented',true,undefined,{...detail,delivery:'compaction_context'});
