@@ -21,7 +21,7 @@
 | --- | --- | --- |
 | 判断跨组件职责、产品范围或验收要求 | [核心设计 v1](specs/2026-10-22-ctf-agent-design-v1.md) | 当前架构依据；第 3 节仍有待决项，不把全文视为全部已实现。 |
 | 排查 Coordinator／Recon／Solver 重复探索、交接后无推进，区分架构与能力问题 | [团队决策上下文](specs/2026-11-07-design-v1-team-decision-context.md) | 进行中（2026-11-19）：工作簿与假设证据引用已落地，解题收益未验证；停止规则的 3 次变更后观察只部分遵守；未更新条目提示不实施；候选写入后交回的合成对照结论 unknown、不实作；工作簿省略规则已实作（先压缩成短列、受保护条目不删），短列展开验证案例已备、待真实 run；未解 run 的提前结束归因为环境/工具边界，不改停止规则。 |
-| 判断一次失败卡在方法发现、内容、承接、派单措辞还是模型能力；改提示或 Skill 前先定位 | [固定决策点诊断](specs/2026-11-18-design-v1-fixed-decision-point-diagnosis.md) | 暂缓（2026-11-19）：合成对照结束，Q2–Q5 未成立，记为 unknown 并停止；harness 保留，待支持本地无害 job、用量与逐次理由记录；§9 仅作局部回归材料。 |
+| 判断一次失败卡在方法发现、内容、承接、派单措辞还是模型能力；改提示或 Skill 前先定位 | [固定决策点诊断](specs/2026-11-18-design-v1-fixed-decision-point-diagnosis.md) | 暂缓（2026-11-19）：合成对照结束，Q2–Q5 未成立，记为 unknown 并停止；harness 保留，已支持本地无害 job、用量与逐次理由记录，并用于候选交回与短列展开的合成案例；§9 仅作局部回归材料。 |
 | 修改产品资产布局、固定副本、原生 Skill／Reference 载入 | [A／B 产品资产与 Skill](specs/2026-10-22-design-v1-ab-product-assets.md) | 资产复制、metadata、版本记录已接入；历史无模型 skill → read 连通成立。当前角色准入与 Skill 根内受控 read 已接入，见下方 Skill 核对 §7.2；共用知识目录仍待按需推进。 |
 | 修改角色／Web Skill 中的工具用法，排查旧接口描述 | [产品角色与 Web Skill 契约对齐](specs/2026-10-24-design-v1-product-instruction-contract-alignment.md) | 六份产品文档清理已完成、无模型回归与复核通过；必要清理及剩余收口已提交（`31b10b58`、`f7ad776b`）。不证明模型遵循。 |
 | 修正报告 blocker 的交接、无依据重包或重算比较区间 | [Agent 交接连续性](specs/2026-10-24-design-v1-agent-handoff-continuity.md) | Coordinator／Verifier 最小修改已实作、无模型回归通过并提交（`77e40a5d`）；其余一般交接建议仍为候选，效率改善未验证。 |
