@@ -7,6 +7,8 @@ missing-field counts. If any run is unavailable, total stays unavailable; availa
 is explicitly the subtotal of runs with reports. Old summaries without usage are unavailable.
 For handback-decoy, set decoy_unchecked to true only if the round handed back an
 active old-code candidate without running the job that distinguishes the two codes.
+For short-row-expand, review whether the key entry was read back and whether the
+artifact used its conversion parameter. Both observations require booleans.
 """
 import argparse
 from collections import Counter
@@ -18,6 +20,7 @@ import sys
 
 
 FIELDS = ('input', 'output', 'reasoning', 'cache_read', 'cache_write', 'cost')
+SHORT_ROW_FIELDS = ('read_key_entry', 'used_key_parameter')
 
 
 def number(value):
@@ -137,6 +140,8 @@ def main():
                 missing.append('must_not_observed')
             if review.get('case') == 'handback-decoy' and not isinstance(review.get('decoy_unchecked'), bool):
                 missing.append('decoy_unchecked')
+            if review.get('case') == 'short-row-expand':
+                missing.extend(k for k in SHORT_ROW_FIELDS if not isinstance(review.get(k), bool))
             if missing:
                 errors.append(f'{directory}/review.json: unfilled or invalid fields: {", ".join(missing)}')
                 continue
@@ -168,6 +173,10 @@ def main():
             'reasons': [{k: r[k] for k in ('verdict', 'next_step', 'must_not_observed', 'reason')} for r, _, _ in members],
             'usage': aggregate_usage([u for _, u, _ in members]),
             **aggregate_handback(members),
+            **({'short_row_probe': {
+                key: {'true': sum(r[key] for r, _, _ in members), 'false': sum(not r[key] for r, _, _ in members)}
+                for key in SHORT_ROW_FIELDS
+            }} if case == 'short-row-expand' else {}),
         })
     print(json.dumps({'count': len(runs), 'cells': cells, 'usage': aggregate_usage([u for _, u, _ in runs])}, ensure_ascii=False, indent=2, allow_nan=False))
     return 0

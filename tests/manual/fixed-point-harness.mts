@@ -26,7 +26,7 @@ import { summarizeCandidateHandback, summarizeUsage, usageMatchesMessages, revie
 import { startManagedOpenCode, loadOpenCodeConfig } from '../../packages/opencode-bridge/src/server.js';
 import { collectLayer, mergeAgentOptions } from '../../apps/launcher/src/launch.js';
 import { MANAGED_TOOLS } from '../../apps/launcher/src/control-service.js';
-import { workbookView, activeEntries, type WorkbookRole } from '../../apps/launcher/src/workbook.js';
+import { workbookView, activeEntries, SHORT_TEXT_CHARS, type WorkbookRole } from '../../apps/launcher/src/workbook.js';
 import { JobManager, JobRefused, type JobBinding } from '../../apps/launcher/src/job-tools.js';
 import { listWorkspace, readWorkspace, writeWorkspace, searchWorkspace, diffWorkspace, viewWorkspace, WorkspaceRefused } from '../../apps/launcher/src/workspace-tools.js';
 import { snapshotWork } from '../../apps/launcher/src/artifact-tools.js';
@@ -67,12 +67,19 @@ interface Case {
   id: string; role: WorkbookRole; questions: string[]; materials: Record<string, string>; workbook: Entry[];
   rounds: Round[]; stubs?: Stub[]; variants: Record<string, Variant>; expected: { next_step: string; must_not: string[] };
   execute?: Execute;
+  probe?: { keyEntryId: number };
 }
 const spec = JSON.parse(await readFile(resolve(casePath!), 'utf8')) as Case;
 const variant = spec.variants?.[variantName!] ?? fail(`unknown variant ${variantName}; known: ${Object.keys(spec.variants ?? {}).join(', ')}`);
 // Both arms of a reminder comparison collect the same measurements. Legacy cases keep their output schema.
 const trackCandidateHandback = Object.values(spec.variants).some(arm => arm.candidateReminder === true);
 const handbackMock = spec.id === 'handback-ready' || spec.id === 'handback-decoy';
+const shortRowMock = spec.id === 'short-row-expand';
+const seededEntries = [...spec.workbook, ...(variant.workbook ?? [])];
+const probeKeyId = spec.probe?.keyEntryId;
+const probeKeyEntry = probeKeyId === undefined ? undefined : seededEntries.find(entry => entry.id === probeKeyId);
+if (spec.probe && !probeKeyEntry) fail('probe.keyEntryId must name a seeded workbook entry');
+if (shortRowMock && (!probeKeyEntry || !spec.execute?.artifactCheck)) fail('short-row-expand requires a probe and artifact check');
 if (!['domain-solver', 'recon'].includes(spec.role)) fail('role must be domain-solver or recon');
 const rounds: Round[] = (variant.rounds ?? spec.rounds).map((r, i) => ({
   ...r, dispatch: (i === 0 && variant.dispatch ? variant.dispatch : r.dispatch) + (i === 0 && variant.dispatchAppend ? `\n\n${variant.dispatchAppend}` : '')
@@ -82,7 +89,11 @@ if (spec.execute && (!Number.isInteger(spec.execute.maxJobs) || spec.execute.max
   !Number.isInteger(spec.execute.maxTimeoutMs) || spec.execute.maxTimeoutMs < 1 || spec.execute.maxTimeoutMs > 600000))
   fail('execute requires positive integer maxJobs and maxTimeoutMs (at most 600000)');
 await mkdir(out, { recursive: true });
-await writeFile(join(out, 'review.json'), JSON.stringify(reviewSkeleton(spec.id, variantName!, spec.expected), null, 1));
+const review = {
+  ...reviewSkeleton(spec.id, variantName!, spec.expected),
+  ...(shortRowMock ? { read_key_entry: null, used_key_parameter: null } : {})
+};
+await writeFile(join(out, 'review.json'), JSON.stringify(review, null, 1));
 
 // ---------- in-memory workbook (host rules kept to what the views need) ----------
 const STATUS: Record<string, string[]> = { hypotheses: ['open', 'supported', 'refuted'], questions: ['open', 'answered', 'dropped'], candidate: ['proposed', 'withdrawn'] };
@@ -93,7 +104,7 @@ const addRow = (role: string, note: Record<string, unknown>, id?: number) => {
   const row = { id: id ?? nextId++, sequence: ++sequence, kind: 'decision', role, note_json: note, created_at: Date.now(), updated_at: Date.now() };
   rows.push(row); return row;
 };
-for (const e of [...spec.workbook, ...(variant.workbook ?? [])]) {
+for (const e of seededEntries) {
   const { id, role, ...note } = e; addRow(role, note, id); nextId = Math.max(nextId, id + 1);
 }
 const writeEntry = (role: string, args: any) => {
@@ -124,6 +135,7 @@ const record = (kind: string, detail: Record<string, unknown>) => {
 };
 let modelCalls = 0;
 let roundIndex = 0;
+const firstPresentedShortIds = new Map<number, number[]>();
 
 // ---------- fake control service ----------
 const token = randomBytes(32).toString('hex');
@@ -228,14 +240,14 @@ const finishJobs = async () => {
   await jobs.cancelAll();
   for (const [id, { session }] of startedJobs) await recordJob(session, await jobs.waitSettled(jobBinding(session), id));
 };
-const checkArtifact = async () => {
+const checkArtifact = async (cwd = workdir) => {
   const check = spec.execute?.artifactCheck;
   if (!check) return undefined;
   try {
     // Install scoring files only after the session and all its jobs end; they are not Solver materials.
     for (const [name, content] of Object.entries(check.cwdFiles ?? {}))
-      await writeWorkspace({ ...workspaceRoots, workDir: workdir }, { path: `work/${name}`, content });
-    const binding = jobBinding('artifact-check');
+      await writeWorkspace({ ...workspaceRoots, workDir: cwd }, { path: `work/${name}`, content });
+    const binding = { ...jobBinding('artifact-check'), workDir: cwd };
     const result = await jobs!.run(binding, { argv: check.argv, timeout_ms: spec.execute!.maxTimeoutMs });
     startedJobs.set(result.job, { session: binding.sessionId, argv: check.argv });
     const terminal = await jobs!.waitSettled(binding, result.job);
@@ -262,7 +274,7 @@ const contextText = (role: WorkbookRole) => {
   const hint = variant.hint ? { own_open_unchanged_this_round: { ids: unchangedOwnOpen(), note: HINT_NOTE } } : {};
   const version = createHash('sha256').update(JSON.stringify([wb.view, hint])).digest('hex').slice(0, 16);
   const payload = { mode: 'full', version, current_question: { source: 'the native dispatch message of this session, kept unmodified in history', execution: null, role }, state: { publications: [] }, workbook: wb.view, ...hint };
-  return { version, text: '[CTF investigation context]\n' + JSON.stringify(payload), hintIds: variant.hint ? hint.own_open_unchanged_this_round!.ids : null };
+  return { version, text: '[CTF investigation context]\n' + JSON.stringify(payload), hintIds: variant.hint ? hint.own_open_unchanged_this_round!.ids : null, shortIds: wb.short_ids };
 };
 const toolExecute = async (sessionID: string, tool: string, args: any) => {
   if (spec.execute && (tool === 'artifact.publish' || tool === 'artifact.read'))
@@ -303,6 +315,7 @@ const control = createServer((req: IncomingMessage, res: ServerResponse) => { vo
     case 'context.prepare': {
       const c = contextText(spec.role);
       if (input?.placement !== 'compacting' && input?.visibleVersion === c.version) return reply({ version: c.version, unchanged: true });
+      if (probeKeyEntry && !firstPresentedShortIds.has(roundIndex)) firstPresentedShortIds.set(roundIndex, c.shortIds);
       if (visible.get(sessionID) !== c.version) record('context', { round: roundIndex, session: sessionID, version: c.version, placement: input?.placement, entries: activeEntries(rows).length, activeIds: activeEntries(rows).map(e => e.id), hintIds: c.hintIds });
       visible.set(sessionID, c.version);
       return reply({ version: c.version, text: c.text });
@@ -402,8 +415,32 @@ const handbackMockPlan = (): Array<[string, unknown] | null> => {
     null
   ];
 };
+const conversionRule = /係數 (\d+(?:\.\d+)?)，以 (ROUND_[A-Z_]+) 捨入/;
+const convertMeasurements = `import csv, decimal, json, sys
+from pathlib import Path
+
+factor = decimal.Decimal(sys.argv[1])
+rounding = getattr(decimal, sys.argv[2])
+with Path('materials/measurements.csv').open(newline='', encoding='utf-8') as source:
+    readings = [decimal.Decimal(row['raw_units']) for row in csv.DictReader(source)]
+total = sum(int((value * factor).quantize(decimal.Decimal(1), rounding=rounding)) for value in readings)
+Path('work/result.json').write_text(json.dumps({'row_count': len(readings), 'total_units': total}), encoding='utf-8')
+`;
+const shortRowMockPlan = (readback: string | undefined): Array<[string, unknown] | null> => {
+  const rule = readback?.match(conversionRule);
+  return [
+    ['ctf_recon_read', { ids: [probeKeyEntry!.id] }],
+    rule ? ['ctf_job_run', {
+      argv: ['python3', '-I', '-c', convertMeasurements, rule[1], rule[2]],
+      timeout_ms: spec.execute!.maxTimeoutMs
+    }] : null,
+    ['ctf_workspace_read', { path: 'work/result.json' }],
+    null
+  ];
+};
 const mockRequests: Array<{ system: string; user: string; tools: string[] }> = [];
 const mockCandidateResults = new Map<number, Record<string, unknown>>();
+let mockKeyReadback: string | undefined;
 const mockServer = mock ? createServer((req, res) => { void (async () => {
   if (!req.url?.endsWith('/chat/completions')) { res.writeHead(404).end(); return; }
   const chunks: Buffer[] = []; for await (const c of req) chunks.push(Buffer.from(c));
@@ -412,7 +449,8 @@ const mockServer = mock ? createServer((req, res) => { void (async () => {
   const messages: any[] = body.messages ?? [];
   const lastUser = messages.map(m => m.role).lastIndexOf('user');
   mockRequests.push({ system: messages.filter(m => m.role === 'system').map(text).join('\n'), user: messages.filter(m => m.role === 'user').map(text).join('\n'), tools: (body.tools ?? []).map((t: any) => t?.function?.name) });
-  const step = messages.slice(lastUser + 1).filter(m => m.role === 'tool').length;
+  const roundToolResults = messages.slice(lastUser + 1).filter(m => m.role === 'tool');
+  const step = roundToolResults.length;
   if (handbackMock) {
     for (const message of messages.filter(m => m.role === 'tool')) {
       // The managed tool result is the first line. The plugin can append a context block below it.
@@ -428,7 +466,18 @@ const mockServer = mock ? createServer((req, res) => { void (async () => {
   const plan: Array<[string, unknown] | null> = [
     ['ctf_workspace_read', { path: `materials/${Object.keys(spec.materials)[0]}` }], ['skill', { name: 'python-runtime-diagnosis' }]
   ];
-  if (handbackMock) plan.push(...handbackMockPlan());
+  if (shortRowMock) {
+    // Read the provider's copy of the recon.read result, never the seeded workbook, to obtain the conversion rule.
+    let readback: string | undefined;
+    if (step > plan.length) {
+      try {
+        const result = JSON.parse(text(roundToolResults[plan.length]).split('\n', 1)[0]!) as { records?: Entry[] };
+        readback = result.records?.find(entry => entry.id === probeKeyEntry!.id)?.text;
+      } catch { /* A failed read leaves the scripted conversion without a rule. */ }
+      mockKeyReadback = readback;
+    }
+    plan.push(...shortRowMockPlan(readback));
+  } else if (handbackMock) plan.push(...handbackMockPlan());
   else plan.push(['ctf_recon_note', note], ...(spec.execute ? executionMockPlan() : [null]));
   const call = plan[Math.min(step, plan.length - 1)];
   const base = { id: 'chatcmpl-' + randomUUID(), object: 'chat.completion.chunk', created: 1, model: 'scripted' };
@@ -436,6 +485,10 @@ const mockServer = mock ? createServer((req, res) => { void (async () => {
   if (handbackMock && !call) {
     const artifact = events.findLast(e => e.kind === 'tool.result' && e.tool === 'artifact.publish' && e.result?.ref)?.result;
     if (artifact) handback += `: Current inventory recalculated. Read UTF-8 bytes [0, ${artifact.bytes - 1}) from ${artifact.ref} before the newline.`;
+  }
+  if (shortRowMock && !call) {
+    const output = events.findLast(e => e.kind === 'tool.result' && e.tool === 'workspace.read' && e.result?.path === 'work/result.json')?.result.text;
+    if (typeof output === 'string') handback += `: Wrote ${JSON.parse(output).row_count} rows to work/result.json.`;
   }
   const delta = call ? { role: 'assistant', tool_calls: [{ index: 0, id: 'call_' + randomUUID().slice(0, 8), type: 'function', function: { name: call[0], arguments: JSON.stringify(call[1]) } }] } : { role: 'assistant', content: handback };
   res.writeHead(200, { 'content-type': 'text/event-stream' });
@@ -521,7 +574,37 @@ try {
 
 // ---------- outputs ----------
 const artifactCheck = await checkArtifact();
+const checkDefaultConversion = async () => {
+  // Score a unity-factor control in a separate workdir, leaving the Solver's actual result intact.
+  const cwd = join(out, 'default-artifact-check');
+  const rawValues = spec.materials['measurements.csv']!.trimEnd().split('\n').slice(1)
+    .map(line => Number(line.split(',')[1]));
+  await mkdir(join(cwd, 'work'), { recursive: true });
+  await writeFile(join(cwd, 'work', 'result.json'), JSON.stringify({
+    row_count: rawValues.length, total_units: rawValues.reduce((total, value) => total + value, 0)
+  }));
+  return checkArtifact(cwd);
+};
+const defaultArtifactCheck = mock && shortRowMock ? await checkDefaultConversion() : undefined;
 const calls = events.filter(e => e.kind === 'tool.call');
+const shortRowProbe = probeKeyEntry && {
+  key_entry_id: probeKeyEntry.id,
+  rounds: rounds.map((_, round) => {
+    // An unchanged same-session context may not be presented again. Null means no presentation was recorded this round.
+    const shortIds = firstPresentedShortIds.get(round) ?? null;
+    const read = events.find(e => e.round === round && e.kind === 'tool.result' && e.tool === 'recon.read' &&
+      e.result?.records?.some((entry: Entry) => entry.id === probeKeyEntry.id));
+    return {
+      round,
+      short_ids: shortIds,
+      key_entry_is_short: shortIds?.includes(probeKeyEntry.id) ?? null,
+      recon_read_ids: calls.filter(e => e.round === round && e.tool === 'ctf_recon_read')
+        .map(e => Array.isArray(e.args?.ids) ? e.args.ids : null),
+      first_key_entry_read_t_ms: read?.t_ms ?? null
+    };
+  }),
+  artifact_check: artifactCheck ?? null
+};
 const writes = rows.filter(r => written.has(r.id));
 const roundOfWrite = new Map<number, number>(events.filter(e => e.kind === 'tool.result' && e.tool === 'recon.note' && typeof (e.result as any)?.id === 'number').map(e => [(e.result as any).id as number, e.round as number]));
 const isEarlierOwn = (r: any, i: number) => { const old = rows.find(o => o.id === r.note_json.supersedes); return Boolean(old && old.role === spec.role && old.sequence <= (roundStartSequences[i] ?? 0)); };
@@ -547,6 +630,7 @@ const summary = {
   contextPresentations: events.filter(e => e.kind === 'context').length,
   expected: spec.expected,
   ...(trackCandidateHandback ? { candidate_handback: summarizeCandidateHandback(events, rounds.length) } : {}),
+  ...(shortRowProbe ? { short_row_probe: shortRowProbe } : {}),
   ...(spec.execute?.artifactCheck ? { artifact_check: artifactCheck } : {})
 };
 await mkdir(out, { recursive: true });
@@ -593,6 +677,34 @@ const candidateMockChecks = (metrics: ReturnType<typeof summarizeCandidateHandba
     } : {})
   };
 };
+const shortRowMockChecks = (metrics: typeof shortRowProbe) => {
+  const key = probeKeyEntry!;
+  const expectedShort = variantName === 'short-row';
+  const projected = mockRequests[0]?.user.split('[CTF investigation context]\n')[1]?.split('\n', 1)[0];
+  let workbook: { slots: { facts: Array<{ id: number; text: string; truncated?: true }> }; coverage: { short_ids: number[] } } | undefined;
+  try { workbook = JSON.parse(projected ?? 'null')?.workbook; } catch { /* Report a missing projection as a failed check. */ }
+  const presentedKey = workbook?.slots?.facts?.find(entry => entry.id === key.id);
+  const first = metrics?.rounds[0];
+  const rule = key.text.match(conversionRule);
+  const read = events.find(e => e.round === 0 && e.kind === 'tool.result' && e.tool === 'recon.read');
+  const result = events.find(e => e.kind === 'tool.result' && e.tool === 'workspace.read' && e.result?.path === 'work/result.json');
+  return {
+    keyEntryPresentationMatchesVariant: Boolean(presentedKey) &&
+      Boolean(presentedKey?.truncated) === expectedShort && workbook?.coverage?.short_ids?.includes(key.id) === expectedShort &&
+      first?.key_entry_is_short === expectedShort && JSON.stringify(first.short_ids) === JSON.stringify(workbook.coverage.short_ids),
+    keyParameterVisibilityMatchesVariant: Boolean(rule && (expectedShort
+      ? presentedKey?.text === Array.from(key.text).slice(0, SHORT_TEXT_CHARS).join('') + '…' &&
+        !projected?.includes(rule[1]!) && !projected?.includes(rule[2]!)
+      : presentedKey?.text === key.text)),
+    keyEntryReadBackInFull: mockKeyReadback === key.text && first?.first_key_entry_read_t_ms === read?.t_ms &&
+      JSON.stringify(first?.recon_read_ids) === JSON.stringify([[key.id]]) &&
+      read?.result?.records?.some((entry: Entry) => entry.id === key.id && entry.text === key.text) === true,
+    defaultParameterArtifactRejected: defaultArtifactCheck?.state === 'exited' && defaultArtifactCheck.exitCode === 1 &&
+      defaultArtifactCheck.stdout.startsWith('FAIL: result does not match'),
+    resultReadAndHandedBack: typeof result?.result.text === 'string' &&
+      finals.some(f => f.text.startsWith('MOCK_HANDBACK: Wrote ') && f.text.includes(' to work/result.json.'))
+  };
+};
 
 if (mock) {
   const role = spec.role;
@@ -619,13 +731,16 @@ if (mock) {
     hintReachedModel: !variant.hint || mockRequests.some(r => r.user.includes('own_open_unchanged_this_round')),
     ...(spec.execute ? {
       jobExecuted: events.some(e => e.kind === 'job.state' && e.session !== 'artifact-check' && e.state === 'exited' && typeof e.exitCode === 'number'),
-      ...(handbackMock ? candidateMockChecks(savedSummary.candidate_handback?.[0]) : {
+      ...(handbackMock ? candidateMockChecks(savedSummary.candidate_handback?.[0]) :
+        shortRowMock ? shortRowMockChecks(savedSummary.short_row_probe) : {
         jobOutputReadable: events.some(e => e.kind === 'tool.result' && e.tool === 'job.read' && e.result?.encoding === 'base64' && Buffer.from(e.result.data, 'base64').length > 0),
         jobFileReadable: events.some(e => e.kind === 'tool.result' && e.tool === 'workspace.read' && e.result?.path === 'work/initial.json' && typeof e.result.text === 'string'),
         maxJobsDenied: events.some(e => e.kind === 'tool.denied' && e.reason === 'maxJobs'),
         maxTimeoutDenied: events.some(e => e.kind === 'tool.denied' && e.reason === 'maxTimeoutMs')
       }),
-      artifactCheckRecorded: !spec.execute.artifactCheck || (savedArtifactCheck?.exitCode === 0 && savedArtifactCheck.passed === true && typeof savedArtifactCheck.stdout === 'string')
+      artifactCheckRecorded: !spec.execute.artifactCheck || (savedArtifactCheck?.exitCode === 0 && savedArtifactCheck.passed === true &&
+        typeof savedArtifactCheck.stdout === 'string' && (!shortRowMock ||
+          JSON.stringify(savedSummary.short_row_probe?.artifact_check) === JSON.stringify(savedArtifactCheck)))
     } : {}),
     usageRecordedMatchesOpenCode: usageReadErrors.length === 0 && usageMatchesMessages(savedSummary.usage, usageRounds),
     noFailure: !failure
