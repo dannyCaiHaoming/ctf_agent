@@ -1,5 +1,7 @@
 # Q1 續派合理性核對（2026-11-09）
 
+**狀態：已併入。** 續派核對結論見[團隊決策 §4 問題 1](../specs/2026-11-07-design-v1-team-decision-context.md#問題-1沒有候選時coordinator-續派-solver-是否合理)，本文保留分類依據。
+
 **依據：** [團隊決策上下文](../specs/2026-11-07-design-v1-team-decision-context.md) §4 問題 1，分類口徑與判讀約定見該節（原驗證 plan 已於結論回寫後刪除）。只讀復盤，不解題。決策點取自 a3–a8 各 run 的 `evidence/task-executions.json`：每個 domain-solver execution 交回後的第一個派單。候選材料欄 a3–a6 沿用 [交回內容核對](2026-11-08-handoff-content-check.md) 第 3 欄，a8 本次判斷（a7 無計入列）。
 
 ## 分類表

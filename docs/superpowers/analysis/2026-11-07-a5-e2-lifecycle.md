@@ -1,5 +1,7 @@
 # a5 E2 生命週期分析：root `stop` 後為何沒收束
 
+**狀態：已併入。** 生命週期觀察及其限制見[團隊決策 §3.3](../specs/2026-11-07-design-v1-team-decision-context.md#33-反例與限制)，反覆續派與進度可見性的依據見[結果完整性 §5.2](../specs/2026-10-25-design-v1-run-readiness-and-result-completeness.md#52-父上下文展示与-critic-边界)。
+
 工程模式：只讀排查。證據為 `runs/alibaba-easy-20261107-a5/runs/E2/alibaba-a5-ezoj-2/` 的 `state/run.json`、`progress.jsonl`、`evidence/control-audit.json`、`evidence/task-executions.json`，只取結構化欄位（op／role／時間戳／status），未讀 messages 正文。時間為距 run 起點的秒數（`elapsedMs/1000`）。
 
 ## 結論摘要

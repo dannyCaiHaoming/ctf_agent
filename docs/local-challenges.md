@@ -80,7 +80,7 @@
 
 四道未跑題沒有重複題名系列；未取 speed 系列，不觸及每系列最多 2 題的上限。此選擇只依元數據與既有結果，不據題名推斷漏洞類型或保證解法多樣性。
 
-**真實 run 結果（2026-11-19）。** 7 題各 2 次、同 HEAD、Solver 開思考，全部正常結束；沒有 run 先撞 30 分鐘或 5M/run 上限。6 個 run 產出候選包並提交、solved，8 個無候選。逐 run 欄位見[基線摘要](gates/candidate-baseline-20261119-p1/summary.json)，思考設定對照見[對照摘要](gates/model-compare-20261119/summary.json)與 [B §7](../superpowers/specs/2026-10-26-design-v1-b-method-generalization-and-efficiency.md#7-方向与优先序)。
+**真實 run 結果（2026-11-19）。** 7 題各 2 次、同 HEAD、Solver 開思考，全部正常結束；沒有 run 先撞 30 分鐘或 5M/run 上限。6 個 run 產出候選包並提交、solved，8 個無候選。逐 run 欄位見[基線摘要](gates/candidate-baseline-20261119-p1/summary.json)，思考設定對照見[對照摘要](gates/model-compare-20261119/summary.json)與 [B §7](superpowers/specs/2026-10-26-design-v1-b-method-generalization-and-efficiency.md#7-方向与优先序)。
 
 | 題目 | 2 次結果（候選／提交／solved） | 首次候選（分） | token（r1／r2） |
 | --- | ---: | --- | --- |

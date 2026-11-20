@@ -1,6 +1,6 @@
 # 對照開源調研的設計隱患審閱（2026-11-19）
 
-**狀態：** 審閱清單，待用戶決定去向；不是 design 決定。依 AGENTS.md「先查開源項目分析」的做法，由 gpt-6.2-astra 學習[開源調研](2026-11-12-open-source-ctf-skill-survey.md)第二批（§7–9）並對照現行 design，主會話逐項核對證據。來源等級沿用調研的說明：第二批多為 README／摘要轉述，只作線索；「已核對原文」只指 design 中已記錄核對的特定章節。
+**狀態：現行。** 開源調研對照審閱清單，待用戶逐項決定。依 AGENTS.md「先查開源項目分析」的做法，由 gpt-6.2-astra 學習[開源調研](2026-11-12-open-source-ctf-skill-survey.md)第二批（§7–9）並對照現行 design，主會話逐項核對證據。來源等級沿用調研的說明：第二批多為 README／摘要轉述，只作線索；「已核對原文」只指 design 中已記錄核對的特定章節。
 
 **範圍與證據：** 兩份 gate（`candidate-baseline-20261119-p1`、`model-compare-20261119`）的結構欄位、26 個 run 的 control-audit `context.presented` 計數與工作簿 sqlite 的 slot／status／role（不讀條目文字）、現行角色檔與 design。沒有模型 run。
 

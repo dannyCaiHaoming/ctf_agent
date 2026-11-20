@@ -1,6 +1,6 @@
 # Alibaba a1–a4 批次：harness 層面的優化方向（待評估）
 
-**狀態：** 用戶的分析結論，尚未核對證據，也還不是 design。由 design session 逐條核對證據，把證據支持的部分回補到對應的 design 章節；本文保留為輸入材料。
+**狀態：部分已併入。** P2 復盤的無候選歸因用於[團隊決策 §1](../specs/2026-11-07-design-v1-team-decision-context.md#1-結論)與 [B §7](../specs/2026-10-26-design-v1-b-method-generalization-and-efficiency.md#7-方向与优先序)。其餘提案保留為待核對的輸入。
 
 **證據位置：**
 - a1：`/Users/caihaoming/Documents/pentest-agent-run-data/alibaba-easy-20261104-a1/`

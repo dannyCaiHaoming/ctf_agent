@@ -1,6 +1,6 @@
 # Coordinator 角色檔去重審閱（2026-11-19）
 
-**狀態：** 審閱清單，待用戶決定。本文不改 `product/`；每項改稿都要另經用戶審閱，並按 `tests/manual/paired-control-product.py` 歸入「套用」或「排除」。
+**狀態：現行。** Coordinator 角色檔去重審閱清單，待用戶逐項決定。本文不改 `product/`；每項改稿都要另經用戶審閱，並按 `tests/manual/paired-control-product.py` 歸入「套用」或「排除」。
 
 **範圍：** `product/opencode/agents/coordinator.md`（HEAD `89d7faea`，103 行、12,413 bytes）與 `product/AGENTS.md`、`recon.md`、`domain-solver.md`、`recovery-critic.md` 的重疊。只做文字層的重複、矛盾與過時核對，不判斷規則效果；行為效果仍只能由另行授權的 run 判定。
 

@@ -1,5 +1,7 @@
 # Python 运行时阻断归因：3 次 ezoj run 的复盘明细
 
+**状态：已并入。** 归因、停止观察与报告措辞分别见 [B §7.2](../specs/2026-10-26-design-v1-b-method-generalization-and-efficiency.md#72-python-运行时阻断归因)、[团队决策 §6.3](../specs/2026-11-07-design-v1-team-decision-context.md#63-候選與收尾)及[结果完整性 §4.1.1](../specs/2026-10-25-design-v1-run-readiness-and-result-completeness.md#411-最终报告的结论强度)。本文仍供核对逐次时间线、Skill 载入与派单点名的计数。
+
 本文保存 [B design §7.2](../specs/2026-10-26-design-v1-b-method-generalization-and-efficiency.md#72-python-运行时阻断归因) 的逐次时间线、核对过程与停止规则观察；design 只保留结论。计数见 [runtime-diag-20261117](../../gates/runtime-diag-20261117/summary.json) 与 [runtime-diag-20261117-r2](../../gates/runtime-diag-20261117-r2/summary.json)。
 
 核对方式：用 `inventory.json`、control-audit、progress note、工作簿 sqlite 计数、派单与交回文字的关键词布尔值和位置，以及历史 run 的派单计数。第 2.1 节另按指定的 session、消息与工具调用 ID 投影交接元数据、核对文字是否完整包含，并查必要短片段。未通读 transcript，也未重放请求。

@@ -1,5 +1,7 @@
 # Recon 何時算完成：基線回顧
 
+**狀態：已併入。** Recon 時長與每題先派 Recon 的核對結果見[團隊決策 §4 問題 2](../specs/2026-11-07-design-v1-team-decision-context.md#問題-2recon-何時算完成是否每題都要派)。
+
 依據：[團隊決策上下文 §4 問題 2](../specs/2026-11-07-design-v1-team-decision-context.md#問題-2recon-何時算完成是否每題都要派)。
 
 判讀日期：2026-11-10。範圍：a3–a8 已落盤的 19 次 Recon execution，按續接 session 合併成 16 個階段，涵蓋 4 道題；只讀既有記錄。

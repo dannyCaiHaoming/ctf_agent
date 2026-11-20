@@ -1,6 +1,6 @@
 # 文档索引
 
-通用 CTF 解题 Agent 的开发文档入口。更新日期：2026-11-19。
+通用 CTF 解题 Agent 的开发文档入口。更新日期：2026-11-20。
 
 ## 如何按需阅读
 
@@ -24,22 +24,22 @@
 | 判断一次失败卡在方法发现、内容、承接、派单措辞还是模型能力；改提示或 Skill 前先定位 | [固定决策点诊断](specs/2026-11-18-design-v1-fixed-decision-point-diagnosis.md) | 暂缓（2026-11-19）：合成对照结束，Q2–Q5 未成立，记为 unknown 并停止；harness 保留，已支持本地无害 job、用量与逐次理由记录，并用于候选交回与短列展开的合成案例；§9 仅作局部回归材料。 |
 | 修改产品资产布局、固定副本、原生 Skill／Reference 载入 | [A／B 产品资产与 Skill](specs/2026-10-22-design-v1-ab-product-assets.md) | 资产复制、metadata、版本记录已接入；历史无模型 skill → read 连通成立。当前角色准入与 Skill 根内受控 read 已接入，见下方 Skill 核对 §7.2；共用知识目录仍待按需推进。 |
 | 修改角色／Web Skill 中的工具用法，排查旧接口描述 | [产品角色与 Web Skill 契约对齐](specs/2026-10-24-design-v1-product-instruction-contract-alignment.md) | 六份产品文档清理已完成、无模型回归与复核通过；必要清理及剩余收口已提交（`31b10b58`、`f7ad776b`）。不证明模型遵循。 |
-| 修正报告 blocker 的交接、无依据重包或重算比较区间 | [Agent 交接连续性](specs/2026-10-24-design-v1-agent-handoff-continuity.md) | Coordinator／Verifier 最小修改已实作、无模型回归通过并提交（`77e40a5d`）；其余一般交接建议仍为候选，效率改善未验证。 |
-| 调整 Skill 发现描述、判断适用条件或是否需要拆分 | [Skill 找得到、用得对](specs/2026-10-24-design-v1-skill-discovery-and-use.md) | 已落地（2026-11-19）：单一 Skill 入口与条件分区为 v5，选用收益未验证；§10 两项候选暂缓，Q2、Q4 未成立，仅在基线出现新对应失败时再评估。 |
+| 修正报告 blocker 的交接、无依据重包或重算比较区间 | [Agent 交接连续性](specs/2026-10-24-design-v1-agent-handoff-continuity.md) | 一般派单、交回与续接见[团队决策 §6.2](specs/2026-11-07-design-v1-team-decision-context.md#62-派單與交回的內容契約)。报告 blocker 和比较区间以交接设计 §5.1、§7 为准，最小修改已实施并通过无模型回归（`77e40a5d`），效率改善未验证。 |
+| 调整 Skill 发现描述、判断适用条件或是否需要拆分 | [Skill 找得到、用得对](specs/2026-10-24-design-v1-skill-discovery-and-use.md) | 已落地（2026-11-20）：Web Skill 入口与条件分区（现为 v7），选用收益未验证；§10 两项触发位置候选已在 harness 备好单变量对照、模型对照待授权，产品端暂缓；§11 列三个 Skill 的入口、决策来源与验证层次。 |
 | 排查启动、运行目录、依赖或结束时证据保存 | [入口与本地调试](specs/2026-10-22-design-v1-entry-local-debug.md) | `apps/launcher` 入口及资料分区、启动／停止／保存已接入；依赖条件见 §4，控制服务与预算停止见 C。 |
 | 修改会话身份绑定、工具准入、预算或任务停止 | [C 控制服务与会话绑定](specs/2026-10-23-design-v1-c-control-service.md) | 前台及 G 原生背景路径、逐次准入、结算与停止已接入；进度摘要见本地练习 design，更完整通知按需推进。§3.1 让 dispatch 拒绝原因对模型可见；§3.2（2026-11-10）处理 read path（按角色区分可用提示，audit 记 rootTag）、artifact source（未发布 ref 的固定提示）、http.request 的 4 次 timeout（确认是请求截止竞态非参数越界，未改代码）与 binding lapsed 截止竞态（audit 记 deadline detail，不改错误码）。 |
 | 修改产物发布、固定候选、独立验证或可信完成 | [D 最小版](specs/2026-10-24-design-v1-d-candidate-verification-minimal.md) | 五接口已接入并完成无模型验收；§7.2 记录一次本地 `mfw` 真实模型整链 verified／accepted／solved。生产裁判部署与秘密隔离仍有缺口。 |
 | 修改题目输入、材料固定、可达性或 Intake 工具 | [E 最小版](specs/2026-10-23-design-v1-e-intake-minimal.md) | 最小取题链已接入，真实模型冒烟验证过取题；平台 API 与靶场部署等延后项见 §6，不自动恢复。 |
-| 修改 workspace／HTTP／job、异步交付、恢复或执行边界 | [G 最小版](specs/2026-10-23-design-v1-g-solver-minimal.md) | 已定部分接入主区并有无模型验收，单题真实运行观察见 §9.2；整体未定稿，隔离、网络 scope、资源总量与剩余契约见 §10。 |
+| 修改 workspace／HTTP／job、异步交付、恢复或执行边界 | [G 最小版](specs/2026-10-23-design-v1-g-solver-minimal.md) | 已定部分通过无模型验收，单题真实运行观察见 §9.2。[§5.3](specs/2026-10-23-design-v1-g-solver-minimal.md#53-執行環境) 区分预览省略、已保存可续读及超限丢弃，job 终态审计逐流记录 metadata（2026-11-20），此前缺记录的 run 记为 unknown。隔离、网络 scope、资源总量与 D／E 接口仍有未定项（§10）。 |
 | 排查模型误用 workspace 路径或改进工具说明 | [G run 复盘与路径可发现性](specs/2026-10-24-design-v1-g-run-review-and-path-affordance.md) | 路径说明与示例已修正，既有 guard 保留，定向回归通过；修正后的模型遵循未验证。 |
-| 修改进度记录、停滞信号、Critic 判断，或准备练习批次 | [本地三题练习与进度帐本](specs/2026-10-24-design-v1-local-practice-suite-and-progress-ledger.md) | 进度帐本最小切片已接入并通过无模型验证；三题真实模型批次未授权，部分题目 oracle 未核实，不设正式成功率门槛。 |
+| 修改进度记录、停滞信号、Critic 判断，或准备练习批次 | [本地三题练习与进度帐本](specs/2026-10-24-design-v1-local-practice-suite-and-progress-ledger.md) | 进度帐本已接入并通过无模型验证，仍有效。mfw、throwback 在多次真实 run 中经 exact judge 核对，seizurecipher 仍未核实。固定三题批框架未采用，题集与验收由 [B §7](specs/2026-10-26-design-v1-b-method-generalization-and-efficiency.md#7-方向与优先序) 的 7 题基线及资格检查承接，本三题框架不设正式成功率门槛。 |
 | 排查空交接、length 结束、结果归属或父上下文缺信息 | [结果完整性与交接可见性](specs/2026-10-25-design-v1-run-readiness-and-result-completeness.md) | 已按最小范围接入：同步关联、父展示、多通知消费及 Critic 条件澄清；无模型验收与独立 review 通过，见[实施证据](../gates/g-solver-verification-20261023/run-completeness-20261025/final-implementation/README.md)。child 输出上限自 a7 起为运行设定 32000；最终报告措辞已写入 Coordinator 角色档（§4.1.1），一次手动盘点报告符合措辞要求；角色版本、普遍报告质量与 Critic 调用效果仍未验证。实作 plan 已完成回补并删除。 |
-| 改进通用解题方法、Skill／Reference 与失败归因 | [B 通用解题方法与耗时优化](specs/2026-10-26-design-v1-b-method-generalization-and-efficiency.md) | 进行中（2026-11-19）：同版本 7 题基线已跑完（14 run、6 solved、约 5.37M token）；3 题思考设定对照只见方向；候选写入后的交回合成对照结论 unknown、不实作，剩余时间重开保留为假设。 |
-| 排查停滞未触发换路、Critic 复核关键前提或搜索结果有效性 | [否定证据与路线复核](specs/2026-10-25-design-v1-negative-evidence-and-route-review.md) | 源头取证与交接提示已提交；§5 候选 D（有界回合交回）已实现，r10 首次出现 Critic `redirect`；行为收益待真实 run 验证。 |
+| 改进通用解题方法、Skill／Reference 与失败归因 | [B 通用解题方法与耗时优化](specs/2026-10-26-design-v1-b-method-generalization-and-efficiency.md) | 进行中（2026-11-20）：同版本 7 题基线已跑完（14 run、6 solved、约 5.37M token）；3 题思考设定对照只见方向；候选写入后的交回合成对照结论 unknown、不实作，剩余时间重开保留为假设；方法补齐第一个选题（新证据改写已记结论）的范例已写入 `python-runtime-diagnosis` Reference，效果待同版本配对验证。 |
+| 排查停滞未触发换路、Critic 复核关键前提或搜索结果有效性 | [否定证据与路线复核](specs/2026-10-25-design-v1-negative-evidence-and-route-review.md) | 搜索取证、事实交接与有界回合交回（§5 候选 D）已接入。配对批次两次 Critic `redirect` 均获承接，停止归因中 13/15 次派过 Critic，9/15 次记录 `redirect` 并在 Critic 后执行了有界实验（[团队决策 §6.3](specs/2026-11-07-design-v1-team-decision-context.md#63-候選與收尾)）。取证、判断及换路的质量仍未验收。 |
 | 修改同步任务交付身份、续接参数继承 | [任务参数继承与同步交付身份](specs/2026-10-25-design-v1-sync-resume-provenance.md) | 同步交付已实现并合入（merge `c120e143`），无模型验证通过；Q5 promotion 按可达性判定记录为限制、未实现。 |
 | 排查 finish=length、空正文或结果分类 | [生成到上限后的空正文与结果恢复](specs/2026-10-26-design-v1-c-empty-result-recovery.md) | 普通完成入口的多轮分类修复已合入；转后台、错误与不支持链的边界保留；实际额度接线与生成改善待验证。 |
 | 追溯旧 r4／r5 Verifier 拒绝原因 | [D 从证据到验证结论](specs/2026-10-26-design-v1-d-evidence-to-completion.md) | 历史问题与证据子文件；当前职责与提交策略以 D 最小版 §5–7 为准。 |
-| 修改 Recon 记录、上下文呈现、经验／lesson 或执行中时间事实 | [Recon 重设计](specs/2026-10-29-design-v1-recon-redesign.md) | 记录与学习链路已收口；时间事实已落地（`7c414e6e`），长 child 仍常拖到末段才交回；经验收益缺对照组，未证实。2026-11-14 §4 索引按需读取已实作（默认索引摘要＋`repeat_of` 提示，运行设定 `context.index`／`context.workbook` 可退回与配对），无模型契约测试通过，真实 run 待验证。 |
+| 修改 Recon 记录、上下文呈现、经验／lesson 或执行中时间事实 | [Recon 重设计](specs/2026-10-29-design-v1-recon-redesign.md) | 记录、上下文、交回与 episode／lesson 已在真实 runtime 走通，时间事实已落地（`7c414e6e`），长 child 仍常到末段才交回。§4 索引按需读取（默认索引摘要＋`repeat_of`，`context.index`／`context.workbook` 可退回与配对）通过无模型契约测试。2026-11-16 冒烟观察到单次最大投影约 56K→15K bytes、1 次 `recon.read` 展开（[团队决策 §6.1](specs/2026-11-07-design-v1-team-decision-context.md#61-題目工作簿第一片)）。按需读取及经验的解题收益仍未验证。 |
 | 分析 run 墙钟时间、token、思考开关与上下文成本 | [解题延迟与上下文成本](specs/2026-11-04-design-v1-run-latency-and-context-cost.md) | §3.1、§3.2、§3.4 已采用；§3.3 并行与 §3.5 已试路线摘要延后；Coordinator 关闭思考与出处条件修订待配对 run（需另行授权预算）。 |
 | 评估题目图片能否交给模型观察 | [图像观察](specs/2026-10-29-design-v1-image-observation.md) | 候选 A（`workspace.view` 图像交付）已合入 main；模型能否借看图解题未证实，B／C／D 未做；不是模型调用授权。 |
 | 追溯旧架构取舍、迁移原因或已知教训 | [现状、教训与迁移记录](specs/2026-10-22-ctf-agent-current-state-and-migration.md) | 历史参考，部分状态已过期；优先核对当前实现与详细 design。旧待办、冻结轨迹和里程碑不自动继承。 |
@@ -58,8 +58,11 @@
 
 先把决策与验证结果写回 design，再更新索引摘要，最后删除结论已转入的临时 plan。只改受影响条目，不在这里复制测试日志、token 明细、运行日记或另建任务路线图。全局开发硬约束仍由 AGENTS.md／CLAUDE.md 维护。
 
+**新证据改变另一份 design 的验证层次时，同步那份 design 的状态行与本索引对应行。** 新证据通常先写进当时活跃的 design 或分析；被它影响的姊妹 design 若只在状态行写着“待真实 run”“未验证”，要改成实际达到的层次（例如“已在真实 run 观察到机制，收益未验证”），正文不动。
+
 ## 目录约定
 
 - `specs/`：核心设计、详细 design 子文件与历史迁移记录。
-- `plans/`：按 CLAUDE.md 的 §0 交接执行，一次性交接物；design 不引用 plan，结论回写后删除。
+- `plans/`（即 `docs/superpowers/plans/`，需要时才建）：按 CLAUDE.md 的 §0 交接执行，一次性交接物；design 不引用 plan，结论回写后删除。
+- `analysis/`：不进本索引，分三类——调研（如开源调研）、一次性核对记录（如某次批次或问题的核对）、审阅清单（待用户逐项决定）。每份开头一行标状态：**现行**（仍在使用或待决定）、**已并入**（写明并入哪份 design 的哪一节；只部分并入时写明哪部分仍有效）、**历史**（只供追溯）。并入后加标记，不自动删除。
 - [docs/gates/](../gates/)：支撑 design 结论的最小原始证据；只按相关 design 的引用读取。

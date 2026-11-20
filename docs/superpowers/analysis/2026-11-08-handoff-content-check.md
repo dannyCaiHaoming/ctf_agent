@@ -1,5 +1,7 @@
 # Handoff content check（2026-11-08）
 
+**狀態：已併入。** 交回分類與反例見[團隊決策 §3.2](../specs/2026-11-07-design-v1-team-decision-context.md#32-已完成的核對)，輸出截斷對交接的影響用於[結果完整性 §5.2](../specs/2026-10-25-design-v1-run-readiness-and-result-completeness.md#52-父上下文展示与-critic-边界)。
+
 | run | ref | 角色 | 秒數 | 1 回答／原因 | 2 下一問題／線索 | 3 候選材料 | 4 截斷影響 | 下一派單 |
 | --- | --- | --- | ---: | --- | --- | --- | --- | --- |
 | C1 | `80161c45-a8df-4f44-aef6-220aaacfc115` | recon | 469.4 | 是 | 是 | 否 | 否 | domain-solver |

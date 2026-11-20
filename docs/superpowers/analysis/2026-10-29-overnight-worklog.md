@@ -1,6 +1,6 @@
 # Overnight 工作日志（2026-10-29 夜，供早上审查）
 
-状态：**全部在分支 `codex/tooling-analysis`，未 merge main、未 push。** 每个 code 改动都独立验证（Opus 独立跑 `tsc --noEmit` + `test:deterministic`，不只信 codex 自检）后单独 commit。实作由 GPT-6.1-sol（high effort）经 codex 完成；分析由 gpt-6-astra（medium，fast）。行为收益一律**只能由另行授权的真实 run 认账**，本夜未运行任何真实模型／靶场。
+**状态：历史。** 仅供追溯分支实作与验证，文件去留待用户决定。以下是当晚的分支状态：改动当时都在 `codex/tooling-analysis`，未合入 main、未 push。每项改动经独立 `tsc --noEmit` 与 `test:deterministic` 验证后单独提交；实作由 GPT-6.1-sol（high effort）经 Codex 完成，分析由 gpt-6-astra（medium、fast）完成。该晚只验证工程链路，行为收益仍待独立的真实运行验证。
 
 ## 本夜 commit（分支 `codex/tooling-analysis`，base `60654f0d`）
 

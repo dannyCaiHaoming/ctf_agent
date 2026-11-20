@@ -61,6 +61,8 @@
 - **無模型自檢（`--mock`）：** 本地腳本化 provider，0 次模型呼叫；檢查角色提示、共用規則、工作簿 context 與派單抵達請求，管理工具與 Skill 可見，工作區讀取與 Skill 呼叫被記錄，上一輪寫入在下一輪第一個工具呼叫前可見（同 session 與新建各測一次）。7 個案例都至少跑過一個變體，10 項檢查全部通過；確定性測試 835 項與 typecheck 通過。
 - **未更新條目提示的模擬（2026-11-18）：** 變體設 `hint: true` 時，假控制服務在 context 中附 `own_open_unchanged_this_round`（本角色在本回合開始前寫下、仍 open、尚未取代的假設與問題 id，以及一句中性說明），即[團隊決策 §6.2](2026-11-07-design-v1-team-decision-context.md#62-派單與交回的內容契約)的回合內提示候選。summary 另記每回合取代本角色舊條目的次數與近乎原文重寫（字元重疊 ≥ 0.8）的次數。自檢加一項「提示抵達請求」；scripted provider 看到提示時會取代清單第一個 id，用來確認清單隨取代更新。8 個案例、22 個組合全部 11 項通過。
 
+**觸發位置對照。** 案例固定上一輪的載入記錄與工作簿，從新建的決策 session 開始執行。`priorSkills: true` 只在同題同角色的新 session 呈現上一輪載入記錄。`methodIndex: true` 在固定位置呈現由已安裝 Skill 的 frontmatter 產生的精簡索引。兩項各自和基線對照，限於 harness，產品沿用既有預設。模型對照須另行授權，採用 [Skill 發現與使用 §10](2026-10-24-design-v1-skill-discovery-and-use.md#10-常駐原則與跨-session-的方法承接) 的事先門檻。
+
 **按案例開啟的執行模式。** 案例指定 `execute` 時，harness 在倉庫外的 `workdir/` 寫入合成材料，以磁碟 workspace 工具及 runtime 的 `JobManager` 執行有數量與 timeout 上限的 argv job，讀回輸出並允許在 `work/` 修正、產出；session 與其 job 結束後才安裝檢查器檔案，以有界 timeout 判定產物，將 exit code 與 stdout 摘要記入 `artifact_check`。未指定時沿用上述不執行模式。這能觀察「執行 → 讀回饋 → 修正 → 產出」是否成立；`--mock` 只驗證這條工程鏈路。與 runtime 的部署環境不同，job 與檢查器直接在本機執行，沒有檔案系統或網路隔離；`work/` 寫入限制僅由 workspace 工具施行，不能約束子程序，因此只能使用無害合成材料，結果不外推到整題或真實模型能力。
 
 ### 3.3 合成案例
