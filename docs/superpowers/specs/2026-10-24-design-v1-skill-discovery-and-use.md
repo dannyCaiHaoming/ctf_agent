@@ -147,7 +147,7 @@ description 與開頭呈現會話、供給源碼／路由／版本與行為對�
 
 **開源依據與等級。** EnIGMA 的 demonstration 消融已按原文核對，但它不是觸發位置的證據；VulnClaw「索引常駐、正文按需」只有 README 描述，無觸發收益數據；Vercel 與 Claude Code 小樣本的調用率數字是搜尋摘要、未讀原文；跨 session 傳遞的收益，開源調研未覆蓋（[開源調研 §8.2、§9.1](../analysis/2026-11-12-open-source-ctf-skill-survey.md#82-載入與觸發可靠性證據)）。因此門檻只依本項目的對照設定。
 
-**harness 準備結果（2026-11-20）。** `fixed-point-harness.mts` 新增兩種變體欄位：`priorSkills`（只在新建且同題同角色的回合附上一輪的載入記錄）與 `methodIndex`（由安裝的 Skill frontmatter 機械產生每 Skill 一行的索引）；本地權限拒絕與捨入兩例各有短版與中途決策版，共 8 組配對、16 個變體。無模型自檢逐項證明：記錄只在合格回合出現（同 session、跨題、跨角色、無前史都不出現），索引內容來自 frontmatter，兩臂移除實驗欄位後 context 逐位元一致。全部 46 個變體的 `--mock` 自檢與 842 項確定性測試通過。自檢原本要求派單文字在 context 之前，但 plugin 注入順序會變動，曾偶發誤報，已改為只要求兩者在同一個請求中。審閱欄位 `next_step_supported`、`misload` 必填。模型對照按上方門檻另行授權。
+**harness 準備結果（2026-11-20）。** `fixed-point-harness.mts` 新增兩種變體欄位：`priorSkills`（只在新建且同題同角色的回合附上一輪的載入記錄）與 `methodIndex`（由安裝的 Skill frontmatter 機械產生每 Skill 一行的索引）；本地權限拒絕與捨入兩例各有短版與中途決策版，共 8 組配對、16 個變體。無模型自檢逐項證明：記錄只在合格回合出現（同 session、跨題、跨角色、無前史都不出現），索引內容來自 frontmatter，兩臂移除實驗欄位後 context 逐位元一致。全部 46 個變體的 `--mock` 自檢與 842 項確定性測試通過。自檢原本要求派單文字在 context 之前，但 plugin 注入順序會變動，曾偶發誤報，已改為只要求兩者在同一個請求中。審閱欄位 `next_step_supported`、`misload` 必填。`fixed-point-reviews.py --trigger-verdict` 把上方門檻寫成判定：只計 model run（mock 排除並標示），每個候選分短版與中途版各判 pass／fail／無區分力／incomplete／工程失敗，兩版不一致記 unknown；實驗臂未呈現、或基線臂混入實驗欄位記工程失敗，呈現無法確認記 incomplete。15 組合成情境驗證判定與不帶旗標時輸出不變；兩個案例都沒有需要修正舊判斷的情境，所以「工作簿反映修正」這一條在本對照不適用。模型對照按上方門檻另行授權。
 
 **仍不採用：** 每題或每輪強制載入（§1）；host 按關鍵詞判斷該用哪個 Skill；自動注入 Skill 全文。
 
