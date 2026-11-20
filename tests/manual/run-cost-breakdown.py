@@ -5,10 +5,19 @@ Usage: python3 -I tests/manual/run-cost-breakdown.py <runDir> [<runDir> ...]
 A runDir is `<batch>/runs/<runId>` containing `evidence/messages-*.json` and
 `evidence/control-audit.json`. Output is JSON with structured counts only:
 no message text, tool output, flags or oracle data.
+
+wall_min spans the first assistant call start to the last assistant call
+completion. The run's wall-clock start and end are outside this measure.
+Only completed calls contribute to latency and interval unions. Token
+totals sum reported values, with "unavailable" for fields with no reports.
+Context and generation samples require all constituent token fields, and
+worker timing statistics pair those samples with their own durations.
 """
 import collections, glob, json, os, statistics, sys
 
 MARK = '[CTF investigation context]'
+CONTEXT_FIELDS = ('input', 'cache_read', 'cache_write')
+GENERATION_FIELDS = ('output', 'reasoning')
 
 
 def messages(run):
@@ -25,10 +34,10 @@ def calls(run):
         t = i.get('tokens') or {}
         c = t.get('cache') or {}
         start = i['time']['created']
-        end = i['time'].get('completed') or start
+        end = i['time'].get('completed')
         out.append(dict(agent=i.get('agent'), start=start, end=end,
-                        input=t.get('input', 0), cache_read=c.get('read', 0), cache_write=c.get('write', 0),
-                        output=t.get('output', 0), reasoning=t.get('reasoning', 0), finish=i.get('finish')))
+                        input=t.get('input'), cache_read=c.get('read'), cache_write=c.get('write'),
+                        output=t.get('output'), reasoning=t.get('reasoning'), finish=i.get('finish')))
     return out
 
 
@@ -74,39 +83,79 @@ def context_fields(run):
             {f'{a}:{mode}': n for (a, mode), n in modes.items()})
 
 
+def token_usage(calls):
+    totals, missing_fields = {}, {}
+    for field in CONTEXT_FIELDS + GENERATION_FIELDS:
+        reported = [call[field] for call in calls if call[field] is not None]
+        key = 'input_uncached' if field == 'input' else field
+        totals[key] = sum(reported) if reported else 'unavailable'
+        missing_fields[field] = len(calls) - len(reported)
+    return totals, missing_fields
+
+
+def token_sample(call, fields):
+    values = [call[field] for field in fields]
+    return sum(values) if None not in values else None
+
+
+def timed_token_samples(completed_calls, fields):
+    amounts, durations = [], []
+    for call in completed_calls:
+        amount = token_sample(call, fields)
+        if amount is not None:
+            amounts.append(amount)
+            durations.append((call['end'] - call['start']) / 1000)
+    return amounts, durations
+
+
+def correlation(amounts, durations):
+    if len(amounts) > 2 and len(set(amounts)) > 1 and len(set(durations)) > 1:
+        return round(statistics.correlation(amounts, durations), 2)
+    return None
+
+
 def breakdown(run):
     cs = calls(run)
+    completed = [c for c in cs if c['end'] is not None]
     # Coordinator latency includes waiting for child tasks; exclude it from latency statistics.
-    worker = [c for c in cs if c['agent'] != 'coordinator']
-    gen = [c['output'] + c['reasoning'] for c in worker]
-    lat = [(c['end'] - c['start']) / 1000 for c in worker]
-    ctx = [c['input'] + c['cache_read'] + c['cache_write'] for c in worker]
+    workers = [c for c in completed if c['agent'] != 'coordinator']
+    generated, generation_durations = timed_token_samples(workers, GENERATION_FIELDS)
+    context, context_durations = timed_token_samples(workers, CONTEXT_FIELDS)
+    generation_sec = sum(generation_durations)
     by = collections.defaultdict(list)
     for c in cs:
         by[c['agent']].append(c)
     roles = {}
     for agent, rs in by.items():
+        tokens, missing = token_usage(rs)
+        contexts = [token_sample(r, CONTEXT_FIELDS) for r in rs]
+        contexts = [amount for amount in contexts if amount is not None]
+        durations = [(r['end'] - r['start']) / 1000 for r in rs if r['end'] is not None]
         roles[agent] = dict(
             calls=len(rs),
-            input_uncached=sum(r['input'] for r in rs),
-            context_avg=int(statistics.mean(r['input'] + r['cache_read'] + r['cache_write'] for r in rs)),
-            context_max=max(r['input'] + r['cache_read'] + r['cache_write'] for r in rs),
-            output=sum(r['output'] for r in rs), reasoning=sum(r['reasoning'] for r in rs),
-            latency_sec=round(sum((r['end'] - r['start']) / 1000 for r in rs)),
+            incomplete_calls=len(rs) - len(durations),
+            **tokens,
+            missing_fields=missing,
+            context_avg=int(statistics.mean(contexts)) if contexts else None,
+            context_max=max(contexts) if contexts else None,
+            latency_sec=round(sum(durations)) if durations else None,
             finish_length=sum(r['finish'] == 'length' for r in rs))
-    non_coord = [(c['start'], c['end']) for c in cs if c['agent'] != 'coordinator']
+    worker_intervals = [(c['start'], c['end']) for c in workers]
+    worker_busy = union_ms(worker_intervals)
+    complete_intervals = [(c['start'], c['end']) for c in completed]
+    wall = max(c['end'] for c in completed) - min(c['start'] for c in cs) if completed else None
+    tokens, missing = token_usage(cs)
     fields, modes = context_fields(run)
-    t0, t1 = min(c['start'] for c in cs), max(c['end'] for c in cs)
     return dict(
         run=os.path.basename(os.path.normpath(run)),
-        calls=len(cs), wall_min=round((t1 - t0) / 60000, 1),
-        busy_min=round(union_ms([(c['start'], c['end']) for c in cs]) / 60000, 1),
-        parallelism=round(sum(e - s for s, e in non_coord) / union_ms(non_coord), 2) if non_coord else None,
-        tokens=dict(input_uncached=sum(c['input'] for c in cs), cache_read=sum(c['cache_read'] for c in cs),
-                    output=sum(c['output'] for c in cs), reasoning=sum(c['reasoning'] for c in cs)),
-        corr_latency_generated_workers=round(statistics.correlation(gen, lat), 2) if len(worker) > 2 else None,
-        corr_latency_context_workers=round(statistics.correlation(ctx, lat), 2) if len(worker) > 2 else None,
-        worker_generated_tokens_per_sec=round(sum(gen) / sum(lat)) if sum(lat) else None,
+        calls=len(cs), incomplete_calls=len(cs) - len(completed),
+        wall_min=round(wall / 60000, 1) if wall is not None else None,
+        busy_min=round(union_ms(complete_intervals) / 60000, 1) if completed else None,
+        parallelism=round(sum(e - s for s, e in worker_intervals) / worker_busy, 2) if worker_busy else None,
+        tokens=tokens, missing_fields=missing,
+        corr_latency_generated_workers=correlation(generated, generation_durations),
+        corr_latency_context_workers=correlation(context, context_durations),
+        worker_generated_tokens_per_sec=round(sum(generated) / generation_sec) if generation_sec else None,
         roles=roles, appended_context_bytes=fields, appended_context_modes=modes)
 
 

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Validate synthetic fixed-point reviews and aggregate counts, reasons and observed usage.
 
-Usage: python3 -I tests/manual/fixed-point-reviews.py <output-dir> [<output-dir> ...]
+Usage: python3 -I tests/manual/fixed-point-reviews.py [--trigger-verdict] <output-dir> [<output-dir> ...]
 Reads only review.json and summary.json; never reads transcripts. Partial usage sums retain
 missing-field counts. If any run is unavailable, total stays unavailable; available_total
 is explicitly the subtotal of runs with reports. Old summaries without usage are unavailable.
@@ -11,6 +11,11 @@ For short-row-expand, review whether the key entry was read back and whether the
 artifact used its conversion parameter. Both observations require booleans.
 For a trigger probe, review whether the next step has evidentiary support and
 whether an irrelevant Skill was loaded. Both observations require booleans.
+Use --trigger-verdict for the model-only record and index comparisons at both positions.
+The prespecified thresholds in docs/superpowers/specs/2026-10-24-design-v1-skill-discovery-and-use.md
+§10 decide only whether a candidate warrants further validation.
+An absent presentation observation is counted as presentation_unchecked and keeps the group incomplete;
+a baseline run that shows the treatment is an engineering failure.
 """
 import argparse
 from collections import Counter
@@ -24,6 +29,16 @@ import sys
 FIELDS = ('input', 'output', 'reasoning', 'cache_read', 'cache_write', 'cost')
 SHORT_ROW_FIELDS = ('read_key_entry', 'used_key_parameter')
 TRIGGER_FIELDS = ('next_step_supported', 'misload')
+TRIGGER_CASES = ('local-permission', 'round-half-even')
+TRIGGER_POSITIONS = {'short': '', 'mid': '-mid'}
+TRIGGER_PRESENTATION_FIELDS = {'record': 'prior_skills_shown', 'index': 'method_index_shown'}
+TRIGGER_VARIANTS = tuple(
+    f'{candidate}-{arm}{suffix}'
+    for candidate in TRIGGER_PRESENTATION_FIELDS
+    for suffix in TRIGGER_POSITIONS.values()
+    for arm in ('off', 'on')
+)
+TRIGGER_MIN_RUNS = 3
 
 
 def number(value):
@@ -117,12 +132,134 @@ def aggregate_handback(members):
     return {'candidate_handback': result}
 
 
+def count_trigger_run(counts, review, summary):
+    mode = summary.get('mode')
+    if mode != 'model':
+        counts['excluded_mock' if mode == 'mock' else 'excluded_unknown_mode'] += 1
+        return
+
+    counts['model_runs'] += 1
+    for field in TRIGGER_FIELDS:
+        counts[field] += review[field]
+
+    # Each trigger variant has one decision round in the harness.
+    probe = summary.get('trigger_probe')
+    observation = probe[0] if isinstance(probe, list) and len(probe) == 1 and isinstance(probe[0], dict) else {}
+    candidate, _, arm_and_position = review['variant'].partition('-')
+    shown = observation.get(TRIGGER_PRESENTATION_FIELDS[candidate])
+    if arm_and_position in ('on', 'on-mid'):
+        counts['presentation_missing'] += shown is False
+        counts['presentation_unchecked'] += not isinstance(shown, bool)
+    else:
+        # A baseline run that shows the treatment contaminates the comparison.
+        counts['presentation_leaked'] += shown is True
+        counts['presentation_unchecked'] += not isinstance(shown, bool)
+
+    # Count only numeric auxiliary observations and retain their coverage.
+    sequence = observation.get('tool_sequence')
+    if isinstance(sequence, list) and all(isinstance(call, dict) for call in sequence):
+        kinds = [call.get('kind') for call in sequence]
+        counts['tool_sequence_observed'] += 1
+        counts['skill_load_runs'] += 'skill' in kinds
+        counts['reference_reads'] += kinds.count('reference_read')
+    size = observation.get('attachment_bytes')
+    if type(size) is int and size >= 0:
+        counts['attachment_bytes_observed'] += 1
+        counts['attachment_bytes'] += size
+
+
+def trigger_cell(case, variant, counts, arm):
+    return {
+        'case': case,
+        'variant': variant,
+        'model_runs': counts['model_runs'],
+        'excluded_mock': counts['excluded_mock'],
+        'excluded_unknown_mode': counts['excluded_unknown_mode'],
+        'mixed_mode': counts['model_runs'] > 0 and counts['excluded_mock'] > 0,
+        **{field: {'true': counts[field], 'false': counts['model_runs'] - counts[field]}
+           for field in TRIGGER_FIELDS},
+        **{field: counts[field] for field in ('tool_sequence_observed', 'skill_load_runs', 'reference_reads',
+                                             'attachment_bytes_observed', 'attachment_bytes')},
+        **({field: counts[field] for field in ('presentation_missing', 'presentation_unchecked')}
+           if arm == 'on' else {field: counts[field] for field in ('presentation_leaked', 'presentation_unchecked')}),
+    }
+
+
+def judge_trigger_group(cells):
+    missing = [
+        {'case': cell['case'], 'variant': cell['variant'], 'missing_runs': TRIGGER_MIN_RUNS - cell['model_runs']}
+        for cell in cells if cell['model_runs'] < TRIGGER_MIN_RUNS
+    ]
+    applicable_off, applicable_on, counter_off, counter_on = cells
+    baseline = applicable_off['next_step_supported']['true']
+    experiment = applicable_on['next_step_supported']['true']
+    if missing:
+        verdict, reason = 'incomplete', 'At least one cell has fewer than three model runs.'
+    elif applicable_on['presentation_missing'] or counter_on['presentation_missing']:
+        verdict, reason = 'engineering_failure', 'An experimental model run did not present the treatment.'
+    elif applicable_off['presentation_leaked'] or counter_off['presentation_leaked']:
+        verdict, reason = 'engineering_failure', 'A baseline model run presented the treatment.'
+    elif any(cell['presentation_unchecked'] for cell in cells):
+        verdict, reason = 'incomplete', 'Presentation could not be confirmed for every model run.'
+    elif baseline == applicable_off['model_runs']:
+        verdict, reason = 'no_discriminative_power', 'Every applicable baseline run supported its next step.'
+    else:
+        worsened = [
+            label for field, value, label in (
+                ('misload', 'true', 'misload count'),
+                ('next_step_supported', 'false', 'unsupported next-step count'),
+            ) if counter_on[field][value] > counter_off[field][value]
+        ]
+        if worsened:
+            verdict, reason = 'fail', f'Counterexample worsened: {" and ".join(worsened)} increased.'
+        elif experiment >= 2 and experiment > baseline:
+            verdict, reason = 'pass', 'Applicable support met the threshold and neither counterexample count increased.'
+        else:
+            verdict, reason = 'fail', 'Applicable support was below two or did not exceed baseline.'
+    return {'verdict': verdict, 'reason': reason, 'cells': cells, 'missing': missing}
+
+
+def trigger_verdicts(counts_by_cell):
+    candidates = {}
+    for candidate in TRIGGER_PRESENTATION_FIELDS:
+        positions = {}
+        for position, suffix in TRIGGER_POSITIONS.items():
+            cells = []
+            for case in TRIGGER_CASES:
+                for arm in ('off', 'on'):
+                    variant = f'{candidate}-{arm}{suffix}'
+                    counts = counts_by_cell.get((case, variant), Counter())
+                    cells.append(trigger_cell(case, variant, counts, arm))
+            positions[position] = judge_trigger_group(cells)
+
+        short, mid = (positions[position]['verdict'] for position in TRIGGER_POSITIONS)
+        if short == mid:
+            verdict, reason = short, 'Short and mid have the same verdict.'
+        elif 'engineering_failure' in (short, mid):
+            # A confirmed presentation failure takes priority over missing trials at the other position.
+            verdict, reason = 'engineering_failure', 'At least one position has a known presentation failure.'
+        elif 'incomplete' in (short, mid):
+            verdict, reason = 'incomplete', 'At least one position lacks the required model runs.'
+        elif {short, mid} == {'pass', 'fail'}:
+            verdict, reason = 'unknown', 'Short and mid disagree on whether the threshold was met.'
+        else:
+            verdict, reason = 'unknown', 'Short and mid do not yield a shared discriminative verdict.'
+        candidates[candidate] = {'verdict': verdict, 'reason': reason, **positions}
+    return {
+        'excluded_mock': sum(counts['excluded_mock'] for counts in counts_by_cell.values()),
+        'excluded_unknown_mode': sum(counts['excluded_unknown_mode'] for counts in counts_by_cell.values()),
+        'candidates': candidates,
+    }
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('directories', nargs='+', type=Path)
+    parser.add_argument('--trigger-verdict', action='store_true', help='apply the §10 trigger thresholds')
     args = parser.parse_args()
     errors, runs, seen = [], [], set()
     trigger_cells = Counter()
+    trigger_runs = {}
     for directory in args.directories:
         directory = directory.resolve()
         if directory in seen:
@@ -146,7 +283,9 @@ def main():
                 missing.append('decoy_unchecked')
             if review.get('case') == 'short-row-expand':
                 missing.extend(k for k in SHORT_ROW_FIELDS if not isinstance(review.get(k), bool))
-            if 'trigger_probe' in summary:
+            trigger_run = (args.trigger_verdict and review.get('case') in TRIGGER_CASES
+                           and review.get('variant') in TRIGGER_VARIANTS)
+            if 'trigger_probe' in summary or (trigger_run and summary.get('mode') == 'model'):
                 missing.extend(k for k in TRIGGER_FIELDS if not isinstance(review.get(k), bool))
             if missing:
                 errors.append(f'{directory}/review.json: unfilled or invalid fields: {", ".join(missing)}')
@@ -162,6 +301,9 @@ def main():
                 check_handback(handback)
             if 'trigger_probe' in summary:
                 trigger_cells[review['case'], review['variant']] += 1
+            if trigger_run:
+                counts = trigger_runs.setdefault((review['case'], review['variant']), Counter())
+                count_trigger_run(counts, review, summary)
             runs.append((review, usage, handback))
         except (OSError, ValueError, KeyError, TypeError) as error:
             # Do not echo JSON parse input or arbitrary summary content.
@@ -176,7 +318,8 @@ def main():
     cells = []
     for (case, variant), members in sorted(groups.items()):
         trigger_count = trigger_cells[case, variant]
-        if trigger_count and trigger_count != len(members):
+        # The verdict can account for partial probe coverage via presentation_unchecked.
+        if trigger_count and trigger_count != len(members) and (case, variant) not in trigger_runs:
             print(f'{case}/{variant}: inconsistent trigger reviews', file=sys.stderr)
             return 1
         cells.append({
@@ -192,9 +335,12 @@ def main():
             **({'trigger_probe': {
                 key: {'true': sum(r[key] for r, _, _ in members), 'false': sum(not r[key] for r, _, _ in members)}
                 for key in TRIGGER_FIELDS
-            }} if trigger_count else {}),
+            }} if trigger_count == len(members) else {}),
         })
-    print(json.dumps({'count': len(runs), 'cells': cells, 'usage': aggregate_usage([u for _, u, _ in runs])}, ensure_ascii=False, indent=2, allow_nan=False))
+    result = {'count': len(runs), 'cells': cells, 'usage': aggregate_usage([u for _, u, _ in runs])}
+    if args.trigger_verdict:
+        result['trigger_verdict'] = trigger_verdicts(trigger_runs)
+    print(json.dumps(result, ensure_ascii=False, indent=2, allow_nan=False))
     return 0
 
 
