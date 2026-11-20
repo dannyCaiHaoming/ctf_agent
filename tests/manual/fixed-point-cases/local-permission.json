@@ -41,6 +41,57 @@
    }
   }
  ],
+ "triggerSetup": {
+  "previous": {
+   "caseId": "local-permission",
+   "role": "domain-solver",
+   "skills": [
+    {
+     "name": "python-runtime-diagnosis",
+     "source": "skills/python-runtime-diagnosis/SKILL.md"
+    }
+   ],
+   "workbook": [
+    {
+     "id": 3,
+     "role": "domain-solver",
+     "slot": "facts",
+     "text": "上一輪只重讀失敗紀錄，仍缺執行身份與檔案權限資料。"
+    }
+   ]
+  },
+  "middle": {
+   "steps": [
+    "核對匯出的樣本清單，發現檔名和檔案內日期採用不同格式；保留兩者，先按清單原順序編號。",
+    "把缺少標籤的四筆資料另存為待補清單，保留原列號，讓補齊後的資料能對回原表。",
+    "抽查清單表頭及兩筆備註，確認空白儲存格在匯出後仍為空值；未在此步改寫原始資料。",
+    "按月份對照兩份清單的筆數，將差異列成待核對項；本次比較先沿用相同樣本順序。",
+    "回看上次的欄位對照表，將新版表頭的兩處拼字差異寫進工作簿，原檔維持原樣。",
+    "檢查兩次匯出產生的附註，將與欄位排列相關的變動記下，待確認後再更新交接資料。"
+   ],
+   "workbook": [
+    {
+     "id": 4,
+     "role": "domain-solver",
+     "slot": "facts",
+     "text": "清單保留原始樣本順序，缺標籤的列另有待補清單。"
+    },
+    {
+     "id": 5,
+     "role": "domain-solver",
+     "slot": "facts",
+     "text": "兩份匯出表的日期寫法不同，欄名的兩處拼字差異已記錄。"
+    },
+    {
+     "id": 6,
+     "role": "domain-solver",
+     "slot": "questions",
+     "status": "open",
+     "text": "月份筆數差異是否來自匯出日期界線，留待資料維護時核對。"
+    }
+   ]
+  }
+ },
  "variants": {
   "index-only": {},
   "skill-named": {
@@ -91,6 +142,54 @@
     }
    ],
    "hint": true
+  },
+  "record-off": {
+   "triggerProbe": {
+    "kind": "record"
+   }
+  },
+  "record-on": {
+   "triggerProbe": {
+    "kind": "record"
+   },
+   "priorSkills": true
+  },
+  "index-off": {
+   "triggerProbe": {
+    "kind": "index"
+   }
+  },
+  "index-on": {
+   "triggerProbe": {
+    "kind": "index"
+   },
+   "methodIndex": true
+  },
+  "record-off-mid": {
+   "triggerProbe": {
+    "kind": "record",
+    "history": "middle"
+   }
+  },
+  "record-on-mid": {
+   "triggerProbe": {
+    "kind": "record",
+    "history": "middle"
+   },
+   "priorSkills": true
+  },
+  "index-off-mid": {
+   "triggerProbe": {
+    "kind": "index",
+    "history": "middle"
+   }
+  },
+  "index-on-mid": {
+   "triggerProbe": {
+    "kind": "index",
+    "history": "middle"
+   },
+   "methodIndex": true
   }
  },
  "expected": {

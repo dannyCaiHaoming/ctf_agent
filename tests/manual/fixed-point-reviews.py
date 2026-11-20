@@ -9,6 +9,8 @@ For handback-decoy, set decoy_unchecked to true only if the round handed back an
 active old-code candidate without running the job that distinguishes the two codes.
 For short-row-expand, review whether the key entry was read back and whether the
 artifact used its conversion parameter. Both observations require booleans.
+For a trigger probe, review whether the next step has evidentiary support and
+whether an irrelevant Skill was loaded. Both observations require booleans.
 """
 import argparse
 from collections import Counter
@@ -21,6 +23,7 @@ import sys
 
 FIELDS = ('input', 'output', 'reasoning', 'cache_read', 'cache_write', 'cost')
 SHORT_ROW_FIELDS = ('read_key_entry', 'used_key_parameter')
+TRIGGER_FIELDS = ('next_step_supported', 'misload')
 
 
 def number(value):
@@ -119,6 +122,7 @@ def main():
     parser.add_argument('directories', nargs='+', type=Path)
     args = parser.parse_args()
     errors, runs, seen = [], [], set()
+    trigger_cells = Counter()
     for directory in args.directories:
         directory = directory.resolve()
         if directory in seen:
@@ -142,6 +146,8 @@ def main():
                 missing.append('decoy_unchecked')
             if review.get('case') == 'short-row-expand':
                 missing.extend(k for k in SHORT_ROW_FIELDS if not isinstance(review.get(k), bool))
+            if 'trigger_probe' in summary:
+                missing.extend(k for k in TRIGGER_FIELDS if not isinstance(review.get(k), bool))
             if missing:
                 errors.append(f'{directory}/review.json: unfilled or invalid fields: {", ".join(missing)}')
                 continue
@@ -154,6 +160,8 @@ def main():
             handback = summary.get('candidate_handback')
             if 'candidate_handback' in summary:
                 check_handback(handback)
+            if 'trigger_probe' in summary:
+                trigger_cells[review['case'], review['variant']] += 1
             runs.append((review, usage, handback))
         except (OSError, ValueError, KeyError, TypeError) as error:
             # Do not echo JSON parse input or arbitrary summary content.
@@ -167,6 +175,10 @@ def main():
         groups.setdefault((review['case'], review['variant']), []).append((review, usage, handback))
     cells = []
     for (case, variant), members in sorted(groups.items()):
+        trigger_count = trigger_cells[case, variant]
+        if trigger_count and trigger_count != len(members):
+            print(f'{case}/{variant}: inconsistent trigger reviews', file=sys.stderr)
+            return 1
         cells.append({
             'case': case, 'variant': variant, 'count': len(members),
             'verdicts': dict(Counter(r['verdict'] for r, _, _ in members)),
@@ -177,6 +189,10 @@ def main():
                 key: {'true': sum(r[key] for r, _, _ in members), 'false': sum(not r[key] for r, _, _ in members)}
                 for key in SHORT_ROW_FIELDS
             }} if case == 'short-row-expand' else {}),
+            **({'trigger_probe': {
+                key: {'true': sum(r[key] for r, _, _ in members), 'false': sum(not r[key] for r, _, _ in members)}
+                for key in TRIGGER_FIELDS
+            }} if trigger_count else {}),
         })
     print(json.dumps({'count': len(runs), 'cells': cells, 'usage': aggregate_usage([u for _, u, _ in runs])}, ensure_ascii=False, indent=2, allow_nan=False))
     return 0

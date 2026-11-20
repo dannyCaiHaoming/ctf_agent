@@ -19,9 +19,9 @@ import { existsSync } from 'node:fs';
 import { mkdir, readFile, writeFile, copyFile, stat } from 'node:fs/promises';
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http';
 import { createHash, randomBytes, randomUUID } from 'node:crypto';
-import { dirname, join, resolve, sep } from 'node:path';
+import { dirname, join, relative, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import type { SessionMessagesResponses } from '@opencode-ai/sdk/v2';
+import type { AppSkillsResponse, SessionMessagesResponses } from '@opencode-ai/sdk/v2';
 import { summarizeCandidateHandback, summarizeUsage, usageMatchesMessages, reviewSkeleton, type UsageRound } from './fixed-point-records.js';
 import { startManagedOpenCode, loadOpenCodeConfig } from '../../packages/opencode-bridge/src/server.js';
 import { collectLayer, mergeAgentOptions } from '../../apps/launcher/src/launch.js';
@@ -61,21 +61,40 @@ if (out === repoRoot || out.startsWith(repoRoot + sep)) fail('--out must be outs
 interface Entry { id: number; role: string; slot: string; text: string; status?: string; scope?: string; evidence_refs?: string[]; related_ids?: number[]; supersedes?: number }
 interface Stub { tool: string; match?: string; result: unknown }
 interface Round { dispatch: string; session?: 'same' | 'new' }
-interface Variant { dispatch?: string; dispatchAppend?: string; workbook?: Entry[]; rounds?: Round[]; note?: string; hint?: boolean; candidateReminder?: true }
+interface PriorSkill { name: string; version?: string; source: string }
+interface DecisionIdentity { caseId: string; role: WorkbookRole }
+interface TriggerSetup {
+  previous: DecisionIdentity & { skills: PriorSkill[]; workbook: Entry[] };
+  middle: { steps: string[]; workbook: Entry[] };
+}
+interface Variant {
+  dispatch?: string; dispatchAppend?: string; workbook?: Entry[]; rounds?: Round[]; note?: string; hint?: boolean; candidateReminder?: true;
+  triggerProbe?: { kind: 'record' | 'index'; history?: 'middle' };
+  priorSkills?: true;
+  methodIndex?: true;
+}
 interface Execute { maxJobs: number; maxTimeoutMs: number; artifactCheck?: { argv: string[]; cwdFiles?: Record<string, string> } }
 interface Case {
   id: string; role: WorkbookRole; questions: string[]; materials: Record<string, string>; workbook: Entry[];
   rounds: Round[]; stubs?: Stub[]; variants: Record<string, Variant>; expected: { next_step: string; must_not: string[] };
   execute?: Execute;
   probe?: { keyEntryId: number };
+  triggerSetup?: TriggerSetup;
 }
 const spec = JSON.parse(await readFile(resolve(casePath!), 'utf8')) as Case;
 const variant = spec.variants?.[variantName!] ?? fail(`unknown variant ${variantName}; known: ${Object.keys(spec.variants ?? {}).join(', ')}`);
+const triggerProbe = variant.triggerProbe;
+const triggerSetup = triggerProbe ? spec.triggerSetup ?? fail('triggerProbe requires a fixed previous round and middle history') : undefined;
+const decisionHistory = triggerProbe?.history === 'middle' ? triggerSetup!.middle : undefined;
+const triggerSection = triggerProbe?.kind === 'record' ? 'prior_skills' : 'method_index';
+const triggerSwitch = triggerProbe?.kind === 'record' ? 'priorSkills' : 'methodIndex';
+const decisionIdentity = { caseId: spec.id, role: spec.role };
 // Both arms of a reminder comparison collect the same measurements. Legacy cases keep their output schema.
 const trackCandidateHandback = Object.values(spec.variants).some(arm => arm.candidateReminder === true);
 const handbackMock = spec.id === 'handback-ready' || spec.id === 'handback-decoy';
 const shortRowMock = spec.id === 'short-row-expand';
-const seededEntries = [...spec.workbook, ...(variant.workbook ?? [])];
+const seededEntries = [...spec.workbook, ...(variant.workbook ?? []),
+  ...(triggerSetup?.previous.workbook ?? []), ...(decisionHistory?.workbook ?? [])];
 const probeKeyId = spec.probe?.keyEntryId;
 const probeKeyEntry = probeKeyId === undefined ? undefined : seededEntries.find(entry => entry.id === probeKeyId);
 if (spec.probe && !probeKeyEntry) fail('probe.keyEntryId must name a seeded workbook entry');
@@ -85,13 +104,22 @@ const rounds: Round[] = (variant.rounds ?? spec.rounds).map((r, i) => ({
   ...r, dispatch: (i === 0 && variant.dispatch ? variant.dispatch : r.dispatch) + (i === 0 && variant.dispatchAppend ? `\n\n${variant.dispatchAppend}` : '')
 }));
 if (!rounds.length) fail('case has no rounds');
+if (triggerProbe && (rounds.length !== 1 || rounds[0]?.session === 'same' ||
+    (triggerProbe.kind === 'record' ? variant.methodIndex : variant.priorSkills)))
+  fail('each trigger probe runs one new decision session with at most its own treatment');
+if (!triggerProbe && (variant.priorSkills || variant.methodIndex)) fail('trigger treatments require a triggerProbe');
+const sameProbeSetup = ({ [triggerSwitch]: _treatment, ...base }: Variant) => JSON.stringify(base);
+const triggerPeers = mock && triggerProbe ? Object.values(spec.variants).filter(arm =>
+  Boolean(arm[triggerSwitch]) !== Boolean(variant[triggerSwitch]) && sameProbeSetup(arm) === sameProbeSetup(variant)
+) : [];
 if (spec.execute && (!Number.isInteger(spec.execute.maxJobs) || spec.execute.maxJobs < 1 ||
   !Number.isInteger(spec.execute.maxTimeoutMs) || spec.execute.maxTimeoutMs < 1 || spec.execute.maxTimeoutMs > 600000))
   fail('execute requires positive integer maxJobs and maxTimeoutMs (at most 600000)');
 await mkdir(out, { recursive: true });
 const review = {
   ...reviewSkeleton(spec.id, variantName!, spec.expected),
-  ...(shortRowMock ? { read_key_entry: null, used_key_parameter: null } : {})
+  ...(shortRowMock ? { read_key_entry: null, used_key_parameter: null } : {}),
+  ...(triggerProbe ? { next_step_supported: null, misload: null } : {})
 };
 await writeFile(join(out, 'review.json'), JSON.stringify(review, null, 1));
 
@@ -135,12 +163,20 @@ const record = (kind: string, detail: Record<string, unknown>) => {
 };
 let modelCalls = 0;
 let roundIndex = 0;
+let newSessionForRound = false;
+let activeSession: string | undefined;
 const firstPresentedShortIds = new Map<number, number[]>();
+if (triggerSetup) {
+  const { caseId, role, skills } = triggerSetup.previous;
+  record('trigger.previous_round_seeded', { caseId, role, skills });
+}
 
 // ---------- fake control service ----------
 const token = randomBytes(32).toString('hex');
 const runtimeDir = join(out, 'runtime');
 const skillRoot = join(runtimeDir, 'config', 'opencode', 'skills');
+const mockTriggerSkill = triggerProbe && spec.id === 'local-permission' ? 'python-runtime-diagnosis' : undefined;
+const mockTriggerReference = 'python-runtime-diagnosis/references/runtime-boundaries.md';
 const permissions = JSON.parse(await readFile(join(productDir, 'opencode', 'opencode.json'), 'utf8')).agent?.[spec.role]?.permission ?? {};
 const work = new Map<string, string>();
 const visible = new Map<string, string>();
@@ -268,13 +304,50 @@ const unchangedOwnOpen = () => activeEntries(rows)
 const activeCandidates = () => activeEntries(rows).filter(e => e.slot === 'candidate' && e.status !== 'withdrawn');
 const HINT_NOTE = 'Open hypotheses and questions your role wrote before this round that this round has not superseded yet. Supersede, refute or leave each open as the evidence says; the host does not judge them.';
 const CANDIDATE_REMINDER = 'Candidate recorded. The Coordinator cannot see it until you hand back. If it is ready for the Engineer, hand back now; if a check is still needed to tell it apart from another explanation, do that check first, then hand back and say what was checked.';
-const contextText = (role: WorkbookRole) => {
+const CONTEXT_PREFIX = '[CTF investigation context]\n';
+const PRIOR_SKILL_NOTE = '上一輪曾載入；是否重新載入由你判斷。';
+const INDEX_LINE_CHARS = 96;
+
+function priorSkillRecord(current: DecisionIdentity, newSession: boolean, previous?: TriggerSetup['previous']) {
+  if (!newSession || !previous?.skills.length || previous.caseId !== current.caseId || previous.role !== current.role) return undefined;
+  return {
+    note: PRIOR_SKILL_NOTE,
+    records: previous.skills.map(({ name, version, source }) => ({ name, version: version?.trim() || 'unknown', source }))
+  };
+}
+
+function methodIndexLine(name: string, description: string) {
+  const normalized = description.trim().replace(/\s+/g, ' ');
+  const firstSentence = normalized.match(/^.*?(?:[。！？]|[.!?](?= |$)|$)/u)?.[0] ?? normalized;
+  return Array.from(`${name} — ${firstSentence}`).slice(0, INDEX_LINE_CHARS).join('');
+}
+
+async function readInstalledMethodIndex(files: string[]) {
+  return Promise.all(files.map(async file => {
+    // Installed files already passed collectLayer's single-line name/description frontmatter contract.
+    const frontmatter = /^---\r?\n([\s\S]*?)\r?\n---(?:\r?\n|$)/.exec(await readFile(file, 'utf8'))?.[1] ?? '';
+    const field = (name: string) => frontmatter.match(new RegExp(`^${name}:[ \\t]*(.*)$`, 'm'))?.[1]?.trim().replace(/^["']|["']$/g, '');
+    const name = field('name'), description = field('description');
+    if (!name || !description) throw new Error('installed Skill lacks name/description frontmatter');
+    return { name, line: methodIndexLine(name, description) };
+  }));
+}
+
+let installedIndex: Awaited<ReturnType<typeof readInstalledMethodIndex>> = [];
+let discoveredSkills: AppSkillsResponse = [];
+const triggerContext = new Map<number, { actual: string; paired?: string }>();
+const contextText = (role: WorkbookRole, arm = variant, activeDecision = true) => {
   const host = { goal: { challenge: spec.id, materials: Object.keys(spec.materials).map(n => `materials/${n}`), submission: { available: false } }, candidate_host: { packages: [], completions: [] } };
   const wb = workbookView(rows, role, host as never);
-  const hint = variant.hint ? { own_open_unchanged_this_round: { ids: unchangedOwnOpen(), note: HINT_NOTE } } : {};
-  const version = createHash('sha256').update(JSON.stringify([wb.view, hint])).digest('hex').slice(0, 16);
-  const payload = { mode: 'full', version, current_question: { source: 'the native dispatch message of this session, kept unmodified in history', execution: null, role }, state: { publications: [] }, workbook: wb.view, ...hint };
-  return { version, text: '[CTF investigation context]\n' + JSON.stringify(payload), hintIds: variant.hint ? hint.own_open_unchanged_this_round!.ids : null, shortIds: wb.short_ids };
+  const hint = arm.hint ? { own_open_unchanged_this_round: { ids: unchangedOwnOpen(), note: HINT_NOTE } } : {};
+  const history = activeDecision && decisionHistory ? { synthetic_history: decisionHistory.steps } : {};
+  const prior_skills = activeDecision && arm.priorSkills && roundIndex === 0
+    ? priorSkillRecord({ caseId: spec.id, role }, newSessionForRound, triggerSetup?.previous) : undefined;
+  const method_index = activeDecision && arm.methodIndex ? installedIndex.map(({ line }) => line) : undefined;
+  // Each treatment stays fixed for the entire isolated decision session. Keep the base version identical across arms.
+  const version = createHash('sha256').update(JSON.stringify([wb.view, hint, ...(activeDecision && decisionHistory ? [history] : [])])).digest('hex').slice(0, 16);
+  const payload = { mode: 'full', version, current_question: { source: 'the native dispatch message of this session, kept unmodified in history', execution: null, role }, state: { publications: [] }, workbook: wb.view, ...hint, ...history, prior_skills, method_index };
+  return { version, text: CONTEXT_PREFIX + JSON.stringify(payload), hintIds: arm.hint ? hint.own_open_unchanged_this_round!.ids : null, shortIds: wb.short_ids };
 };
 const toolExecute = async (sessionID: string, tool: string, args: any) => {
   if (spec.execute && (tool === 'artifact.publish' || tool === 'artifact.read'))
@@ -313,8 +386,13 @@ const control = createServer((req: IncomingMessage, res: ServerResponse) => { vo
   const deny = (error: string) => { res.writeHead(403, { 'content-type': 'application/json' }).end(JSON.stringify({ error })); };
   switch (operation) {
     case 'context.prepare': {
-      const c = contextText(spec.role);
+      const activeDecision = !triggerProbe || sessionID === activeSession;
+      const c = contextText(spec.role, variant, activeDecision);
       if (input?.placement !== 'compacting' && input?.visibleVersion === c.version) return reply({ version: c.version, unchanged: true });
+      if (triggerProbe && activeDecision && input?.placement === 'chat.message' && !triggerContext.has(roundIndex)) {
+        const peer = triggerPeers.length === 1 ? triggerPeers[0] : undefined;
+        triggerContext.set(roundIndex, { actual: c.text, paired: peer && contextText(spec.role, peer).text });
+      }
       if (probeKeyEntry && !firstPresentedShortIds.has(roundIndex)) firstPresentedShortIds.set(roundIndex, c.shortIds);
       if (visible.get(sessionID) !== c.version) record('context', { round: roundIndex, session: sessionID, version: c.version, placement: input?.placement, entries: activeEntries(rows).length, activeIds: activeEntries(rows).map(e => e.id), hintIds: c.hintIds });
       visible.set(sessionID, c.version);
@@ -464,8 +542,11 @@ const mockServer = mock ? createServer((req, res) => { void (async () => {
   const hinted = [...mockRequests.at(-1)!.user.matchAll(/"own_open_unchanged_this_round":\{"ids":\[([0-9,]*)\]/g)].at(-1)?.[1]?.split(',').filter(Boolean).map(Number) ?? [];
   const note = hinted.length ? { slot: 'refuted', text: 'mock: retired by the scripted provider', supersedes: hinted[0] } : { slot: 'hypotheses', text: 'mock hypothesis written by the scripted provider', status: 'open' };
   const plan: Array<[string, unknown] | null> = [
-    ['ctf_workspace_read', { path: `materials/${Object.keys(spec.materials)[0]}` }], ['skill', { name: 'python-runtime-diagnosis' }]
+    ['ctf_workspace_read', { path: `materials/${Object.keys(spec.materials)[0]}` }]
   ];
+  // Fix the scripted tool sequence across both arms. The rounding case needs no runtime-diagnosis Skill.
+  if (!triggerProbe || mockTriggerSkill) plan.push(['skill', { name: mockTriggerSkill ?? 'python-runtime-diagnosis' }]);
+  if (mockTriggerSkill) plan.push(['read', { filePath: join(skillRoot, mockTriggerReference) }]);
   if (shortRowMock) {
     // Read the provider's copy of the recon.read result, never the seeded workbook, to obtain the conversion rule.
     let readback: string | undefined;
@@ -503,6 +584,16 @@ await mkdir(join(runtimeDir, 'config', 'opencode'), { recursive: true });
 const targets = new Map<string, string>();
 for (const layer of [productDir, join(productDir, 'opencode')]) for (const item of await collectLayer(layer)) targets.set(item.target, item.source);
 for (const [target, source] of targets) { const dest = join(runtimeDir, 'config', 'opencode', target); await mkdir(dirname(dest), { recursive: true }); await copyFile(source, dest); }
+let skillAssetsDigest: string | undefined;
+if (triggerProbe) {
+  const assets = [...targets.keys()].filter(target => target.startsWith('skills/')).sort();
+  const installedPath = (target: string) => join(runtimeDir, 'config', 'opencode', target);
+  installedIndex = await readInstalledMethodIndex(assets.filter(target => /^skills\/[^/]+\/SKILL\.md$/.test(target)).map(installedPath));
+  if (!installedIndex.length) fail('trigger probe requires installed Skill frontmatter');
+  const hashes = await Promise.all(assets.map(async target =>
+    [target, createHash('sha256').update(await readFile(installedPath(target))).digest('hex')]));
+  skillAssetsDigest = createHash('sha256').update(JSON.stringify(hashes)).digest('hex');
+}
 const baseConfig = JSON.parse(await readFile(join(productDir, 'opencode', 'opencode.json'), 'utf8')) as Record<string, any>;
 let provider: Record<string, unknown>, model: string, environment: Record<string, string> = {}, runtimeAgent: unknown;
 if (mock) {
@@ -533,13 +624,17 @@ let engine: Awaited<ReturnType<typeof startManagedOpenCode>> | undefined;
 try {
   engine = await startManagedOpenCode({ directory: runtimeDir, binaryPath: OPENCODE, signal: abort.signal, environment, config: config as never });
   const client = engine.client;
-  for (const s of (await client.app.skills({}, { throwOnError: true })).data ?? []) skills.push(s.name);
-  let session: string | undefined;
+  discoveredSkills = (await client.app.skills({}, { throwOnError: true })).data ?? [];
+  for (const s of discoveredSkills) skills.push(s.name);
   for (const [i, round] of rounds.entries()) {
     roundIndex = i;
     roundStartSequences[i] = sequence;
-    if (!session || round.session !== 'same') session = (await client.session.create({ title: `${spec.id} ${variantName} r${i}` }, { throwOnError: true })).data!.id;
-    record('round.start', { round: i, session, sessionMode: i === 0 ? 'first' : round.session ?? 'new' });
+    newSessionForRound = !activeSession || round.session !== 'same';
+    const session: string = newSessionForRound
+      ? (await client.session.create({ title: `${spec.id} ${variantName} r${i}` }, { throwOnError: true })).data!.id
+      : activeSession!;
+    activeSession = session;
+    record('round.start', { round: i, session, sessionMode: i === 0 && !triggerProbe ? 'first' : round.session ?? 'new' });
     let messages: SessionMessagesResponses[200] = [];
     let usageReadError: unknown;
     try {
@@ -587,6 +682,53 @@ const checkDefaultConversion = async () => {
 };
 const defaultArtifactCheck = mock && shortRowMock ? await checkDefaultConversion() : undefined;
 const calls = events.filter(e => e.kind === 'tool.call');
+type ProbePayload = {
+  prior_skills?: ReturnType<typeof priorSkillRecord>;
+  method_index?: string[];
+  synthetic_history?: string[];
+  workbook: { slots: Record<string, Array<{ id: number }>> };
+};
+function probePayload(context: string | undefined): ProbePayload | undefined {
+  if (!context?.startsWith(CONTEXT_PREFIX)) return undefined;
+  try { return JSON.parse(context.slice(CONTEXT_PREFIX.length)) as ProbePayload; }
+  catch { return undefined; }
+}
+
+function withoutTreatment(payload: ProbePayload) {
+  const { [triggerSection]: _treatment, ...base } = payload;
+  return JSON.stringify(base);
+}
+
+function referencePath(call: (typeof calls)[number]) {
+  if (call.tool !== 'read' || typeof call.args?.filePath !== 'string') return undefined;
+  const path = relative(skillRoot, resolve(call.args.filePath));
+  return /^[^/]+\/references\/.+/.test(path) ? path : undefined;
+}
+
+const sha256 = (text: string) => createHash('sha256').update(text).digest('hex');
+const readOnlyTools = new Set(['skill', 'read', 'ctf_workspace_read', 'ctf_workspace_list', 'ctf_workspace_search',
+  'ctf_workspace_view', 'ctf_workspace_diff', 'ctf_recon_read', 'ctf_job_read', 'ctf_artifact_read',
+  'ctf_package_read', 'ctf_experience_read']);
+const triggerObservations = triggerProbe && rounds.map((round, i) => {
+  const payload = probePayload(triggerContext.get(i)?.actual);
+  const roundCalls = calls.filter(e => e.round === i);
+  const attachment = payload?.[triggerSection];
+  return {
+    round: i, decision_round: 2, kind: triggerProbe.kind, history: triggerProbe.history ?? 'short',
+    prior_skills_shown: payload?.prior_skills !== undefined,
+    method_index_shown: payload?.method_index !== undefined,
+    attachment_bytes: attachment ? Buffer.byteLength(JSON.stringify(attachment)) : 0,
+    base_context_sha256: payload ? sha256(withoutTreatment(payload)) : null,
+    dispatch_sha256: sha256(round.dispatch),
+    skill_assets_sha256: skillAssetsDigest,
+    tool_sequence: roundCalls.flatMap((call, index) => {
+      if (call.tool === 'skill') return [{ kind: 'skill', target: call.args?.name ?? null, call: index + 1 }];
+      const path = referencePath(call);
+      return path ? [{ kind: 'reference_read', target: path, call: index + 1 }] : [];
+    }),
+    first_non_read_action: roundCalls.find(call => !readOnlyTools.has(call.tool))?.tool ?? null
+  };
+});
 const shortRowProbe = probeKeyEntry && {
   key_entry_id: probeKeyEntry.id,
   rounds: rounds.map((_, round) => {
@@ -631,6 +773,7 @@ const summary = {
   expected: spec.expected,
   ...(trackCandidateHandback ? { candidate_handback: summarizeCandidateHandback(events, rounds.length) } : {}),
   ...(shortRowProbe ? { short_row_probe: shortRowProbe } : {}),
+  ...(triggerObservations ? { trigger_probe: triggerObservations } : {}),
   ...(spec.execute?.artifactCheck ? { artifact_check: artifactCheck } : {})
 };
 await mkdir(out, { recursive: true });
@@ -706,6 +849,61 @@ const shortRowMockChecks = (metrics: typeof shortRowProbe) => {
   };
 };
 
+function triggerMockChecks(observation: NonNullable<typeof triggerObservations>[number] | undefined, savedReview: Record<string, unknown>) {
+  const firstUser = mockRequests[0]?.user ?? '';
+  const marker = firstUser.indexOf(CONTEXT_PREFIX);
+  const delivered = marker < 0 ? undefined : CONTEXT_PREFIX + firstUser.slice(marker + CONTEXT_PREFIX.length).split('\n', 1)[0];
+  const actual = probePayload(delivered);
+  const presentation = triggerContext.get(0);
+  const paired = probePayload(presentation?.paired);
+  const baseline = actual && withoutTreatment(actual);
+  const previous = triggerSetup!.previous;
+  const eligible = priorSkillRecord(decisionIdentity, true, previous);
+  const sample = { ...previous, skills: [{ name: 'synthetic-method', source: 'fixture', version: '1.2' }] };
+  const projectedIndex = installedIndex.map(({ line }) => line);
+  const bookIds = actual ? Object.values(actual.workbook.slots).flat().map(entry => entry.id) : [];
+  const expectedSequence = mockTriggerSkill
+    ? [{ kind: 'skill', target: mockTriggerSkill, call: 2 }, { kind: 'reference_read', target: mockTriggerReference, call: 3 }]
+    : [];
+  const expectedAttachment = variant.priorSkills ? eligible : variant.methodIndex ? projectedIndex : undefined;
+  return {
+    triggerRecordOnlyAcrossNewMatchingSessions: Boolean(eligible) &&
+      eligible?.note === PRIOR_SKILL_NOTE &&
+      JSON.stringify(eligible?.records) === JSON.stringify(previous.skills.map(({ name, version, source }) => ({ name, version: version ?? 'unknown', source }))) &&
+      priorSkillRecord(decisionIdentity, true, sample)?.records[0]?.version === '1.2' &&
+      priorSkillRecord(decisionIdentity, false, previous) === undefined &&
+      priorSkillRecord({ ...decisionIdentity, caseId: 'other-synthetic-case' }, true, previous) === undefined &&
+      priorSkillRecord({ ...decisionIdentity, role: spec.role === 'recon' ? 'domain-solver' : 'recon' }, true, previous) === undefined &&
+      priorSkillRecord(decisionIdentity, true) === undefined &&
+      priorSkillRecord(decisionIdentity, true, { ...previous, skills: [] }) === undefined &&
+      probePayload(contextText(spec.role, { ...variant, priorSkills: true }, false).text)?.prior_skills === undefined &&
+      JSON.stringify(actual?.prior_skills) === JSON.stringify(variant.priorSkills ? eligible : undefined),
+    triggerIndexFromInstalledFrontmatter: installedIndex.length > 0 && installedIndex.every(({ name, line }) => {
+      const description = discoveredSkills.find(skill => skill.name === name)?.description;
+      return description && line === methodIndexLine(name, description) && Array.from(line).length <= INDEX_LINE_CHARS;
+    }) && JSON.stringify(actual?.method_index) === JSON.stringify(variant.methodIndex ? projectedIndex : undefined),
+    triggerPairChangesOneSection: Boolean(actual && paired && baseline && delivered === presentation?.actual &&
+      // The dispatch and the injected context must reach the model in the same request; their order inside the
+      // request depends on when the plugin hook runs, so it is not asserted.
+      firstUser.includes(rounds[0]!.dispatch) && triggerPeers.length === 1 &&
+      baseline === withoutTreatment(paired) &&
+      Object.hasOwn(actual, triggerSection) === Boolean(variant[triggerSwitch]) &&
+      Object.hasOwn(paired, triggerSection) !== Boolean(variant[triggerSwitch]) &&
+      observation?.base_context_sha256 === sha256(baseline) &&
+      observation.dispatch_sha256 === sha256(rounds[0]!.dispatch) && observation.skill_assets_sha256 === skillAssetsDigest),
+    triggerHistoryReachedDecision: Boolean(actual) &&
+      JSON.stringify(actual?.synthetic_history) === JSON.stringify(decisionHistory?.steps) &&
+      [...previous.workbook, ...(decisionHistory?.workbook ?? [])].every(entry => bookIds.includes(entry.id)) &&
+      finals.some(f => f.round === 0 && f.text === 'MOCK_HANDBACK'),
+    triggerToolOrderAndAttachmentRecorded: observation?.prior_skills_shown === Boolean(variant.priorSkills) &&
+      observation.method_index_shown === Boolean(variant.methodIndex) &&
+      observation.attachment_bytes === (expectedAttachment ? Buffer.byteLength(JSON.stringify(expectedAttachment)) : 0) &&
+      JSON.stringify(observation.tool_sequence) === JSON.stringify(expectedSequence) &&
+      observation.first_non_read_action === 'ctf_recon_note',
+    triggerReviewFieldsPresent: savedReview.next_step_supported === null && savedReview.misload === null
+  };
+}
+
 if (mock) {
   const role = spec.role;
   const savedSummary = JSON.parse(await readFile(join(out, 'summary.json'), 'utf8'));
@@ -718,7 +916,7 @@ if (mock) {
     managedToolsOffered: mockRequests.some(r => r.tools.includes('ctf_recon_note') && r.tools.includes('ctf_workspace_read')),
     skillDiscovered: skills.includes('python-runtime-diagnosis'),
     workspaceReadRouted: events.some(e => e.kind === 'tool.result' && e.tool === 'workspace.read' && !(e.result as any)?.error),
-    skillCallRecorded: calls.some(c => c.tool === 'skill'),
+    skillCallRecorded: calls.some(c => c.tool === 'skill') === Boolean(!triggerProbe || mockTriggerSkill),
     // The round-1 session must have been shown the round-0 writes before its first tool call (same session: already in
     // its history; new session: in its first context block).
     workbookWriteVisibleNextRound: rounds.length < 2 || written.size === 0 || (() => {
@@ -729,6 +927,7 @@ if (mock) {
       return round0.length === 0 || before.some(e => round0.every(id => (e.activeIds as number[]).includes(id)));
     })(),
     hintReachedModel: !variant.hint || mockRequests.some(r => r.user.includes('own_open_unchanged_this_round')),
+    ...(triggerProbe ? triggerMockChecks(savedSummary.trigger_probe?.[0], JSON.parse(await readFile(join(out, 'review.json'), 'utf8'))) : {}),
     ...(spec.execute ? {
       jobExecuted: events.some(e => e.kind === 'job.state' && e.session !== 'artifact-check' && e.state === 'exited' && typeof e.exitCode === 'number'),
       ...(handbackMock ? candidateMockChecks(savedSummary.candidate_handback?.[0]) :
