@@ -7,7 +7,12 @@ import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { launch } from '../../apps/launcher/src/launch.js';
 
-const out = resolve('docs/gates/g-solver-verification-20261023/integration-20261024/team-runtime');
+// Optional (tool image design §4): TEAM_TOOL_IMAGE runs every job in per-session containers of that image, with the
+// image's own node; TEAM_OUT then names an output directory outside the repository. Unset keeps the original batch.
+const toolImage = process.env.TEAM_TOOL_IMAGE || undefined;
+const out = process.env.TEAM_OUT ? resolve(process.env.TEAM_OUT) : resolve('docs/gates/g-solver-verification-20261023/integration-20261024/team-runtime');
+if (toolImage && (!process.env.TEAM_OUT || out.startsWith(resolve('.')))) throw new Error('TEAM_OUT outside the repository is required with TEAM_TOOL_IMAGE');
+const node = toolImage ? 'node' : process.execPath;
 await mkdir(out); // Refuse to overwrite a previous batch.
 const root = await mkdtemp(join(tmpdir(), 'g-team-runtime-'));
 const provider: any[] = [], events: any[] = [], targetRequests: string[] = [];
@@ -70,15 +75,15 @@ const stub = createServer((q, r) => { void (async () => {
     else if (step === 2) call('ctf_workspace_write', { path: 'work/observation.txt', content: 'local HTTP observation; private until D publishes' });
     else content = 'RECON_DONE authorized-local-observation; work is private; no completion oracle';
   } else if (who === 'domain-solver') {
-    if (step === 0) call('ctf_job_run', { argv: [process.execPath, '-e', "console.error('fixture-script-error');process.exit(1)"], timeout_ms: 5000 });
+    if (step === 0) call('ctf_job_run', { argv: [node, '-e', "console.error('fixture-script-error');process.exit(1)"], timeout_ms: 5000 });
     else if (step === 1) content = 'SOLVER_NEEDS_FIX script exit 1; repair locally in the same task';
     else if (step === 2) { assert(all.includes('TEAM_REPAIR')); call('ctf_workspace_write', { path: 'work/solve.cjs', content: "console.log(6*7)" }); }
-    else if (step === 3) call('ctf_job_run', { argv: [process.execPath, 'solve.cjs'], timeout_ms: 5000 });
+    else if (step === 3) call('ctf_job_run', { argv: [node, 'solve.cjs'], timeout_ms: 5000 });
     else content = 'SOLVER_FIXED local output 42; script stays private; D publication missing';
   } else {
     if (step === 0) call('ctf_workspace_read', { path: 'materials/numbers.json' });
     else if (step === 1) call('ctf_workspace_write', { path: 'work/recompute.cjs', content: "const fs=require('fs'); const n=JSON.parse(fs.readFileSync('../../materials/numbers.json','utf8')); console.log(n.a*n.b)" });
-    else if (step === 2) call('ctf_job_run', { argv: [process.execPath, 'recompute.cjs'], timeout_ms: 5000 });
+    else if (step === 2) call('ctf_job_run', { argv: [node, 'recompute.cjs'], timeout_ms: 5000 });
     else content = `${who.toUpperCase()}_LOCAL_ONLY 42 from supplied materials; no published Solver artifact or D verified result`;
   }
   provider.push({ at: Date.now(), seq: ++seq, who, step, phase, calls, toolResults, messages: body.messages, tools: body.tools });
@@ -97,7 +102,7 @@ await writeFile(join(root, 'opencode.json'), JSON.stringify({ model: 'stub/scrip
 await writeFile(join(root, 'challenges.json'), JSON.stringify({ challenges: [{ id: 'X', statement: 'Local deterministic G wiring fixture; no oracle', materials: ['numbers.json'], target: { protocol: 'http', url: targetURL } }] }));
 await writeFile(join(root, 'profile.json'), JSON.stringify({ profileId: 'g-team-local', challenges: 'challenges.json', opencode: { configPath: 'opencode.json', binaryPath: '/Users/caihaoming/.opencode/bin/opencode' }, reference: { enabled: false }, budget: { wallClockMs: 60000, maxSteps: 80, maxObservableTokens: 100000, maxToolJobs: 3 }, os: { platform: 'macos' } }));
 try {
-  result = await launch({ profile: join(root, 'profile.json'), runsRoot: join(root, 'runs'), runId: 'team', onStarted: async ({ client }) => {
+  result = await launch({ profile: join(root, 'profile.json'), runsRoot: join(root, 'runs'), runId: 'team', toolImage, onStarted: async ({ client }) => {
     const stream = await client.event.subscribe({}, { signal: abort.signal, throwOnError: true });
     void (async () => { try { for await (const e of stream.stream) events.push({ at: Date.now(), ...e }); } catch { /* closed */ } })();
   } });
@@ -124,7 +129,22 @@ try {
     const schema = p.tools.find((t: any) => t.function.name === 'ctf_job_run').function.parameters.properties;
     assert(!('wait_ms' in schema)); assert(!('completion' in schema));
   }
+  let toolImageCheck: Record<string, unknown> | undefined;
+  if (toolImage) {
+    const { execFileSync } = await import('node:child_process');
+    const evidenceImage = await load('tool-image.json');
+    assert.match(evidenceImage.id, /^sha256:/); assert.match(evidenceImage.inventorySha256, /^[0-9a-f]{64}$/);
+    const described = provider.filter(p => p.tools?.some((t: any) => t.function.name === 'ctf_job_run'))
+      .every(p => p.tools.find((t: any) => t.function.name === 'ctf_job_run').function.description.includes(evidenceImage.inventoryPath));
+    assert(described);
+    const left = execFileSync('docker', ['ps', '-aq', '--filter', 'name=ctf-team-'], { encoding: 'utf8' }).trim();
+    assert.equal(left, '');
+    const jobSessions = new Set(resources.filter((r: any) => r.tool === 'job.run').map((r: any) => r.sessionID));
+    toolImageCheck = { image: toolImage, id: evidenceImage.id, inventorySha256: evidenceImage.inventorySha256, jobDescriptionPointsToInventory: described,
+      jobSessions: jobSessions.size, jobResults: resources.filter((r: any) => r.tool === 'job.run').map((r: any) => r.result), containersLeftAfterRun: 0 };
+  }
   const summary = { status: result.status, phase, requests: provider.length, executions: executions.length, resources: resources.length, targetRequests, realModelCalls: 0,
+    ...(toolImageCheck ? { toolImage: toolImageCheck } : {}),
     gWiring: 'passed', completeTeamSolve: 'blocked by D publication/candidate/verification interfaces', realModelAbility: 'unverified', solved: false,
     recoveryCritic: 'not triggered: one ordinary script failure, no persistent stagnation', isolation: 'not verified; known same-uid/direct-network limitations retained' };
   await writeFile(join(out, 'summary.json'), JSON.stringify(summary, null, 2)); console.log(JSON.stringify(summary));
