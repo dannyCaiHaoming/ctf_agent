@@ -1,0 +1,245 @@
+{
+  "date": "2026-11-21",
+  "design": "docs/superpowers/specs/2026-11-21-design-v1-tool-image-and-architecture.md",
+  "batch": "tool-image-20261121",
+  "authorization": {
+    "challenge": "RustAction",
+    "model": "volcano-plan/deepseek-v4.1-flash",
+    "solverThinking": "enabled",
+    "runs": 2,
+    "perRunDeadlineMs": 1800000,
+    "perRunMaxObservableTokens": 5000000,
+    "batchMaxObservableTokens": 10000000
+  },
+  "image": {
+    "tag": "ctf-tool-image:dev",
+    "id": "sha256:c0fd598663b9382ec1d332331e0955d1d64b8d34b688254f4cc705b76a2f954f",
+    "inventorySha256": "5ed1810fd2937e0f80182cf5c67e6c0037c9ba3e358cbe3a9a2b195d03360eb7"
+  },
+  "runs": [
+    {
+      "runId": "ti-RustAction-r1",
+      "challenge": "RustAction",
+      "status": "completed",
+      "startedAt": "2026-11-21T04:57:10.857Z",
+      "finishedAt": "2026-11-21T05:19:41.758Z",
+      "wallClockSeconds": 1350.9,
+      "observableTokens": 480867,
+      "jobs": {
+        "total": 47,
+        "exited": 47,
+        "failed_to_start": 0,
+        "timed_out": 0,
+        "cancelled": 0,
+        "failed_to_start_argv0": []
+      },
+      "inventoryReads": {
+        "controlAuditJobRunMatches": 0,
+        "toolCallArgMatches": 0,
+        "roles": [],
+        "firstReadJobIndexByRole": {}
+      },
+      "stopAttribution": {
+        "lastNoteRole": "coordinator",
+        "capabilityGapKind": "skill"
+      },
+      "candidates": {
+        "publishedArtifacts": 13,
+        "completionRequests": 0,
+        "verificationResults": 0,
+        "submitted": false,
+        "solved": false
+      },
+      "toolContainersLeft": 0
+    },
+    {
+      "runId": "ti-RustAction-r2",
+      "challenge": "RustAction",
+      "status": "completed",
+      "startedAt": "2026-11-21T05:21:30.839Z",
+      "finishedAt": "2026-11-21T05:43:04.423Z",
+      "wallClockSeconds": 1293.6,
+      "observableTokens": 348384,
+      "jobs": {
+        "total": 34,
+        "exited": 34,
+        "failed_to_start": 0,
+        "timed_out": 0,
+        "cancelled": 0,
+        "failed_to_start_argv0": []
+      },
+      "inventoryReads": {
+        "controlAuditJobRunMatches": 0,
+        "toolCallArgMatches": 0,
+        "roles": [],
+        "firstReadJobIndexByRole": {}
+      },
+      "stopAttribution": {
+        "lastNoteRole": "coordinator",
+        "capabilityGapKind": "tool"
+      },
+      "candidates": {
+        "publishedArtifacts": 5,
+        "completionRequests": 0,
+        "verificationResults": 0,
+        "submitted": false,
+        "solved": false
+      },
+      "toolContainersLeft": 0
+    }
+  ],
+  "baseline": [
+    {
+      "runId": "p1-RustAction-r1",
+      "capabilityGapKind": "tool"
+    },
+    {
+      "runId": "p1-RustAction-r2",
+      "capabilityGapKind": "tool"
+    }
+  ],
+  "totals": {
+    "runs": 2,
+    "observableTokens": 829251,
+    "wallClockSeconds": 2644.5,
+    "inventoryReads": 0,
+    "failedToStartJobs": 0,
+    "stopAttribution": {
+      "skill": 1,
+      "tool": 1
+    }
+  },
+  "method": {
+    "inventoryReads": [
+      "control-audit job.run grep",
+      "job.run argv cross-check"
+    ],
+    "jobOutcomes": "tool.settled result for tool job.run",
+    "stopAttribution": "last progress.note facts.capabilityGap.kind",
+    "observableTokens": "progress.md Observed (reported)",
+    "wallClock": "meta.json startedAt..finishedAt",
+    "toolContainers": "docker ps -a name prefix ctf-<runId>-"
+  },
+  "followUpAnalysis": {
+    "date": "2026-11-21",
+    "method": "progress.jsonl job.run safeArgs.executable joined with settled exitCode by callID; keyword booleans on job inputs, job stdout/stderr and capabilityGap.detail; workspace file listing; no free text copied",
+    "inventoryPointer": {
+      "delivered": true,
+      "reasoningMentionsByRun": {
+        "ti-RustAction-r1": {
+          "role": "domain-solver",
+          "mentions": 1,
+          "jobsBeforeMention": 4,
+          "jobsInSession": 40
+        },
+        "ti-RustAction-r2": {
+          "role": "domain-solver",
+          "mentions": 1,
+          "jobsBeforeMention": 9,
+          "jobsInSession": 34
+        }
+      },
+      "jobReadsAfterMention": 0
+    },
+    "jobs": {
+      "ti-RustAction-r1": {
+        "total": 47,
+        "byRole": {
+          "recon": 7,
+          "domain-solver": 40
+        },
+        "executable": {
+          "python3": 33,
+          "sh": 13,
+          "unzip": 1
+        },
+        "nonzeroExit": 1,
+        "networkErrorJobs": 0,
+        "notFoundOutputJobs": 1,
+        "cargoExecuted": 0
+      },
+      "ti-RustAction-r2": {
+        "total": 34,
+        "byRole": {
+          "domain-solver": 34
+        },
+        "executable": {
+          "bash": 34
+        },
+        "nonzeroExit": 1,
+        "networkErrorJobs": 0,
+        "notFoundOutputJobs": 2,
+        "cargoExecuted": 3,
+        "cargoJobProgressSeq": [
+          198,
+          343,
+          413
+        ],
+        "cargoInputMentionsOnlyInScriptText": 15,
+        "cargoProjectsWithoutDependencies": 3,
+        "buildArtifactsInWorkspace": 0,
+        "cargoJobsWithErrorKeywordAndExit0": 1
+      },
+      "p1-RustAction-r1": {
+        "total": 44,
+        "byRole": {
+          "domain-solver": 44
+        },
+        "executable": {
+          "python3": 32,
+          "sh": 8,
+          "unzip": 3,
+          "ls": 1
+        },
+        "nonzeroExit": 9,
+        "networkErrorJobs": 0,
+        "notFoundOutputJobs": 5,
+        "cargoInputJobs": 2,
+        "cargoInputJobsNonzeroExit": 1
+      },
+      "p1-RustAction-r2": {
+        "total": 34,
+        "byRole": {
+          "recon": 12,
+          "domain-solver": 22
+        },
+        "executable": {
+          "python3": 21,
+          "sh": 11,
+          "unzip": 2
+        },
+        "nonzeroExit": 5,
+        "networkErrorJobs": 0,
+        "notFoundOutputJobs": 0,
+        "cargoExecuted": 0
+      }
+    },
+    "finalGapDetailKeywords": {
+      "ti-RustAction-r1": {
+        "kind": "skill",
+        "rustOrCompile": false,
+        "network": false
+      },
+      "ti-RustAction-r2": {
+        "kind": "tool",
+        "rustOrCompile": false,
+        "network": false
+      },
+      "p1-RustAction-r1": {
+        "kind": "tool",
+        "rustOrCompile": false,
+        "network": false
+      },
+      "p1-RustAction-r2": {
+        "kind": "tool",
+        "rustOrCompile": true,
+        "network": false
+      }
+    },
+    "open": [
+      "why the inventory was noticed but not read (needs reasoning text, experiment-mode session)",
+      "why the three cargo builds left no artifacts (needs those job outputs, experiment-mode session)",
+      "whether stop attribution changed (needs more authorized runs)"
+    ]
+  }
+}
