@@ -1,0 +1,251 @@
+{
+ "date": "2026-11-21",
+ "design": "docs/superpowers/specs/2026-11-21-design-v1-tool-image-and-architecture.md",
+ "host": {
+  "machine": "Apple Silicon arm64",
+  "macos": "26.6.2",
+  "docker": "Docker Desktop 4.78, engine 29.5.3, linux/arm64, 10 CPU, 8 GB",
+  "rosetta": "amd64 containers run under Rosetta (/run/rosetta/rosetta mapped, cpuinfo VirtualApple); qemu-user inside the tool image is used for x86 jobs instead"
+ },
+ "image": {
+  "tag": "ctf-tool-image:dev",
+  "id": "sha256:c0fd598663b9382ec1d332331e0955d1d64b8d34b688254f4cc705b76a2f954f",
+  "base": "ubuntu:24.04@sha256:9c7f200c07e3d4a03e7249d2c16bf66a51120fb876aa2242cf31451412543289",
+  "dockerfile": "docker/tool-image/Dockerfile"
+ },
+ "harness": "tests/manual/tool-image-check.mts via ToolContainers (launcher path): --init, --network none, --cap-drop ALL, no-new-privileges, caller uid",
+ "result": {
+  "image": "ctf-tool-image:dev",
+  "q1_compile": {
+   "rust": {
+    "ok": true,
+    "ms": 534
+   },
+   "cargo_offline": {
+    "ok": true,
+    "ms": 433
+   },
+   "c": {
+    "ok": true,
+    "ms": 286
+   },
+   "go": {
+    "ok": true,
+    "ms": 1832
+   },
+   "python": {
+    "ok": true,
+    "ms": 244
+   }
+  },
+  "q1_inventory": {
+   "arch": "aarch64",
+   "status": {
+    "installed": 39,
+    "needs_build": 5
+   }
+  },
+  "q1_functional": {
+   "crypto_sympy_gmpy2_z3": true,
+   "crypto_pycryptodome": true,
+   "crypto_gp": true,
+   "web_parse": true,
+   "misc_image_metadata": true,
+   "misc_archive": true,
+   "misc_binwalk": true,
+   "reverse_r2": true,
+   "reverse_checksec": true,
+   "pwn_pwntools": true,
+   "mobile_apktool": true
+  },
+  "q2_run": {
+   "amd64_static": {
+    "ok": true,
+    "ms": 228
+   },
+   "amd64_dynamic": {
+    "ok": true,
+    "ms": 236
+   },
+   "i386_dynamic": {
+    "ok": true,
+    "ms": 226
+   }
+  },
+  "q2_debug": {
+   "amd64": {
+    "breakpoint_hit": true,
+    "args_read": true,
+    "program_exit_ok": true,
+    "ms": 235
+   },
+   "i386": {
+    "breakpoint_hit": true,
+    "args_read": true,
+    "program_exit_ok": true,
+    "ms": 166
+   }
+  },
+  "q4_cpu_loop": {
+   "native_ms": 297,
+   "qemu_amd64_ms": 790,
+   "same_result": true,
+   "ratio": 2.7
+  },
+  "q3_env_extra_keys": [
+   "PWD"
+  ],
+  "q3_missing_program": {
+   "state": "failed_to_start",
+   "exitCode": null
+  },
+  "q3_truncation_streams": {
+   "stdout": {
+    "stored_bytes": 1048576,
+    "truncated": true,
+    "dropped_bytes": 1048576
+   },
+   "stderr": {
+    "stored_bytes": 0,
+    "truncated": false,
+    "dropped_bytes": 0
+   }
+  },
+  "q3_cancel": {
+   "before": 3,
+   "after": 0,
+   "cancel_ms": 228,
+   "state": "cancelled",
+   "reapIncomplete": false,
+   "keep_members_during": 3,
+   "timeout_state": "timed_out",
+   "timeout_after": 0,
+   "keep_members_after_timeout": 3,
+   "keep_after_cancel": 0
+  },
+  "q4": {
+   "image_bytes": 898671040,
+   "layers": {
+    "inventory": "373kB",
+    "inventory.py": "20.5kB",
+    "pycryptodome (pip)": "17.1MB",
+    "x86 cross headers": "45.7MB",
+    "mobile": "396MB",
+    "pwntools (pip venv)": "235MB",
+    "pwn-reverse": "494MB",
+    "misc": "58.8MB",
+    "web+crypto": "172MB",
+    "compile": "923MB",
+    "general": "304MB",
+    "base ubuntu:24.04": "110MB"
+   },
+   "cold_container_ms": [
+    163,
+    108
+   ],
+   "warm_job_ms_median": 225,
+   "host_job_ms_median": 3,
+   "size_note": "docker system df: 3.65GB on disk; image inspect Size (content) 898671040 bytes"
+  },
+  "q4_service": {
+   "linux/arm64": {
+    "uname": "aarch64",
+    "ready_ms": 135,
+    "request_ms_median": 1.2
+   },
+   "linux/amd64": {
+    "uname": "x86_64",
+    "ready_ms": 162,
+    "request_ms_median": 4.3
+   }
+  },
+  "checks": {
+   "q1_compile_all": true,
+   "q1_functional_all": true,
+   "q1_no_missing": true,
+   "q2_cross_build": true,
+   "q2_sysroot_present": true,
+   "q2_run_all": true,
+   "q2_debug_all": true,
+   "q3_env_whitelist": true,
+   "q3_path_fixed": true,
+   "q3_cwd": true,
+   "q3_non_root": true,
+   "q3_work_writable": true,
+   "q3_materials_readonly": true,
+   "q3_published_readonly": true,
+   "q3_sessions_files_isolated": true,
+   "q3_exit_code": true,
+   "q3_missing_program_failed_to_start": true,
+   "q3_program_exit_127_kept": true,
+   "q3_relative_program_runs": true,
+   "q3_incremental_output": true,
+   "q3_truncation_recorded": true,
+   "q3_sessions_processes_isolated": true,
+   "q3_cancel_target_only": true,
+   "q3_timeout_target_only": true,
+   "q3_container_reusable": true,
+   "q5_inventory_hash_matches": true,
+   "q5_evidence_uses_image_id": true,
+   "q3_containers_removed_at_end": true
+  },
+  "failed": []
+ },
+ "earlier_run_same_image": {
+  "q4_cpu_loop_ratio": 1.9,
+  "checks": 22,
+  "failed": []
+ },
+ "launcher": "--tool-image <image>: evidence/tool-image.json (image id, inventory sha256); job.run description points to /opt/ctf-tools/inventory.json; containers removed at run end",
+ "launcher_run": {
+  "fixture": "tests/manual/g-team-integration.ts with TEAM_TOOL_IMAGE (scripted provider, 0 real model calls), compared with the same fixture in host mode",
+  "both_modes": {
+   "stops_at_phase": 12,
+   "expected_phase": 13,
+   "cause": "pre-existing: Verifier dispatch denied (verification version) under the current Verifier gate; same in host mode",
+   "job_results": [
+    {
+     "exitCode": 1
+    },
+    {
+     "exitCode": 0
+    },
+    {
+     "exitCode": 0
+    }
+   ],
+   "job_stdout_match": true
+  },
+  "tool_image_mode": {
+   "evidence_tool_image_json": true,
+   "image_id": "sha256:c0fd598663b9382ec1d332331e0955d1d64b8d34b688254f4cc705b76a2f954f",
+   "inventory_sha256": "5ed1810fd2937e0f80182cf5c67e6c0037c9ba3e358cbe3a9a2b195d03360eb7",
+   "containers_created": 2,
+   "containers_destroyed_at_end": 2,
+   "job_run_descriptions_pointing_to_inventory": "13/13 (host mode 0/13)"
+  }
+ },
+ "linux_engine": {
+  "how": "docker:dind (privileged) running its own Docker Engine, image loaded with docker save/load; same container flags as ToolContainers",
+  "engine": "29.10.0 linux/arm64",
+  "kernel": "6.12.76-linuxkit",
+  "cross_build": true,
+  "amd64_static": true,
+  "amd64_dynamic": true,
+  "i386_dynamic": true,
+  "gdb_amd64": {
+   "breakpoint": true,
+   "args": true
+  },
+  "gdb_i386": {
+   "breakpoint": true,
+   "args": true
+  },
+  "group_cancel": {
+   "target_before": 3,
+   "target_after": 0,
+   "other_before": 3,
+   "other_after": 3
+  }
+ }
+}

@@ -46,23 +46,26 @@ Claude Code 會話開發 harness（host、控制層、OpenCode 接入、測試�
 - Reply to user in Traditional Chinese
 - Commit/push only on explicit request; trailer Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
 - No model-driven pentest or exploitation in engineering sessions; real model runs need user authorization of target, model/provider, batch, token cap
-- Run evidence: bounded reads (jq/grep/sed -n), keyword booleans, no transcript dumps, no flag/candidate/challenge text in outputs
+- Run evidence: bounded reads (jq/grep/sed -n), keyword booleans, no transcript dumps, no flag/candidate/challenge text in outputs; challenge-level analysis goes to experiment-mode session
 - Offline Python with python3 -I; gate files counts only, mode 644
-- Run data at /Users/caihaoming/Documents/pentest-agent-run-data/<batch>/; harness output must be outside repo
-- Product role files (product/) need user review before writing
-- Off-arm product generator tests/manual/paired-control-product.py: every product commit must be added to INCLUDE or EXCLUDE (eb5743d3 included)
+- Run data at /Users/caihaoming/Documents/pentest-agent-run-data/<batch>/; harness output must be outside repo; scratch in /tmp/ctf-goal
+- Product role files (product/) need user review before writing; every product commit must be added to INCLUDE or EXCLUDE in tests/manual/paired-control-product.py (84ae5c24 included)
+- Product docs are Traditional Chinese since 572c5141
+- Codex: astra = codex exec -m gpt-6.2-astra -c model_reasoning_effort=medium -s read-only -o <file>; sol = -m gpt-6.2-sol -c model_reasoning_effort=high -s workspace-write --add-dir /tmp/ctf-goal; sol sandbox cannot open sockets; macOS has no timeout
+- Check open-source survey (2026-11-12-open-source-ctf-skill-survey.md) first for hard judgments; label source level (verified original vs paraphrase)
 - Design writing rules in AGENTS.md: snapshot not run log, session IDs/seq in gates or analysis, no internal jargon
-- Leave untracked docs/gates/workbook-smoke-20261116/check.err and docs/superpowers/analysis/2026-11-12-open-source-ctf-skill-survey.md alone
+- Leave untracked docs/gates/workbook-smoke-20261116/check.err alone; deleting tracked files or changing root AGENTS.md/CLAUDE.md entry labels needs user confirmation
 
 ### Key Decisions
 - Decision: main acceptance = candidate production via method selection; Skill load rate auxiliary — Reason: drift toward 'did Skill load' replaced real goal
-- Decision: no more prompt-position patches until fixed decision-point diagnosis concludes — Reason: whole-run tests cannot separate trigger/content/adoption/execution
+- Decision: no more prompt-position patches in role files; trigger position tested via harness single-variable comparisons — Reason: whole-run tests cannot separate trigger/content/adoption/execution
 - Decision: exploit-type method candidates in B §7.1 not built — Reason: user boundary, no exploitation content
-- Decision: Coordinator view shows cleaned evidence_refs for hypotheses (not questions; related_ids/supersedes still hidden) — Reason: matches §6.1 whitelist; peak 7731/8000 chars, 0 omissions over 13 runs
-- Decision: harness option C (real role files/Skills/plugin + local fake control service) — Reason: launcher cannot seed workbook by run_id nor start single role; direct provider calls bypass host presentation
-- Decision: write-time supersede hint rejected — Reason: fires on 89/158 Solver writes, mostly facts that accumulate by design
-- Decision: per-round hint own_open_unchanged_this_round (ids only, Solver only) is candidate in team-decision §6.2 — Reason: 19/42 rounds, 1-3 ids, mechanical set ops, thin host
-- Decision: hint adoption thresholds fixed before runs (>=3 of 5 pairs show direction, no rise in non-substantive rewrites) — Reason: avoid post-hoc threshold chasing
-- Decision: keep eb5743d3 default-resume rule but not rely on it for workbook upkeep — Reason: real runs show no resume-vs-new difference (6/13 vs 6/16 superseding)
+- Decision: method gaps filled with short harmless demonstrations (failure->correction turn) not rules — Reason: EnIGMA demonstration ablation is only ablation-backed knowledge form; extra rule sentences duplicate existing rules
+- Decision: first demonstration in Traditional Chinese as runtime-boundaries.md §6 before sources, commit INCLUDE in paired-control — Reason: Reference is Chinese; both arms must carry it for fair comparison
+- Decision: second method-gap topic not opened — Reason: stop-attribution structural fields (environment 7, tool 4 all RustAction) cannot separate it from first topic; EspressoCoffee environment stops need challenge-level review in experiment-mode session
+- Decision: trigger verdict counts model runs only; unconfirmed presentation = incomplete; baseline showing treatment = engineering_failure; short/mid disagreement = unknown — Reason: Skill §10 pre-registered thresholds, avoid post-hoc threshold chasing
+- Decision: Critic read-only workbook view deferred — Reason: team-decision §6.4 requires prior slice behavioral evidence
+- Decision: candidate-handback reminder and remaining-time restart not implemented — Reason: synthetic comparison unknown (baseline ceiling); restart needs ~93 runs/arm
+- Decision: workbook omission rule (short rows, protected candidate/open hyps/questions) implemented in host — Reason: offline replay showed peaks within cap without dropping protected entries
 
 <!-- handoff:learnings:end -->

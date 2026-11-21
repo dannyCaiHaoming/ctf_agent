@@ -223,7 +223,8 @@ Skill 回答“在什么情况下怎样推进”；Reference 提供具体知识�
 
 **第二个选题：目前不立案（2026-11-20）。** 按[停止归因 gate](../../gates/stop-attribution-20261119/summary.json) 的结构字段（每个未解 run 最后一笔 `capabilityGap.kind` 与剩余时间，不读 blocker 正文）核对，15 个未解 run 中能和第一个选题区分开的只有两组，都不能单靠结构字段立案：
 - **environment 7 次。** 其中 3 次（ezoj 2、ac5a1bc0 1）所在题目有别的 run 解出，环境结论至少不完整，已由第一个选题覆盖；EspressoCoffee 两次都在剩约 20 分钟时以 environment 结束，是最强的信号，但边界是否真实要看 blocker 内容，属题目层分析，不在工程会话做。
-- **tool 4 次，全是 RustAction。** 其中 3 次结束时剩余不足 5 分钟，更像工具供给或时间问题，不像方法缺口；是否缺工具应按工程问题核对，不写方法范例。
+- **tool 4 次，全是 RustAction。** 其中 3 次结束时剩余不足 5 分钟，更像工具供给或时间问题，不像方法缺口，不写方法范例。工程核对（2026-11-21，只用 `control-audit.json` 结构字段与缺口关键字布尔）：最后一笔缺口分别指向 Rust 工具链（点名 `cargo`／`rustc`）、编译能力、依赖、沙箱各 1 次；4 个 run 共 205 次 `job.run`、29 次失败，只有 1 个 run 有逾时（2 次）。该批由 `paired-run.mts` 在本机直接启动，`job.run` 沿用 launcher 的 `PATH`（[job-tools.ts](../../../apps/launcher/src/job-tools.ts)），而本机没有 `rustc`／`cargo`，所以「job 环境编译不了 Rust」是事实；但 4 次停止不能都归到这一点，其中 1 次 54 个 job 合计约 2 秒，不是编译耗时问题。同批 10 个 solved run 共 345 次 job、41 次失败，失败本身不预测未解。
+  - **去向（2026-11-21）：** 用户选择以固定工具映像解决，见[工具映像与架构](2026-11-21-design-v1-tool-image-and-architecture.md)；Rust 工具链与角色可读的工具清单都已在映像内，launcher 以 `--tool-image` 启用（默认关闭），无模型验证通过；对 RustAction 是否有帮助仍待真实 run。原列两项候选： (a) 在 launcher 执行环境预装固定版本的 Rust 工具链，属部署决定；(b) host 在 run 开始时记录 job 环境里一组常见可执行文件是否存在及版本，写入 evidence 并让角色在派单前可读，避免多轮试错才发现缺工具。现有角色看不到这份清单（`inventory.json` 只记 agent 与 Skill）。(b) 要先补 design 才能拆 plan；开源调研只记有 Kali MCP 供给工具的做法（未核对原文），没有工具清单呈现的先例。
 - **去向。** 要立第二个选题，先由实验模式的会话复核 EspressoCoffee 两次 run 的 environment 结论是否可被已有手段推翻（只输出结论类别，不输出题目细节）；能推翻且与第一个选题的转折不同，才回本节立案。在那之前方法补齐只有第一个选题，等配对验证。
 
 **现版本候选产出基线（2026-11-19）。** 同一 HEAD、同一 exact judge、同一预算下，7 题各跑 2 次；14 个 run 全部正常结束，没有 deadline 或预算停止，合计约 5.37M 可观测 token。6 个 run 产出候选包并提交、原 run solved，8 个无候选。两题 2/2（8a6ac7ff、easyCAS），两题 1/2（ac5a1bc0、ezoj），三题 0/2（EspressoCoffee、RustAction、Bad_Traveling）。后续选题优先用 1/2 的两题；0/2 的题要能说明方法缺口才值得再花时间。逐 run 字段与限制见[基线摘要](../../gates/candidate-baseline-20261119-p1/summary.json)。

@@ -223,11 +223,11 @@ HTTP 適配器由宿主提供 `{target, jar, workDir}`；每次請求另帶 `Htt
 | 項目 | 規則 |
 | --- | --- |
 | 工作目錄 | 綁定會話的 `work/` |
-| 環境變數 | 固定白名單：`PATH`（採 F 固定的鏡像值，不繼承宿主；原型仍未符合）、`HOME` 與 `TMPDIR`（指向 `work/`）、`LANG=C.UTF-8`、`CTF_WORK`、`CTF_MATERIALS`、`CTF_PUBLISHED`（三者為真實路徑，只給作業，不進工具回傳）。其餘變數一律不傳，尤其不傳任何 provider、RPC、平台憑據 |
+| 環境變數 | 固定白名單：`PATH`（採 F 固定的鏡像值，不繼承宿主；launcher 以 `--tool-image` 在工具容器內執行時已符合，宿主模式仍沿用 launcher 的 `PATH`）、`HOME` 與 `TMPDIR`（指向 `work/`）、`LANG=C.UTF-8`、`CTF_WORK`、`CTF_MATERIALS`、`CTF_PUBLISHED`（三者為真實路徑，只給作業，不進工具回傳）。其餘變數一律不傳，尤其不傳任何 provider、RPC、平台憑據 |
 | 標準輸入 | 連到 `/dev/null` |
 | 程序組 | 每個作業獨立程序組；超時或取消時先送 `SIGTERM` 給整組，2 秒後 `SIGKILL` |
 | 輸出 | stdout、stderr 各自寫入 `jobs/<會話 ID>/<作業 ID>/`，每流上限 1 MiB，超出後丟棄並標 `truncated`；由 `job.read` 續讀 |
-| 安裝依賴 | 不提供。作業只運行鏡像預裝的解譯器與工具；缺少時 `failed_to_start` 並說明，不臨時下載（design v1 1.5） |
+| 安裝依賴 | 不提供。作業只運行鏡像預裝的解譯器與工具；缺少時 `failed_to_start` 並說明，不臨時下載（design v1 1.5）。鏡像裝什麼、job 在哪個容器執行，見[工具映像與架構](2026-11-21-design-v1-tool-image-and-architecture.md) |
 
 **預覽由已保存的輸出產生。** `previewOmitted` 表示有已保存的位元組未在預覽展示。`job.read` 可分頁續讀全部已保存的位元組。`truncated` 表示有位元組超出每流保存上限，丟棄的部分無法取回。作業終態的審計記錄逐流記下已保存的位元組數與截斷標記，並在 host 能確認輸入總量時記下超限丟棄量。此前缺少 `streams` 的 run 在離線量測中記為 `unknown`。
 
