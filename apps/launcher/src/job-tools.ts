@@ -95,10 +95,27 @@ export class ToolContainers implements JobContainers {
     return started;
   }
 
+  /**
+   * Removes every started container. A container counts as removed only when `docker rm` succeeds or Docker reports it
+   * missing; any other container stays recorded (so a later call retries it) and the call rejects with the counts.
+   */
   async removeAll(): Promise<void> {
-    const names = (await Promise.allSettled(this.started.values())).flatMap(r => r.status === 'fulfilled' ? [r.value] : []);
-    this.started.clear();
-    if (names.length) await new Promise<void>(resolve => execFile(this.docker, ['rm', '-f', ...names], () => resolve()));
+    const entries = [...this.started.entries()];
+    const settled = await Promise.allSettled(entries.map(([, started]) => started));
+    const owned = entries.flatMap(([session], i) => settled[i]!.status === 'fulfilled' ? [[session, (settled[i] as PromiseFulfilledResult<string>).value] as const] : []);
+    for (const [session] of entries) this.started.delete(session);
+    if (!owned.length) return;
+    const docker = (args: string[]) => new Promise<{ ok: boolean; stderr: string }>(resolve =>
+      execFile(this.docker, args, (error, _stdout, stderr) => resolve({ ok: !error, stderr: String(stderr ?? '') })));
+    if ((await docker(['rm', '-f', ...owned.map(([, name]) => name)])).ok) return;
+    let left = 0, unknown = 0;
+    for (const [session, name] of owned) {
+      const probe = await docker(['container', 'inspect', '--format', '{{.Id}}', name]);
+      if (!probe.ok && /no such (container|object)/i.test(probe.stderr)) continue;
+      if (probe.ok) left++; else unknown++;
+      this.started.set(session, Promise.resolve(name));
+    }
+    if (left || unknown) throw new Error(`tool containers not removed: ${left} still present, ${unknown} unknown`);
   }
 
   private start(b: JobBinding): Promise<string> {

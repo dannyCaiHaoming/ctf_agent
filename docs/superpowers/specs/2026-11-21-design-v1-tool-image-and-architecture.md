@@ -52,7 +52,7 @@
 **launcher 留在宿主，每個解題會話一個工具容器，job 經 `docker exec` 在容器內執行。** launcher 以 `--tool-image <image>` 啟用；不給這個參數時，launcher、控制服務與 plugin 的行為和以前相同，既有 run 與配對對照不受影響。實作在 [job-tools.ts](../../../apps/launcher/src/job-tools.ts) 的 `ToolContainers` 與 `JobManager` 容器模式。
 
 - **容器設定：** `--init`、`--network none`、`--cap-drop ALL`、`no-new-privileges`、以 launcher 的 uid 執行；工作區、材料與已發布目錄以相同絕對路徑掛載，後兩者唯讀。
-- **生命週期：** 會話的第一筆 job 時建立，同一 run 內重用；會話中途停止不回收（之後可能續派），run 收尾時全部回收。
+- **生命週期：** 會話的第一筆 job 時建立，同一 run 內重用；會話中途停止不回收（之後可能續派），run 收尾時全部回收。刪除成功或 Docker 回報容器不存在才算回收；仍存在或無法查詢的容器保留記錄，run 記 `tool_container_cleanup_error` 並標為失敗，附仍存在與未知的數量。
 - **程序組：** 容器內一段固定開場程式以 `setsid` 開新程序組並記下組號，取消、逾時與存活檢查都在容器內對這個組號執行，同容器其他 job 不受影響。**容器必須有會回收孤兒程序的 init**：沒有 `--init` 時，被終止的子程序會留成殭屍、仍掛在原程序組裡。
 - **找不到程式：** 開場程式先確認 argv[0] 存在，不存在時宿主報 `failed_to_start`（與 G §5.3 一致）；程式自己以 127 結束時照實回報。
 - **代價：** 每筆 job 多約 0.2 秒的 `docker exec` 往返（宿主直接執行約 3 毫秒）。
