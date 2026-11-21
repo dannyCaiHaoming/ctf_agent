@@ -18,7 +18,8 @@
 //   "baseProfile": "<abs profile.json without context>", "product": "<abs off-arm product dir, off only>",
 //   "runsRoot": "<abs, must not exist, outside the repository>", "frozenExperience": "<abs sqlite>" | null,
 //   "judge": {"module": "<abs .mts>", "export": "<factory(challenge)>"},
-//   "deadlineMs": n, "maxObservableTokens": n, "model": "<provider/model>", "solverThinking": "enabled"|"disabled" }
+//   "deadlineMs": n, "maxObservableTokens": n, "model": "<provider/model>", "solverThinking": "enabled"|"disabled",
+//   "toolImage": "<image>" (optional: jobs run in per-session containers of this tool image; absent keeps host jobs) }
 // Writes <batch>/configs/<runId>.profile.json, <batch>/logs/<runId>.lock.json and <batch>/logs/<runId>.meta.json.
 import { createHash } from 'node:crypto';
 import { existsSync } from 'node:fs';
@@ -52,13 +53,14 @@ const specPath = process.argv[2] ?? fail('usage: npx tsx tests/manual/paired-run
 const checkOnly = process.argv[3] === '--check';
 if (process.argv.length > 4 || (process.argv[3] !== undefined && !checkOnly)) fail('unexpected arguments');
 const spec = JSON.parse(await readFile(specPath, 'utf8'));
-const allowed = ['batch', 'arm', 'runId', 'challenge', 'baseProfile', 'product', 'runsRoot', 'frozenExperience', 'judge', 'deadlineMs', 'maxObservableTokens', 'model', 'solverThinking'];
+const allowed = ['batch', 'arm', 'runId', 'challenge', 'baseProfile', 'product', 'runsRoot', 'frozenExperience', 'judge', 'deadlineMs', 'maxObservableTokens', 'model', 'solverThinking', 'toolImage'];
 for (const key of Object.keys(spec)) if (!allowed.includes(key)) fail(`unknown spec field ${key}`);
 if (spec.arm !== 'on' && spec.arm !== 'off') fail('arm must be on or off');
 if (!/^[\w.-]+$/.test(spec.runId ?? '')) fail('runId must be a plain name');
 for (const key of ['batch', 'baseProfile', 'runsRoot']) if (typeof spec[key] !== 'string' || !spec[key].startsWith('/')) fail(`${key} must be an absolute path`);
 if (!Number.isSafeInteger(spec.deadlineMs) || !Number.isSafeInteger(spec.maxObservableTokens)) fail('deadlineMs and maxObservableTokens are required integers');
 if (spec.solverThinking !== 'enabled' && spec.solverThinking !== 'disabled') fail('solverThinking must be enabled or disabled');
+if (spec.toolImage !== undefined && (typeof spec.toolImage !== 'string' || !spec.toolImage)) fail('toolImage must be a non-empty image name');
 
 // Product: the on arm uses the committed repository product; the off arm a generated directory that matches its manifest.
 let product: { source: string; dir?: string; head: string; manifest?: unknown; files: Record<string, string> };
@@ -127,7 +129,7 @@ if (spec.frozenExperience) {
 
 await loadLocalEnv(join(REPO, '.env'));
 const common = { runId: spec.runId, arm: spec.arm, challenge: spec.challenge, profile: profilePath, runsRoot: spec.runsRoot, deadlineMs: spec.deadlineMs,
-  maxObservableTokens: spec.maxObservableTokens, model: spec.model, solverThinking: spec.solverThinking, context: armProfile.context,
+  maxObservableTokens: spec.maxObservableTokens, model: spec.model, solverThinking: spec.solverThinking, context: armProfile.context, toolImage: spec.toolImage ?? null,
   product: { source: product.source, dir: product.dir ?? null, head: product.head, manifest: product.manifest ?? null, filesSha256: sha256(JSON.stringify(product.files)) }, experience };
 await writeFile(lockPath, JSON.stringify({ ...common, at: new Date().toISOString() }, null, 2) + '\n', { flag: 'wx' });
 
@@ -135,7 +137,7 @@ const startedAt = new Date().toISOString();
 let result: Awaited<ReturnType<typeof launch>> | undefined, error: string | undefined;
 try {
   result = await launch({ profile: profilePath, runsRoot: spec.runsRoot, runId: spec.runId, deadlineMs: spec.deadlineMs,
-    ...(product.dir ? { product: product.dir } : {}), completionJudges: { [spec.challenge]: judge } });
+    ...(product.dir ? { product: product.dir } : {}), ...(spec.toolImage ? { toolImage: spec.toolImage } : {}), completionJudges: { [spec.challenge]: judge } });
 } catch (cause) {
   error = cause instanceof Error ? cause.stack ?? cause.message : String(cause);
   console.error(error);
