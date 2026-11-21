@@ -1,6 +1,6 @@
 # design v1 解題工具映像與架構詳細 design
 
-**狀態（2026-11-21）：已落地（開發部署）。** launcher 以 `--tool-image` 啟用每會話工具容器，並依題目 lockfile 預取 crate；無模型檢查、腳本化整題 run 與獨立 Linux arm64 Docker Engine 都通過。未驗證：真實模型是否讀工具清單、預取在真實題目上的效果；產品部署與 job 網路仍歸 G §5.4–5.5。
+**狀態（2026-11-21）：已落地（開發部署）。** launcher 以 `--tool-image` 啟用每會話工具容器，並依題目 lockfile 預取 crate；無模型檢查、腳本化整題 run 與獨立 Linux arm64 Docker Engine 都通過。真實模型 2 個 run 只作觀察：預取都完成並掛載，1 個 run 讀了工具清單，沒有建置題目專案。未驗證：清單與預取對模型行為的作用；產品部署與 job 網路仍歸 G §5.4–5.5。
 
 本文是 [design v1](2026-10-22-ctf-agent-design-v1.md) 第 2 節 F（Docker 可交付佈局）與 G（首版工具集）的子文件，承接第 3 節待決項「工具套件、版本與 ARM64 可用性」，工具供給的細節以本文為準。job 的契約（工作目錄、環境變數白名單、程序組、輸出上限、不臨時安裝）沿用 [G 詳細 design §5.3](2026-10-23-design-v1-g-solver-minimal.md#53-執行環境)，隔離方向與部署責任沿用 §5.4，網路以 §5.5 為準。調研原文與來源等級見[執行環境調研](../analysis/2026-11-21-job-tool-environment-survey.md)，驗證數字見 [gate 摘要](../../gates/tool-image-20261121/summary.json)。
 
@@ -80,9 +80,9 @@
 | 清單能否讓角色讀到 | `job.run` 讀到的清單雜湊與 launcher 寫入 evidence 的雜湊一致；工具說明在啟用時指向清單、未啟用時不變 |
 | 整題 run | 以腳本化 provider（0 次真實模型呼叫）跑 [G 團隊接線 fixture](../../../tests/manual/g-team-integration.ts)，工具映像模式與宿主模式對照：兩種模式都走完 13 個階段，job 結果與輸出一致（Solver 先失敗後修正、Engineer 讀材料重算並固定候選包、Verifier 綁定該包版本、在準備好的輸入上重算）；工具映像模式為三個用到 job 的會話各建一個容器、以映像 id 啟動、run 結束時全部回收；evidence 有映像 id 與清單雜湊；模型收到的 20 份 `job.run` 說明都指向清單（宿主模式 0 份）。fixture 不走 `verification.report` 與完成判定 |
 | Linux arm64 Docker Engine | 見第 3 節 |
-| 真實模型是否先讀清單、工具缺口停止是否改變（Q5） | 2 個 run（RustAction，工具映像）對照基線同題 2 個 run（宿主模式）。清單指引送達：兩個 run 的 Domain Solver 推理各提到清單路徑 1 次（第 4、第 9 次 job 之後），之後都沒有派 job 讀它。4 個 run 的 job 全部正常退出，輸出都沒有網路錯誤；與題目服務的往來走受管 `http.request`，job 網路關閉沒有擋到解題。工具映像 run 有 3 次 job 實際執行 `cargo build --offline`（無依賴的小專案），工作區沒有建置產物；3 次的命令都含 `rm -rf`，輸出都經 `head`／`tail`／`grep` 過濾，其中 1 次輸出含錯誤、退出碼卻是 0（管道吞掉退出碼）。同一映像以相同容器參數重現（自寫空專案）：無依賴專案帶或不帶 `--offline` 都能建置並留下 `target/`；帶 crate 依賴的專案因解析不到 crates.io 失敗（退出碼 101，接管道後變 0）。停止歸因 skill 1、tool 1；基線 2 個 run 皆為 tool，其中 1 個的缺口描述提到 Rust／編譯，工具映像 run 的缺口描述都沒提 Rust、編譯或網路。只作觀察，樣本不足，不下清單有效或無效的結論，也不改角色提示（[gate](../../gates/tool-image-run-20261121/summary.json)） |
+| 真實模型是否先讀清單、工具缺口停止是否改變（Q5） | 新映像（Rust 1.100、預取題目 lockfile 的 crate）同題 2 個 run，對照舊映像（Rust 1.75、無預取）與宿主基線各 2 個 run。預取兩次都完成並掛載，量測見第 7 節。清單：1 個 run 由 recon 在第 1 次 job 讀了 `/opt/ctf-tools/inventory.json`；另 1 個 run 已記錄的 job 參數、控制層記錄與 Solver 推理都沒有清單路徑。建置：1 個 run 有 6 個 job 呼叫 `cargo build`，對象是 7 個模型自寫、沒有直接依賴的專案；這 6 個 job 的外層退出碼都是 0，其中 2 個的輸出含編譯錯誤，命令把輸出接進管道，外層 shell 的退出碼不代表 cargo 的結果。7 個 `target/` 中 4 個有 ELF，3 個沒有。沒有辨識到在題目自帶專案目錄執行的 cargo，該處也沒有 `target/`；另 1 個 run 沒有執行 cargo。停止歸因：新映像 environment 1、tool 1，最後的缺口描述都沒提到 Rust、crate、編譯或網路；舊映像 skill 1、tool 1；宿主基線 tool 2。新映像 2 個 run 都沒有提交。只作觀察，不改角色提示；token 與時間見 [gate](../../gates/tool-image-rust-run-20261121/summary.json) |
 
-**尚未定論：** 指引已送達且被注意到，模型仍沒讀清單，原因要看推理原文，交實驗模式 session 核對 gate 列出的 job。建置沒留下產物，證據指向命令自身的清理與輸出過濾，不指向映像或 job 契約缺陷。真正的限制在 Rust 工具鏈版本與第三方 crate，見第 7 節。停止歸因是否真的改變要另行授權更多 run，不據此加角色提示（B §7 已停止提示位置補丁）。
+**尚未定論：** 清單：舊映像 2 個 run 的指引已送達、也被注意到，卻沒有 job 讀；新映像有 1 個 run 由 recon 讀了 1 次，之後有沒有作用未定。crate：掛載能否供應題目專案的依賴，已有合成樣本有／無掛載的對照（第 7 節）；真實模型會不會去建置題目專案，這 2 個 run 沒有出現，照樣多跑也未必遇到，要先定出能分辨這一點的量測。停止歸因是否改變同樣樣本不足，不據此加角色提示（B §7 已停止提示位置補丁）。
 
 ## 7. Rust 工具鏈與第三方 crate
 
@@ -96,14 +96,14 @@
 2. **選取：** 只取來源為 crates.io 且帶 checksum 的套件；路徑依賴與 git 依賴不取，只計數。多份 lockfile 合併去重。
 3. **下載與核對：** 宿主從 crates.io 的靜態下載點取 `.crate`，SHA-256 必須等於 lockfile 的 checksum；任何一項不符或下載失敗，整次預取標為失敗、不掛載部分結果。已核對的檔案以 checksum 為鍵存在 run 目錄以外的共用快取，重跑同題不重下。
 4. **組成來源目錄：** 在無網路容器內把每個 `.crate` 解成「名稱-版本」目錄，附上只記套件 checksum 的 `.cargo-checksum.json`（Cargo vendor 目錄格式）。
-5. **交給 job：** 來源目錄唯讀掛在 `/opt/ctf-crates`，另唯讀掛一份 Cargo 設定在 `/.cargo/config.toml`，把 crates.io 換成該目錄並設離線。Cargo 會沿目錄往上找到根目錄的設定，任何工作目錄下的專案都生效。沒有預取時兩者都不掛，行為不變。
+5. **交給 job：** 來源目錄唯讀掛在 `/opt/ctf-crates`，另唯讀掛一份 Cargo 設定在 `/.cargo/config.toml`，把 crates.io 換成該目錄並設離線。Cargo 會沿目錄往上找到根目錄的設定，一般的 Cargo 呼叫在任何工作目錄都讀得到；專案自己的 `.cargo/config.toml`、環境變數或命令列設定仍可覆寫個別值。沒有預取時兩者都不掛，行為不變。
 6. **記錄：** `evidence/crate-prefetch.json` 記 lockfile 在材料內的位置、套件數、下載與快取命中數、位元組、略過的路徑與 git 依賴數、耗時與結果。
 
 **時間與失敗。** 預取在 run 計時開始前完成，不計入 deadline 與 token；失敗不阻擋 run，只記錄並不掛載。
 
-**範圍邊界。** 只覆蓋題目自帶 lockfile 的專案；模型自寫的 Rust 程式仍只有標準庫，工具清單照實寫明。PyPI 等其他套件來源有同樣的問題，等出現缺口證據再處理。git 依賴不處理。宿主模式不變。已否決：映像預置常用 crate（難以對上題目 lockfile 的確切版本，映像變大）；job 經代理連套件來源（等於 run 內安裝，要先定 G §5.5 的網路契約）。
+**範圍邊界。** 可用的第三方 crate 只有本次預取成功並掛載的套件與版本。來源目錄對 job 內所有專案可見，模型自寫的程式也只能用到這些版本，其他 crate 不可得；預取失敗或跳過時只有標準庫。工具清單目前把「題目帶 lockfile」直接寫成已預取，沒有區分失敗或跳過；改字會改變映像，留到下次映像變更一起做。PyPI 等其他套件來源有同樣的問題，等出現缺口證據再處理。git 依賴不處理。宿主模式不變。已否決：映像預置常用 crate（難以對上題目 lockfile 的確切版本，映像變大）；job 經代理連套件來源（等於 run 內安裝，要先定 G §5.5 的網路契約）。
 
-**驗證結果（無模型、不用題目專案，[檢查腳本](../../../tests/manual/crate-prefetch-check.mts)，8 項通過）：** 自建樣本專案依賴 serde_json，lockfile v4 共 11 個 crates.io 套件，含 proc-macro 與 `build.rs`。直接放置時預取全數下載並核對（約 0.96 MB、4 秒）；同一專案放在 zip 內也找得到，全部命中快取（0.5 秒）；竄改一個 checksum 時預取失敗、不掛載；沒有 lockfile 時跳過。掛載後，無網路容器內一般的 `cargo build`（不帶 `--offline`）建置並執行成功，不掛載則失敗。原有 28 項映像檢查與 G 團隊 fixture 在新映像上仍通過，fixture 的 run 寫出「跳過」的預取記錄。契約測試另覆蓋 lockfile 解析、選取與去重、checksum 衝突、設定內容與參數。整題 run 也走過掛載路徑：G 團隊 fixture 的 crate 變體把同一樣本專案以 zip 放進材料，launcher 在計時前從歸檔找到 lockfile、11 個套件全部命中快取並掛載，Engineer 在無網路容器內建置並執行成功，run 照常走完。**未驗證：** 真實題目 lockfile 的規模與耗時。
+**驗證結果（無模型、不用題目專案，[檢查腳本](../../../tests/manual/crate-prefetch-check.mts)，8 項通過）：** 自建樣本專案依賴 serde_json，lockfile v4 共 11 個 crates.io 套件，含 proc-macro 與 `build.rs`。直接放置時預取全數下載並核對（約 0.96 MB、4 秒）；同一專案放在 zip 內也找得到，全部命中快取（0.5 秒）；竄改一個 checksum 時預取失敗、不掛載；沒有 lockfile 時跳過。掛載後，無網路容器內一般的 `cargo build`（不帶 `--offline`）建置並執行成功，不掛載則失敗。原有 28 項映像檢查與 G 團隊 fixture 在新映像上仍通過，fixture 的 run 寫出「跳過」的預取記錄。契約測試另覆蓋 lockfile 解析、選取與去重、checksum 衝突、設定內容與參數。整題 run 也走過掛載路徑：G 團隊 fixture 的 crate 變體把同一樣本專案以 zip 放進材料，launcher 在計時前從歸檔找到 lockfile、11 個套件全部命中快取並掛載，Engineer 在無網路容器內建置並執行成功，run 照常走完。**真實題目的量測（2 個 run，只作觀察）：** RustAction 的 `Cargo.lock`（v4，在附件 zip 內）選出 194 個 crates.io 套件、23.3 MB；冷快取時預取全程 78.5 秒（逐一下載），第二次全部命中快取 4.4 秒；兩次都寫出 2 個掛載點。這 2 個 run 只建置了模型自寫、沒有直接依賴的專案，沒有用到掛載的 crate；真實 run 裡題目專案能否靠預取建置，仍未觀察到。
 
 ## 8. 不做的事
 

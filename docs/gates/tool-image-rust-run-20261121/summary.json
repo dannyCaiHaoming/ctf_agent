@@ -1,0 +1,665 @@
+{
+  "date": "2026-11-21",
+  "design": "docs/superpowers/specs/2026-11-21-design-v1-tool-image-and-architecture.md",
+  "batch": "tool-image-rust-20261121",
+  "authorization": {
+    "challenge": "RustAction",
+    "model": "volcano-plan/deepseek-v4.1-flash",
+    "solverThinking": "enabled",
+    "runs": 2,
+    "perRunDeadlineMs": 1800000,
+    "perRunMaxObservableTokens": 5000000,
+    "batchMaxObservableTokens": 10000000,
+    "cratePrefetch": "crates.io packages pinned by the challenge Cargo.lock, cached at ~/.ctf-agent/crate-cache, outside the run clock and token budget"
+  },
+  "image": {
+    "tag": "ctf-tool-image:dev",
+    "id": "sha256:6afbafa01fc40372a05762b884e91e06ceccce9b647e50be04ee1dc70127db4c",
+    "inventorySha256": "84c77973793179db65bf7ffa9094f870f72ac93635b0d8683db69fc2b493c4e6",
+    "rustc": "1.100.0"
+  },
+  "prefetch": {
+    "tir-RustAction-r1": {
+      "result": "ready",
+      "reason": null,
+      "lockfiles": [
+        {
+          "path": "attachment.zip!action-rs/action-rs/Cargo.lock",
+          "version": 4
+        }
+      ],
+      "crates": 194,
+      "downloaded": 194,
+      "cacheHits": 0,
+      "bytes": 23287394,
+      "skipped": {
+        "path": 1,
+        "git": 0,
+        "otherRegistry": 0,
+        "missingChecksum": 0
+      },
+      "durationMs": 78534,
+      "mounts": 2
+    },
+    "tir-RustAction-r2": {
+      "result": "ready",
+      "reason": null,
+      "lockfiles": [
+        {
+          "path": "attachment.zip!action-rs/action-rs/Cargo.lock",
+          "version": 4
+        }
+      ],
+      "crates": 194,
+      "downloaded": 0,
+      "cacheHits": 194,
+      "bytes": 23287394,
+      "skipped": {
+        "path": 1,
+        "git": 0,
+        "otherRegistry": 0,
+        "missingChecksum": 0
+      },
+      "durationMs": 4423,
+      "mounts": 2
+    }
+  },
+  "runs": [
+    {
+      "runId": "tir-RustAction-r1",
+      "status": "completed",
+      "exitCode": 0,
+      "startedAt": "2026-11-21T08:29:11.754Z",
+      "finishedAt": "2026-11-21T08:54:25.033Z",
+      "wallClockSeconds": 1513.3,
+      "tokens": {
+        "reported": "reported",
+        "observableTokens": 487013,
+        "usageTotal": {
+          "availability": "reported",
+          "input_tokens": 273072,
+          "output_tokens": 86700,
+          "reasoning_tokens": 127241,
+          "lowerBound": false
+        },
+        "stopReason": "completed",
+        "status": "completed"
+      },
+      "jobs": {
+        "total": 40,
+        "distribution": {
+          "exited": 40
+        },
+        "argv0": {
+          "bash": 40
+        },
+        "nonzeroExit": 6,
+        "failedToStartJobs": 0
+      },
+      "cargo": {
+        "inputJobs": 15,
+        "executedInJob": 6,
+        "shellExecuted": 5,
+        "pythonExecuted": 1,
+        "textOnly": 9,
+        "executedExitCodes": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "textOnlyArgv0": {
+          "bash": 9
+        },
+        "executedErrorOutputExitZero": 2,
+        "executedFinishedOutput": 0
+      },
+      "jobOutputs": {
+        "jobDirs": 40,
+        "keywords": {
+          "Compiling": 3,
+          "Finished": 0,
+          "error[E": 2,
+          "no matching package": 0,
+          "could not find": 0
+        }
+      },
+      "workspace": {
+        "targetDirs": [
+          "workspace/RustAction/work/ses_e02c34b90ffeYXSaABpA77kIZX/pc/target",
+          "workspace/RustAction/work/ses_e02c34b90ffeYXSaABpA77kIZX/cz/target",
+          "workspace/RustAction/work/ses_e02c34b90ffeYXSaABpA77kIZX/t5/target",
+          "workspace/RustAction/work/ses_e02c34b90ffeYXSaABpA77kIZX/t2/target",
+          "workspace/RustAction/work/ses_e02c34b90ffeYXSaABpA77kIZX/t3/target",
+          "workspace/RustAction/work/ses_e02c34b90ffeYXSaABpA77kIZX/t4/target",
+          "workspace/RustAction/work/ses_e02c34b90ffeYXSaABpA77kIZX/t1/target"
+        ],
+        "targetDirCount": 7,
+        "targetDirsWithElf": 4,
+        "targetDirsWithoutElf": 3,
+        "elfCount": 8,
+        "elfPaths": [
+          "workspace/RustAction/work/ses_e02c34b90ffeYXSaABpA77kIZX/pc/target/debug/t",
+          "workspace/RustAction/work/ses_e02c34b90ffeYXSaABpA77kIZX/pc/target/debug/build/t/e90f308021b01641/out/t",
+          "workspace/RustAction/work/ses_e02c34b90ffeYXSaABpA77kIZX/cz/target/debug/t",
+          "workspace/RustAction/work/ses_e02c34b90ffeYXSaABpA77kIZX/cz/target/debug/build/t/e90f308021b01641/out/t",
+          "workspace/RustAction/work/ses_e02c34b90ffeYXSaABpA77kIZX/t5/target/debug/t",
+          "workspace/RustAction/work/ses_e02c34b90ffeYXSaABpA77kIZX/t5/target/debug/build/t/e90f308021b01641/out/t",
+          "workspace/RustAction/work/ses_e02c34b90ffeYXSaABpA77kIZX/t4/target/debug/t",
+          "workspace/RustAction/work/ses_e02c34b90ffeYXSaABpA77kIZX/t4/target/debug/build/t/e90f308021b01641/out/t"
+        ]
+      },
+      "inventory": {
+        "controlAuditMatches": 0,
+        "jobArgMatches": 0,
+        "roles": [],
+        "firstReadJobIndex": null
+      },
+      "reasoningMentions": {
+        "mentions": 0,
+        "sessions": 0
+      },
+      "stopAttribution": {
+        "role": "coordinator",
+        "kind": "environment",
+        "detailHasRustCargoCrateCompile": false,
+        "detailHasNetwork": false,
+        "detailChars": 116
+      },
+      "candidates": {
+        "publishedArtifacts": 5,
+        "completionRequests": 0,
+        "verificationResults": 0,
+        "submitted": false
+      },
+      "toolContainersLeft": 0
+    },
+    {
+      "runId": "tir-RustAction-r2",
+      "status": "completed",
+      "exitCode": 0,
+      "startedAt": "2026-11-21T08:54:42.617Z",
+      "finishedAt": "2026-11-21T09:18:07.921Z",
+      "wallClockSeconds": 1405.3,
+      "tokens": {
+        "reported": "reported",
+        "observableTokens": 469900,
+        "usageTotal": {
+          "availability": "reported",
+          "input_tokens": 272502,
+          "output_tokens": 76991,
+          "reasoning_tokens": 120407,
+          "lowerBound": false
+        },
+        "stopReason": "completed",
+        "status": "completed"
+      },
+      "jobs": {
+        "total": 52,
+        "distribution": {
+          "exited": 52
+        },
+        "argv0": {
+          "bash": 10,
+          "python3": 34,
+          "sh": 8
+        },
+        "nonzeroExit": 6,
+        "failedToStartJobs": 0
+      },
+      "cargo": {
+        "inputJobs": 7,
+        "executedInJob": 0,
+        "shellExecuted": 0,
+        "pythonExecuted": 0,
+        "textOnly": 7,
+        "executedExitCodes": [],
+        "textOnlyArgv0": {
+          "bash": 1,
+          "python3": 6
+        },
+        "executedErrorOutputExitZero": 0,
+        "executedFinishedOutput": 0
+      },
+      "jobOutputs": {
+        "jobDirs": 52,
+        "keywords": {
+          "Compiling": 0,
+          "Finished": 0,
+          "error[E": 0,
+          "no matching package": 0,
+          "could not find": 0
+        }
+      },
+      "workspace": {
+        "targetDirs": [],
+        "targetDirCount": 0,
+        "targetDirsWithElf": 0,
+        "targetDirsWithoutElf": 0,
+        "elfCount": 0,
+        "elfPaths": []
+      },
+      "inventory": {
+        "controlAuditMatches": 0,
+        "jobArgMatches": 1,
+        "roles": [
+          "recon"
+        ],
+        "firstReadJobIndex": 1
+      },
+      "reasoningMentions": {
+        "mentions": 0,
+        "sessions": 0
+      },
+      "stopAttribution": {
+        "role": "coordinator",
+        "kind": "tool",
+        "detailHasRustCargoCrateCompile": false,
+        "detailHasNetwork": false,
+        "detailChars": 168
+      },
+      "candidates": {
+        "publishedArtifacts": 5,
+        "completionRequests": 0,
+        "verificationResults": 0,
+        "submitted": false
+      },
+      "toolContainersLeft": 0
+    }
+  ],
+  "controls": {
+    "toolImage20261121": [
+      {
+        "runId": "ti-RustAction-r1",
+        "status": "completed",
+        "exitCode": 0,
+        "startedAt": "2026-11-21T04:57:10.857Z",
+        "finishedAt": "2026-11-21T05:19:41.758Z",
+        "wallClockSeconds": 1350.9,
+        "tokens": {
+          "reported": "reported",
+          "observableTokens": 480867,
+          "usageTotal": {
+            "availability": "reported",
+            "input_tokens": 273966,
+            "output_tokens": 77413,
+            "reasoning_tokens": 129488,
+            "lowerBound": false
+          },
+          "stopReason": "completed",
+          "status": "completed"
+        },
+        "jobs": {
+          "total": 47,
+          "distribution": {
+            "exited": 47
+          },
+          "argv0": {
+            "unzip": 1,
+            "sh": 13,
+            "python3": 33
+          },
+          "nonzeroExit": 1,
+          "failedToStartJobs": 0
+        },
+        "cargo": {
+          "inputJobs": 0,
+          "executedInJob": 0,
+          "shellExecuted": 0,
+          "pythonExecuted": 0,
+          "textOnly": 0,
+          "executedExitCodes": [],
+          "textOnlyArgv0": {},
+          "executedErrorOutputExitZero": 0,
+          "executedFinishedOutput": 0
+        },
+        "jobOutputs": {
+          "jobDirs": 47,
+          "keywords": {
+            "Compiling": 0,
+            "Finished": 0,
+            "error[E": 0,
+            "no matching package": 0,
+            "could not find": 0
+          }
+        },
+        "workspace": {
+          "targetDirs": [],
+          "targetDirCount": 0,
+          "targetDirsWithElf": 0,
+          "targetDirsWithoutElf": 0,
+          "elfCount": 0,
+          "elfPaths": []
+        },
+        "inventory": {
+          "controlAuditMatches": 0,
+          "jobArgMatches": 0,
+          "roles": [],
+          "firstReadJobIndex": null
+        },
+        "reasoningMentions": {
+          "mentions": 1,
+          "sessions": 1
+        },
+        "stopAttribution": {
+          "role": "coordinator",
+          "kind": "skill",
+          "detailHasRustCargoCrateCompile": false,
+          "detailHasNetwork": false,
+          "detailChars": 104
+        },
+        "candidates": {
+          "publishedArtifacts": 13,
+          "completionRequests": 0,
+          "verificationResults": 0,
+          "submitted": false
+        }
+      },
+      {
+        "runId": "ti-RustAction-r2",
+        "status": "completed",
+        "exitCode": 0,
+        "startedAt": "2026-11-21T05:21:30.839Z",
+        "finishedAt": "2026-11-21T05:43:04.423Z",
+        "wallClockSeconds": 1293.6,
+        "tokens": {
+          "reported": "reported",
+          "observableTokens": 348384,
+          "usageTotal": {
+            "availability": "reported",
+            "input_tokens": 164869,
+            "output_tokens": 47567,
+            "reasoning_tokens": 135948,
+            "lowerBound": true
+          },
+          "stopReason": "completed",
+          "status": "completed"
+        },
+        "jobs": {
+          "total": 34,
+          "distribution": {
+            "exited": 34
+          },
+          "argv0": {
+            "bash": 34
+          },
+          "nonzeroExit": 1,
+          "failedToStartJobs": 0
+        },
+        "cargo": {
+          "inputJobs": 17,
+          "executedInJob": 3,
+          "shellExecuted": 3,
+          "pythonExecuted": 0,
+          "textOnly": 14,
+          "executedExitCodes": [
+            0,
+            0,
+            0
+          ],
+          "textOnlyArgv0": {
+            "bash": 14
+          },
+          "executedErrorOutputExitZero": 0,
+          "executedFinishedOutput": 0
+        },
+        "jobOutputs": {
+          "jobDirs": 34,
+          "keywords": {
+            "Compiling": 0,
+            "Finished": 0,
+            "error[E": 0,
+            "no matching package": 0,
+            "could not find": 0
+          }
+        },
+        "workspace": {
+          "targetDirs": [],
+          "targetDirCount": 0,
+          "targetDirsWithElf": 0,
+          "targetDirsWithoutElf": 0,
+          "elfCount": 0,
+          "elfPaths": []
+        },
+        "inventory": {
+          "controlAuditMatches": 0,
+          "jobArgMatches": 0,
+          "roles": [],
+          "firstReadJobIndex": null
+        },
+        "reasoningMentions": {
+          "mentions": 1,
+          "sessions": 1
+        },
+        "stopAttribution": {
+          "role": "coordinator",
+          "kind": "tool",
+          "detailHasRustCargoCrateCompile": false,
+          "detailHasNetwork": false,
+          "detailChars": 123
+        },
+        "candidates": {
+          "publishedArtifacts": 5,
+          "completionRequests": 0,
+          "verificationResults": 0,
+          "submitted": false
+        }
+      }
+    ],
+    "hostBaseline": [
+      {
+        "runId": "p1-RustAction-r1",
+        "status": "completed",
+        "exitCode": 0,
+        "startedAt": "2026-11-18T19:06:52.101Z",
+        "finishedAt": "2026-11-18T19:35:28.078Z",
+        "wallClockSeconds": 1716.0,
+        "tokens": {
+          "reported": "reported",
+          "observableTokens": 434834,
+          "usageTotal": {
+            "availability": "reported",
+            "input_tokens": 225790,
+            "output_tokens": 50245,
+            "reasoning_tokens": 158799,
+            "lowerBound": false
+          },
+          "stopReason": "completed",
+          "status": "completed"
+        },
+        "jobs": {
+          "total": 44,
+          "distribution": {
+            "exited": 44
+          },
+          "argv0": {
+            "unzip": 3,
+            "sh": 8,
+            "python3": 32,
+            "ls": 1
+          },
+          "nonzeroExit": 9,
+          "failedToStartJobs": 0
+        },
+        "cargo": {
+          "inputJobs": 2,
+          "executedInJob": 0,
+          "shellExecuted": 0,
+          "pythonExecuted": 0,
+          "textOnly": 2,
+          "executedExitCodes": [],
+          "textOnlyArgv0": {
+            "sh": 2
+          },
+          "executedErrorOutputExitZero": 0,
+          "executedFinishedOutput": 0
+        },
+        "jobOutputs": {
+          "jobDirs": 44,
+          "keywords": {
+            "Compiling": 0,
+            "Finished": 0,
+            "error[E": 0,
+            "no matching package": 0,
+            "could not find": 0
+          }
+        },
+        "workspace": {
+          "targetDirs": [],
+          "targetDirCount": 0,
+          "targetDirsWithElf": 0,
+          "targetDirsWithoutElf": 0,
+          "elfCount": 0,
+          "elfPaths": []
+        },
+        "inventory": {
+          "controlAuditMatches": 0,
+          "jobArgMatches": 0,
+          "roles": [],
+          "firstReadJobIndex": null
+        },
+        "reasoningMentions": {
+          "mentions": 0,
+          "sessions": 0
+        },
+        "stopAttribution": {
+          "role": "coordinator",
+          "kind": "tool",
+          "detailHasRustCargoCrateCompile": false,
+          "detailHasNetwork": false,
+          "detailChars": 103
+        },
+        "candidates": {
+          "publishedArtifacts": 7,
+          "completionRequests": 0,
+          "verificationResults": 0,
+          "submitted": false
+        }
+      },
+      {
+        "runId": "p1-RustAction-r2",
+        "status": "completed",
+        "exitCode": 0,
+        "startedAt": "2026-11-18T20:37:28.069Z",
+        "finishedAt": "2026-11-18T21:02:47.803Z",
+        "wallClockSeconds": 1519.7,
+        "tokens": {
+          "reported": "reported",
+          "observableTokens": 401816,
+          "usageTotal": {
+            "availability": "reported",
+            "input_tokens": 211938,
+            "output_tokens": 47764,
+            "reasoning_tokens": 142114,
+            "lowerBound": false
+          },
+          "stopReason": "completed",
+          "status": "completed"
+        },
+        "jobs": {
+          "total": 34,
+          "distribution": {
+            "exited": 34
+          },
+          "argv0": {
+            "unzip": 2,
+            "sh": 11,
+            "python3": 21
+          },
+          "nonzeroExit": 5,
+          "failedToStartJobs": 0
+        },
+        "cargo": {
+          "inputJobs": 0,
+          "executedInJob": 0,
+          "shellExecuted": 0,
+          "pythonExecuted": 0,
+          "textOnly": 0,
+          "executedExitCodes": [],
+          "textOnlyArgv0": {},
+          "executedErrorOutputExitZero": 0,
+          "executedFinishedOutput": 0
+        },
+        "jobOutputs": {
+          "jobDirs": 34,
+          "keywords": {
+            "Compiling": 0,
+            "Finished": 0,
+            "error[E": 0,
+            "no matching package": 0,
+            "could not find": 0
+          }
+        },
+        "workspace": {
+          "targetDirs": [],
+          "targetDirCount": 0,
+          "targetDirsWithElf": 0,
+          "targetDirsWithoutElf": 0,
+          "elfCount": 0,
+          "elfPaths": []
+        },
+        "inventory": {
+          "controlAuditMatches": 0,
+          "jobArgMatches": 0,
+          "roles": [],
+          "firstReadJobIndex": null
+        },
+        "reasoningMentions": {
+          "mentions": 0,
+          "sessions": 0
+        },
+        "stopAttribution": {
+          "role": "coordinator",
+          "kind": "tool",
+          "detailHasRustCargoCrateCompile": true,
+          "detailHasNetwork": false,
+          "detailChars": 101
+        },
+        "candidates": {
+          "publishedArtifacts": 11,
+          "completionRequests": 0,
+          "verificationResults": 0,
+          "submitted": false
+        }
+      }
+    ]
+  },
+  "totals": {
+    "runs": 2,
+    "observableTokens": 956913,
+    "wallClockSeconds": 2918.6,
+    "jobs": 92,
+    "cargoExecutedInJob": 6,
+    "cargoTextOnlyJobs": 16,
+    "targetDirs": 7,
+    "elfArtifacts": 8,
+    "inventoryReads": 1,
+    "stopAttribution": {
+      "skill": 0,
+      "tool": 1,
+      "environment": 1
+    },
+    "submitted": false,
+    "solved": false,
+    "toolContainersLeft": 0
+  },
+  "method": {
+    "jobs": "progress.jsonl tool.registered/tool.settled (tool job.run) joined by callID; argv from evidence/messages-*.json ctf_job_run inputs",
+    "cargo": "job argv mentions cargo build/run; executed = cargo build/run at command position in the job script outside heredoc bodies (wrappers env/timeout/time allowed; path-prefixed cargo allowed) or a python subprocess/os.system call with cargo build/run; text-only = string appears only in heredoc text, echo/grep/sed or python source that is not run",
+    "jobOutputs": "state/jobs/<session>/<execution>/{stdout,stderr}.bin keyword presence per job, keywords Compiling/Finished/error[E/no matching package/could not find",
+    "workspace": "walk workspace/, target dirs by name and ELF files by magic; per-target ELF counts",
+    "inventory": "control-audit.json substring count of /opt/ctf-tools/inventory; job argv matches with callID role and first matching job index; Domain Solver reasoning parts keyword count",
+    "stopAttribution": "last progress.note (max seq) detail.capabilityGap.kind and detail keyword booleans",
+    "candidates": "publications.json and completion-results.json/verification-results.json lengths",
+    "tokens": "progress.md Observed (reported) and state/run.json usageTotal",
+    "toolContainers": "docker ps -a name prefix ctf-<runId>-"
+  },
+  "limits": {
+    "runsPerCondition": 2,
+    "inference": "counts only; no conclusion about crate-prefetch or inventory effectiveness",
+    "transcriptContentCopied": false,
+    "tokensAreReportedLowerBound": true
+  }
+}
