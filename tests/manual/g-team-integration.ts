@@ -13,6 +13,12 @@ const toolImage = process.env.TEAM_TOOL_IMAGE || undefined;
 const out = process.env.TEAM_OUT ? resolve(process.env.TEAM_OUT) : resolve('docs/gates/g-solver-verification-20261023/integration-20261024/team-runtime');
 if (toolImage && (!process.env.TEAM_OUT || out.startsWith(resolve('.')))) throw new Error('TEAM_OUT outside the repository is required with TEAM_TOOL_IMAGE');
 const node = toolImage ? 'node' : process.execPath;
+// Optional (design §7): TEAM_CRATE_SAMPLE names a self-written Cargo project (Cargo.toml, Cargo.lock, src/main.rs printing
+// {"n":42}); it is zipped into the materials, the launcher prefetches its crates, and the Engineer builds it offline.
+// TEAM_CRATE_CACHE reuses already verified .crate files. Requires TEAM_TOOL_IMAGE.
+const crateSample = process.env.TEAM_CRATE_SAMPLE ? resolve(process.env.TEAM_CRATE_SAMPLE) : undefined;
+if (crateSample && !toolImage) throw new Error('TEAM_CRATE_SAMPLE requires TEAM_TOOL_IMAGE');
+const CRATE_BUILD = 'unzip -q ../../materials/crate-sample.zip -d crate && cd crate/proj && cargo build --quiet && ./target/debug/sample';
 await mkdir(out); // Refuse to overwrite a previous batch.
 const root = await mkdtemp(join(tmpdir(), 'g-team-runtime-'));
 const provider: any[] = [], events: any[] = [], targetRequests: string[] = [];
@@ -98,7 +104,8 @@ const stub = createServer((q, r) => { void (async () => {
       call('ctf_package_publish', { candidate: { ref: refs[0], start: 0, end: 2 },
         files: [{ kind: 'artifact', ref: refs[1], path: 'package.cjs', purpose: 'script' }, { kind: 'material', name: 'numbers.json', path: 'data/numbers.json', purpose: 'input' }],
         argv: [node, 'package.cjs'], extraction: 'Bytes [0,2) of the recompute job stdout; no normalization', premises: ['Fixture materials are the only input'] });
-    } else content = `ENGINEER_PACKAGED version=${last(/"version":"([^"]+)"/)} candidate from recompute job stdout; not verified or solved`;
+    } else if (step === 7 && crateSample) call('ctf_job_run', { argv: ['/bin/sh', '-c', CRATE_BUILD], timeout_ms: 50000 });
+    else content = `ENGINEER_PACKAGED version=${last(/"version":"([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})"/)} candidate from recompute job stdout; not verified or solved`;
   } else {
     // Verifier: prepare the bound version and run the packaged script on the prepared inputs only.
     if (step === 0) call('ctf_package_prepare', {});
@@ -117,11 +124,16 @@ process.env.TEAM_STUB_KEY = 'local-only';
 process.env.HTTP_PROXY = process.env.HTTPS_PROXY = process.env.ALL_PROXY = 'http://127.0.0.1:9';
 process.env.NO_PROXY = '127.0.0.1,localhost';
 await writeFile(join(root, 'numbers.json'), JSON.stringify({ a: 6, b: 7 }));
+if (crateSample) {
+  const { execFileSync } = await import('node:child_process');
+  execFileSync('python3', ['-I', '-c', 'import sys, zipfile, os\nz = zipfile.ZipFile(sys.argv[1], "w")\nfor f in ("Cargo.toml", "Cargo.lock", "src/main.rs"): z.write(os.path.join(sys.argv[2], f), "proj/" + f)\nz.close()',
+    join(root, 'crate-sample.zip'), crateSample]);
+}
 await writeFile(join(root, 'opencode.json'), JSON.stringify({ model: 'stub/scripted', enabled_providers: ['stub'], provider: { stub: { npm: '@ai-sdk/openai-compatible', options: { baseURL: `http://127.0.0.1:${(stub.address() as { port: number }).port}/v1`, apiKey: '{env:TEAM_STUB_KEY}' }, models: { scripted: { limit: { context: 65536, output: 2048 } } } } } }));
-await writeFile(join(root, 'challenges.json'), JSON.stringify({ challenges: [{ id: 'X', statement: 'Local deterministic G wiring fixture; no oracle', materials: ['numbers.json'], target: { protocol: 'http', url: targetURL } }] }));
+await writeFile(join(root, 'challenges.json'), JSON.stringify({ challenges: [{ id: 'X', statement: 'Local deterministic G wiring fixture; no oracle', materials: ['numbers.json', ...(crateSample ? ['crate-sample.zip'] : [])], target: { protocol: 'http', url: targetURL } }] }));
 await writeFile(join(root, 'profile.json'), JSON.stringify({ profileId: 'g-team-local', challenges: 'challenges.json', opencode: { configPath: 'opencode.json', binaryPath: '/Users/caihaoming/.opencode/bin/opencode' }, reference: { enabled: false }, budget: { wallClockMs: 60000, maxSteps: 80, maxObservableTokens: 100000, maxToolJobs: 5 }, os: { platform: 'macos' } }));
 try {
-  result = await launch({ profile: join(root, 'profile.json'), runsRoot: join(root, 'runs'), runId: 'team', toolImage, onStarted: async ({ client }) => {
+  result = await launch({ profile: join(root, 'profile.json'), runsRoot: join(root, 'runs'), runId: 'team', toolImage, crateCache: process.env.TEAM_CRATE_CACHE || undefined, onStarted: async ({ client }) => {
     const stream = await client.event.subscribe({}, { signal: abort.signal, throwOnError: true });
     void (async () => { try { for await (const e of stream.stream) events.push({ at: Date.now(), ...e }); } catch { /* closed */ } })();
   } });
@@ -168,7 +180,22 @@ try {
     const left = execFileSync('docker', ['ps', '-aq', '--filter', 'name=ctf-team-'], { encoding: 'utf8' }).trim();
     assert.equal(left, '');
     const jobSessions = new Set(resources.filter((r: any) => r.tool === 'job.run').map((r: any) => r.sessionID));
-    toolImageCheck = { image: toolImage, id: evidenceImage.id, inventorySha256: evidenceImage.inventorySha256, jobDescriptionPointsToInventory: described,
+    let crates: Record<string, unknown> | undefined;
+    if (crateSample) {
+      // Design §7 end to end: lockfile found in the zip, crates prefetched and mounted, Engineer builds offline in its container.
+      const prefetch = await load('crate-prefetch.json');
+      assert.equal(prefetch.result, 'ready'); assert.equal(prefetch.mounts.length, 2);
+      assert.deepEqual(prefetch.lockfiles.map((l: any) => l.path), ['crate-sample.zip!proj/Cargo.lock']);
+      const engineerJobs = resources.filter((r: any) => r.tool === 'job.run' && r.sessionID === bindings.find((b: any) => b.role === 'engineer').sessionID);
+      const build = engineerJobs.at(-1);
+      const settled = audit.find((r: any) => r.op === 'tool.settled' && r.detail?.callID === build.callID)?.detail;
+      assert.equal(build.result, 'exited'); assert.equal(settled?.exitCode, 0);
+      const stdout = await readFile(join(result.runDir!, 'state/jobs', build.sessionID, settled.job, 'stdout.bin'), 'utf8');
+      assert.equal(stdout.trim(), '{"n":42}');
+      crates = { prefetch: prefetch.result, lockfiles: prefetch.lockfiles.length, crates: prefetch.crates, downloaded: prefetch.downloaded, cacheHits: prefetch.cacheHits,
+        engineerBuild: build.result, engineerBuildOutputMatches: true };
+    }
+    toolImageCheck = { image: toolImage, ...(crates ? { crates } : {}), id: evidenceImage.id, inventorySha256: evidenceImage.inventorySha256, jobDescriptionPointsToInventory: described,
       jobSessions: jobSessions.size, jobResults: resources.filter((r: any) => r.tool === 'job.run').map((r: any) => r.result), containersLeftAfterRun: 0 };
   }
   const summary = { status: result.status, phase, requests: provider.length, executions: executions.length, resources: resources.length, targetRequests, realModelCalls: 0,

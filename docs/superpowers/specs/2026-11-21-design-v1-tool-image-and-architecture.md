@@ -103,7 +103,7 @@
 
 **範圍邊界。** 只覆蓋題目自帶 lockfile 的專案；模型自寫的 Rust 程式仍只有標準庫，工具清單照實寫明。PyPI 等其他套件來源有同樣的問題，等出現缺口證據再處理。git 依賴不處理。宿主模式不變。已否決：映像預置常用 crate（難以對上題目 lockfile 的確切版本，映像變大）；job 經代理連套件來源（等於 run 內安裝，要先定 G §5.5 的網路契約）。
 
-**驗證結果（無模型、不用題目專案，[檢查腳本](../../../tests/manual/crate-prefetch-check.mts)，8 項通過）：** 自建樣本專案依賴 serde_json，lockfile v4 共 11 個 crates.io 套件，含 proc-macro 與 `build.rs`。直接放置時預取全數下載並核對（約 0.96 MB、4 秒）；同一專案放在 zip 內也找得到，全部命中快取（0.5 秒）；竄改一個 checksum 時預取失敗、不掛載；沒有 lockfile 時跳過。掛載後，無網路容器內一般的 `cargo build`（不帶 `--offline`）建置並執行成功，不掛載則失敗。原有 28 項映像檢查與 G 團隊 fixture 在新映像上仍通過，fixture 的 run 寫出「跳過」的預取記錄。契約測試另覆蓋 lockfile 解析、選取與去重、checksum 衝突、設定內容與參數。**未驗證：** 預取經整題 run 走到「掛載」的路徑（launch 接線由上述兩項分別覆蓋）、真實題目 lockfile 的規模與耗時。
+**驗證結果（無模型、不用題目專案，[檢查腳本](../../../tests/manual/crate-prefetch-check.mts)，8 項通過）：** 自建樣本專案依賴 serde_json，lockfile v4 共 11 個 crates.io 套件，含 proc-macro 與 `build.rs`。直接放置時預取全數下載並核對（約 0.96 MB、4 秒）；同一專案放在 zip 內也找得到，全部命中快取（0.5 秒）；竄改一個 checksum 時預取失敗、不掛載；沒有 lockfile 時跳過。掛載後，無網路容器內一般的 `cargo build`（不帶 `--offline`）建置並執行成功，不掛載則失敗。原有 28 項映像檢查與 G 團隊 fixture 在新映像上仍通過，fixture 的 run 寫出「跳過」的預取記錄。契約測試另覆蓋 lockfile 解析、選取與去重、checksum 衝突、設定內容與參數。整題 run 也走過掛載路徑：G 團隊 fixture 的 crate 變體把同一樣本專案以 zip 放進材料，launcher 在計時前從歸檔找到 lockfile、11 個套件全部命中快取並掛載，Engineer 在無網路容器內建置並執行成功，run 照常走完。**未驗證：** 真實題目 lockfile 的規模與耗時。
 
 ## 8. 不做的事
 

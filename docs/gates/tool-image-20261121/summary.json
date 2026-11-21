@@ -364,8 +364,33 @@
   },
   "contract_tests": "tests/contract/crate-prefetch.test.ts (9); deterministic suite 896 passed",
   "unverified": [
-   "prefetch ready path through a whole launcher run",
    "size and duration on real challenge lockfiles"
-  ]
+  ],
+  "launcher_run": {
+   "fixture": "tests/manual/g-team-integration.ts with TEAM_TOOL_IMAGE and TEAM_CRATE_SAMPLE (the self-written sample zipped into the materials; scripted provider, 0 real model calls)",
+   "phase": 13,
+   "crates": {
+    "prefetch": "ready",
+    "lockfiles": 1,
+    "crates": 11,
+    "downloaded": 0,
+    "cacheHits": 11,
+    "engineerBuild": "exited",
+    "engineerBuildOutputMatches": true
+   },
+   "jobResults": [
+    "exited",
+    "exited",
+    "exited",
+    "exited",
+    "exited"
+   ],
+   "containersLeftAfterRun": 0,
+   "fixture_fix": "Engineer handback now matches only the UUID package version; a later job result also carries a version field",
+   "regression": {
+    "host": "phase 13",
+    "tool_image_without_sample": "phase 13"
+   }
+  }
  }
 }
