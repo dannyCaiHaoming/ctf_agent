@@ -14,7 +14,7 @@ import type { OpencodeClient } from '@opencode-ai/sdk/v2';
 import type { ToolResult } from '@opencode-ai/plugin/tool';
 import { INTAKE_TOOLS, IntakeRefused, checkMaterialPath, findChallenge, listChallenges, readMaterial } from './intake-tools.js';
 import { createHttpTools, CookieJar, HttpRefused } from './http-tools.js';
-import { JobManager, JobRefused, type JobBinding } from './job-tools.js';
+import { JobManager, JobRefused, ToolContainers, type JobBinding } from './job-tools.js';
 import { ArtifactPublisher, snapshotWork, type HttpResponseFacts, type ArtifactSource } from './artifact-tools.js';
 import { VerificationResults,fixEvidence } from './verification-results.js';
 import { CandidatePackages } from './candidate-package-tools.js';
@@ -173,6 +173,8 @@ export interface ControlOptions {
   redactions?: readonly string[];
   /** Incremental human-review projection callback; the full audit remains authoritative. */
   onAudit?: (record: AuditRecord) => void;
+  /** Run jobs in per-session containers of this tool image (tool image design §4); absent means host-side jobs. */
+  toolImage?: string;
 }
 
 export class ControlService {
@@ -233,7 +235,18 @@ export class ControlService {
   }
 
   private readonly rootsReady = new Map<string, Promise<void>>();
-  constructor(private readonly options: ControlOptions) { this.completions=new CompletionRequests(join(options.workdir,'..','state','completion')); this.jobs = new JobManager({ jobsRoot: join(options.workdir, '..', 'state', 'jobs') }); }
+  private readonly toolContainers?: ToolContainers;
+  constructor(private readonly options: ControlOptions) {
+    this.completions=new CompletionRequests(join(options.workdir,'..','state','completion'));
+    this.toolContainers = options.toolImage ? new ToolContainers({ image: options.toolImage, prefix: `ctf-${options.runId ?? 'run'}` }) : undefined;
+    this.jobs = new JobManager({ jobsRoot: join(options.workdir, '..', 'state', 'jobs'), containers: this.toolContainers });
+  }
+
+  /** Removes every per-session tool container; call after all jobs have been stopped at the end of the run. */
+  async releaseToolContainers(): Promise<void> {
+    await this.jobs.cancelAll();
+    await this.toolContainers?.removeAll();
+  }
 
   executionSnapshot() { return [...this.executions.values()].map(e => structuredClone(e)); }
   hasOutstandingWork(status: Record<string, { type: string }>): boolean {

@@ -8,6 +8,8 @@ export interface CTFPluginOptions {
   tools: string[];
   /** Per-request limit; an unanswered request is a denial. */
   requestTimeoutMs?: number;
+  /** Tool inventory path inside the job tool image; set only when jobs run in the tool image. */
+  toolInventory?: string;
 }
 
 export const pluginId = 'ctf-agent-host-foundation';
@@ -143,7 +145,8 @@ export function createCtfAgentHooks(options: CTFPluginOptions): Hooks {
   const tools: NonNullable<Hooks['tool']> = {};
   for (const name of options.tools) {
     tools[managedToolId(name)] = tool({
-      description: descriptions[name] ?? `CTF managed ${name}. Use workspace-relative paths. The host supplies all identities, evidence references and budgets.`,
+      description: (descriptions[name] ?? `CTF managed ${name}. Use workspace-relative paths. The host supplies all identities, evidence references and budgets.`) +
+        (name === 'job.run' && options.toolInventory ? ` Installed tools, versions and x86 usage (QEMU with sysroots) are listed in ${options.toolInventory}; read it with job.run before concluding a tool is missing. Nothing can be installed during the run.` : ''),
       args: schemas[name as keyof typeof schemas],
       async execute(args, context) {
         const mark = (args as Marked)[callMarker];

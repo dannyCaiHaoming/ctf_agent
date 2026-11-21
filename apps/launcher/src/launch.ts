@@ -21,6 +21,7 @@ import type { OpencodeClient } from '@opencode-ai/sdk/v2';
 import { Blocked } from './blocked.js';
 import { prepareRun, type PreparedChallenge } from './run-prep.js';
 import { ControlService, MANAGED_TOOLS, summarizeUsage, type Message, type SessionUsage } from './control-service.js';
+import { TOOL_INVENTORY_PATH } from './job-tools.js';
 import { classifyRootResult, canSettleRoot, trailingLengthTurns, type RootResult } from './root-result.js';
 import { ProgressLedger } from './progress-ledger.js';
 import { startControlRpc } from './control-rpc.js';
@@ -37,6 +38,8 @@ const DEFAULT_PROFILE = fileURLToPath(new URL('../../../config/release-profile.v
 
 export interface LaunchOptions {
   profile?: string; runsRoot?: string; runId?: string; product?: string; deadlineMs?: number;
+  /** Run jobs in per-session containers of this tool image (tool image design §4); absent keeps host-side jobs. */
+  toolImage?: string;
   /** Test seam: called once after the start message is sent, with the launcher's own SDK client. */
   /** Host-only adapters include nonsecret submission limits; absent limits refuse submission. */
   completionJudges?:Readonly<Record<string,import('./completion-tools.js').CompletionJudge>>;
@@ -227,8 +230,10 @@ async function runLaunch(options: LaunchOptions, rpc: { url: string; token: stri
   const productAgents = new Set([...targets.keys()].filter(t => /^agents\/[^/]+\.md$/.test(t)).map(t => basename(t, '.md')));
   const merged = mergeAgentOptions(loaded.config.agent, baseConfig.agent, productAgents);
   const pluginEntry = join(repoRoot, 'apps', 'opencode-plugin', 'src', 'entry.ts');
+  const toolImage = options.toolImage ? await inspectToolImage(options.toolImage) : undefined;
+  if (toolImage) await writeFile(join(real.evidence, 'tool-image.json'), JSON.stringify(toolImage, null, 2), { flag: 'wx' });
   const config = {
-    ...baseConfig, ...(merged.agent ? { agent: merged.agent } : {}), default_agent: COORDINATOR, plugin: [[pluginEntry, { controlUrl: rpc.url, controlToken: rpc.token, tools: MANAGED_TOOLS }]], model: loaded.config.model, small_model: loaded.config.model,
+    ...baseConfig, ...(merged.agent ? { agent: merged.agent } : {}), default_agent: COORDINATOR, plugin: [[pluginEntry, { controlUrl: rpc.url, controlToken: rpc.token, tools: MANAGED_TOOLS, ...(toolImage ? { toolInventory: TOOL_INVENTORY_PATH } : {}) }]], model: loaded.config.model, small_model: loaded.config.model,
     provider: loaded.config.provider, ...(loaded.config.enabled_providers ? { enabled_providers: loaded.config.enabled_providers } : {})
   };
   const deadlineMs = options.deadlineMs ?? profile.budget.wallClockMs;
@@ -261,7 +266,8 @@ async function runLaunch(options: LaunchOptions, rpc: { url: string; token: stri
   const context = effectiveContext(profile.context);
   const control = new ControlService({ context, experienceStore:experience, completionJudges:options.completionJudges, client, runId, budget: { maxModelCalls: profile.budget.maxSteps, maxObservableTokens: profile.budget.maxObservableTokens, maxToolJobs: profile.budget.maxToolJobs,
     reconMaxModelCalls: profile.budget.reconMaxModelCalls, reconClosureReserve: profile.budget.reconClosureReserve },
-    expiresAt: deadlineAt, workdir: real.opencode, skillRoot: join(configDirectory, 'skills'), challenges: prepared, redactions: secrets, onAudit: record => progress.append(record) });
+    expiresAt: deadlineAt, workdir: real.opencode, skillRoot: join(configDirectory, 'skills'), challenges: prepared, redactions: secrets, onAudit: record => progress.append(record),
+    ...(toolImage ? { toolImage: toolImage.id } : {}) });
   attach(control);
   const fail = (event: string, cause: unknown) => { status = 'failed'; mark(event, scrub(String(cause))); };
   const save = async (path: string, value: unknown) => {
@@ -367,6 +373,7 @@ async function runLaunch(options: LaunchOptions, rpc: { url: string; token: stri
     await control.stopAll('error');
   }
   await save(join(real.evidence, 'task-executions.json'), control.executionSnapshot());
+  try { await control.releaseToolContainers(); } catch (cause) { fail('tool_container_cleanup_error', cause); }
   // 5. Common best-effort finalization while the SDK remains available. Each query/write is independent.
   for (const id of control.bindings.keys()) sessionIds.add(id);
   if (rootId) await descendants(rootId);
@@ -470,6 +477,17 @@ async function nearest(path: string): Promise<string> {
   return current;
 }
 
+/** Image id and inventory hash recorded as run evidence; the containers run the image by id, not by a movable tag. */
+export async function inspectToolImage(image: string) {
+  const docker = (...args: string[]) => execFileSync('docker', args, { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'], maxBuffer: 16 << 20 });
+  let id: string, inventory: string;
+  try {
+    id = docker('image', 'inspect', '--format', '{{.Id}}', image).trim();
+    inventory = docker('run', '--rm', '--network', 'none', id, 'cat', TOOL_INVENTORY_PATH);
+  } catch { throw new Blocked(`tool image unavailable: ${image}`); }
+  return { image, id, inventoryPath: TOOL_INVENTORY_PATH, inventorySha256: sha256(inventory), inventory: JSON.parse(inventory) as unknown };
+}
+
 export function parseLaunchArgs(argv: string[]): LaunchOptions {
   const values: Record<string, string> = {};
   for (let i = 0; i < argv.length; i += 2) {
@@ -478,7 +496,7 @@ export function parseLaunchArgs(argv: string[]): LaunchOptions {
     values[key.slice(2)] = argv[i + 1]!;
   }
   return { profile: values.profile ?? DEFAULT_PROFILE, runsRoot: values['runs-root'], runId: values['run-id'], product: values.product,
-    deadlineMs: values['deadline-ms'] ? Number(values['deadline-ms']) : undefined };
+    deadlineMs: values['deadline-ms'] ? Number(values['deadline-ms']) : undefined, toolImage: values['tool-image'] };
 }
 
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {

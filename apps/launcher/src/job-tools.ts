@@ -1,6 +1,6 @@
-// Managed jobs (G design section 5), executed host-side. argv runs directly with no shell, each job in its own process
+// Managed jobs (G design section 5), executed host-side or in a per-session tool container. argv runs directly with no shell, each job in its own process
 // group, with a whitelisted environment and /dev/null on stdin. Every handle is checked against the caller's binding.
-import { spawn, type ChildProcess } from 'node:child_process';
+import { execFile, spawn, type ChildProcess } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
 import { closeSync, mkdirSync, openSync, readSync, statSync, writeSync } from 'node:fs';
 import { join } from 'node:path';
@@ -51,6 +51,69 @@ interface Stream {
 }
 interface Deferred { promise: Promise<void>; resolve: () => void }
 
+/**
+ * Optional per-session tool container (tool image design, section 4). When `container` yields a container for a
+ * binding, the job runs there through `docker exec`; a small shell prologue starts it in a new session, so its process
+ * group id is recorded inside the container and signals reach only that group. Paths are mounted at the same absolute
+ * paths.
+ */
+export interface JobContainers {
+  container(binding: JobBinding): Promise<string | undefined>;
+  /** The image's fixed PATH (G design 5.3); the host PATH is never passed into the container. */
+  path: string;
+  docker?: string;
+}
+
+/** The tool image's fixed PATH (docker/tool-image/Dockerfile). */
+export const TOOL_IMAGE_PATH = '/opt/ctf-venv/bin:/usr/local/bin:/usr/bin:/bin';
+/** Machine-generated tool inventory inside the tool image. */
+export const TOOL_INVENTORY_PATH = '/opt/ctf-tools/inventory.json';
+
+/**
+ * One container per solving session, created at its first job and reused until `removeAll` at the end of the run.
+ * `--init` reaps orphans, so a cancelled group leaves no zombie members; materials and published are read-only.
+ * Network defaults to none: job network scope is still open (G design 5.5).
+ */
+export class ToolContainers implements JobContainers {
+  readonly path: string;
+  readonly docker: string;
+  private readonly started = new Map<string, Promise<string>>();
+  constructor(private readonly options: { image: string; prefix: string; network?: string; user?: string; path?: string; docker?: string }) {
+    this.path = options.path ?? TOOL_IMAGE_PATH;
+    this.docker = options.docker ?? 'docker';
+  }
+
+  container(binding: JobBinding): Promise<string> {
+    let started = this.started.get(binding.sessionId);
+    if (!started) {
+      started = this.start(binding);
+      this.started.set(binding.sessionId, started);
+      started.catch(() => this.started.delete(binding.sessionId));
+    }
+    return started;
+  }
+
+  async removeAll(): Promise<void> {
+    const names = (await Promise.allSettled(this.started.values())).flatMap(r => r.status === 'fulfilled' ? [r.value] : []);
+    this.started.clear();
+    if (names.length) await new Promise<void>(resolve => execFile(this.docker, ['rm', '-f', ...names], () => resolve()));
+  }
+
+  private start(b: JobBinding): Promise<string> {
+    const name = `${this.options.prefix}-${b.sessionId}`.replace(/[^a-zA-Z0-9_.-]/g, '-').slice(0, 120);
+    const user = this.options.user ?? `${process.getuid?.() ?? 1000}:${process.getgid?.() ?? 1000}`;
+    const args = ['run', '-d', '--init', '--name', name, '--network', this.options.network ?? 'none', '--user', user,
+      '--cap-drop', 'ALL', '--security-opt', 'no-new-privileges', '-v', `${b.workDir}:${b.workDir}`,
+      '-v', `${b.materialsDir}:${b.materialsDir}:ro`, '-v', `${b.publishedDir}:${b.publishedDir}:ro`, this.options.image, 'sleep', 'infinity'];
+    return new Promise((resolve, reject) => execFile(this.docker, args, error => error ? reject(new JobRefused('tool container')) : resolve(name)));
+  }
+}
+
+// $0 is the job id; "$@" is argv. A missing program leaves a marker so the host reports failed_to_start, not the
+// program's own exit 127. setsid makes the inner shell a group leader, so $$ is the group id to signal.
+const CONTAINER_PROLOGUE = 'mkdir -p /tmp/ctf-jobs && { command -v -- "$1" >/dev/null 2>&1 || { : > "/tmp/ctf-jobs/$0.missing"; exit 127; }; } && ' +
+  'exec /usr/bin/setsid -w /bin/sh -c \'echo $$ > "/tmp/ctf-jobs/$0" && exec "$@"\' "$0" "$@"';
+
 interface Job {
   id: string;
   sessionId: string;
@@ -70,13 +133,14 @@ interface Job {
   done: Deferred;
   abort?: () => void;
   signalOwner?: AbortSignal;
+  container?: string;
 }
 
 export class JobManager {
   private readonly jobs = new Map<string, Job>();
   private readonly pathEnv: string;
 
-  constructor(private readonly options: { jobsRoot: string; pathEnv?: string }) {
+  constructor(private readonly options: { jobsRoot: string; pathEnv?: string; containers?: JobContainers }) {
     this.pathEnv = options.pathEnv ?? process.env.PATH ?? '/usr/bin:/bin';
   }
 
@@ -87,6 +151,9 @@ export class JobManager {
     const timeoutMs = boundedInt(args.timeout_ms, DEFAULT_TIMEOUT_MS, 1, MAX_TIMEOUT_MS, 'timeout');
     const waitMs = boundedInt(args.wait_ms, DEFAULT_WAIT_MS, 0, MAX_WAIT_MS, 'wait');
     if (!isDirectory(binding.workDir)) throw new JobRefused('workdir');
+    // Await the container before the capacity check, so the check and the registration below stay synchronous.
+    const container = await this.options.containers?.container(binding);
+    operation?.signal.throwIfAborted();
     this.assertCapacity(binding);
 
     const id = randomUUID();
@@ -96,7 +163,11 @@ export class JobManager {
     let stderr: Stream;
     try { stderr = openStream(join(dir, 'stderr.bin')); } catch (error) { closeStream(stdout); throw error; }
     let child: ChildProcess;
-    try { child = spawn(argv[0]!, argv.slice(1), {
+    try { child = container
+      ? spawn(this.docker, ['exec', '-w', binding.workDir, container, '/usr/bin/env', '-i',
+          ...Object.entries(this.childEnv(binding, this.options.containers!.path)).map(([k, v]) => `${k}=${v}`),
+          '/bin/sh', '-c', CONTAINER_PROLOGUE, id, ...argv], { stdio: ['ignore', 'pipe', 'pipe'], detached: true })
+      : spawn(argv[0]!, argv.slice(1), {
       cwd: binding.workDir,
       env: this.childEnv(binding),
       stdio: ['ignore', 'pipe', 'pipe'],
@@ -104,7 +175,7 @@ export class JobManager {
     }); } catch (error) { closeStream(stdout); closeStream(stderr); throw error; }
     const job: Job = {
       id, sessionId: binding.sessionId, challengeId: binding.challengeId, state: 'running',
-      exitCode: null, signal: null, child, reapIncomplete: false, settled: false,
+      exitCode: null, signal: null, child, reapIncomplete: false, settled: false, container,
       stdout, stderr,
       exited: deferred(), closed: deferred(), done: deferred()
     };
@@ -198,9 +269,9 @@ export class JobManager {
   }
 
   /** Whitelist only: no provider, RPC or platform credential is ever passed to a job. */
-  private childEnv(binding: JobBinding): Record<string, string> {
+  private childEnv(binding: JobBinding, path = this.pathEnv): Record<string, string> {
     return {
-      PATH: this.pathEnv,
+      PATH: path,
       HOME: binding.workDir,
       TMPDIR: binding.workDir,
       LANG: 'C.UTF-8',
@@ -231,12 +302,42 @@ export class JobManager {
 
   /** SIGTERM to the whole group, SIGKILL after the grace period, then wait until no member remains. */
   private async killGroup(job: Job) {
+    if (job.container) return this.killContainerGroup(job, job.container);
     const pid = job.child.pid!;
     signalGroup(pid, 'SIGTERM');
     const escalate = setTimeout(() => signalGroup(pid, 'SIGKILL'), JOB_KILL_GRACE_MS);
     const gone = await waitFor(() => !groupAlive(pid), JOB_KILL_GRACE_MS + 1000);
     clearTimeout(escalate);
     job.reapIncomplete = !gone;
+  }
+
+  private get docker() { return this.options.containers?.docker ?? 'docker'; }
+
+  /** Same escalation inside the container; the local `docker exec` client ending is not taken as the group ending. */
+  private async killContainerGroup(job: Job, container: string) {
+    const pidFile = `/tmp/ctf-jobs/${job.id}`;
+    const inContainer = (script: string) => new Promise<number>(resolve => execFile(this.docker,
+      ['exec', container, '/bin/sh', '-c', script], error => resolve(error ? Number((error as { code?: unknown }).code ?? 1) || 1 : 0)));
+    const signal = (name: string) => inContainer(`[ -f ${pidFile} ] && kill -s ${name} -- -$(cat ${pidFile})`);
+    // 0: a member is alive; 1: none; 2: the prologue has not recorded the group yet.
+    const alive = async () => {
+      const code = await inContainer(`[ -f ${pidFile} ] || exit 2; kill -0 -- -$(cat ${pidFile}) 2>/dev/null`);
+      return code === 0 || (code === 2 && job.child.exitCode === null && job.child.signalCode === null);
+    };
+    await signal('TERM');
+    const deadline = Date.now() + JOB_KILL_GRACE_MS + 1000;
+    let escalated = false;
+    while (await alive()) {
+      if (Date.now() >= deadline) { job.reapIncomplete = true; break; }
+      if (!escalated && Date.now() >= deadline - 1000) { escalated = true; await signal('KILL'); }
+      await delay(100);
+    }
+    signalGroup(job.child.pid!, 'SIGTERM'); // the local client, once nothing it waits for remains
+    if (job.state === 'exited' && job.exitCode === 127 && await inContainer(`[ -f ${pidFile}.missing ]`) === 0) {
+      job.state = 'failed_to_start';
+      job.exitCode = null;
+    }
+    await inContainer(`rm -f ${pidFile} ${pidFile}.missing`);
   }
 
   private async finish(job: Job) {
