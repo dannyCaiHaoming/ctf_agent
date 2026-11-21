@@ -178,7 +178,14 @@
         "cargoInputMentionsOnlyInScriptText": 15,
         "cargoProjectsWithoutDependencies": 3,
         "buildArtifactsInWorkspace": 0,
-        "cargoJobsWithErrorKeywordAndExit0": 1
+        "cargoJobsWithErrorKeywordAndExit0": 1,
+        "cargoJobInputShape": {
+          "offlineFlag": 3,
+          "rmRf": 3,
+          "outputFilteredByHeadTailGrep": 3,
+          "stderrMerged": 3
+        },
+        "challengeSourceCrateDependencyLines": 14
       },
       "p1-RustAction-r1": {
         "total": 44,
@@ -238,8 +245,20 @@
     },
     "open": [
       "why the inventory was noticed but not read (needs reasoning text, experiment-mode session)",
-      "why the three cargo builds left no artifacts (needs those job outputs, experiment-mode session)",
+      "whether third-party crates should be available to jobs (pre-cached crates or package sources under G 5.5)",
       "whether stop attribution changed (needs more authorized runs)"
-    ]
+    ],
+    "offlineRepro": {
+      "sample": "self-written empty cargo projects, same container flags (network none, caller uid, HOME=work dir)",
+      "zeroDependencyBuild": {
+        "withOffline": "pass (tool-image-check Q1)",
+        "withoutOffline": "pass, target/ kept"
+      },
+      "registryDependencyBuild": {
+        "exitCode": 101,
+        "exitCodeThroughPipe": 0,
+        "cause": "crates.io host not resolvable"
+      }
+    }
   }
 }

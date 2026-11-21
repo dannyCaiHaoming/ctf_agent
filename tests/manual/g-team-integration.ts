@@ -16,8 +16,10 @@ const node = toolImage ? 'node' : process.execPath;
 await mkdir(out); // Refuse to overwrite a previous batch.
 const root = await mkdtemp(join(tmpdir(), 'g-team-runtime-'));
 const provider: any[] = [], events: any[] = [], targetRequests: string[] = [];
+const RECOMPUTE = "const fs=require('fs'); const n=JSON.parse(fs.readFileSync('../../materials/numbers.json','utf8')); console.log(n.a*n.b)";
+const PACKAGED = "const n=JSON.parse(require('fs').readFileSync('data/numbers.json','utf8')); process.stdout.write(String(n.a*n.b))";
 const steps = new Map<string, number>();
-let seq = 0, phase = 0, solverID = '', currentRole = '', failure: string | undefined;
+let seq = 0, phase = 0, solverID = '', currentRole = '', packageVersion = '', failure: string | undefined;
 let result: Awaited<ReturnType<typeof launch>> | undefined;
 const abort = new AbortController();
 const target = createServer((q, r) => { targetRequests.push(q.url!); r.writeHead(200, { 'content-type': 'text/plain' }); r.end('authorized-local-observation'); });
@@ -57,9 +59,10 @@ const stub = createServer((q, r) => { void (async () => {
         } break;
       case 8: if (all.includes('SOLVER_FIXED')) { call('ctf_challenge_assign', { challenge: 'X', role: 'engineer' }); phase++; } break;
       case 9: task('engineer', true); currentRole = 'engineer'; phase++; break;
-      case 10: if (all.includes('ENGINEER_LOCAL_ONLY')) { call('ctf_challenge_assign', { challenge: 'X', role: 'verifier' }); phase++; } break;
+      // The Verifier is bound to the package version the Engineer handed back (D: version-bound verification).
+      case 10: { const v = /ENGINEER_PACKAGED version=(\S+)/.exec(all)?.[1]; if (v) { packageVersion = v; call('ctf_challenge_assign', { challenge: 'X', role: 'verifier', version: v }); phase++; } } break;
       case 11: task('verifier', true); currentRole = 'verifier'; phase++; break;
-      case 12: if (all.includes('VERIFIER_LOCAL_ONLY')) { content = 'G_WIRING_COMPLETE; D publication/candidate/verification unavailable; no solved claim'; phase++; } break;
+      case 12: if (all.includes('VERIFIER_RECOMPUTED')) { content = 'G_WIRING_COMPLETE; packaged candidate recomputed by the version-bound Verifier; no verification report or solved claim'; phase++; } break;
       default: content = 'G_WIRING_COMPLETE';
     }
     content ||= `WAIT_FOR_${currentRole || 'TEAM'}`;
@@ -80,11 +83,27 @@ const stub = createServer((q, r) => { void (async () => {
     else if (step === 2) { assert(all.includes('TEAM_REPAIR')); call('ctf_workspace_write', { path: 'work/solve.cjs', content: "console.log(6*7)" }); }
     else if (step === 3) call('ctf_job_run', { argv: [node, 'solve.cjs'], timeout_ms: 5000 });
     else content = 'SOLVER_FIXED local output 42; script stays private; D publication missing';
-  } else {
+  } else if (who === 'engineer') {
+    // Recompute locally, then fix the job output and a packaged script into one candidate package.
+    const last = (re: RegExp) => toolResults.map((t: string) => re.exec(t)?.[1]).filter(Boolean).at(-1);
     if (step === 0) call('ctf_workspace_read', { path: 'materials/numbers.json' });
-    else if (step === 1) call('ctf_workspace_write', { path: 'work/recompute.cjs', content: "const fs=require('fs'); const n=JSON.parse(fs.readFileSync('../../materials/numbers.json','utf8')); console.log(n.a*n.b)" });
+    else if (step === 1) call('ctf_workspace_write', { path: 'work/recompute.cjs', content: RECOMPUTE });
     else if (step === 2) call('ctf_job_run', { argv: [node, 'recompute.cjs'], timeout_ms: 5000 });
-    else content = `${who.toUpperCase()}_LOCAL_ONLY 42 from supplied materials; no published Solver artifact or D verified result`;
+    else if (step === 3) call('ctf_artifact_publish', { source: 'job', job: last(/"job":"([^"]+)"/), stream: 'stdout' });
+    else if (step === 4) call('ctf_workspace_write', { path: 'work/package.cjs', content: PACKAGED });
+    else if (step === 5) call('ctf_artifact_publish', { source: 'file', path: 'work/package.cjs' });
+    else if (step === 6) {
+      const refs = toolResults.map((t: string) => /"ref":"([^"]+)"/.exec(t)?.[1]).filter(Boolean);
+      assert.equal(refs.length, 2);
+      call('ctf_package_publish', { candidate: { ref: refs[0], start: 0, end: 2 },
+        files: [{ kind: 'artifact', ref: refs[1], path: 'package.cjs', purpose: 'script' }, { kind: 'material', name: 'numbers.json', path: 'data/numbers.json', purpose: 'input' }],
+        argv: [node, 'package.cjs'], extraction: 'Bytes [0,2) of the recompute job stdout; no normalization', premises: ['Fixture materials are the only input'] });
+    } else content = `ENGINEER_PACKAGED version=${last(/"version":"([^"]+)"/)} candidate from recompute job stdout; not verified or solved`;
+  } else {
+    // Verifier: prepare the bound version and run the packaged script on the prepared inputs only.
+    if (step === 0) call('ctf_package_prepare', {});
+    else if (step === 1) call('ctf_job_run', { preparation: /"preparation":"([^"]+)"/.exec(toolResults.at(-1) ?? '')?.[1], argv: [node, 'package.cjs'], timeout_ms: 5000 });
+    else content = 'VERIFIER_RECOMPUTED 42 from the prepared package; no verification report or solved claim';
   }
   provider.push({ at: Date.now(), seq: ++seq, who, step, phase, calls, toolResults, messages: body.messages, tools: body.tools });
   const base = { id: `chatcmpl-${seq}`, object: 'chat.completion.chunk', created: Math.floor(Date.now() / 1000), model: 'scripted' };
@@ -100,7 +119,7 @@ process.env.NO_PROXY = '127.0.0.1,localhost';
 await writeFile(join(root, 'numbers.json'), JSON.stringify({ a: 6, b: 7 }));
 await writeFile(join(root, 'opencode.json'), JSON.stringify({ model: 'stub/scripted', enabled_providers: ['stub'], provider: { stub: { npm: '@ai-sdk/openai-compatible', options: { baseURL: `http://127.0.0.1:${(stub.address() as { port: number }).port}/v1`, apiKey: '{env:TEAM_STUB_KEY}' }, models: { scripted: { limit: { context: 65536, output: 2048 } } } } } }));
 await writeFile(join(root, 'challenges.json'), JSON.stringify({ challenges: [{ id: 'X', statement: 'Local deterministic G wiring fixture; no oracle', materials: ['numbers.json'], target: { protocol: 'http', url: targetURL } }] }));
-await writeFile(join(root, 'profile.json'), JSON.stringify({ profileId: 'g-team-local', challenges: 'challenges.json', opencode: { configPath: 'opencode.json', binaryPath: '/Users/caihaoming/.opencode/bin/opencode' }, reference: { enabled: false }, budget: { wallClockMs: 60000, maxSteps: 80, maxObservableTokens: 100000, maxToolJobs: 3 }, os: { platform: 'macos' } }));
+await writeFile(join(root, 'profile.json'), JSON.stringify({ profileId: 'g-team-local', challenges: 'challenges.json', opencode: { configPath: 'opencode.json', binaryPath: '/Users/caihaoming/.opencode/bin/opencode' }, reference: { enabled: false }, budget: { wallClockMs: 60000, maxSteps: 80, maxObservableTokens: 100000, maxToolJobs: 5 }, os: { platform: 'macos' } }));
 try {
   result = await launch({ profile: join(root, 'profile.json'), runsRoot: join(root, 'runs'), runId: 'team', toolImage, onStarted: async ({ client }) => {
     const stream = await client.event.subscribe({}, { signal: abort.signal, throwOnError: true });
@@ -115,14 +134,23 @@ try {
   assert(resources.every((r: any) => r.state === 'settled')); assert(resources.some((r: any) => r.result === 'exited'));
   const solverExecutions = executions.filter((e: any) => e.role === 'domain-solver');
   assert.equal(solverExecutions.length, 2); assert.equal(solverExecutions[0].childID, solverID); assert.equal(solverExecutions[1].childID, solverID); assert.notEqual(solverExecutions[0].ref, solverExecutions[1].ref);
-  assert(executions.every((e: any) => e.delivery === 'consumed' && e.state === 'completed'));
+  // Sync tasks are delivered in the call itself and carry no delivery state; background ones must be consumed.
+  assert(executions.every((e: any) => e.state === 'completed' && (e.mode === 'sync' ? e.delivery === undefined : e.delivery === 'consumed')));
   for (const role of ['engineer', 'verifier']) {
     const binding = bindings.find((b: any) => b.role === role); assert(binding); assert.equal(binding.challengeId, 'X');
-    assert.equal(await readFile(join(result.runDir!, 'workspace/X/work', binding.sessionID, 'recompute.cjs'), 'utf8'), "const fs=require('fs'); const n=JSON.parse(fs.readFileSync('../../materials/numbers.json','utf8')); console.log(n.a*n.b)");
     assert(resources.some((r: any) => r.sessionID === binding.sessionID && r.tool === 'job.run' && r.result === 'exited'));
     assert(provider.filter(p => p.who === role).every(p => !p.tools.some((t: any) => t.function.name === 'ctf_http_request')));
   }
-  assert.deepEqual(await readdir(join(result.runDir!, 'workspace/X/published')), []);
+  const engineer = bindings.find((b: any) => b.role === 'engineer');
+  assert.equal(await readFile(join(result.runDir!, 'workspace/X/work', engineer.sessionID, 'recompute.cjs'), 'utf8'), RECOMPUTE);
+  // D version binding: assign, Verifier execution and the prepared job all carry the Engineer's package version.
+  assert(packageVersion);
+  assert(audit.some((r: any) => r.op === 'assign' && r.allow && r.detail?.role === 'verifier' && r.detail?.version === packageVersion));
+  assert.equal(executions.find((e: any) => e.role === 'verifier')?.version, packageVersion);
+  const verifierInput = audit.find((r: any) => r.op === 'verification.job.input');
+  assert.equal(verifierInput?.detail?.version, packageVersion); assert.deepEqual(verifierInput?.detail?.argv, [node, 'package.cjs']);
+  assert(provider.some(p => p.who === 'verifier' && p.toolResults.some((s: string) => s.includes('"exitCode":0') && s.includes('42'))));
+  assert((await readdir(join(result.runDir!, 'workspace/X/published'))).length > 0);
   assert(provider.some(p => p.who === 'domain-solver' && p.toolResults.some((s: string) => s.includes('"exitCode":1'))));
   assert(provider.some(p => p.who === 'domain-solver' && p.step > 1 && p.toolResults.some((s: string) => s.includes('"exitCode":0'))));
   for (const p of provider.filter(p => ['domain-solver', 'engineer', 'verifier'].includes(p.who))) {
@@ -145,7 +173,7 @@ try {
   }
   const summary = { status: result.status, phase, requests: provider.length, executions: executions.length, resources: resources.length, targetRequests, realModelCalls: 0,
     ...(toolImageCheck ? { toolImage: toolImageCheck } : {}),
-    gWiring: 'passed', completeTeamSolve: 'blocked by D publication/candidate/verification interfaces', realModelAbility: 'unverified', solved: false,
+    gWiring: 'passed', packageVersion, completeTeamSolve: 'Engineer package and version-bound Verifier recompute pass; verification.report and completion not exercised', realModelAbility: 'unverified', solved: false,
     recoveryCritic: 'not triggered: one ordinary script failure, no persistent stagnation', isolation: 'not verified; known same-uid/direct-network limitations retained' };
   await writeFile(join(out, 'summary.json'), JSON.stringify(summary, null, 2)); console.log(JSON.stringify(summary));
 } catch (e) { failure = failure ?? String(e); process.exitCode = 1; console.error(e); }
