@@ -22,6 +22,7 @@ import { Blocked } from './blocked.js';
 import { prepareRun, type PreparedChallenge } from './run-prep.js';
 import { ControlService, MANAGED_TOOLS, summarizeUsage, type Message, type SessionUsage } from './control-service.js';
 import { TOOL_INVENTORY_PATH } from './job-tools.js';
+import { prefetchCrates } from './crate-prefetch.js';
 import { classifyRootResult, canSettleRoot, trailingLengthTurns, type RootResult } from './root-result.js';
 import { ProgressLedger } from './progress-ledger.js';
 import { startControlRpc } from './control-rpc.js';
@@ -40,6 +41,8 @@ export interface LaunchOptions {
   profile?: string; runsRoot?: string; runId?: string; product?: string; deadlineMs?: number;
   /** Run jobs in per-session containers of this tool image (tool image design §4); absent keeps host-side jobs. */
   toolImage?: string;
+  /** Shared cache of checksum-verified .crate files for the tool image's crate prefetch (design §7). */
+  crateCache?: string;
   /** Test seam: called once after the start message is sent, with the launcher's own SDK client. */
   /** Host-only adapters include nonsecret submission limits; absent limits refuse submission. */
   completionJudges?:Readonly<Record<string,import('./completion-tools.js').CompletionJudge>>;
@@ -232,6 +235,10 @@ async function runLaunch(options: LaunchOptions, rpc: { url: string; token: stri
   const pluginEntry = join(repoRoot, 'apps', 'opencode-plugin', 'src', 'entry.ts');
   const toolImage = options.toolImage ? await inspectToolImage(options.toolImage) : undefined;
   if (toolImage) await writeFile(join(real.evidence, 'tool-image.json'), JSON.stringify(toolImage, null, 2), { flag: 'wx' });
+  // Design §7: crates pinned by a challenge Cargo.lock, fetched before the run clock starts; failure only skips the mounts.
+  const crates = toolImage ? await prefetchCrates({ image: toolImage.id, materials: prepared.map(c => ({ challenge: c.id, dir: c.materialsDir })),
+    cacheDir: options.crateCache ?? join(homedir(), '.ctf-agent', 'crate-cache'), stateDir: real.state }) : undefined;
+  if (crates) await writeFile(join(real.evidence, 'crate-prefetch.json'), JSON.stringify(crates, null, 2), { flag: 'wx' });
   const config = {
     ...baseConfig, ...(merged.agent ? { agent: merged.agent } : {}), default_agent: COORDINATOR, plugin: [[pluginEntry, { controlUrl: rpc.url, controlToken: rpc.token, tools: MANAGED_TOOLS, ...(toolImage ? { toolInventory: TOOL_INVENTORY_PATH } : {}) }]], model: loaded.config.model, small_model: loaded.config.model,
     provider: loaded.config.provider, ...(loaded.config.enabled_providers ? { enabled_providers: loaded.config.enabled_providers } : {})
@@ -267,7 +274,7 @@ async function runLaunch(options: LaunchOptions, rpc: { url: string; token: stri
   const control = new ControlService({ context, experienceStore:experience, completionJudges:options.completionJudges, client, runId, budget: { maxModelCalls: profile.budget.maxSteps, maxObservableTokens: profile.budget.maxObservableTokens, maxToolJobs: profile.budget.maxToolJobs,
     reconMaxModelCalls: profile.budget.reconMaxModelCalls, reconClosureReserve: profile.budget.reconClosureReserve },
     expiresAt: deadlineAt, workdir: real.opencode, skillRoot: join(configDirectory, 'skills'), challenges: prepared, redactions: secrets, onAudit: record => progress.append(record),
-    ...(toolImage ? { toolImage: toolImage.id } : {}) });
+    ...(toolImage ? { toolImage: toolImage.id, toolMounts: crates?.mounts } : {}) });
   attach(control);
   const fail = (event: string, cause: unknown) => { status = 'failed'; mark(event, scrub(String(cause))); };
   const save = async (path: string, value: unknown) => {
@@ -496,7 +503,7 @@ export function parseLaunchArgs(argv: string[]): LaunchOptions {
     values[key.slice(2)] = argv[i + 1]!;
   }
   return { profile: values.profile ?? DEFAULT_PROFILE, runsRoot: values['runs-root'], runId: values['run-id'], product: values.product,
-    deadlineMs: values['deadline-ms'] ? Number(values['deadline-ms']) : undefined, toolImage: values['tool-image'] };
+    deadlineMs: values['deadline-ms'] ? Number(values['deadline-ms']) : undefined, toolImage: values['tool-image'], crateCache: values['crate-cache'] };
 }
 
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {

@@ -1,6 +1,6 @@
 # design v1 解題工具映像與架構詳細 design
 
-**狀態（2026-11-21）：已落地（開發部署）。** launcher 以 `--tool-image` 啟用每會話工具容器；無模型檢查、腳本化整題 run 與獨立 Linux arm64 Docker Engine 都通過。真實模型 2 個 run 只作觀察，不下清單有效性結論；產品部署與 job 網路仍歸 G §5.4–5.5。
+**狀態（2026-11-21）：已落地（開發部署）。** launcher 以 `--tool-image` 啟用每會話工具容器，並依題目 lockfile 預取 crate；無模型檢查、腳本化整題 run 與獨立 Linux arm64 Docker Engine 都通過。未驗證：真實模型是否讀工具清單、預取在真實題目上的效果；產品部署與 job 網路仍歸 G §5.4–5.5。
 
 本文是 [design v1](2026-10-22-ctf-agent-design-v1.md) 第 2 節 F（Docker 可交付佈局）與 G（首版工具集）的子文件，承接第 3 節待決項「工具套件、版本與 ARM64 可用性」，工具供給的細節以本文為準。job 的契約（工作目錄、環境變數白名單、程序組、輸出上限、不臨時安裝）沿用 [G 詳細 design §5.3](2026-10-23-design-v1-g-solver-minimal.md#53-執行環境)，隔離方向與部署責任沿用 §5.4，網路以 §5.5 為準。調研原文與來源等級見[執行環境調研](../analysis/2026-11-21-job-tool-environment-survey.md)，驗證數字見 [gate 摘要](../../gates/tool-image-20261121/summary.json)。
 
@@ -17,13 +17,13 @@
 | 層 | 已實測的能力 | 未壓縮大小 |
 | --- | --- | ---: |
 | 通用執行 | Python、Node、shell 與文字工具、歸檔與編碼、curl、socat | 304 MB |
-| 編譯工具鏈 | C／C++、Go 1.22、Rust 1.75 與 Cargo 離線建置（只含標準庫，沒有第三方 crate） | 923 MB |
+| 編譯工具鏈 | C／C++、Go 1.22；Rust 1.100 與 Cargo 離線建置（官方穩定版，第三方 crate 見第 7 節） | 510 MB＋528 MB |
 | Web 與 Crypto | HTML 解析、大數與模運算（gmpy2、PARI/GP）、符號計算、約束求解（z3）、`Crypto` 命名空間 | 172 MB＋17 MB |
 | Misc／取證 | 格式辨識、解包、中繼資料、影像處理、檔案系統取證 | 59 MB |
 | Pwn／Reverse | 跨架構反組譯（binutils、radare2）、保護屬性檢查、gdb-multiarch、QEMU user-mode 與 x86 sysroot、交叉編譯器與標頭檔、pwntools | 494 MB＋235 MB＋46 MB |
 | Mobile | APK 解包與 smali（apktool）、JDK | 396 MB |
 
-整個映像在磁碟上約 3.65 GB，下載內容約 0.9 GB；最大的是編譯工具鏈與 Mobile 的 JDK。**需自建、尚未納入：** Ghidra、jadx、dex2jar、smali 獨立工具、SageMath，都沒有 Ubuntu arm64 套件，出現實際缺口時再補。
+整個映像在磁碟上約 3.82 GB，下載內容約 0.9 GB；最大的是編譯工具鏈與 Mobile 的 JDK。**需自建、尚未納入：** Ghidra、jadx、dex2jar、smali 獨立工具、SageMath，都沒有 Ubuntu arm64 套件，出現實際缺口時再補。
 
 **版本固定。** ARM64 的 Ubuntu ports 套件庫不套用 apt snapshot，所以版本靠鎖底座 digest，加上建置時寫出的已安裝套件清單（`/opt/ctf-tools/packages.txt`、`python-packages.txt`）；重建時新的套件更新仍可能進來，這是目前的重現性限制。每次 run 以映像 id（不是可移動的標籤）啟動容器，並記入 evidence。
 
@@ -76,15 +76,36 @@
 | 工具能否離線使用 | Rust、Cargo、C、Go、Python 樣本離線編譯並執行；Crypto、Web 解析、影像中繼資料、歸檔、binwalk、radare2、checksec、pwntools、apktool 的功能檢查通過；清單無缺失項 |
 | x86 能否執行與除錯 | amd64 靜態／動態、i386 動態都正確；兩種架構的 gdb 斷點、讀值、正常結束都成立 |
 | 工具容器能否保住 job 契約 | 環境只含白名單（外加 shell 自設的 `PWD`）、`PATH` 為映像固定值、cwd 正確、非 root；`work/` 可寫、材料與已發布不可改；兩會話檔案與程序互不可見；退出碼、增量輸出、截斷統計正確；取消與逾時只清目標組、容器可重用；找不到程式報 `failed_to_start`；run 收尾後不留容器 |
-| 代價 | 下載內容約 0.9 GB、磁碟 3.65 GB；冷建容器約 0.1–0.16 秒；每筆 job 約 0.2 秒；QEMU 慢 1.9–2.7 倍 |
+| 代價 | 下載內容約 0.9 GB、磁碟 3.82 GB；冷建容器約 0.1–0.16 秒；每筆 job 約 0.2 秒；QEMU 慢 1.9–2.7 倍 |
 | 清單能否讓角色讀到 | `job.run` 讀到的清單雜湊與 launcher 寫入 evidence 的雜湊一致；工具說明在啟用時指向清單、未啟用時不變 |
 | 整題 run | 以腳本化 provider（0 次真實模型呼叫）跑 [G 團隊接線 fixture](../../../tests/manual/g-team-integration.ts)，工具映像模式與宿主模式對照：兩種模式都走完 13 個階段，job 結果與輸出一致（Solver 先失敗後修正、Engineer 讀材料重算並固定候選包、Verifier 綁定該包版本、在準備好的輸入上重算）；工具映像模式為三個用到 job 的會話各建一個容器、以映像 id 啟動、run 結束時全部回收；evidence 有映像 id 與清單雜湊；模型收到的 20 份 `job.run` 說明都指向清單（宿主模式 0 份）。fixture 不走 `verification.report` 與完成判定 |
 | Linux arm64 Docker Engine | 見第 3 節 |
 | 真實模型是否先讀清單、工具缺口停止是否改變（Q5） | 2 個 run（RustAction，工具映像）對照基線同題 2 個 run（宿主模式）。清單指引送達：兩個 run 的 Domain Solver 推理各提到清單路徑 1 次（第 4、第 9 次 job 之後），之後都沒有派 job 讀它。4 個 run 的 job 全部正常退出，輸出都沒有網路錯誤；與題目服務的往來走受管 `http.request`，job 網路關閉沒有擋到解題。工具映像 run 有 3 次 job 實際執行 `cargo build --offline`（無依賴的小專案），工作區沒有建置產物；3 次的命令都含 `rm -rf`，輸出都經 `head`／`tail`／`grep` 過濾，其中 1 次輸出含錯誤、退出碼卻是 0（管道吞掉退出碼）。同一映像以相同容器參數重現（自寫空專案）：無依賴專案帶或不帶 `--offline` 都能建置並留下 `target/`；帶 crate 依賴的專案因解析不到 crates.io 失敗（退出碼 101，接管道後變 0）。停止歸因 skill 1、tool 1；基線 2 個 run 皆為 tool，其中 1 個的缺口描述提到 Rust／編譯，工具映像 run 的缺口描述都沒提 Rust、編譯或網路。只作觀察，樣本不足，不下清單有效或無效的結論，也不改角色提示（[gate](../../gates/tool-image-run-20261121/summary.json)） |
 
-**尚未定論：** 指引已送達且被注意到，模型仍沒讀清單，原因要看推理原文，交實驗模式 session 核對 gate 列出的 job。建置沒留下產物，證據指向命令自身的清理與輸出過濾，不指向映像或 job 契約缺陷，因此不改映像。真正的限制是 crate 依賴：job 無網路時，需要第三方 crate 的 Rust 專案（例如題目附帶的原始碼）無法建置；是否預置常用 crate 或在 G §5.5 開放套件來源，屬於待決設計，不在本文先定。停止歸因是否真的改變要另行授權更多 run，不據此加角色提示（B §7 已停止提示位置補丁）。
+**尚未定論：** 指引已送達且被注意到，模型仍沒讀清單，原因要看推理原文，交實驗模式 session 核對 gate 列出的 job。建置沒留下產物，證據指向命令自身的清理與輸出過濾，不指向映像或 job 契約缺陷。真正的限制在 Rust 工具鏈版本與第三方 crate，見第 7 節。停止歸因是否真的改變要另行授權更多 run，不據此加角色提示（B §7 已停止提示位置補丁）。
 
-## 7. 不做的事
+## 7. Rust 工具鏈與第三方 crate
+
+**兩層缺口。** Ubuntu 24.04 自帶的 Rust 1.75 讀不了 lockfile version 4（Cargo 1.78 起支援，新專案的預設格式），題目附帶的 Rust 專案在解析階段就失敗；即使版本夠新，job 沒有網路，crates.io 依賴也下載不到。兩點都以自寫空專案在映像內重現過（[gate](../../gates/tool-image-run-20261121/summary.json)）。
+
+**工具鏈改用官方穩定版，固定版本。** 建置時下載官方 aarch64 獨立安裝包，以官方 channel manifest 的 SHA-256 核對，只裝 rustc、cargo 與本機標準庫，取代 Ubuntu 的 rustc／cargo 套件。版本與雜湊寫在 Dockerfile 參數，升級時一起改。不用 rustup：少一個會自行更新的管理程式，固定方式與映像其他部分一致。
+
+**第三方 crate 由 launcher 在 run 開始前，依題目自帶的 lockfile 預取。** job 仍然沒有網路、run 內不安裝；版本由題目的 lockfile 決定並逐一核對雜湊；預取只下載資料、不執行建置腳本，`build.rs` 只在 job 的隔離容器內離線執行。
+
+1. **尋找：** 只在啟用工具映像、且題目材料含 `Cargo.lock`（直接放置，或在 zip／tar 歸檔內）時進行。讀歸檔在工具映像的無網路容器內完成，只取名為 `Cargo.lock` 的項目，單檔與總量都有上限。
+2. **選取：** 只取來源為 crates.io 且帶 checksum 的套件；路徑依賴與 git 依賴不取，只計數。多份 lockfile 合併去重。
+3. **下載與核對：** 宿主從 crates.io 的靜態下載點取 `.crate`，SHA-256 必須等於 lockfile 的 checksum；任何一項不符或下載失敗，整次預取標為失敗、不掛載部分結果。已核對的檔案以 checksum 為鍵存在 run 目錄以外的共用快取，重跑同題不重下。
+4. **組成來源目錄：** 在無網路容器內把每個 `.crate` 解成「名稱-版本」目錄，附上只記套件 checksum 的 `.cargo-checksum.json`（Cargo vendor 目錄格式）。
+5. **交給 job：** 來源目錄唯讀掛在 `/opt/ctf-crates`，另唯讀掛一份 Cargo 設定在 `/.cargo/config.toml`，把 crates.io 換成該目錄並設離線。Cargo 會沿目錄往上找到根目錄的設定，任何工作目錄下的專案都生效。沒有預取時兩者都不掛，行為不變。
+6. **記錄：** `evidence/crate-prefetch.json` 記 lockfile 在材料內的位置、套件數、下載與快取命中數、位元組、略過的路徑與 git 依賴數、耗時與結果。
+
+**時間與失敗。** 預取在 run 計時開始前完成，不計入 deadline 與 token；失敗不阻擋 run，只記錄並不掛載。
+
+**範圍邊界。** 只覆蓋題目自帶 lockfile 的專案；模型自寫的 Rust 程式仍只有標準庫，工具清單照實寫明。PyPI 等其他套件來源有同樣的問題，等出現缺口證據再處理。git 依賴不處理。宿主模式不變。已否決：映像預置常用 crate（難以對上題目 lockfile 的確切版本，映像變大）；job 經代理連套件來源（等於 run 內安裝，要先定 G §5.5 的網路契約）。
+
+**驗證結果（無模型、不用題目專案，[檢查腳本](../../../tests/manual/crate-prefetch-check.mts)，8 項通過）：** 自建樣本專案依賴 serde_json，lockfile v4 共 11 個 crates.io 套件，含 proc-macro 與 `build.rs`。直接放置時預取全數下載並核對（約 0.96 MB、4 秒）；同一專案放在 zip 內也找得到，全部命中快取（0.5 秒）；竄改一個 checksum 時預取失敗、不掛載；沒有 lockfile 時跳過。掛載後，無網路容器內一般的 `cargo build`（不帶 `--offline`）建置並執行成功，不掛載則失敗。原有 28 項映像檢查與 G 團隊 fixture 在新映像上仍通過，fixture 的 run 寫出「跳過」的預取記錄。契約測試另覆蓋 lockfile 解析、選取與去重、checksum 衝突、設定內容與參數。**未驗證：** 預取經整題 run 走到「掛載」的路徑（launch 接線由上述兩項分別覆蓋）、真實題目 lockfile 的規模與耗時。
+
+## 8. 不做的事
 
 - 不以整套 Kali 套件代替能力選擇，不承諾「全領域工具齊備」。
 - 產品容器內不註冊宿主的跨架構解譯器。

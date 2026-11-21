@@ -175,6 +175,8 @@ export interface ControlOptions {
   onAudit?: (record: AuditRecord) => void;
   /** Run jobs in per-session containers of this tool image (tool image design §4); absent means host-side jobs. */
   toolImage?: string;
+  /** Read-only mounts added to every tool container (prefetched crates, design §7); ignored without toolImage. */
+  toolMounts?: ReadonlyArray<{ source: string; target: string }>;
 }
 
 export class ControlService {
@@ -238,7 +240,7 @@ export class ControlService {
   private readonly toolContainers?: ToolContainers;
   constructor(private readonly options: ControlOptions) {
     this.completions=new CompletionRequests(join(options.workdir,'..','state','completion'));
-    this.toolContainers = options.toolImage ? new ToolContainers({ image: options.toolImage, prefix: `ctf-${options.runId ?? 'run'}` }) : undefined;
+    this.toolContainers = options.toolImage ? new ToolContainers({ image: options.toolImage, prefix: `ctf-${options.runId ?? 'run'}`, mounts: options.toolMounts }) : undefined;
     this.jobs = new JobManager({ jobsRoot: join(options.workdir, '..', 'state', 'jobs'), containers: this.toolContainers });
   }
 

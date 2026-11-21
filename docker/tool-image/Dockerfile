@@ -12,8 +12,22 @@ RUN apt-get update && $APT python3 python3-venv python3-pip python3-dev nodejs f
       p7zip-full zstd xz-utils bzip2 jq ca-certificates curl procps util-linux netcat-openbsd socat \
     && rm -rf /var/lib/apt/lists/*
 
-# Compilers: C/C++, Go and Rust, used offline with their standard libraries only.
-RUN apt-get update && $APT build-essential golang-go rustc cargo && rm -rf /var/lib/apt/lists/*
+# Compilers: C/C++ and Go, used offline with their standard libraries only.
+RUN apt-get update && $APT build-essential golang-go && rm -rf /var/lib/apt/lists/*
+
+# Rust: the official stable toolchain pinned by version and the SHA-256 from the official channel manifest.
+# Ubuntu's rustc 1.75 cannot read lockfile version 4. Third-party crates come only from the launcher's
+# prefetch of a challenge Cargo.lock, mounted at /opt/ctf-crates (design §7).
+ARG RUST_VERSION=1.100.0
+ARG RUST_DATE=2026-11-12
+ARG RUST_SHA256=a21f6a21818df07c1e2e7addb570af5444b3fa9dd61e3a207f4fb1c5a5e665c9
+RUN curl -fsSL --retry 5 -o /tmp/rust.tar.xz \
+      "https://static.rust-lang.org/dist/${RUST_DATE}/rust-${RUST_VERSION}-aarch64-unknown-linux-gnu.tar.xz" \
+    && echo "${RUST_SHA256}  /tmp/rust.tar.xz" | sha256sum -c - \
+    && mkdir /tmp/rust && tar -xJf /tmp/rust.tar.xz -C /tmp/rust --strip-components=1 \
+    && /tmp/rust/install.sh --prefix=/usr/local --disable-ldconfig \
+         --components=rustc,cargo,rust-std-aarch64-unknown-linux-gnu \
+    && rm -rf /tmp/rust /tmp/rust.tar.xz && rustc --version && cargo --version
 
 # Web parsing and Crypto mathematics.
 RUN apt-get update && $APT python3-requests python3-bs4 python3-lxml python3-numpy python3-sympy \

@@ -269,5 +269,103 @@
    "other_before": 3,
    "other_after": 3
   }
+ },
+ "rust_crates": {
+  "date": "2026-11-21",
+  "design": "§7",
+  "image_id": "sha256:6afbafa01fc40372a05762b884e91e06ceccce9b647e50be04ee1dc70127db4c",
+  "toolchain": {
+   "rustc": "1.100.0",
+   "source": "official aarch64 standalone installer, SHA-256 from the official channel manifest",
+   "ubuntu_rustc_cargo_removed": true,
+   "layer_mb": 528,
+   "compilers_layer_mb_without_rust": 510,
+   "image_disk_gb": 3.82
+  },
+  "lockfile_v4_on_old_toolchain": "cargo 1.75 refuses version 4",
+  "prefetch_check": {
+   "script": "tests/manual/crate-prefetch-check.mts",
+   "sample": "self-written project depending on serde_json; no challenge project",
+   "lockfile": {
+    "version": 4,
+    "packages": 12,
+    "registry": 11
+   },
+   "prefetch": {
+    "direct": {
+     "result": "ready",
+     "reason": null,
+     "crates": 11,
+     "downloaded": 11,
+     "cacheHits": 0,
+     "bytes": 962734,
+     "mounts": 2,
+     "ms": 4130
+    },
+    "zipped": {
+     "result": "ready",
+     "reason": null,
+     "crates": 11,
+     "downloaded": 0,
+     "cacheHits": 11,
+     "bytes": 962734,
+     "mounts": 2,
+     "ms": 485
+    },
+    "tampered": {
+     "result": "failed",
+     "reason": "checksum mismatch",
+     "crates": 11,
+     "downloaded": 0,
+     "cacheHits": 0,
+     "bytes": 0,
+     "mounts": 0,
+     "ms": 347
+    },
+    "none": {
+     "result": "skipped",
+     "reason": "no Cargo.lock in materials",
+     "crates": 0,
+     "downloaded": 0,
+     "cacheHits": 0,
+     "bytes": 0,
+     "mounts": 0,
+     "ms": 145
+    }
+   },
+   "build": {
+    "withMounts": {
+     "state": "exited",
+     "exitCode": 0,
+     "stdoutMatches": true,
+     "ms": 1463
+    },
+    "withoutMounts": {
+     "state": "exited",
+     "exitCode": 101
+    }
+   },
+   "checks": {
+    "lockfile_v4": true,
+    "direct_ready": true,
+    "zip_found_and_cached": true,
+    "tampered_fails_without_mounts": true,
+    "no_lockfile_skips": true,
+    "builds_offline_with_mounts": true,
+    "fails_without_mounts": true,
+    "no_containers_left": true
+   },
+   "passed": 8,
+   "total": 8
+  },
+  "regression": {
+   "tool_image_check": "28/28",
+   "g_team_tool_image": "phase 13, crate-prefetch.json result skipped"
+  },
+  "contract_tests": "tests/contract/crate-prefetch.test.ts (9); deterministic suite 896 passed",
+  "unverified": [
+   "prefetch ready path through a whole launcher run",
+   "size and duration on real challenge lockfiles"
+  ]
  }
 }

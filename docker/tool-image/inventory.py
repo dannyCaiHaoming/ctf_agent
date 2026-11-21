@@ -81,6 +81,9 @@ def main():
     print(json.dumps({
         'arch': platform.machine(),
         'offline': 'Tools run without network access; no package can be installed while solving.',
+        'rust_crates': ('Standard library only, unless the challenge ships a Cargo.lock: then the crates.io '
+                        'packages it pins were fetched before the run into /opt/ctf-crates, and cargo uses them '
+                        'offline. Other crates and git dependencies are unavailable.'),
         'x86': {'run': 'qemu-x86_64 -L <sysroot> <program> (qemu-i386 for 32-bit)',
                 'debug': 'qemu-x86_64 -g <port> ... with gdb-multiarch', 'sysroots': SYSROOTS},
         'tools': tools,

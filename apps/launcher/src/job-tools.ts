@@ -78,7 +78,9 @@ export class ToolContainers implements JobContainers {
   readonly path: string;
   readonly docker: string;
   private readonly started = new Map<string, Promise<string>>();
-  constructor(private readonly options: { image: string; prefix: string; network?: string; user?: string; path?: string; docker?: string }) {
+  constructor(private readonly options: { image: string; prefix: string; network?: string; user?: string; path?: string; docker?: string;
+    /** Extra read-only mounts shared by every session container, e.g. prefetched crates (design §7). */
+    mounts?: ReadonlyArray<{ source: string; target: string }> }) {
     this.path = options.path ?? TOOL_IMAGE_PATH;
     this.docker = options.docker ?? 'docker';
   }
@@ -104,7 +106,8 @@ export class ToolContainers implements JobContainers {
     const user = this.options.user ?? `${process.getuid?.() ?? 1000}:${process.getgid?.() ?? 1000}`;
     const args = ['run', '-d', '--init', '--name', name, '--network', this.options.network ?? 'none', '--user', user,
       '--cap-drop', 'ALL', '--security-opt', 'no-new-privileges', '-v', `${b.workDir}:${b.workDir}`,
-      '-v', `${b.materialsDir}:${b.materialsDir}:ro`, '-v', `${b.publishedDir}:${b.publishedDir}:ro`, this.options.image, 'sleep', 'infinity'];
+      '-v', `${b.materialsDir}:${b.materialsDir}:ro`, '-v', `${b.publishedDir}:${b.publishedDir}:ro`,
+      ...(this.options.mounts ?? []).flatMap(m => ['-v', `${m.source}:${m.target}:ro`]), this.options.image, 'sleep', 'infinity'];
     return new Promise((resolve, reject) => execFile(this.docker, args, error => error ? reject(new JobRefused('tool container')) : resolve(name)));
   }
 }
