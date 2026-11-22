@@ -45,10 +45,10 @@ def dump(value, path=None):
 
 
 def job_stream_metrics(audit):
-    """Count unique terminal jobs with stream counters from the host audit."""
+    """Return legacy output totals and stream coverage for terminal jobs observed in the audit."""
     names = ('stdout', 'stderr')
     totals = {name: {'truncated': 0, 'stored_bytes': 0} for name in names}
-    seen = set()
+    terminal_jobs, measured_jobs = set(), set()
     for record in audit or []:
         detail = record.get('detail')
         if record.get('op') != 'tool.settled' or not isinstance(detail, dict):
@@ -56,18 +56,31 @@ def job_stream_metrics(audit):
         if detail.get('tool') not in ('job.run', 'job.read', 'job.cancel'):
             continue
         job, streams = detail.get('job'), detail.get('streams')
-        if not isinstance(job, str) or not job or job in seen or not isinstance(streams, dict):
+        if not isinstance(job, str) or not job:
+            continue
+        terminal_jobs.add(job)
+        if job in measured_jobs or not isinstance(streams, dict):
             continue
         if not all(isinstance(streams.get(name), dict)
                    and type(streams[name].get('stored_bytes')) is int
                    and streams[name]['stored_bytes'] >= 0
                    and isinstance(streams[name].get('truncated'), bool) for name in names):
             continue
-        seen.add(job)
+        measured_jobs.add(job)
         for name in names:
             for counter in totals[name]:
                 totals[name][counter] += streams[name][counter]
-    return {'terminal_jobs': len(seen), **totals} if seen else 'unknown'
+    # The legacy count and stream totals cover only jobs with both stream counters.
+    measured = len(measured_jobs)
+    missing = len(terminal_jobs) - measured
+    legacy = {'terminal_jobs': measured, **totals} if measured else 'unknown'
+    # Any valid record covers that job. Runs with no measured jobs remain unknown.
+    status = 'unknown' if not measured else 'partial' if missing else 'complete'
+    return legacy, {
+        'status': status,
+        'terminal_jobs_with_streams': measured,
+        'terminal_jobs_missing_streams': missing,
+    }
 
 
 def audit_milestones(audit):

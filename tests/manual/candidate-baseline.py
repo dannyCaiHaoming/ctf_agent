@@ -243,6 +243,39 @@ def self_test():
         assert report['totals']['runs_with_job_truncation'] == 1
         assert report['totals']['runs_with_unknown_job_streams'] == 2
 
+        fixture('synthetic-partial', [
+            event(1, 'tool.settled', 'domain-solver', tool='job.run', job='measured', result='exited',
+                  streams={'stdout': {'stored_bytes': 1048576, 'truncated': True},
+                           'stderr': {'stored_bytes': 0, 'truncated': False}}),
+            event(2, 'tool.settled', 'domain-solver', tool='job.read', job='measured', result='completed'),
+            event(3, 'tool.settled', 'domain-solver', tool='job.run', job='missing', result='exited'),
+            event(4, 'tool.settled', 'domain-solver', tool='job.read', job='missing', result='completed',
+                  streams={'stdout': {'stored_bytes': 2, 'truncated': False}}),
+        ])
+        mixed_report = collect([batch], [])
+        partial = next(r for r in mixed_report['runs'] if r['run'] == 'synthetic-partial')
+        assert partial['job_streams'] == {'terminal_jobs': 1,
+            'stdout': {'truncated': 1, 'stored_bytes': 1048576},
+            'stderr': {'truncated': 0, 'stored_bytes': 0}}
+        assert mixed_report['totals']['runs_with_job_truncation'] == 2
+        assert mixed_report['totals']['runs_with_unknown_job_streams'] == 2
+        for sample, expected in ((row, ('complete', 2, 0)), (empty, ('complete', 1, 0)),
+                                 (missing, ('unknown', 0, 1)), (active, ('unknown', 0, 0)),
+                                 (partial, ('partial', 1, 1))):
+            status, with_streams, missing_streams = expected
+            assert sample.get('job_streams_coverage') == {
+                'status': status, 'terminal_jobs_with_streams': with_streams,
+                'terminal_jobs_missing_streams': missing_streams,
+            }, f"wrong job stream coverage for {sample['run']}"
+        assert mixed_report['totals']['job_streams_coverage'] == {
+            'complete_runs': 2, 'partial_runs': 1, 'unknown_runs': 2,
+            'complete_runs_with_truncation': 1, 'complete_run_truncation_rate': 0.5,
+        }
+        assert collect([batch / 'runs' / 'synthetic-partial'], [])['totals']['job_streams_coverage'] == {
+            'complete_runs': 0, 'partial_runs': 1, 'unknown_runs': 0,
+            'complete_runs_with_truncation': 0, 'complete_run_truncation_rate': None,
+        }
+
         deadline = fixture('synthetic-deadline', [
             event(0, 'bind'),
             event(1, 'progress.note', 'recovery-critic', session='critic', route='stop_and_report'),
@@ -384,7 +417,6 @@ def collect(inputs, gates, profile_dirs=()):
         grouped.append({'challenge': challenge, 'product_head': head, 'product_dirty': dirty,
             'product_source': source, 'runs': len(members), **counts(members)})
     omitted_runs = [r for r in rows if r['omitted_distinct']]
-    measured_streams = [r['job_streams'] for r in rows if r['job_streams'] != 'unknown']
     return {'runs': rows, 'groups': grouped, 'totals': {'runs': len(rows),
         'batches': len({r['batch'] for r in rows}), 'challenges': len({r['challenge'] for r in rows
             if r['challenge'] != 'unknown'}), **counts(rows),
@@ -392,9 +424,29 @@ def collect(inputs, gates, profile_dirs=()):
         'unsolved_runs_with_omission': sum(r['solved'] is False for r in omitted_runs),
         'first_omission_minutes': sorted(r['first_omission_min'] for r in omitted_runs
                                          if r['first_omission_min'] is not None),
-        'runs_with_job_truncation': sum(bool(s['stdout']['truncated'] or s['stderr']['truncated'])
-                                        for s in measured_streams),
-        'runs_with_unknown_job_streams': len(rows) - len(measured_streams)}, 'skipped': skipped}
+        **job_stream_totals(rows)}, 'skipped': skipped}
+
+
+def job_stream_totals(rows):
+    # The legacy gate fields use every run with at least one measured job.
+    measured = [r for r in rows if r['job_streams'] != 'unknown']
+    truncated = [r for r in measured if r['job_streams']['stdout']['truncated']
+                 or r['job_streams']['stderr']['truncated']]
+    coverage = collections.Counter(r['job_streams_coverage']['status'] for r in rows)
+    # The coverage-aware truncation count and rate use only complete runs.
+    complete = coverage['complete']
+    complete_truncated = sum(r['job_streams_coverage']['status'] == 'complete' for r in truncated)
+    return {
+        'runs_with_job_truncation': len(truncated),
+        'runs_with_unknown_job_streams': len(rows) - len(measured),
+        'job_streams_coverage': {
+            'complete_runs': complete,
+            'partial_runs': coverage['partial'],
+            'unknown_runs': coverage['unknown'],
+            'complete_runs_with_truncation': complete_truncated,
+            'complete_run_truncation_rate': complete_truncated / complete if complete else None,
+        },
+    }
 
 
 RESULTS = ('candidate_claimed', 'packaged', 'submitted', 'solved', 'posthoc_accepted')
@@ -460,6 +512,7 @@ def run_record(state, audit, rec, meta, correction, run_name, profile, census, r
     numbers = [usage.get(k) for k in ('input_tokens', 'output_tokens', 'reasoning_tokens')]
     observable = sum(numbers) if usage.get('availability') not in (None, 'unavailable') and all(
         isinstance(n, int) and n >= 0 for n in numbers) else 'unavailable'
+    job_streams, job_streams_coverage = job_stream_metrics(audit)
     return {'batch': batch, 'run': token(state.get('runId'), token(run_name)), 'challenge': challenge,
         'product_head': head, 'product_dirty': revision.get('productDirty') if isinstance(revision.get('productDirty'), bool) else 'unknown',
         'product_source': token(rec.get('product_source') or rec.get('productSource')),
@@ -472,7 +525,7 @@ def run_record(state, audit, rec, meta, correction, run_name, profile, census, r
         'solved': solved, 'posthoc_accepted': correction, 'stop_reason': token(state.get('stopReason')),
         'wall_clock_min': elapsed, 'wall_minutes': elapsed, **times, 'observable_tokens': observable,
         'usage_lower_bound': usage.get('lowerBound') if isinstance(usage.get('lowerBound'), bool) else 'unknown',
-        'job_streams': job_stream_metrics(audit)}
+        'job_streams': job_streams, 'job_streams_coverage': job_streams_coverage}
 
 
 def default_gates():

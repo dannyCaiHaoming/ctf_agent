@@ -1,15 +1,49 @@
 #!/usr/bin/env python3
 """Offline workbook check of one finished run (team-decision design §6.1). 0 model calls, read-only.
 
-Usage: python3 -I tests/manual/workbook-run-check.py <runDir> [<experience.sqlite>]
+Usage: python3 -B -I tests/manual/workbook-run-check.py <runDir> [<experience.sqlite>]
+       python3 -B -I tests/manual/workbook-run-check.py --self-test
 runDir contains `evidence/` and `state/run.json`.
 entry_id_refs counts standalone numbers in a dispatch prompt that equal existing workbook entry ids; small ids (1, 2, ...)
 can match incidental numbers, so treat low counts as approximate. Output is JSON with counts and sizes only:
 no message text, tool output, flags or oracle data.
 """
 import collections, glob, json, os, re, sqlite3, sys
+from pathlib import Path
+import subprocess
+import tempfile
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from _candidate_common import audit_milestones
+
+
+def self_test():
+    with tempfile.TemporaryDirectory(prefix='workbook-check-self-') as tmp:
+        root = Path(tmp)
+        inputs = {
+            'state/run.json': {'runId': 'synthetic', 'status': 'completed'},
+            'evidence/sessions.json': [],
+            'evidence/task-executions.json': [],
+            'evidence/control-audit.json': [
+                {'op': 'dispatch.register', 'allow': True, 't': 60000, 'detail': {'role': 'engineer'}},
+                {'op': 'package.published', 'allow': True, 't': 120000},
+            ],
+        }
+        for name, data in inputs.items():
+            path = root / name
+            path.parent.mkdir(exist_ok=True)
+            path.write_text(json.dumps(data))
+        report = json.loads(subprocess.check_output(
+            [sys.executable, '-B', '-I', __file__, str(root)], text=True))
+        milestones = report['milestones']
+        assert milestones['first_dispatch_min'] == {'engineer': 1.0}
+        assert milestones['dispatches'] == {'engineer': 1}
+        assert milestones['first_package_min'] == 2.0
+    print(json.dumps({'self_test': True}))
+
+
+if sys.argv[1:] == ['--self-test']:
+    self_test()
+    sys.exit(0)
 
 run = sys.argv[1]
 ev = os.path.join(run, 'evidence')
