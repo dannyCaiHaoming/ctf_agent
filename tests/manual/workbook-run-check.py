@@ -17,27 +17,82 @@ from _candidate_common import audit_milestones
 
 
 def self_test():
-    with tempfile.TemporaryDirectory(prefix='workbook-check-self-') as tmp:
-        root = Path(tmp)
+    def presented(mode, size, **detail):
+        return {'op': 'context.presented', 'allow': True, 'sessionID': 'synthetic-coordinator',
+                'detail': {'mode': mode, 'bytes': size, **detail}}
+
+    def run_report(root, presentations, *, workbook=True):
         inputs = {
-            'state/run.json': {'runId': 'synthetic', 'status': 'completed'},
-            'evidence/sessions.json': [],
+            'state/run.json': {'runId': 'synthetic', 'status': 'completed',
+                               'context': {'index': 'full', 'workbook': workbook}},
+            'evidence/sessions.json': [{'id': 'synthetic-coordinator', 'agents': ['coordinator']}],
             'evidence/task-executions.json': [],
             'evidence/control-audit.json': [
                 {'op': 'dispatch.register', 'allow': True, 't': 60000, 'detail': {'role': 'engineer'}},
                 {'op': 'package.published', 'allow': True, 't': 120000},
+                *presentations,
             ],
         }
         for name, data in inputs.items():
             path = root / name
-            path.parent.mkdir(exist_ok=True)
+            path.parent.mkdir(parents=True, exist_ok=True)
             path.write_text(json.dumps(data))
-        report = json.loads(subprocess.check_output(
+        return json.loads(subprocess.check_output(
             [sys.executable, '-B', '-I', __file__, str(root)], text=True))
+
+    with tempfile.TemporaryDirectory(prefix='workbook-check-self-') as tmp:
+        root = Path(tmp)
+        report = run_report(root / 'context-only', [presented('full', 100)], workbook=False)
+        actual = report['presentation']['coordinator']
+        no_workbook = {'presented': 1, 'workbook_sent': 0, 'workbook_chars_sent': 0,
+                       'max_bytes': 100, 'first_full_entries': None}
+        assert actual == no_workbook, actual
         milestones = report['milestones']
         assert milestones['first_dispatch_min'] == {'engineer': 1.0}
         assert milestones['dispatches'] == {'engineer': 1}
         assert milestones['first_package_min'] == 2.0
+
+        report = run_report(root / 'mixed', [
+            presented('full', 100),
+            presented('full', 600, workbook={'sent': 'full', 'included_ids': [1, 2], 'chars': 310}),
+            presented('delta', 200, workbook={'sent': 'entries', 'included_ids': [1, 2, 3], 'chars': 410}),
+            presented('delta', 140, workbook={'sent': False, 'included_ids': [1, 2, 3], 'chars': 410}),
+        ])
+        actual = report['presentation']['coordinator']
+        assert actual == {'presented': 4, 'workbook_sent': 2, 'workbook_chars_sent': 310,
+                          'max_bytes': 600, 'first_full_entries': 2, 'delta_bytes_with_workbook': 200,
+                          'sent_kinds': {'full': 1, 'entries': 1}}, actual
+
+        legacy_metadata = {'challenges': ['synthetic'], 'included_ids': [], 'omitted_ids': [],
+                           'failed_ids': [], 'truncated_ids': [], 'collapsed': [], 'chars': 75}
+        for name, mode, metadata, entries, chars in [
+            ('legacy-boolean', 'delta', {'sent': True, 'included_ids': [1], 'chars': 60}, 1, 60),
+            ('legacy-coordinator', 'full', legacy_metadata, 0, 75),
+        ]:
+            report = run_report(root / name, [presented(mode, 200, workbook=metadata)])
+            actual = report['presentation']['coordinator']
+            assert actual == {'presented': 1, 'workbook_sent': 1, 'workbook_chars_sent': chars,
+                              'max_bytes': 200, 'first_full_entries': entries, 'sent_kinds': {'True': 1}}, actual
+
+        report = run_report(root / 'unrecognized', [
+            presented('full', 100, workbook={}),
+            presented('full', 100, workbook=['full']),
+            presented('full', 100, workbook={'chars': 75}),
+            presented('full', 100, workbook={**legacy_metadata, 'sent': 'unknown'}),
+            presented('full', 100, workbook={**legacy_metadata, 'sent': 1}),
+            presented('full', 100, workbook={**legacy_metadata, 'sent': False}),
+            presented('delta', 100, workbook=legacy_metadata),
+        ])
+        actual = report['presentation']['coordinator']
+        assert actual == {**no_workbook, 'presented': 7}, actual
+
+        report = run_report(root / 'disabled-but-sent', [
+            presented('full', 200, workbook={'sent': 'full', 'included_ids': [1], 'chars': 80}),
+        ], workbook=False)
+        assert report['milestones']['context']['workbook'] is False
+        actual = report['presentation']['coordinator']
+        assert actual == {'presented': 1, 'workbook_sent': 1, 'workbook_chars_sent': 80,
+                          'max_bytes': 200, 'first_full_entries': 1, 'sent_kinds': {'full': 1}}, actual
     print(json.dumps({'self_test': True}))
 
 
@@ -103,21 +158,31 @@ sent = collections.defaultdict(lambda: {'presented': 0, 'workbook_sent': 0, 'wor
 for a in audit:
     if a.get('op') != 'context.presented':
         continue
-    d, w = a['detail'], a['detail'].get('workbook') or {}
+    d = a['detail']
     x = sent[label.get(a['sessionID'], '?')]
     x['presented'] += 1
     x['max_bytes'] = max(x['max_bytes'], d.get('bytes') or 0)
-    # sent: 'full' (whole view), 'entries' (entry-level delta, size is part of the delta bytes), True (whole view, pre-825bc343).
-    kind = w.get('sent', True)
-    if kind:
-        x['workbook_sent'] += 1
-        x.setdefault('sent_kinds', collections.Counter())[str(kind)] += 1
-        if kind in (True, 'full'):
-            x['workbook_chars_sent'] += w.get('chars') or 0
-        else:
-            x['delta_bytes_with_workbook'] = x.get('delta_bytes_with_workbook', 0) + (d.get('bytes') or 0)
-    if d.get('mode') == 'full' and x['first_full_entries'] is None:
-        x['first_full_entries'] = len(w.get('included_ids') or [])
+    w = d.get('workbook')
+    if not isinstance(w, dict):
+        continue
+    kind = w.get('sent')
+    included_ids, chars = w.get('included_ids'), w.get('chars')
+    # Early Coordinator full views recorded entry IDs and chars without a sent marker.
+    if ('sent' not in w and d.get('mode') == 'full' and isinstance(included_ids, list)
+            and type(chars) is int and chars >= 0):
+        kind = True
+    full = kind is True or kind == 'full'
+    if not full and kind != 'entries':
+        continue
+    x['workbook_sent'] += 1
+    x.setdefault('sent_kinds', collections.Counter())[str(kind)] += 1
+    if full:
+        if type(chars) is int and chars >= 0:
+            x['workbook_chars_sent'] += chars
+        if x['first_full_entries'] is None and isinstance(included_ids, list):
+            x['first_full_entries'] = len(included_ids)
+    else:
+        x['delta_bytes_with_workbook'] = x.get('delta_bytes_with_workbook', 0) + (d.get('bytes') or 0)
 out['presentation'] = dict(sent)
 out['prepare_failures'] = sum(1 for a in audit if a.get('op') == 'context.prepare' and not a.get('allow'))
 
