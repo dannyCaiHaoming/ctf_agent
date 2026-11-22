@@ -3,7 +3,7 @@ import { mkdtemp, readFile, rm } from 'node:fs/promises';
 import { realpathSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { ProgressLedger, progressDigest, renderProgressMarkdown, summarizeToolArgs } from '../../apps/launcher/src/progress-ledger.js';
+import { ProgressLedger, progressDigest, renderProgressMarkdown, summarizeToolArgs, validateProgressNote } from '../../apps/launcher/src/progress-ledger.js';
 
 const cleanup: Array<() => Promise<unknown>> = [];
 afterEach(async () => { for (const fn of cleanup.splice(0).reverse()) await fn(); });
@@ -94,6 +94,38 @@ describe('progress ledger safe projection', () => {
     expect(report).toContain('retry with changed input');
     expect(report).not.toContain(SECRET);
     expect(report).not.toContain(CANDIDATE);
+  });
+
+  it('preserves harness_contract and existing note forms in the timeline and report', async () => {
+    const dir = await mkdtemp(join(tmpdir(), 'progress-gap-'));
+    cleanup.push(() => rm(dir, { recursive: true, force: true }));
+    const startedAt = Date.parse('2026-10-24T00:00:00.000Z');
+    const ledger = new ProgressLedger({ directory: dir, runId: 'run-gap', startedAt });
+    await ledger.initialize();
+
+    const kinds = ['harness_contract', 'skill', 'reference', 'tool', 'coordination', 'environment', 'unknown', undefined];
+    const notes = kinds.map(kind => ({
+      stage: 'recovery', route: 'stop_and_report', summary: kind ? 'Synthetic gap' : 'Legacy note without a gap',
+      ...(kind ? { capabilityGap: { kind, detail: `Synthetic ${kind} detail` } } : {})
+    }));
+    for (const [index, note] of notes.entries()) {
+      const seq = index + 1;
+      ledger.append({ seq, t: seq, at: startedAt + seq, sessionID: 'critic', role: 'recovery-critic',
+        op: 'progress.note', allow: true, detail: validateProgressNote(note) });
+    }
+    await ledger.finalize({ status: 'failed', model: 'fake/model', budget: { maxModelCalls: 10, maxObservableTokens: 1000 },
+      usage: { availability: 'reported', observableTokens: 321, lowerBound: false } });
+
+    const jsonl = await readFile(join(dir, 'progress.jsonl'), 'utf8');
+    expect(jsonl.trim().split('\n').map(line => JSON.parse(line).facts)).toEqual(notes);
+    const report = await readFile(join(dir, 'progress.md'), 'utf8');
+    for (const note of notes) {
+      if (note.capabilityGap) {
+        expect(report).toContain(`- \`${note.capabilityGap.kind}\`: ${note.capabilityGap.detail}`);
+      } else {
+        expect(report).toContain(note.summary);
+      }
+    }
   });
 
   it('distinguishes completed session shutdown from an aborted challenge', () => {

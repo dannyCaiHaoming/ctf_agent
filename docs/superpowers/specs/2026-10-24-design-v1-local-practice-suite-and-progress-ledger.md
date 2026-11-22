@@ -102,7 +102,7 @@ Recovery Critic 只用本帳本的白名單投影、必要的 ref 與目前用�
 3. **停滯／重複訊號（宿主事實）**：相同 `tool + argFingerprint` 次數、重複結果碼、距上次 artifact／package／verification／完成事件的時間。此節只列訊號，不自行判定 Agent 陷入死循環。
 4. **Recovery Critic 判斷**：route、卡點、重複路線、下一步與能力缺口，標明是模型語義判斷。
 5. **Coordinator 決策**：continue／redirect／stop_and_report 及理由，與 Critic 建議分開。
-6. **能力缺口候選**：`skill`、`reference`、`tool`、`coordination`、`environment`、`unknown`；人工可據此決定是否新增材料或修接口。
+6. **能力缺口候選**：`skill`、`reference`、`tool`、`coordination`、`environment`、`harness_contract`、`unknown`；人工可據此決定是否新增材料或修接口。
 7. **事件時間線**：按 seq 排列的短行，可回查 callID／ref。
 8. **證據索引**：列出既有原始證據檔名與 run 路徑，不複製敏感內容。
 
@@ -141,7 +141,11 @@ Coordinator 與 Recovery Critic 可用受管的 `progress.read` 取得有界、�
 - `stage`：intake／recon／strategy／solve／engineering／verification／recovery／finalize；
 - `summary`：目前進展與卡點的短摘要；
 - `blocker`、`repeatedRoute`、`nextAction`：可選短文字；
-- `capabilityGap`：`skill`／`reference`／`tool`／`coordination`／`environment`／`unknown` 及短說明。
+- `capabilityGap`：`skill`／`reference`／`tool`／`coordination`／`environment`／`harness_contract`／`unknown` 及短說明。
+
+`harness_contract` 表示既有工具或操作受 harness 明定的介面、隔離或預算契約限制，例如 HTTP 速率與總額、job 無網路、並行上限或工作區邊界。`tool` 表示缺少工具或工具能力，`environment` 表示題目環境本身的限制。
+
+分類依據是 [stopReview](../../gates/tool-image-rust-run-20261121/summary.json) 的 seq 1613、1748、1135，seq 1122 為 `environment` 反例，而 [Recovery Critic 角色檔](../../../product/opencode/agents/recovery-critic.md) 因產品檔需用戶審閱而維持舊六類，模型是否選用新值尚未驗證。
 
 宿主填入來源角色、時間、session 與 run，不接受自填身份。Recovery Critic 寫入的是判斷；Coordinator 寫入的是最終決策，兩者在報告中不得混成同一層事實。
 

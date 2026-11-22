@@ -96,21 +96,25 @@ it('records bounded Critic judgement and Coordinator decision separately and den
   expect(digest.eventCount).toBeGreaterThan(0);
   expect(digest.recent.length).toBeLessThanOrEqual(5);
 
-  const critic = await execute('critic', 'progress.note', {
-    stage: 'recovery', route: 'redirect', summary: 'same failed probe lacks a new hypothesis',
-    blocker: 'repeated failed job', repeatedRoute: 'job.run/call-a', nextAction: 'change the input assumption',
-    capabilityGap: { kind: 'reference', detail: 'missing protocol reference' }
-  }) as { source: string; route: string };
-  expect(critic).toMatchObject({ source: 'recovery-critic', route: 'redirect' });
+  const capabilityGap = { kind: 'harness_contract', detail: 'Synthetic job has no network access' };
+  const note = {
+    stage: 'recovery', route: 'redirect', summary: 'job reached its network boundary',
+    blocker: 'network unavailable to job', repeatedRoute: 'job.run/call-a', nextAction: 'review the local inputs',
+    capabilityGap
+  };
+  const critic = await execute('critic', 'progress.note', note);
+  expect(critic).toMatchObject({ source: 'recovery-critic', route: 'redirect', capabilityGap });
   const decision = await execute('root', 'progress.note', {
     stage: 'recovery', route: 'continue', summary: 'accepted redirect', nextAction: 'revise experiment'
   }) as { source: string; route: string };
   expect(decision).toMatchObject({ source: 'coordinator', route: 'continue' });
-  expect(c.audit.filter(record => record.op === 'progress.note').map(record => record.role)).toEqual(['recovery-critic', 'coordinator']);
+  const notes = c.audit.filter(record => record.op === 'progress.note');
+  expect(notes.map(record => record.role)).toEqual(['recovery-critic', 'coordinator']);
+  expect(notes[0]?.detail).toMatchObject({ capabilityGap });
 
   await bind('solver', 'domain-solver');
   await expect(execute('solver', 'progress.read', {})).rejects.toThrow('tool not permitted');
-  await expect(execute('solver', 'progress.note', { stage: 'solve', route: 'continue', summary: 'no' })).rejects.toThrow('tool not permitted');
+  await expect(execute('solver', 'progress.note', note)).rejects.toThrow('tool not permitted');
   await expect(execute('critic', 'progress.note', { stage: 'solve', route: 'loop', summary: 'bad route' })).rejects.toThrow('progress route');
   await expect(execute('critic', 'progress.note', { stage: 'solve', route: 'continue', summary: 'bad gap', capabilityGap: { kind: 'magic', detail: 'x' } })).rejects.toThrow('progress capability gap');
 });

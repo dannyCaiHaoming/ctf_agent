@@ -45,7 +45,7 @@ interface FinalSummary {
 
 const PROGRESS_NOTE_STAGES = new Set(['intake', 'recon', 'strategy', 'solve', 'engineering', 'verification', 'recovery', 'finalize']);
 const PROGRESS_ROUTES = new Set(['continue', 'redirect', 'stop_and_report']);
-const CAPABILITY_GAPS = new Set(['skill', 'reference', 'tool', 'coordination', 'environment', 'unknown']);
+const CAPABILITY_GAPS = new Set(['skill', 'reference', 'tool', 'coordination', 'environment', 'harness_contract', 'unknown']);
 const FLAG = /\b(?:flag|ctf|picoctf|htb|ductf|uiuctf|csawctf|asis|hitcon|tjctf)\{[^}\r\n]{1,512}\}/gi;
 
 function canonical(value: unknown): unknown {

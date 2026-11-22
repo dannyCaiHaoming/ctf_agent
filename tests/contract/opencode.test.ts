@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { tool } from '@opencode-ai/plugin';
 import { OpenCodeBridge, OpenCodeBridgeRpcServer } from '../../packages/opencode-bridge/src/index.js';
 import { PolicyEngine } from '../../packages/policy/src/index.js';
 import type { ChallengeId, LeaseId, SessionId, TaskId } from '../../packages/contracts/src/index.js';
@@ -161,6 +162,20 @@ describe('OpenCode public adapter', () => {
     expect(description('progress.read')).toContain('sanitized');
     expect(description('progress.note')).toContain('Recovery Critic');
     expect(description('progress.note')).toContain('Coordinator');
+  });
+
+  it('accepts harness_contract in the registered progress note schema', async () => {
+    const { createCtfAgentHooks } = await import('../../apps/opencode-plugin/src/index.js');
+    const hooks = createCtfAgentHooks({ controlUrl: 'http://127.0.0.1:43210/control',
+      controlToken: 'bridge-test-token-that-is-long-enough-123', tools: ['progress.note'] });
+    const progressNote = hooks.tool!['ctf_progress_note']!;
+    const args = {
+      stage: 'recovery', route: 'stop_and_report', summary: 'Synthetic job reached its network boundary',
+      capabilityGap: { kind: 'harness_contract', detail: 'Synthetic job has no network access' }
+    };
+
+    expect(tool.schema.object(progressNote.args).parse(args)).toEqual(args);
+    expect(progressNote.description).toContain('harness_contract');
   });
 
   it('rejects a plugin configuration that is not an authenticated loopback control service', async () => {
