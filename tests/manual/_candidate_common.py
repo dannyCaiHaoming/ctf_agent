@@ -239,7 +239,92 @@ def is_number(value):
     return type(value) in (int, float) and isfinite(value)
 
 
-def candidate_audit_timing(audit, first_candidate_at, wall_clock_ms):
+PROGRESS_ROUTES = ('continue', 'redirect', 'stop_and_report')
+HOST_STOP_REASONS = ('deadline', 'budget', 'completed', 'error')
+
+
+def audit_seq(event):
+    seq = event.get('seq')
+    return seq if type(seq) is int and seq > 0 else None
+
+
+def audit_event_ref(event, role, **category):
+    at = event.get('at')
+    return {'seq': audit_seq(event), 'at': at if is_number(at) else None, 'role': role, **category}
+
+
+def first_critic_note(events, dispatch):
+    call_id = dispatch['detail'].get('callID')
+    if not isinstance(call_id, str) or not call_id:
+        return None
+    parent = dispatch['sessionID']
+    later = [event for event in events if event['seq'] > dispatch['seq']]
+    # The host binds the native child to the parent's exact dispatch call.
+    binds = [event for event in later if event.get('op') == 'bind'
+             and event.get('role') == 'recovery-critic'
+             and (event.get('detail') or {}).get('via') == 'dispatch'
+             and event['detail'].get('sdkParentID') == parent
+             and event['detail'].get('callID') == call_id]
+    if len(binds) != 1:
+        return None
+    bind = binds[0]
+    child = bind.get('sessionID')
+    if not isinstance(child, str) or not child or child == parent:
+        return None
+    for event in later:
+        if event['seq'] <= bind['seq']:
+            continue
+        detail = event.get('detail') or {}
+        if (event.get('op') == 'dispatch.resume' and event.get('sessionID') == parent
+                and detail.get('taskId') == child):
+            break
+        if (event.get('op') == 'progress.note' and event.get('sessionID') == child
+                and event.get('role') == 'recovery-critic'):
+            route = detail.get('route')
+            return audit_event_ref(event, 'recovery-critic', route=route if route in PROGRESS_ROUTES else None)
+    return None
+
+
+def stop_attribution(audit, root_session_id, root_expires_at):
+    accepted = [a for a in (audit or []) if a.get('allow') is True]
+    stops = [a for a in accepted if a.get('op') == 'stop_marked']
+    stop_marked = None
+    if len(stops) == 1:
+        reason = (stops[0].get('detail') or {}).get('reason')
+        stop_marked = audit_event_ref(stops[0], 'host', reason=reason if reason in HOST_STOP_REASONS else None)
+    stop_seq = stop_marked['seq'] if stop_marked else None
+    events = sorted((a for a in accepted if audit_seq(a) is not None
+                     and (stop_seq is None or a['seq'] < stop_seq)), key=lambda a: a['seq'])
+
+    critic_dispatch = critic_note = final_note = None
+    if isinstance(root_session_id, str) and root_session_id:
+        root_events = [a for a in events if a.get('sessionID') == root_session_id
+                       and a.get('role') == 'coordinator']
+        dispatch = next((a for a in root_events if a.get('op') == 'dispatch.register'
+                         and (a.get('detail') or {}).get('role') == 'recovery-critic'), None)
+        if dispatch is not None:
+            critic_dispatch = audit_event_ref(dispatch, 'recovery-critic')
+            critic_note = first_critic_note(events, dispatch)
+
+        # A later Coordinator note can supersede a stop even when the wall clock went backwards.
+        last_note = next((a for a in reversed(root_events) if a.get('op') == 'progress.note'), None)
+        if last_note is not None and (last_note.get('detail') or {}).get('route') == 'stop_and_report':
+            final_note = audit_event_ref(last_note, 'coordinator', route='stop_and_report')
+
+    final_at = final_note['at'] if final_note else None
+    # Dispatch and recommendation are separate evidence. Neither proves Coordinator adoption.
+    return {
+        'critic_first_dispatch': critic_dispatch,
+        'critic_first_note': critic_note,
+        'critic_first_route': critic_note['route'] if critic_note else None,
+        'final_coordinator_stop_note': final_note,
+        'remaining_at_final_stop_note_min': round((root_expires_at - final_at) / 60000, 2)
+        if is_number(root_expires_at) and final_at is not None else None,
+        'stop_marked': stop_marked,
+    }
+
+
+def candidate_audit_timing(audit, first_candidate_at, wall_clock_ms, root_session_id=None, root_expires_at=None):
     """Use only absolute audit timestamps and event identities for timing."""
     events = sorted((a for a in (audit or []) if is_number(a.get('at'))),
                     key=lambda a: a['at'])
@@ -266,12 +351,8 @@ def candidate_audit_timing(audit, first_candidate_at, wall_clock_ms):
     critic_index = dispatches.get('recovery-critic')
     critic_at = events[critic_index]['at'] if critic_index is not None else None
     stop_at = events[stop_index]['at'] if stop_index is not None else None
-    critic_route = None
     solver_work = None
     if critic_index is not None:
-        first_note = next((a for a in events[critic_index + 1:] if a.get('op') == 'progress.note'), None)
-        if first_note is not None:
-            critic_route = token((first_note.get('detail') or {}).get('route'), None)
         if stop_index is not None and critic_index < stop_index:
             work = [a for a in events[critic_index + 1:stop_index] if a.get('role') == 'domain-solver'
                     and a.get('op') in ('model.call', 'tool.registered')]
@@ -287,7 +368,10 @@ def candidate_audit_timing(audit, first_candidate_at, wall_clock_ms):
         'candidate_to_engineer_min': round((engineer_at - first_candidate_at) / 60000, 2)
         if engineer_at is not None and is_number(first_candidate_at) else None,
         'critic_first_min': minutes_since_start(critic_at),
-        'critic_first_route': critic_route,
+        **stop_attribution(audit, root_session_id, root_expires_at),
+        # Historical gate metrics: first stop route by timestamp, regardless of author or allow;
+        # remaining time uses the profile duration from the first audit timestamp and floors at zero.
+        # The final-note fields above instead use host sequence and the bound root's absolute deadline.
         'stop_note_min': minutes_since_start(stop_at),
         'remaining_at_stop_min': round(max(0, wall_clock_ms - (stop_at - origin)) / 60000, 2)
         if stop_at is not None and wall_clock_ms is not None else None,

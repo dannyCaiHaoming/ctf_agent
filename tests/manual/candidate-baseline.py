@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Offline candidate census from run state, profiles, audit and workbook metadata.
 
-python3 -I tests/manual/candidate-baseline.py BATCH_OR_RUN... --output SUMMARY
+python3 -B -I tests/manual/candidate-baseline.py BATCH_OR_RUN... --output SUMMARY
 No message, tool-output or completion-result reads. Missing workbooks stay unknown.
 """
 import argparse
@@ -35,25 +35,31 @@ def self_test():
         (batch / 'batch-meta.json').write_text(json.dumps({'batchId': 'candidate-baseline-20261119-p1'}))
         started_at = 1_000_000
 
-        def event(minute, op, actor='coordinator', **detail):
+        def event(minute, op, actor='coordinator', *, session='root', allow=True, **detail):
             elapsed_ms = round(minute * 60000)
-            return {'op': op, 'role': actor, 'detail': detail,
-                    'at': started_at + elapsed_ms, 't': elapsed_ms + 30000, 'allow': True}
+            return {'op': op, 'role': actor, 'sessionID': session, 'detail': detail,
+                    'at': started_at + elapsed_ms, 't': elapsed_ms + 30000, 'allow': allow}
 
         def view(minute, actor, chars, included=(), omitted=()):
             return event(minute, 'context.presented', actor, workbook={
                 'chars': chars, 'included_ids': list(included), 'omitted_ids': list(omitted),
             })
 
-        def fixture(rid, audit, entries=None):
+        def fixture(rid, audit, entries=None, bindings=None):
             outer = batch / 'runs' / rid
             run = outer / rid
             (run / 'state').mkdir(parents=True)
             (run / 'evidence').mkdir()
             (run / 'state/run.json').write_text(json.dumps({
-                'runId': rid, 'budget': {'wallClockMs': 30 * 60000},
+                'runId': rid, 'rootSessionId': 'root', 'budget': {'wallClockMs': 30 * 60000},
             }))
-            (run / 'evidence/control-audit.json').write_text(json.dumps(audit))
+            ordered_audit = [
+                dict(record, seq=seq) for seq, record in enumerate(audit, 1)
+            ]
+            # Deliberately vary storage order so attribution must use the recorded seq.
+            (run / 'evidence/control-audit.json').write_text(json.dumps(ordered_audit[::-1]))
+            if bindings is not None:
+                (run / 'evidence/bindings.json').write_text(json.dumps(bindings))
             if entries is not None:
                 db = sqlite3.connect(outer / 'experience.sqlite')
                 try:
@@ -76,8 +82,14 @@ def self_test():
         run = fixture(withdrawn_id, [
             event(0, 'bind'),
             event(0.5, 'progress.note', route='continue'),
-            event(1, 'dispatch.register', role='recovery-critic'),
-            event(1.25, 'progress.note', 'recovery-critic', route='redirect'),
+            event(1, 'dispatch.register', role='recovery-critic', callID='critic-call'),
+            event(1.05, 'progress.note', route='continue'),
+            event(1.1, 'bind', 'recovery-critic', session='critic', role='recovery-critic',
+                  via='dispatch', sdkParentID='root', callID='critic-call'),
+            event(1.15, 'progress.note', 'recovery-critic', session='unrelated', route='continue'),
+            event(1.2, 'progress.note', 'recovery-critic', session='critic', allow=False, route='continue'),
+            event(1.25, 'progress.note', 'recovery-critic', session='critic', route='redirect',
+                  summary='synthetic note must not escape'),
             event(1.5, 'model.call', 'domain-solver'),
             event(2, 'dispatch.register', role='engineer'),
             event(2.5, 'tool.registered', 'domain-solver'),
@@ -94,13 +106,18 @@ def self_test():
             event(4, 'tool.settled', 'domain-solver', tool='job.read', job='complete', result='completed',
                   streams={'stdout': {'stored_bytes': 3, 'truncated': False},
                            'stderr': {'stored_bytes': 4, 'truncated': False}}),
+            event(5.25, 'progress.note', route='continue'),
             event(4.5, 'model.call', 'domain-solver'),
             event(5, 'progress.note', route='stop_and_report'),
+            event(5.5, 'stop_marked', reason='completed'),
             view(5, 'engineer', 1000),
             view(0.5, 'coordinator', 2000),
         ], [
             (2, 0.75, 'domain-solver', 'candidate', 'proposed', None),
             (3, 3.5, 'domain-solver', 'candidate', 'withdrawn', 2),
+        ], bindings=[
+            {'sessionID': 'critic', 'role': 'recovery-critic', 'via': 'dispatch', 'expiresAt': 2_800_000},
+            {'sessionID': 'root', 'role': 'coordinator', 'via': 'root', 'expiresAt': 1_720_000},
         ])
         (profiles / f'{withdrawn_id}.profile.json').write_text(json.dumps({
             'budget': {'wallClockMs': 600000},
@@ -114,11 +131,15 @@ def self_test():
         fixture('p1-synthetic-empty', [
             event(0, 'bind'),
             view(0.5, 'domain-solver', 5000),
-            event(1, 'dispatch.register', role='recovery-critic'),
+            event(1, 'dispatch.register', role='recovery-critic', callID='empty-critic-call'),
+            event(1.1, 'bind', 'recovery-critic', session='empty-critic', role='recovery-critic',
+                  via='dispatch', sdkParentID='root', callID='empty-critic-call'),
             event(1.5, 'model.call', 'domain-solver'),
             view(2, 'domain-solver', 11900, included=(4,), omitted=(2, 3)),
             view(3, 'domain-solver', 12000, included=(4,), omitted=(2, 3)),
             view(3.5, 'recon', 4000, included=(2, 3, 4)),
+            event(3.75, 'dispatch.resume', role='recovery-critic', taskId='empty-critic'),
+            event(3.9, 'progress.note', 'recovery-critic', session='empty-critic', route='continue'),
             event(4, 'tool.settled', 'recon', tool='job.run', job='complete', result='exited',
                   streams={'stdout': {'stored_bytes': 6, 'truncated': False},
                            'stderr': {'stored_bytes': 0, 'truncated': False}}),
@@ -152,6 +173,15 @@ def self_test():
         assert row['posthoc_accepted'] is True
         assert row['critic_first_min'] == 1 and row['critic_first_route'] == 'redirect'
         assert row['stop_note_min'] == 4 and row['remaining_at_stop_min'] == 6
+        assert row['critic_first_dispatch'] == {'seq': 3, 'at': 1_060_000, 'role': 'recovery-critic'}
+        assert row['critic_first_note'] == {
+            'seq': 8, 'at': 1_075_000, 'role': 'recovery-critic', 'route': 'redirect',
+        }
+        assert row['final_coordinator_stop_note'] == {
+            'seq': 21, 'at': 1_300_000, 'role': 'coordinator', 'route': 'stop_and_report',
+        }
+        assert row['remaining_at_final_stop_note_min'] == 7
+        assert row['stop_marked'] == {'seq': 22, 'at': 1_330_000, 'role': 'host', 'reason': 'completed'}
         assert row['solver_work_after_critic'] == {'model_calls': 1, 'tools_registered': 1, 'span_min': 1}
         assert row.get('first_omission_min') == 2.5, 'omission timing must use the first context presentation'
         assert row['first_omission_role'] == 'engineer' and row['omitted_distinct'] == 1
@@ -169,12 +199,17 @@ def self_test():
         assert missing['packaged'] is True and missing['first_candidate_entry_min'] is None
         assert missing['critic_first_min'] is None and missing['critic_first_route'] is None
         assert missing['stop_note_min'] == 2 and missing['remaining_at_stop_min'] is None
+        assert missing['final_coordinator_stop_note'] == {
+            'seq': 3, 'at': 1_120_000, 'role': 'coordinator', 'route': 'stop_and_report',
+        }
+        assert missing['remaining_at_final_stop_note_min'] is None and missing['stop_marked'] is None
         assert missing['solver_work_after_critic'] is None
         assert missing['active_entries'] == {'max': None, 'end': None}
 
         empty = rows['p1-synthetic-empty']
         assert empty['candidate_claimed'] is False and empty['candidate_entries_total'] == 0
         assert empty['critic_first_min'] == 1 and empty['critic_first_route'] is None
+        assert empty['critic_first_dispatch']['seq'] == 3 and empty['critic_first_note'] is None
         assert empty['stop_note_min'] is None and empty['remaining_at_stop_min'] is None
         assert empty['solver_work_after_critic'] is None
         assert empty['first_omission_min'] == 1.5 and empty['first_omission_role'] == 'domain-solver'
@@ -207,6 +242,24 @@ def self_test():
         assert rows['p2-synthetic-missing']['job_streams'] == active['job_streams'] == 'unknown'
         assert report['totals']['runs_with_job_truncation'] == 1
         assert report['totals']['runs_with_unknown_job_streams'] == 2
+
+        deadline = fixture('synthetic-deadline', [
+            event(0, 'bind'),
+            event(1, 'progress.note', 'recovery-critic', session='critic', route='stop_and_report'),
+            event(2, 'progress.note', session='other', route='stop_and_report'),
+            event(3, 'progress.note', allow=False, route='stop_and_report'),
+            event(4, 'stop_marked', reason='deadline'),
+        ], bindings=[{'sessionID': 'root', 'role': 'coordinator', 'via': 'root', 'expiresAt': 1_240_000}])
+        resumed = fixture('synthetic-resumed', [
+            event(0, 'bind'),
+            event(2, 'progress.note', route='stop_and_report'),
+            event(1, 'progress.note', route='redirect'),
+            event(3, 'stop_marked', reason='deadline'),
+        ])
+        for row in collect([deadline, resumed], [])['runs']:
+            assert row['final_coordinator_stop_note'] is None
+            assert row['remaining_at_final_stop_note_min'] is None
+            assert row['stop_marked']['reason'] == 'deadline'
         bad = root / 'bad'
         bad.mkdir()
         assert collect([bad], [])['skipped'][0]['reason'] == 'no_state_run_json'
@@ -226,6 +279,20 @@ def run_profile(run, run_id, profile_dirs):
             if isinstance(profile, dict):
                 return profile
     return {}
+
+
+def root_binding_deadline(run, root_session_id):
+    if not isinstance(root_session_id, str) or not root_session_id:
+        return None
+    try:
+        bindings = read_json(run / 'evidence/bindings.json')
+    except (OSError, ValueError):
+        return None
+    if not isinstance(bindings, list):
+        return None
+    roots = [b for b in bindings if isinstance(b, dict) and b.get('sessionID') == root_session_id
+             and b.get('via') == 'root' and b.get('role') == 'coordinator']
+    return roots[0].get('expiresAt') if len(roots) == 1 else None
 
 
 def batch_for_run(state, profile, meta, slots):
@@ -301,8 +368,9 @@ def collect(inputs, gates, profile_dirs=()):
                 meta = read_json(meta_path) if meta_path is not None else {}
                 profile = run_profile(run, rid, profile_dirs)
                 census = workbook_candidates(run, rid)
+                root_deadline = root_binding_deadline(run, state.get('rootSessionId'))
                 row = run_record(state, audit, index.get(rid, {}), meta, corrections.get(rid),
-                                 run.name, profile, census)
+                                 run.name, profile, census, root_deadline)
                 row.update(workbook_view_metrics(run, rid, audit))
                 rows.append(row)
             except (OSError, ValueError, TypeError, KeyError):
@@ -342,7 +410,7 @@ def counts(rows):
     return summary
 
 
-def run_record(state, audit, rec, meta, correction, run_name, profile, census):
+def run_record(state, audit, rec, meta, correction, run_name, profile, census, root_deadline=None):
     accepted = [a for a in (audit or []) if a.get('allow')]
     slots = [v for v in (meta.get('slots') or {}).values() if v.get('runId') == state['runId']]
     batch = batch_for_run(state, profile, meta, slots)
@@ -351,7 +419,8 @@ def run_record(state, audit, rec, meta, correction, run_name, profile, census):
     total, active, withdrawn, first_candidate_at = census if census is not None else (
         'unknown', 'unknown', 'unknown', None)
     candidate = total > 0 if census is not None else 'unknown'
-    times = candidate_audit_timing(audit, first_candidate_at, profile_ms)
+    times = candidate_audit_timing(audit, first_candidate_at, profile_ms,
+                                   root_session_id=state.get('rootSessionId'), root_expires_at=root_deadline)
     declared = {key_of(token(v)) for v in [rec.get('challenge'), *(s.get('challenge') for s in slots)]
         if token(v) != 'unknown'}
     observed = {key_of(token((a.get('detail') or {}).get('challengeId'))) for a in (audit or [])
