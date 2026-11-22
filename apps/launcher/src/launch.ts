@@ -272,7 +272,8 @@ async function runLaunch(options: LaunchOptions, rpc: { url: string; token: stri
   const deadlineAt = Date.now() + deadlineMs; // one deadline for the launcher loop and for every binding's expiry
   const context = effectiveContext(profile.context);
   const control = new ControlService({ context, experienceStore:experience, completionJudges:options.completionJudges, client, runId, budget: { maxModelCalls: profile.budget.maxSteps, maxObservableTokens: profile.budget.maxObservableTokens, maxToolJobs: profile.budget.maxToolJobs,
-    reconMaxModelCalls: profile.budget.reconMaxModelCalls, reconClosureReserve: profile.budget.reconClosureReserve },
+    reconMaxModelCalls: profile.budget.reconMaxModelCalls, reconClosureReserve: profile.budget.reconClosureReserve,
+    httpRatePerSecond: profile.budget.httpRatePerSecond, httpBurst: profile.budget.httpBurst, maxHttpHops: profile.budget.maxHttpHops },
     expiresAt: deadlineAt, workdir: real.opencode, skillRoot: join(configDirectory, 'skills'), challenges: prepared, redactions: secrets, onAudit: record => progress.append(record),
     ...(toolImage ? { toolImage: toolImage.id, toolMounts: crates?.mounts } : {}) });
   attach(control);
@@ -467,6 +468,7 @@ async function runLaunch(options: LaunchOptions, rpc: { url: string; token: stri
   await save(join(real.evidence, 'admissions.json'), control.audit.filter(r => r.op === 'model.call'));
   await save(join(real.evidence, 'control-audit.json'), control.audit);
   await save(join(real.evidence, 'tool-resources.json'), control.resourceSnapshot());
+  await save(join(real.evidence, 'http-ledger.json'), control.httpLedgerSnapshot());
   await save(join(real.evidence, 'publications.json'), control.publicationSnapshot());
   await save(join(real.evidence, 'completion-results.json'), control.completionSnapshot());
   await save(join(real.evidence, 'verification-results.json'), control.verificationResultSnapshot());

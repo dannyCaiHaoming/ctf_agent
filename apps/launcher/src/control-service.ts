@@ -14,6 +14,10 @@ import type { OpencodeClient } from '@opencode-ai/sdk/v2';
 import type { ToolResult } from '@opencode-ai/plugin/tool';
 import { INTAKE_TOOLS, IntakeRefused, checkMaterialPath, findChallenge, listChallenges, readMaterial } from './intake-tools.js';
 import { createHttpTools, CookieJar, HttpRefused } from './http-tools.js';
+import { HttpLedger, type HttpLimits } from './http-ledger.js';
+
+/** G §4.6 initial values, configurable per run: sustained hops/s and burst per target origin, and sent hops per run. */
+export const DEFAULT_HTTP_LIMITS: HttpLimits = { perSecond: 20, burst: 50, maxHopsPerRun: 5000 };
 import { JobManager, JobRefused, ToolContainers, type JobBinding } from './job-tools.js';
 import { ArtifactPublisher, snapshotWork, type HttpResponseFacts, type ArtifactSource } from './artifact-tools.js';
 import { VerificationResults,fixEvidence } from './verification-results.js';
@@ -49,6 +53,8 @@ const INTAKE_BY_ID = new Map(INTAKE_TOOLS.map(name => [`ctf_${name.replaceAll('.
  * still-safe, non-dynamic sentence). */
 const FIXED_HINTS: Record<string, string> = {
   'workspace path': 'path must be root-qualified: materials/..., work/... or published/<ref>.bin; omit path to list the three roots.',
+  'http rate': 'the per-target rate limit refused this HTTP hop before it was sent. Earlier hops may already have been sent.',
+  'http run total': 'this run has used up its total of HTTP hops to targets. No further hop can be sent.',
   'artifact source': 'ref must be a value actually returned by a prior artifact.publish (or package.publish) call in this run and challenge; a ref-looking string written in a note, handoff or your own reasoning is not one.',
 };
 /** Model-visible, per-role `read path` hints (C design section 3.2 item 1). Roles outside this set have no
@@ -82,6 +88,10 @@ export interface RunBudget {
   reconMaxModelCalls?: number;
   /** Closure reserve R within B (0<R<B), not extra calls; natural handoff may occur before either boundary. */
   reconClosureReserve?: number;
+  /** G §4.6 HTTP limits; absent fields take DEFAULT_HTTP_LIMITS. Enforced per hop before its request is created. */
+  httpRatePerSecond?: number;
+  httpBurst?: number;
+  maxHttpHops?: number;
 }
 
 export interface Binding {
@@ -161,6 +171,8 @@ export interface ControlOptions {
   runId?: string;
   client: OpencodeClient;
   budget: RunBudget;
+  /** Monotonic milliseconds for HTTP refill and peak windows. Defaults to performance.now(). */
+  httpMonotonicNow?: () => number;
   /** Absolute time (epoch ms) after which every binding lapses. */
   expiresAt: number;
   /** OpenCode working directory; relative `read` paths resolve against it. */
@@ -205,6 +217,13 @@ export class ControlService {
 
   private readonly resources = new Map<string, Resource>();
   private readonly http = new Map<string, ReturnType<typeof createHttpTools>>();
+  /** G §5.6: what http.request actually sent per challenge target. */
+  readonly httpLedger: HttpLedger;
+  /** G §4.6: limits on sent hops; token buckets per target origin, one total per run. Memory-only, like the ledger. */
+  private readonly httpLimits: HttpLimits;
+  private readonly httpMonotonicNow: () => number;
+  private readonly httpBuckets = new Map<string, { tokens: number; at: number }>();
+  private httpHopsAdmitted = 0;
   private readonly jars = new Map<string, CookieJar>();
   private readonly jobs: JobManager;
   private readonly publications = new ArtifactPublisher();
@@ -242,6 +261,17 @@ export class ControlService {
     this.completions=new CompletionRequests(join(options.workdir,'..','state','completion'));
     this.toolContainers = options.toolImage ? new ToolContainers({ image: options.toolImage, prefix: `ctf-${options.runId ?? 'run'}`, mounts: options.toolMounts }) : undefined;
     this.jobs = new JobManager({ jobsRoot: join(options.workdir, '..', 'state', 'jobs'), containers: this.toolContainers });
+    const {
+      httpRatePerSecond: perSecond = DEFAULT_HTTP_LIMITS.perSecond,
+      httpBurst: burst = DEFAULT_HTTP_LIMITS.burst,
+      maxHttpHops: maxHopsPerRun = DEFAULT_HTTP_LIMITS.maxHopsPerRun
+    } = options.budget;
+    if (!Number.isFinite(perSecond) || perSecond <= 0) throw new Error('invalid http limit perSecond');
+    if (!Number.isSafeInteger(burst) || burst <= 0) throw new Error('invalid http limit burst');
+    if (!Number.isSafeInteger(maxHopsPerRun) || maxHopsPerRun <= 0) throw new Error('invalid http limit maxHopsPerRun');
+    this.httpLimits = { perSecond, burst, maxHopsPerRun };
+    this.httpMonotonicNow = options.httpMonotonicNow ?? (() => performance.now());
+    this.httpLedger = new HttpLedger(Date.now, this.httpLimits, this.httpMonotonicNow);
   }
 
   /** Removes every per-session tool container; call after all jobs have been stopped at the end of the run. */
@@ -256,6 +286,24 @@ export class ControlService {
       [...this.resources.values()].some(r => r.state !== 'settled') || [...this.syncCalls.values()].some(c => c.state !== 'done');
   }
 
+  httpLedgerSnapshot() { return this.httpLedger.snapshot(); }
+  /** Reserves one hop or returns a refusal code. The adapter can undo the reservation before request creation. */
+  private admitHttpHop(target: string): string | (() => void) {
+    if (this.httpHopsAdmitted >= this.httpLimits.maxHopsPerRun) return 'http run total';
+    let origin: string; try { origin = new URL(target).origin; } catch { origin = target; }
+    const now = this.httpMonotonicNow(), limits = this.httpLimits;
+    const bucket = this.httpBuckets.get(origin) ?? { tokens: limits.burst, at: now };
+    bucket.tokens = Math.min(limits.burst, bucket.tokens + (now - bucket.at) / 1000 * limits.perSecond); bucket.at = now;
+    this.httpBuckets.set(origin, bucket);
+    if (bucket.tokens < 1) return 'http rate';
+    bucket.tokens -= 1;
+    this.httpHopsAdmitted++;
+    return () => {
+      bucket.tokens += 1;
+      this.httpHopsAdmitted--;
+    };
+  }
+  private httpTarget(binding: Binding): string | undefined { return this.options.challenges?.find(c => c.id === binding.challengeId)?.target?.url; }
   resourceSnapshot() { return [...this.resources.values()].map(({ controller: _c, timer: _t, done: _d, detachRpc: _detach, ...record }) => record); }
   private serial<T>(fn: () => T): Promise<T> {
     const result = this.tail.then(fn); this.tail = result.catch(() => undefined); return result;
@@ -1248,7 +1296,14 @@ export class ControlService {
     const key = `${binding.sessionID}/${call}`;
     if (this.resources.has(key)) throw new ControlDenied('duplicate tool call');
     const active = [...this.resources.values()].filter(r => r.state !== 'settled');
-    if (name === 'http.request' && active.filter(r => r.tool === name && r.challengeId === binding.challengeId).length >= 8) throw new ControlDenied('http limit');
+    if (name === 'http.request' && this.httpHopsAdmitted >= this.httpLimits.maxHopsPerRun) {
+      this.httpLedger.denied(binding.challengeId!, 'http run total', this.httpTarget(binding));
+      throw new ControlDenied('http run total');
+    }
+    if (name === 'http.request' && active.filter(r => r.tool === name && r.challengeId === binding.challengeId).length >= 8) {
+      this.httpLedger.denied(binding.challengeId!, 'http limit', this.httpTarget(binding));
+      throw new ControlDenied('http limit');
+    }
     if(binding.role==='verifier'&&['package.read','package.prepare','job.run','verification.report'].includes(name)) {
       const e=this.verifierExecution(binding);
       if(name==='package.read'&&args.version!==e.version)throw new ControlDenied('verification version');
@@ -1268,6 +1323,7 @@ export class ControlService {
     this.resources.set(key, operation);
     const safeArgs = summarizeToolArgs(name, args, this.options.redactions);
     this.record(binding.sessionID, 'tool.registered', true, undefined, { callID: call, tool: name, challengeId: binding.challengeId, deadline: operation.deadline, safeArgs: safeArgs.summary, argFingerprint: safeArgs.fingerprint });
+    if (name === 'http.request') this.httpLedger.registered(binding.challengeId!, this.httpTarget(binding));
     const abandon = () => { this.record(binding.sessionID, 'rpc.abandoned', true, undefined, { callID: call, tool: name, job: operation.job, delivery: 'not_finished' }); operation.controller.abort('rpc abandoned'); };
     rpcSignal?.addEventListener('abort', abandon, { once: true });
     operation.detachRpc = () => rpcSignal?.removeEventListener('abort', abandon);
@@ -1284,15 +1340,22 @@ export class ControlService {
           this.checkReconTool(binding, name);
           let result: unknown;
           if (name === 'http.request') {
-            const challenge = this.options.challenges!.find(c => c.id === binding.challengeId)!;
-            if (!challenge.target?.url) throw new ControlDenied('http target');
+            const target = this.httpTarget(binding);
+            if (!target) throw new ControlDenied('http target');
             let adapter = this.http.get(binding.sessionID);
             if (!adapter) {
               const jar = this.jars.get(binding.challengeId!) ?? new CookieJar(); this.jars.set(binding.challengeId!, jar);
-              adapter = createHttpTools({ target: challenge.target.url, jar, workDir: roots.workDir, redactions: this.options.redactions }); this.http.set(binding.sessionID, adapter);
+              adapter = createHttpTools({ target, jar, workDir: roots.workDir, redactions: this.options.redactions }); this.http.set(binding.sessionID, adapter);
             }
             const resource=randomUUID(); let captured: {bytes:Buffer;complete:boolean;http:HttpResponseFacts}|undefined;
-            const response=await adapter.request(args, { ...operation, signal: operation.controller.signal, capture:(bytes,complete,http)=>{captured={bytes,complete,http};} });
+            const challengeId=binding.challengeId!;
+            const response=await adapter.request(args, { ...operation, signal: operation.controller.signal, capture:(bytes,complete,http)=>{captured={bytes,complete,http};},
+              onHop: event => event === 'started' ? this.httpLedger.hopStarted(challengeId) : this.httpLedger.hopResponded(challengeId),
+              admitHop: () => {
+                const admission = this.admitHttpHop(target);
+                if (typeof admission === 'string') this.httpLedger.hopRejected(challengeId, admission);
+                return admission;
+              } });
             if(!captured) throw new ControlDenied('http capture');
             if(operation.execution) this.outputSources.set(resource,{source:{...this.source(binding,'http',resource,operation.execution),callID:call,http:captured.http},bytes:captured.bytes,complete:captured.complete});
             result=operation.execution?{...response,resource}:response;
@@ -1484,8 +1547,12 @@ export class ControlService {
   private jobBinding(binding: Binding, roots: WorkspaceRoots): JobBinding { return { sessionId: binding.sessionID, challengeId: binding.challengeId!, ...roots }; }
   private settleResource(resource: Resource, result: string, exitCode?: number | null, streams?: ReturnType<JobManager['terminalStreams']>): void {
     if (resource.state === 'settled') return;
-    clearTimeout(resource.timer); resource.detachRpc?.(); resource.state = result === 'cleanup_unknown' ? 'unknown' : 'settled'; resource.result = result;
-    this.record(resource.sessionID, 'tool.settled', result !== 'cleanup_unknown', undefined, {
+    resource.state = result === 'cleanup_unknown' ? 'unknown' : 'settled';
+    resource.result = result;
+    if (resource.tool === 'http.request' && resource.state === 'settled') this.httpLedger.settled(resource.challengeId, result);
+    clearTimeout(resource.timer);
+    resource.detachRpc?.();
+    this.record(resource.sessionID, 'tool.settled', resource.state === 'settled', undefined, {
       callID: resource.callID, tool: resource.tool, job: resource.job, result,
       ...(exitCode !== undefined ? { exitCode } : {}), ...(streams ? { streams } : {})
     });

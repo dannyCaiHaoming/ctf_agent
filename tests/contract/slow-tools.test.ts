@@ -454,6 +454,7 @@ it('fake-clock host wait approval caps at binding lifetime and expires an alread
   expect(c.resourceSnapshot().find(r => r.callID === 'deadline')?.state).toBe('active');
   await vi.advanceTimersByTimeAsync(10000); expect(String(await work)).toMatch(/timeout|lapsed/);
   expect(c.resourceSnapshot().find(r => r.callID === 'deadline')?.state).not.toBe('active');
+  expect(c.httpLedgerSnapshot().challenges[0]?.hops).toEqual({ started: 1, responded: 0, unresolved: 1, rejected: {} });
 });
 
 it('product plugin correlates trusted before/execute args without a non-public ToolContext.callID', async () => {
@@ -499,9 +500,14 @@ it('C retains HTTP cleanup_unknown reservation when response persistence is bloc
   const target = await server((_req, res) => res.end('body')); const { c } = await fixture(target);
   const entered = gate(); const release = gate(); fsGate.suffix = '/a/http'; fsGate.entered = entered.resolve; fsGate.wait = release.promise;
   const work = execute(c, 'a', 'http.request', { url: target, timeout_ms: 30000 }, 'persist').catch(e => e);
-  await entered.promise; await c.revoke('a'); expect(String(await work)).toContain('cleanup_unknown');
-  expect(c.resourceSnapshot().find(r => r.callID === 'persist')).toMatchObject({ state: 'unknown', result: 'cleanup_unknown' });
-  release.resolve();
+  try {
+    await entered.promise; await c.revoke('a'); expect(String(await work)).toContain('cleanup_unknown');
+    expect(c.resourceSnapshot().find(r => r.callID === 'persist')).toMatchObject({ state: 'unknown', result: 'cleanup_unknown' });
+    expect(c.httpLedgerSnapshot().challenges[0]?.calls).toEqual({
+      registered: 1, deniedBeforeRegistration: {}, results: {}, unsettled: 1
+    });
+    expect(c.httpLedgerSnapshot().challenges[0]?.hops).toEqual({ started: 1, responded: 1, unresolved: 0, rejected: {} });
+  } finally { release.resolve(); }
 });
 
 

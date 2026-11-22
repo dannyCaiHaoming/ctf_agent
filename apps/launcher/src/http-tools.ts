@@ -4,7 +4,7 @@
 // later DNS answer cannot move a request. Nothing here injects credentials or reads the process proxy environment.
 import { mkdir, writeFile } from 'node:fs/promises';
 import { lookup as dnsLookup } from 'node:dns/promises';
-import { request as httpRequest, type ClientRequest, type IncomingHttpHeaders, type OutgoingHttpHeaders } from 'node:http';
+import { request as httpRequest, validateHeaderName, type ClientRequest, type IncomingHttpHeaders, type OutgoingHttpHeaders } from 'node:http';
 import { request as httpsRequest } from 'node:https';
 import { isIP, type LookupFunction } from 'node:net';
 import { join } from 'node:path';
@@ -89,6 +89,10 @@ export interface HttpOperation {
   readonly signal: AbortSignal;
   readonly deadline: number;
   capture?: (bytes: Buffer, complete: boolean, http: HttpResponseFacts) => void;
+  /** Host accounting (G §5.6): an in-scope hop's request was created, or its full response was read. */
+  onHop?: (event: 'started' | 'responded') => void;
+  /** Reserves a hop just before request creation. Returns a refusal code or a callback to undo an unused reservation. */
+  admitHop?: () => string | (() => void);
 }
 
 export function createHttpTools(options: HttpToolOptions) {
@@ -140,12 +144,25 @@ export function createHttpTools(options: HttpToolOptions) {
         // System DNS itself cannot be cancelled; the wait is cancellable and late results have no continuation.
         const address = await Promise.race([pin(current, resolve), stopped]);
         check();
-        const response = await Promise.race([send({
-          url: current, method: currentMethod, headers, body: currentBody, address, jar: options.jar,
-          onRequest: req => {
-            requests.set(req, new Promise<void>(done => req.once('close', done)));
-          }
-        }), stopped]);
+        const admission = operation.admitHop?.();
+        if (typeof admission === 'string') throw new HttpRefused(admission);
+        let started = false;
+        let pending: Promise<Sent>;
+        try {
+          pending = send({
+            url: current, method: currentMethod, headers, body: currentBody, address, jar: options.jar,
+            onRequest: req => {
+              started = true;
+              requests.set(req, new Promise<void>(done => req.once('close', done)));
+              operation.onHop?.('started');
+            }
+          });
+        } finally {
+          // send creates the request synchronously. Release an unused reservation before yielding to another hop.
+          if (!started) admission?.();
+        }
+        const response = await Promise.race([pending, stopped]);
+        operation.onHop?.('responded');
         check();
         options.jar.store(current, response.headers['set-cookie']);
         chain.push({ origin: current.origin, path: current.pathname, status: response.statusCode });
@@ -281,6 +298,7 @@ function parseHeaders(value: unknown): OutgoingHttpHeaders {
   if (entries.length > MAX_HEADER_COUNT) throw new HttpRefused('header');
   const headers: OutgoingHttpHeaders = {};
   for (const [rawName, rawValue] of entries) {
+    try { validateHeaderName(rawName); } catch { throw new HttpRefused('header'); }
     const name = rawName.toLowerCase();
     if (typeof rawValue !== 'string' || Buffer.byteLength(rawValue) > MAX_HEADER_VALUE) throw new HttpRefused('header');
     if (REFUSED_REQUEST_HEADERS.has(name) || name.startsWith('proxy-')) throw new HttpRefused('header');

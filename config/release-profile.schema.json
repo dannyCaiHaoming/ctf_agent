@@ -46,6 +46,9 @@
         "maxToolJobs": { "type": "integer", "minimum": 1 },
         "maxObservableTokens": { "type": "integer", "minimum": 1 },
         "reconMaxModelCalls": { "type": "integer", "minimum": 2, "description": "Explicit pathological ceiling B for recon model-call admissions per run/challenge, chosen by the run owner before launch; natural handoff may occur earlier. Includes the closure reserve. Both fields absent means OFF/unavailable with no implicit defaults; global budgets still apply. loadReleaseProfile requires safe integers with 0<R<B." },
+        "httpRatePerSecond": { "type": "number", "exclusiveMinimum": 0, "maximum": 1.7976931348623157e308, "description": "G design §4.6: sustained sent HTTP hops per second per target origin. Absent takes the launcher default 20." },
+        "httpBurst": { "type": "integer", "minimum": 1, "maximum": 9007199254740991, "description": "G design §4.6: burst of sent HTTP hops per target origin. Absent takes the launcher default 50." },
+        "maxHttpHops": { "type": "integer", "minimum": 1, "maximum": 9007199254740991, "description": "G design §4.6: total sent HTTP hops per run across all targets. Absent takes the launcher default 5000." },
         "reconClosureReserve": { "type": "integer", "minimum": 1, "description": "Explicit closure reserve R within B, not extra calls: closure starts at B-R and exhaustion at B. Configure both safe integers together with 0<R<B, validated by loadReleaseProfile. Both fields absent means OFF/unavailable." }
       },
       "dependentRequired": { "reconMaxModelCalls": ["reconClosureReserve"], "reconClosureReserve": ["reconMaxModelCalls"] },

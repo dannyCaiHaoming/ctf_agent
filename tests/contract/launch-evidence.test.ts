@@ -125,6 +125,13 @@ describe('launch failure evidence with SDK stand-in only', () => {
     expect(audit.filter((r: { op: string }) => r.op === 'recon.admitted')).toHaveLength(5);
     expect(audit.some((r: { op: string }) => r.op === 'tool.registered')).toBe(false);
   });
+  it('wires optional profile HTTP limits through launch into the written ledger', async () => {
+    const path = join(dir, 'profile.json'), profile = JSON.parse(await readFile(path, 'utf8'));
+    profile.budget.httpRatePerSecond = 0.5; profile.budget.httpBurst = 3; profile.budget.maxHttpHops = 7;
+    await writeFile(path, JSON.stringify(profile));
+    expect(await run()).toMatchObject({ code: 0, status: 'completed' });
+    expect((await json('evidence/http-ledger.json')).limits).toEqual({ perSecond: 0.5, burst: 3, maxHopsPerRun: 7 });
+  });
   it('keeps normal success and complete reported usage', async () => {
     expect(await run()).toMatchObject({ code: 0, status: 'completed' });
     const record = await checkEvidence();

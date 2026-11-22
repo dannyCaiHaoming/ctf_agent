@@ -143,6 +143,11 @@ try {
   const bindings = await load('bindings.json'), executions = await load('task-executions.json'), resources = await load('tool-resources.json'), audit = await load('control-audit.json');
   assert.equal(provider.length, audit.filter((r: any) => r.op === 'model.call' && r.allow).length);
   assert.equal(targetRequests.length, 1);
+  // G §5.6: the run-level HTTP ledger agrees with what the local target actually received.
+  const httpLedger = await load('http-ledger.json');
+  assert.deepEqual(httpLedger.limits, { perSecond: 20, burst: 50, maxHopsPerRun: 5000 });
+  assert.deepEqual(httpLedger.totals, { registered: 1, hopsStarted: targetRequests.length, hopsResponded: targetRequests.length, hopsUnresolved: 0, hopsRejected: 0 });
+  assert.deepEqual(httpLedger.challenges[0].calls.results, { completed: 1 });
   assert(resources.every((r: any) => r.state === 'settled')); assert(resources.some((r: any) => r.result === 'exited'));
   const solverExecutions = executions.filter((e: any) => e.role === 'domain-solver');
   assert.equal(solverExecutions.length, 2); assert.equal(solverExecutions[0].childID, solverID); assert.equal(solverExecutions[1].childID, solverID); assert.notEqual(solverExecutions[0].ref, solverExecutions[1].ref);
@@ -198,7 +203,7 @@ try {
     toolImageCheck = { image: toolImage, ...(crates ? { crates } : {}), id: evidenceImage.id, inventorySha256: evidenceImage.inventorySha256, jobDescriptionPointsToInventory: described,
       jobSessions: jobSessions.size, jobResults: resources.filter((r: any) => r.tool === 'job.run').map((r: any) => r.result), containersLeftAfterRun: 0 };
   }
-  const summary = { status: result.status, phase, requests: provider.length, executions: executions.length, resources: resources.length, targetRequests, realModelCalls: 0,
+  const summary = { status: result.status, phase, requests: provider.length, executions: executions.length, resources: resources.length, targetRequests, httpLedger: httpLedger.totals, realModelCalls: 0,
     ...(toolImageCheck ? { toolImage: toolImageCheck } : {}),
     gWiring: 'passed', packageVersion, completeTeamSolve: 'Engineer package and version-bound Verifier recompute pass; verification.report and completion not exercised', realModelAbility: 'unverified', solved: false,
     recoveryCritic: 'not triggered: one ordinary script failure, no persistent stagnation', isolation: 'not verified; known same-uid/direct-network limitations retained' };

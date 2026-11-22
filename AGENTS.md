@@ -105,27 +105,19 @@ npm run build
 ### Implicit Rules
 - Reply to user in Traditional Chinese
 - Commit/push only on explicit request; trailer Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
-- No model-driven pentest or exploitation in engineering sessions; real model runs need user authorization of target, model/provider, batch, token cap
-- Run evidence: bounded reads (jq/grep/sed -n), keyword booleans, no transcript dumps, no flag/candidate/challenge text in outputs; challenge-level analysis goes to experiment-mode session
-- Offline Python with python3 -I; gate files counts only, mode 644
-- Run data at /Users/caihaoming/Documents/pentest-agent-run-data/<batch>/; harness output must be outside repo; scratch in /tmp/ctf-goal
-- Product role files (product/) need user review before writing; every product commit must be added to INCLUDE or EXCLUDE in tests/manual/paired-control-product.py (84ae5c24 included)
-- Product docs are Traditional Chinese since 572c5141
-- Codex: astra = codex exec -m gpt-6.2-astra -c model_reasoning_effort=medium -s read-only -o <file>; sol = -m gpt-6.2-sol -c model_reasoning_effort=high -s workspace-write --add-dir /tmp/ctf-goal; sol sandbox cannot open sockets; macOS has no timeout
-- Check open-source survey (2026-11-12-open-source-ctf-skill-survey.md) first for hard judgments; label source level (verified original vs paraphrase)
-- Design writing rules in AGENTS.md: snapshot not run log, session IDs/seq in gates or analysis, no internal jargon
-- Leave untracked docs/gates/workbook-smoke-20261116/check.err alone; deleting tracked files or changing root AGENTS.md/CLAUDE.md entry labels needs user confirmation
+- Leave untracked docs/gates/workbook-smoke-20261116/check.err alone
+- Challenge-level analysis (reasoning text) goes to experiment-mode session via prompts; engineering session uses only structured fields (seq, op, counts)
+- Codex astra: codex exec -m gpt-6.2-astra -c model_reasoning_effort=high -s read-only -o <file> - < brief; scratch and outputs in /tmp/ctf-goal (not persistent; write conclusions back to design)
+- Tests: npm test (full), npm run test:deterministic, npx tsc --noEmit; doc links via python3 -I /tmp/ctf-goal/linkcheck.py
+- Tool image tag ctf-tool-image:dev, current id sha256:7605ef939bd3...; real-run prompts must check this id
 
 ### Key Decisions
-- Decision: main acceptance = candidate production via method selection; Skill load rate auxiliary — Reason: drift toward 'did Skill load' replaced real goal
-- Decision: no more prompt-position patches in role files; trigger position tested via harness single-variable comparisons — Reason: whole-run tests cannot separate trigger/content/adoption/execution
-- Decision: exploit-type method candidates in B §7.1 not built — Reason: user boundary, no exploitation content
-- Decision: method gaps filled with short harmless demonstrations (failure->correction turn) not rules — Reason: EnIGMA demonstration ablation is only ablation-backed knowledge form; extra rule sentences duplicate existing rules
-- Decision: first demonstration in Traditional Chinese as runtime-boundaries.md §6 before sources, commit INCLUDE in paired-control — Reason: Reference is Chinese; both arms must carry it for fair comparison
-- Decision: second method-gap topic not opened — Reason: stop-attribution structural fields (environment 7, tool 4 all RustAction) cannot separate it from first topic; EspressoCoffee environment stops need challenge-level review in experiment-mode session
-- Decision: trigger verdict counts model runs only; unconfirmed presentation = incomplete; baseline showing treatment = engineering_failure; short/mid disagreement = unknown — Reason: Skill §10 pre-registered thresholds, avoid post-hoc threshold chasing
-- Decision: Critic read-only workbook view deferred — Reason: team-decision §6.4 requires prior slice behavioral evidence
-- Decision: candidate-handback reminder and remaining-time restart not implemented — Reason: synthetic comparison unknown (baseline ceiling); restart needs ~93 runs/arm
-- Decision: workbook omission rule (short rows, protected candidate/open hyps/questions) implemented in host — Reason: offline replay showed peaks within cap without dropping protected entries
+- Decision: tool image line closed — Reason: stop review found 0 of 8 stops caused by missing image tools; crate prefetch works but models never built challenge project
+- Decision: G §5.4 main direction per-run host runner holding Docker behind narrow interface, fallback launcher holds Docker; not implemented — Reason: product control container (core design §2 F) does not exist yet; rootless-in-container fails unshare EPERM
+- Decision: batch HTTP product entry not built (user 2026-11-22) — Reason: solver choosing large request batches with per-item timing expands autonomous probing beyond project boundary; astra also declined; switch condition was met (2 of 3 stops pre-listable)
+- Decision: only shared limits on single http.request — Reason: tightens target traffic, safety value without capability expansion
+- Decision: limits = per-origin token bucket (20/s, burst 50) + per-run 5000 sent hops, per-hop admission before request creation, immediate refusal, no queue, refused hops not sent/not counted, run total also checked before registration — Reason: astra contract draft; defaults far above observed usage (tens per run, ~40 per 5 min)
+- Decision: no coordinator redispatch dedupe — Reason: Q1-rule recheck a 15/17, b only in one run near end; repeatedRoute is route-level not question-level
+- Decision: removeAll counts container removed only if rm succeeds or Docker reports missing; else keep record and reject with counts — Reason: launch tool_container_cleanup_error never fired before
 
 <!-- handoff:learnings:end -->

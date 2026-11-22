@@ -20,7 +20,9 @@ export interface ReleaseProfile {
     /** Explicit pathological recon ceiling B per run/challenge, selected by the run owner before launch; not a natural handoff target. Absent pair means OFF/unavailable, with global budgets unchanged. */
     reconMaxModelCalls?: number;
     /** Reserve R within B (0<R<B): closure starts at B-R, exhaustion at B. Configure both safe integers together; no implicit defaults. */
-    reconClosureReserve?: number };
+    reconClosureReserve?: number;
+    /** G §4.6 HTTP limits per run: sustained hops/s and burst per target origin, total sent hops. Absent takes the launcher defaults (20, 50, 5000). */
+    httpRatePerSecond?: number; httpBurst?: number; maxHttpHops?: number };
   os: { platform: 'macos' | 'linux' };
 }
 
@@ -69,8 +71,19 @@ function assertReleaseProfile(value: unknown): asserts value is ReleaseProfile {
       (context.workbook !== undefined && typeof context.workbook !== 'boolean')) throw new Error('invalid context settings');
   }
   const budget = profile.budget as Record<string, unknown>;
-  for (const key of ['wallClockMs', 'maxSteps', 'maxToolJobs', 'maxObservableTokens']) {
+  if (!budget || typeof budget !== 'object' || Array.isArray(budget)) throw new Error('invalid budget');
+  const requiredBudgetKeys = ['wallClockMs', 'maxSteps', 'maxToolJobs', 'maxObservableTokens'];
+  const httpBudgetKeys = ['httpRatePerSecond', 'httpBurst', 'maxHttpHops'];
+  const allowedBudgetKeys = new Set([...requiredBudgetKeys, ...httpBudgetKeys, 'reconMaxModelCalls', 'reconClosureReserve']);
+  for (const key of Object.keys(budget)) {
+    if (!allowedBudgetKeys.has(key)) throw new Error(`unknown budget field ${key}`);
+  }
+  for (const key of requiredBudgetKeys) {
     if (typeof budget[key] !== 'number' || budget[key] <= 0) throw new Error(`invalid budget.${key}`);
+  }
+  for (const key of httpBudgetKeys) {
+    const v = budget[key];
+    if (v !== undefined && (typeof v !== 'number' || !Number.isFinite(v) || v <= 0 || (key !== 'httpRatePerSecond' && !Number.isSafeInteger(v)))) throw new Error(`invalid budget.${key}`);
   }
   const b = budget.reconMaxModelCalls, r = budget.reconClosureReserve;
   if (b !== undefined || r !== undefined) {
