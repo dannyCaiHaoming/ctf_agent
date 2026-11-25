@@ -258,7 +258,7 @@ Engineer、Verifier 與裁判的權限不合併，「Solver 宣稱候選」不�
 
 **實作驗證。** `apps/launcher/src/workbook.ts` 的兩個視圖改用此規則，舊實作凍結在 `tests/manual/workbook-legacy-view.ts` 供重放重建歷史呈現。正式函式與重放參考逐次比對：真實與 2 倍壓力組各 4,062 次，全文／短列／省略的 id 集合與字元數 100% 一致，無超限、無容量不足；舊規則重算仍與審計記錄 100% 一致。契約測試改寫 4 項舊規則斷言並新增 5 項（欄位上限轉短列、壓力下只刪事實、受保護條目只以容量不足刪除、全文轉短列的 delta、Coordinator 短列格式與多題折疊次序），確定性測試 840 項通過。
 
-**未驗證。** 重放只證明呈現與可追溯性；角色看到短列後會不會用 `recon.read` 展開、判斷是否因此改善，需實作後的真實 run 觀察。多題同時呈現只有合成測試覆蓋。
+**已觀察（2026-11-25；合成案例、每格 5 次、單一模型）。** 關鍵條目 id 1 壓成短列時，5／5 次以 `recon.read` 展開後產物通過檢查；全文可見對照組 5／5 次通過、0／5 次呼叫 `recon.read`。判讀為「短列可承接」。限制：案例、模型（`volcano-plan/deepseek-v4.1-flash`，Solver 開思考）與每格次數都單一，harness 不經 Coordinator、context 只帶問題與工作簿；不據此修改角色提示。證據見 [gate](../../gates/workbook-short-row-20261125/summary.json)。多題同時呈現只有合成測試覆蓋。
 4. **總量上限。** 每個角色視圖設總字元上限；超界明示 coverage 與 omitted ids，不截斷後聲稱完整。200 條步驟索引已改為按需讀取、預設只注入摘要（[Recon 重設計 §4](2026-10-29-design-v1-recon-redesign.md)，運行設定 `context.index`）。
 
 **上限數值（候選，2026-11-11 離線估算）。**

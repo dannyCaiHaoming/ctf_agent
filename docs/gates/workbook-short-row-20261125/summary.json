@@ -1,0 +1,207 @@
+{
+ "batch": "workbook-short-row-20261125",
+ "date": "2026-11-25",
+ "authorization": {
+  "source": "user-authorized experiment batch (2026-11-25)",
+  "case": "tests/manual/fixed-point-cases/short-row-expand.json",
+  "variants": [
+   "short-row",
+   "full-visible"
+  ],
+  "model": "volcano-plan/deepseek-v4.1-flash",
+  "solver_thinking": "enabled",
+  "opencode_config": "runs/runtime-diag-20261117/configs/opencode.json",
+  "runs_per_variant": 5,
+  "runs_total": 10,
+  "per_run_max_model_calls": 40,
+  "per_run_timeout_ms": 600000,
+  "batch_model_call_cap": 400,
+  "batch_token_cap": 5000000
+ },
+ "preregistration": {
+  "valid_run": "failure is null and modelCalls > 0",
+  "engineering_failure": "short-row key_entry_is_short != true, or full-visible key_entry_is_short != false",
+  "A_expanded": "short_row_probe.rounds[0].first_key_entry_read_t_ms is not null",
+  "B_artifact_passed": "short_row_probe.artifact_check.passed",
+  "C_used_key_parameter": "work/result.json and artifact_check show the key entry conversion parameter",
+  "control_invalid": "full-visible valid runs with B passed < 4",
+  "carried": "short-row A >= 4 and B >= full-visible B - 1",
+  "lost": "short-row A <= 2 or B <= full-visible B - 2",
+  "otherwise": "unknown"
+ },
+ "mock_check": {
+  "short-row": {
+   "failure": null,
+   "key_entry_is_short": true
+  },
+  "full-visible": {
+   "failure": null,
+   "key_entry_is_short": false
+  }
+ },
+ "runs": [
+  {
+   "run": "full-visible-r1",
+   "variant": "full-visible",
+   "valid": true,
+   "failure": null,
+   "model_calls": 7,
+   "key_entry_is_short": false,
+   "A_expanded_key_entry": false,
+   "B_artifact_passed": true,
+   "C_used_key_parameter": true
+  },
+  {
+   "run": "full-visible-r2",
+   "variant": "full-visible",
+   "valid": true,
+   "failure": null,
+   "model_calls": 7,
+   "key_entry_is_short": false,
+   "A_expanded_key_entry": false,
+   "B_artifact_passed": true,
+   "C_used_key_parameter": true
+  },
+  {
+   "run": "full-visible-r3",
+   "variant": "full-visible",
+   "valid": true,
+   "failure": null,
+   "model_calls": 6,
+   "key_entry_is_short": false,
+   "A_expanded_key_entry": false,
+   "B_artifact_passed": true,
+   "C_used_key_parameter": true
+  },
+  {
+   "run": "full-visible-r4",
+   "variant": "full-visible",
+   "valid": true,
+   "failure": null,
+   "model_calls": 8,
+   "key_entry_is_short": false,
+   "A_expanded_key_entry": false,
+   "B_artifact_passed": true,
+   "C_used_key_parameter": true
+  },
+  {
+   "run": "full-visible-r5",
+   "variant": "full-visible",
+   "valid": true,
+   "failure": null,
+   "model_calls": 7,
+   "key_entry_is_short": false,
+   "A_expanded_key_entry": false,
+   "B_artifact_passed": true,
+   "C_used_key_parameter": true
+  },
+  {
+   "run": "short-row-r1",
+   "variant": "short-row",
+   "valid": true,
+   "failure": null,
+   "model_calls": 7,
+   "key_entry_is_short": true,
+   "A_expanded_key_entry": true,
+   "B_artifact_passed": true,
+   "C_used_key_parameter": true
+  },
+  {
+   "run": "short-row-r2",
+   "variant": "short-row",
+   "valid": true,
+   "failure": null,
+   "model_calls": 8,
+   "key_entry_is_short": true,
+   "A_expanded_key_entry": true,
+   "B_artifact_passed": true,
+   "C_used_key_parameter": true
+  },
+  {
+   "run": "short-row-r3",
+   "variant": "short-row",
+   "valid": true,
+   "failure": null,
+   "model_calls": 8,
+   "key_entry_is_short": true,
+   "A_expanded_key_entry": true,
+   "B_artifact_passed": true,
+   "C_used_key_parameter": true
+  },
+  {
+   "run": "short-row-r4",
+   "variant": "short-row",
+   "valid": true,
+   "failure": null,
+   "model_calls": 9,
+   "key_entry_is_short": true,
+   "A_expanded_key_entry": true,
+   "B_artifact_passed": true,
+   "C_used_key_parameter": true
+  },
+  {
+   "run": "short-row-r5",
+   "variant": "short-row",
+   "valid": true,
+   "failure": null,
+   "model_calls": 8,
+   "key_entry_is_short": true,
+   "A_expanded_key_entry": true,
+   "B_artifact_passed": true,
+   "C_used_key_parameter": true
+  }
+ ],
+ "cells": {
+  "short-row": {
+   "runs": 5,
+   "valid_runs": 5,
+   "A_expanded": 5,
+   "B_passed": 5,
+   "C_used_parameter": 5
+  },
+  "full-visible": {
+   "runs": 5,
+   "valid_runs": 5,
+   "A_expanded": 0,
+   "B_passed": 5,
+   "C_used_parameter": 5
+  }
+ },
+ "invalid_runs": [],
+ "engineering_failures": [],
+ "budget": {
+  "model_calls_used": 75,
+  "model_call_cap": 400,
+  "conservative_total_tokens": 1172923,
+  "token_cap": 5000000,
+  "within_budget": true
+ },
+ "usage": {
+  "available_runs": 10,
+  "unavailable_runs": 0,
+  "messages_total": 75,
+  "messages_with_tokens": 75,
+  "messages_missing_fields": 0,
+  "missing_fields": {
+   "input": 0,
+   "output": 0,
+   "reasoning": 0,
+   "cache_read": 0,
+   "cache_write": 0,
+   "cost": 0
+  },
+  "tokens": {
+   "input": 179338,
+   "output": 14088,
+   "reasoning": 18601,
+   "cache": {
+    "read": 960896,
+    "write": 0
+   }
+  },
+  "cost": 0,
+  "conservative_total_tokens": 1172923
+ },
+ "verdict": "短列可承接",
+ "verdict_code": "carried"
+}
